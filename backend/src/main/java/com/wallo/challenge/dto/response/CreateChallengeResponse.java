@@ -16,6 +16,8 @@ public class CreateChallengeResponse {
     private final LocalDateTime createdAt;
 
     private CreateChallengeResponse(Challenge challenge) {
+
+        // DB에 저장된 Challenge 객체의 값을 응답 DTO로 복사
         this.id = challenge.getId();
         this.name = challenge.getName();
         this.challengeType = challenge.getChallengeType();

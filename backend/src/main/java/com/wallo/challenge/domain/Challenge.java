@@ -8,12 +8,25 @@ import java.time.LocalDateTime;
  */
 public class Challenge {
 
+    // challenge 테이블의 PK
     private Long id;
+
+    // 챌린지를 만든 사용자 ID → users.id와 연결
     private Long ownerId;
+
+    // 챌린지 이름
     private String name;
+
+    // 챌린지 유형
     private String challengeType;
+
+    // 다른 사용자를 초대할 때 쓰는 고유 코드
     private String inviteCode;
+
+    // 챌린지 상태 예: ACTIVE, CLOSED
     private String status;
+
+    // 생성 시각
     private LocalDateTime createdAt;
 
     public Long getId() {
