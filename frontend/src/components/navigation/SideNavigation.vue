@@ -9,9 +9,10 @@ const primaryMenus = [
   { icon: '🤖', label: 'AI 컨설팅' },
 ]
 
-const challengeMenus = ['피드 목록', '랭킹 · 리워드', '내 챌린지', '포인트 샵']
+const challengeMenus = ['피드 목록', '랭킹 · 리워드', '내 챌린지']
 
 const utilityMenus = [
+  { icon: '🛍️', label: '포인트 샵' },
   { icon: '📇', label: '금융 리포트' },
   { icon: '⚙️', label: '설정' },
 ]
