@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wallo.challenge.mapper.ChallengeMapper">
+
+    <!-- DB 컬럼명과 Challenge Java 필드명을 명시적으로 연결한다. -->
+    <resultMap id="challengeResultMap" type="com.wallo.challenge.domain.Challenge">
+        <id property="id" column="id" />
+        <result property="ownerId" column="owner_id" />
+        <result property="name" column="name" />
+        <result property="challengeType" column="challenge_type" />
+        <result property="inviteCode" column="invite_code" />
+        <result property="status" column="status" />
+        <result property="createdAt" column="created_at" />
+    </resultMap>
+
+    <!-- useGeneratedKeys: INSERT 뒤 DB가 만든 challenge.id를 객체에 반영한다. -->
+    <insert id="insertChallenge"
+            parameterType="com.wallo.challenge.domain.Challenge"
+            useGeneratedKeys="true"
+            keyProperty="id">
+        INSERT INTO challenge (
+            owner_id,
+            name,
+            challenge_type,
+            invite_code,
+            status,
+            created_at
+        ) VALUES (
+            #{ownerId},
+            #{name},
+            #{challengeType},
+            #{inviteCode},
+            #{status},
+            #{createdAt}
+        )
+    </insert>
+
+    <select id="findChallengeById" resultMap="challengeResultMap">
+        SELECT
+            id,
+            owner_id,
+            name,
+            challenge_type,
+            invite_code,
+            status,
+            created_at
+        FROM challenge
+        WHERE id = #{challengeId}
+    </select>
+
+    <select id="findCurrentChallengeIdByUserId" resultType="java.lang.Long">
+        SELECT current_challenge_id
+        FROM users
+        WHERE id = #{userId}
+    </select>
+
+    <update id="updateCurrentChallengeId">
+        UPDATE users
+        SET current_challenge_id = #{challengeId}
+        WHERE id = #{userId}
+    </update>
+
+    <select id="countByInviteCode" resultType="int">
+        SELECT COUNT(*)
+        FROM challenge
+        WHERE invite_code = #{inviteCode}
+    </select>
+</mapper>
