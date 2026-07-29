@@ -23,7 +23,7 @@ onMounted(() => {
     <div class="user-summary d-flex align-items-center">
       <!-- 프로필 이미지와 이름을 누르면 설정 페이지로 이동함 -->
       <RouterLink
-        to="/api/users/profile"
+        to="/users/profile"
         class="profile-link d-flex align-items-center"
         aria-label="설정 페이지로 이동"
       >
@@ -41,7 +41,7 @@ onMounted(() => {
 
       <!-- 보유 포인트를 누르면 포인트 샵으로 이동함 -->
       <RouterLink
-        to="/api/point-shop"
+        to="/point-shop"
         class="point-badge d-inline-flex align-items-center"
         aria-label="포인트 샵으로 이동"
       >
@@ -59,6 +59,12 @@ onMounted(() => {
 
 <style scoped>
 .top-header {
+  position: fixed;
+  z-index: 1020;
+  top: 0;
+  right: 0;
+  left: 273px;
+  height: 68px;
   min-height: 68px;
   padding: 0 22px;
   background: #f1f2ff;
