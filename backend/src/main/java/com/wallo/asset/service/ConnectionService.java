@@ -3,36 +3,26 @@ package com.wallo.asset.service;
 import com.wallo.asset.domain.Institution;
 import com.wallo.asset.dto.ConnectionDto;
 import com.wallo.asset.exception.ConnectionConsentRequiredException;
-import com.wallo.asset.mapper.ConnectionMapper;
-import com.wallo.common.exception.CustomException;
-import com.wallo.common.exception.ErrorCode;
 import com.wallo.external.client.CodefClient;
 import com.wallo.external.dto.CodefDto;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
-import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ConnectionService {
 
-    private final ConnectionMapper connectionMapper;
     private final CodefClient codefClient;
     private final InstitutionService institutionService;
 
     public ConnectionService(
-            ConnectionMapper connectionMapper,
             CodefClient codefClient,
             InstitutionService institutionService
     ) {
-        this.connectionMapper = connectionMapper;
         this.codefClient = codefClient;
         this.institutionService = institutionService;
     }
 
-    @Transactional
     public ConnectionDto.Response connectAllAssets(ConnectionDto.Request request) {
         validateConsent(request);
 
@@ -42,7 +32,7 @@ public class ConnectionService {
             results.add(toConnectionResult(institution, codefResponse));
         }
 
-        saveSuccessfulConnections(results);
+        // 인증 사용자 식별이 구현되기 전까지 연동 결과의 DB 저장은 보류한다.
         return new ConnectionDto.Response(results);
     }
 
@@ -60,27 +50,6 @@ public class ConnectionService {
                 ConnectionDto.MOCK_ID,
                 ConnectionDto.MOCK_PASSWORD
         );
-    }
-
-    private void saveSuccessfulConnections(List<ConnectionDto.Result> results) {
-        List<ConnectionDto.Result> successfulResults = results.stream()
-                .filter(this::isSuccessful)
-                .collect(Collectors.toList());
-
-        if (successfulResults.isEmpty()) {
-            return;
-        }
-
-        try {
-            connectionMapper.insertConnections(successfulResults, ConnectionDto.MOCK_LOGIN_TYPE,
-                    ConnectionDto.MOCK_ID, ConnectionDto.MOCK_PASSWORD);
-        } catch (DataAccessException exception) {
-            throw new CustomException(ErrorCode.CONNECTION_SAVE_FAILED, exception);
-        }
-    }
-
-    private boolean isSuccessful(ConnectionDto.Result result) {
-        return ConnectionDto.Status.SUCCESS == result.getStatus();
     }
 
     private ConnectionDto.Result toConnectionResult(Institution institution, CodefDto.Response response) {
