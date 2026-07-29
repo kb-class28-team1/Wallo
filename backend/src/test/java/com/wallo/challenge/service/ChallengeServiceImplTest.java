@@ -6,8 +6,11 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.wallo.challenge.domain.Challenge;
 import com.wallo.challenge.dto.request.CreateChallengeRequest;
+import com.wallo.challenge.dto.request.JoinChallengeRequest;
 import com.wallo.challenge.dto.response.CreateChallengeResponse;
+import com.wallo.challenge.dto.response.JoinChallengeResponse;
 import com.wallo.challenge.exception.AlreadyJoinedChallengeException;
+import com.wallo.challenge.exception.InvalidInviteCodeException;
 import com.wallo.challenge.mapper.ChallengeMapper;
 import org.junit.jupiter.api.Test;
 
@@ -51,11 +54,61 @@ class ChallengeServiceImplTest {
                 () -> service.createChallenge(1L, request("새 챌린지", "SAVING")));
     }
 
+    @Test
+    void joinsChallengeWhenInviteCodeIsValidAndUserHasNoCurrentChallenge() {
+        mapper.challengeByInviteCode = challenge(10L, "함께 절약", "ABCDEFGH");
+        ChallengeService service = new ChallengeServiceImpl(mapper);
+
+        JoinChallengeResponse response = service.joinChallenge(2L, joinRequest("ABCDEFGH"));
+
+        assertEquals(10L, response.getId());
+        assertEquals("함께 절약", response.getName());
+        assertEquals("ABCDEFGH", response.getInviteCode());
+        assertEquals(10L, mapper.currentChallengeId);
+    }
+
+    @Test
+    void throwsExceptionWhenInviteCodeDoesNotMatchChallenge() {
+        FakeChallengeMapper mapper = new FakeChallengeMapper();
+        ChallengeService service = new ChallengeServiceImpl(mapper);
+
+        assertThrows(
+                InvalidInviteCodeException.class,
+                () -> service.joinChallenge(2L, joinRequest("UNKNOWN1")));
+    }
+
+    @Test
+    void throwsExceptionWhenJoiningUserAlreadyHasCurrentChallenge() {
+        FakeChallengeMapper mapper = new FakeChallengeMapper();
+        mapper.currentChallengeId = 10L;
+        ChallengeService service = new ChallengeServiceImpl(mapper);
+
+        assertThrows(
+                AlreadyJoinedChallengeException.class,
+                () -> service.joinChallenge(2L, joinRequest("ABCDEFGH")));
+    }
+
     private CreateChallengeRequest request(String name, String challengeType) {
         CreateChallengeRequest request = new CreateChallengeRequest();
         request.setName(name);
         request.setChallengeType(challengeType);
         return request;
+    }
+
+    private JoinChallengeRequest joinRequest(String inviteCode) {
+        JoinChallengeRequest request = new JoinChallengeRequest();
+        request.setInviteCode(inviteCode);
+        return request;
+    }
+
+    private Challenge challenge(Long id, String name, String inviteCode) {
+        Challenge challenge = new Challenge();
+        challenge.setId(id);
+        challenge.setName(name);
+        challenge.setChallengeType("SAVING");
+        challenge.setInviteCode(inviteCode);
+        challenge.setStatus("ACTIVE");
+        return challenge;
     }
 
     /** 실제 DB 대신 서비스 규칙만 검증하기 위한 테스트 전용 Mapper다. */
@@ -64,6 +117,7 @@ class ChallengeServiceImplTest {
         private Long currentChallengeId;
         private int updateResult = 1;
         private Challenge savedChallenge;
+        private Challenge challengeByInviteCode;
 
         @Override
         public int insertChallenge(Challenge challenge) {
@@ -75,6 +129,11 @@ class ChallengeServiceImplTest {
         @Override
         public Challenge findChallengeById(Long challengeId) {
             return savedChallenge;
+        }
+
+        @Override
+        public Challenge findChallengeByInviteCode(String inviteCode) {
+            return challengeByInviteCode;
         }
 
         @Override
