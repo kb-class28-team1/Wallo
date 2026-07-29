@@ -1,13 +1,17 @@
 package com.wallo.challenge.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.wallo.challenge.domain.Challenge;
 import com.wallo.challenge.dto.request.CreateChallengeRequest;
 import com.wallo.challenge.dto.request.JoinChallengeRequest;
 import com.wallo.challenge.dto.response.CreateChallengeResponse;
+import com.wallo.challenge.dto.response.CurrentChallengeResponse;
 import com.wallo.challenge.dto.response.JoinChallengeResponse;
 import com.wallo.challenge.exception.AlreadyJoinedChallengeException;
 import com.wallo.challenge.exception.InvalidInviteCodeException;
@@ -87,6 +91,32 @@ class ChallengeServiceImplTest {
         assertThrows(
                 AlreadyJoinedChallengeException.class,
                 () -> service.joinChallenge(2L, joinRequest("ABCDEFGH")));
+    }
+
+    @Test
+    void returnsNotJoinedWhenUserHasNoCurrentChallenge() {
+        FakeChallengeMapper mapper = new FakeChallengeMapper();
+        ChallengeService service = new ChallengeServiceImpl(mapper);
+
+        CurrentChallengeResponse response = service.getCurrentChallenge(1L);
+
+        assertFalse(response.isJoined());
+        assertNull(response.getId());
+    }
+
+    @Test
+    void returnsCurrentChallengeWhenUserIsJoined() {
+        FakeChallengeMapper mapper = new FakeChallengeMapper();
+        mapper.currentChallengeId = 10L;
+        mapper.savedChallenge = challenge(10L, "함께 절약", "ABCDEFGH");
+        ChallengeService service = new ChallengeServiceImpl(mapper);
+
+        CurrentChallengeResponse response = service.getCurrentChallenge(1L);
+
+        assertTrue(response.isJoined());
+        assertEquals(10L, response.getId());
+        assertEquals("함께 절약", response.getName());
+        assertEquals("ABCDEFGH", response.getInviteCode());
     }
 
     private CreateChallengeRequest request(String name, String challengeType) {
