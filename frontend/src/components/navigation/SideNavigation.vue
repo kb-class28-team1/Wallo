@@ -8,9 +8,9 @@ import thinkingPenguin from "@/assets/thinking-penguin.svg"
 const brandLogoSource = ref(brandPenguin)
 
 const primaryMenus = [
-  { icon: "🏠", label: "대시보드", to: "/home" },
+  { icon: "🏠", label: "대시보드", to: "/dashboard" },
   { icon: "💳", label: "자산", to: "/institutions" },
-  { icon: "🤖", label: "AI 컨설팅", to: "/dashboard" },
+  { icon: "🤖", label: "AI 컨설팅", to: "/ai-consulting" },
 ]
 
 const utilityMenus = [
@@ -101,7 +101,7 @@ const moveToMyChallenge = () => {
 <template>
   <aside class="sidebar d-flex flex-column" aria-label="주요 메뉴">
     <RouterLink
-      to="/home"
+      to="/dashboard"
       class="brand d-flex align-items-center"
       aria-label="왈로 대시보드로 이동"
     >

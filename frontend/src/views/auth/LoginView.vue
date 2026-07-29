@@ -13,7 +13,7 @@ const handleLogin = () => {
 
 // 기존 사용자가 로그인했다고 가정하고 대시보드로 바로 이동함
 const moveToDashboard = () => {
-  router.push("/home")
+  router.push("/dashboard")
 }
 </script>
 
