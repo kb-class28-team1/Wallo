@@ -23,6 +23,7 @@ public class CurrentChallengeResponse {
 
     public static CurrentChallengeResponse joined(Challenge challenge) {
         return new CurrentChallengeResponse(true, challenge);
+    }
 
     public static CurrentChallengeResponse notJoined() {
         return new CurrentChallengeResponse(false, null);
