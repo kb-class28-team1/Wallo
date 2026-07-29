@@ -1,7 +1,7 @@
 <script setup>
-import { RouterView } from 'vue-router'
-import SideNavigation from '@/components/navigation/SideNavigation.vue'
-import TopHeader from '@/components/navigation/TopHeader.vue'
+import { RouterView } from "vue-router"
+import SideNavigation from "@/components/navigation/SideNavigation.vue"
+import TopHeader from "@/components/navigation/TopHeader.vue"
 </script>
 
 <template>

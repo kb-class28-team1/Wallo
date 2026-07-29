@@ -1,14 +1,17 @@
 <script setup>
-import { computed, onMounted } from 'vue'
-import { storeToRefs } from 'pinia'
-import { RouterLink } from 'vue-router'
-import { useUserStore } from '@/stores/userStore'
+import { computed, onMounted } from "vue"
+import { storeToRefs } from "pinia"
+import { RouterLink } from "vue-router"
+import { useUserStore } from "@/stores/userStore"
 
 const userStore = useUserStore()
 const { nickname, profileImageUrl, pointBalance, isLoading } = storeToRefs(userStore)
 
 // 포인트 숫자에 천 단위 구분 기호를 적용함
-const formattedPointBalance = computed(() => pointBalance.value.toLocaleString('ko-KR'))
+const formattedPointBalance = computed(() => pointBalance.value.toLocaleString("ko-KR"))
+const displayedNickname = computed(() =>
+  isLoading.value && !nickname.value ? "불러오는 중..." : nickname.value || "username",
+)
 
 onMounted(() => {
   userStore.fetchUserProfile()
@@ -32,7 +35,7 @@ onMounted(() => {
         />
 
         <span class="user-name">
-          {{ isLoading && !nickname ? '불러오는 중...' : nickname || 'username' }}
+          {{ displayedNickname }}
         </span>
       </RouterLink>
 

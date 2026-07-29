@@ -1,22 +1,22 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { getCurrentChallenge } from '@/api/challengeApi'
-import brandPenguin from '@/assets/penguin-coins.svg'
-import thinkingPenguin from '@/assets/thinking-penguin.svg'
+import { computed, ref, watch } from "vue"
+import { RouterLink, useRoute, useRouter } from "vue-router"
+import { getCurrentChallenge } from "@/api/challengeApi"
+import brandPenguin from "@/assets/penguin-coins.svg"
+import thinkingPenguin from "@/assets/thinking-penguin.svg"
 
 const brandLogoSource = ref(brandPenguin)
 
 const primaryMenus = [
-  { icon: '🏠', label: '대시보드', to: '/api/home' },
-  { icon: '💳', label: '자산', to: '/api/institutions' },
-  { icon: '🤖', label: 'AI 컨설팅', to: '/api/dashboard' },
+  { icon: "🏠", label: "대시보드", to: "/api/home" },
+  { icon: "💳", label: "자산", to: "/api/institutions" },
+  { icon: "🤖", label: "AI 컨설팅", to: "/api/dashboard" },
 ]
 
 const utilityMenus = [
-  { icon: '🛍️', label: '포인트 샵', to: '/api/point-shop' },
-  { icon: '📇', label: '금융 리포트', to: '/api/reports' },
-  { icon: '⚙️', label: '설정', to: '/api/users/profile' },
+  { icon: "🛍️", label: "포인트 샵", to: "/api/point-shop" },
+  { icon: "📇", label: "금융 리포트", to: "/api/reports" },
+  { icon: "⚙️", label: "설정", to: "/api/users/profile" },
 ]
 
 const route = useRoute()
@@ -28,10 +28,22 @@ const isChallengeChecking = ref(false)
 // 챌린지 관련 페이지에 접속 중인지 현재 URL로 판단함
 const isChallengeRoute = computed(
   () =>
-    route.path === '/api/challenges/current' ||
-    route.path.startsWith('/api/challenges/') ||
-    route.path === '/api/users/me/challenge-dashboard',
+    route.path === "/api/challenges/current" ||
+    route.path.startsWith("/api/challenges/") ||
+    route.path === "/api/users/me/challenge-dashboard",
 )
+const challengeGroupClass = computed(() => ({
+  "challenge-group-active": isChallengeRoute.value,
+}))
+const collapseMarkClass = computed(() => ({
+  "collapse-mark-open": isChallengeOpen.value,
+}))
+const weeklyRankingClass = computed(() => ({
+  "submenu-link-active": route.path === "/api/challenges/rankings/weekly",
+}))
+const myChallengeClass = computed(() => ({
+  "submenu-link-active": route.path === "/api/users/me/challenge-dashboard",
+}))
 
 // 챌린지 관련 페이지에서는 새로고침 후에도 하위 메뉴가 펼쳐짐
 watch(
@@ -65,16 +77,24 @@ const moveToChallengeMemberPage = async (targetPath) => {
     const response = await getCurrentChallenge()
 
     if (!response?.data?.hasChallenge) {
-      alert('챌린지 참여가 확인되지 않습니다.')
+      alert("챌린지 참여가 확인되지 않습니다.")
       return
     }
 
     await router.push(targetPath)
   } catch (error) {
-    alert('챌린지 참여가 확인되지 않습니다.')
+    alert("챌린지 참여가 확인되지 않습니다.")
   } finally {
     isChallengeChecking.value = false
   }
+}
+
+const moveToWeeklyRanking = () => {
+  moveToChallengeMemberPage("/api/challenges/rankings/weekly")
+}
+
+const moveToMyChallenge = () => {
+  moveToChallengeMemberPage("/api/users/me/challenge-dashboard")
 }
 </script>
 
@@ -107,7 +127,7 @@ const moveToChallengeMemberPage = async (targetPath) => {
         </RouterLink>
       </div>
 
-      <div class="challenge-group" :class="{ 'challenge-group-active': isChallengeRoute }">
+      <div class="challenge-group" :class="challengeGroupClass">
         <div class="challenge-heading d-flex align-items-center">
           <button
             type="button"
@@ -130,7 +150,7 @@ const moveToChallengeMemberPage = async (targetPath) => {
           >
             <span
               class="collapse-mark ms-auto"
-              :class="{ 'collapse-mark-open': isChallengeOpen }"
+              :class="collapseMarkClass"
               aria-hidden="true"
             ></span>
           </button>
@@ -153,9 +173,9 @@ const moveToChallengeMemberPage = async (targetPath) => {
             <button
               type="button"
               class="submenu-item submenu-link d-flex align-items-center"
-              :class="{ 'submenu-link-active': route.path === '/api/challenges/rankings/weekly' }"
+              :class="weeklyRankingClass"
               :disabled="isChallengeChecking"
-              @click="moveToChallengeMemberPage('/api/challenges/rankings/weekly')"
+              @click="moveToWeeklyRanking"
             >
               <span class="submenu-dot" aria-hidden="true"></span>
               <span>주간랭킹</span>
@@ -164,11 +184,9 @@ const moveToChallengeMemberPage = async (targetPath) => {
             <button
               type="button"
               class="submenu-item submenu-link d-flex align-items-center"
-              :class="{
-                'submenu-link-active': route.path === '/api/users/me/challenge-dashboard',
-              }"
+              :class="myChallengeClass"
               :disabled="isChallengeChecking"
-              @click="moveToChallengeMemberPage('/api/users/me/challenge-dashboard')"
+              @click="moveToMyChallenge"
             >
               <span class="submenu-dot" aria-hidden="true"></span>
               <span>내 챌린지</span>

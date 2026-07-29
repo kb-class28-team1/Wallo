@@ -1,7 +1,7 @@
 :root {
   color: #1e2941;
   background: #fafafa;
-  font-family: 'Pretendard Variable', sans-serif;
+  font-family: "Pretendard Variable", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -20,5 +20,5 @@ body {
   min-width: 320px;
   min-height: 100vh;
   background: #fafafa;
-  font-family: 'Pretendard Variable', sans-serif;
+  font-family: "Pretendard Variable", sans-serif;
 }
