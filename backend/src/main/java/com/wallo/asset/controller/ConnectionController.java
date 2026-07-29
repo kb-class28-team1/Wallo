@@ -19,11 +19,6 @@ public class ConnectionController {
         this.connectionService = connectionService;
     }
 
-    @GetMapping("/ping")
-    public CommonResponse<String> ping() {
-        return CommonResponse.success("connections-api-ok");
-    }
-
     @PostMapping
     public CommonResponse<ConnectionDto.Response> connectAllAssets(
             @RequestBody ConnectionDto.Request request
