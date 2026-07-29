@@ -1,76 +1,93 @@
 import { createRouter, createWebHistory } from "vue-router"
 import DefaultLayout from "@/layouts/DefaultLayout.vue"
+import LandingView from "@/views/auth/LandingView.vue"
+import LoginView from "@/views/auth/LoginView.vue"
+import SignupView from "@/views/auth/SignupView.vue"
+import ConnectionView from "@/views/asset/ConnectionView.vue"
 import DashboardView from "@/views/dashboard/DashboardView.vue"
-import ConnectionView from "@/views/asset/ConnectionView.vue";
+import SettingsView from "@/views/user/SettingsView.vue"
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: "/",
+      name: "landing",
+      component: LandingView,
+    },
+    {
+      path: "/login",
+      name: "login",
+      component: LoginView,
+    },
+    {
+      path: "/signup",
+      name: "signup",
+      component: SignupView,
+    },
+    {
+      path: "/app",
       component: DefaultLayout,
       children: [
         {
-          path: "/",
-          redirect: "/connections/mydata",
-        },
-        {
           path: "/connections/mydata",
-          name: "Connection",
+          name: "connection",
           component: ConnectionView,
         },
         {
-          path: "/dashboard", //home
-          name: "Dashboard",
+          path: "/api/home",
+          alias: "/dashboard",
+          name: "dashboard",
           component: DashboardView,
         },
         {
-          path: "api/dashboard",//ai컨설팅 체크
+          path: "/api/dashboard",
           name: "ai-consulting",
           component: DashboardView,
         },
         {
-          path: "api/institutions",//자산 관리
+          path: "/api/institutions",
           name: "institutions",
           component: DashboardView,
         },
         {
-          path: "api/challenges/current",
+          path: "/api/challenges/current",
           name: "current-challenge",
           component: DashboardView,
         },
         {
-          path: "api/challenges/:challengeId/feeds",
+          path: "/api/challenges/:challengeId/feeds",
           name: "challenge-feed",
           component: DashboardView,
         },
         {
-          path: "api/challenges/rankings/weekly",
+          path: "/api/challenges/rankings/weekly",
           name: "weekly-ranking",
           component: DashboardView,
         },
         {
-          path: "api/users/me/challenge-dashboard",
+          path: "/api/users/me/challenge-dashboard",
           name: "my-challenge",
           component: DashboardView,
         },
         {
-          path: "api/point-shop",
+          path: "/api/point-shop",
           name: "point-shop",
           component: DashboardView,
         },
         {
-          path: "api/reports",
+          path: "/api/reports",
           name: "reports",
           component: DashboardView,
         },
         {
-          path: "api/users/profile",
+          path: "/api/users/profile",
           name: "user-profile",
-          component: DashboardView,
+          component: SettingsView,
         },
       ],
     },
   ],
 })
 
+export default router
