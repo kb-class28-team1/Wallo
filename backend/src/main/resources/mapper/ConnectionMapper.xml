@@ -1,0 +1,30 @@
+﻿<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wallo.asset.mapper.ConnectionMapper">
+    <insert id="insertConnections" parameterType="java.util.List">
+        INSERT IGNORE INTO CONNECTIONS (
+            INSTITUTION_ID,
+            INSTITUTION_NAME,
+            INSTITUTION_TYPE,
+            LOGIN_TYPE,
+            LOGIN_ID,
+            LOGIN_PASSWORD,
+            CREATED_AT
+        )
+        VALUES
+        <foreach collection="connections" item="connection" separator=",">
+            (
+                #{connection.institutionId},
+                #{connection.institutionName},
+                #{connection.institutionType},
+                #{loginType},
+                #{loginId},
+                #{loginPassword},
+                NOW()
+            )
+        </foreach>
+    </insert>
+</mapper>
+
