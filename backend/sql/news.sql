@@ -1,6 +1,6 @@
 -- wallo.news : 크롤링으로 수집한 원본 기사 저장 테이블
 -- 이 단계에서는 원본 기사 저장 용도만 고려하며, AI 요약 관련 컬럼은 포함하지 않는다.
-USE wallo;
+# USE wallo;
 
 CREATE TABLE IF NOT EXISTS news (
     news_id      BIGINT AUTO_INCREMENT PRIMARY KEY,
