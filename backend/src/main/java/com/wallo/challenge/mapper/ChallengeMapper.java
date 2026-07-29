@@ -17,6 +17,9 @@ public interface ChallengeMapper {
     // findChallengeById - 생성 후 응답에 보낼 챌린지 조회
     Challenge findChallengeById(@Param("challengeId") Long challengeId);
 
+    /** 초대 코드로 참여할 챌린지를 조회한다. */
+    Challenge findChallengeByInviteCode(@Param("inviteCode") String inviteCode);
+
     /** 사용자가 이미 참여 중인 챌린지가 있는지 확인한다. */
     // findCurrentChallengeByUserId - 사용자의 기존 참여 챌린지 확인
     Long findCurrentChallengeIdByUserId(@Param("userId") Long userId);

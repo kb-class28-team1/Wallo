@@ -50,6 +50,19 @@
         WHERE id = #{challengeId}
     </select>
 
+    <select id="findChallengeByInviteCode" resultMap="challengeResultMap">
+        SELECT
+            id,
+            owner_id,
+            name,
+            challenge_type,
+            invite_code,
+            status,
+            created_at
+        FROM challenge
+        WHERE invite_code = #{inviteCode}
+    </select>
+
     <select id="findCurrentChallengeIdByUserId" resultType="java.lang.Long">
         SELECT current_challenge_id
         FROM users
