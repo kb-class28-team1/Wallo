@@ -1,1 +1,10 @@
 .idea/workspace.xml
+.idea/vcs.xml
+backend/.idea/compiler.xml
+backend/.idea/gradle.xml
+backend/.idea/misc.xml
+backend/.idea/vcs.xml
+backend/.idea/workspace.xml
+backend/.idea/.name
+backend/src/main/java/com/wallo/challenge/service/ChallengeServiceImpl.java
+backend/src/main/java/com/wallo/challenge/service/ChallengeServiceImpl.java

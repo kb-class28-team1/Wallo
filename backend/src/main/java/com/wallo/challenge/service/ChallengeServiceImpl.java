@@ -19,6 +19,7 @@ public class ChallengeServiceImpl implements ChallengeService {
     private static final int MAX_INVITE_CODE_GENERATION_ATTEMPTS = 10;
 
     private final ChallengeMapper challengeMapper;
+    // secureRandom: 일반 Random 보다 더 예측하기 어려운 난수생성 메소드
     private final SecureRandom secureRandom = new SecureRandom();
 
     public ChallengeServiceImpl(ChallengeMapper challengeMapper) {
@@ -33,7 +34,7 @@ public class ChallengeServiceImpl implements ChallengeService {
     public CreateChallengeResponse createChallenge(Long ownerId, CreateChallengeRequest request) {
         if (challengeMapper.findCurrentChallengeIdByUserId(ownerId) != null) {
             throw new AlreadyJoinedChallengeException();
-        }
+        } // -> 이미 참여 중인 챌린지가 있다면 새로 못 만들게 막는 것
 
         Challenge challenge = new Challenge();
         challenge.setOwnerId(ownerId);
