@@ -5,8 +5,6 @@ import { getCurrentChallenge } from '@/api/challengeApi'
 import brandPenguin from '@/assets/penguin-coins.svg'
 import thinkingPenguin from '@/assets/thinking-penguin.svg'
 
-const brandLogoSource = ref(brandPenguin)
-
 const primaryMenus = [
   { icon: '🏠', label: '대시보드', to: '/api/home' },
   { icon: '💳', label: '자산', to: '/api/institutions' },
@@ -21,9 +19,9 @@ const utilityMenus = [
 
 const route = useRoute()
 const router = useRouter()
-// 챌린지 하위 메뉴 열림 여부를 관리함
+// 챌린지 하위 메뉴 열림 여부와 피드 조회 상태를 관리함
 const isChallengeOpen = ref(false)
-const isChallengeChecking = ref(false)
+const isFeedLoading = ref(false)
 
 // 챌린지 관련 페이지에 접속 중인지 현재 URL로 판단함
 const isChallengeRoute = computed(
@@ -48,32 +46,38 @@ const toggleChallenge = () => {
   isChallengeOpen.value = !isChallengeOpen.value
 }
 
-// 로고 이미지 로드 실패 시 기존 캐릭터 이미지를 기본 이미지로 사용함
-const useDefaultBrandLogo = () => {
-  brandLogoSource.value = thinkingPenguin
+const openChallenge = () => {
+  isChallengeOpen.value = true
 }
 
-// 챌린지 참여가 확인된 사용자만 랭킹과 내 챌린지 페이지로 이동함
-const moveToChallengeMemberPage = async (targetPath) => {
-  if (isChallengeChecking.value) {
+// 현재 챌린지 ID를 조회한 뒤 해당 챌린지 피드로 이동함
+const openChallengeFeed = async () => {
+  // 연속 클릭으로 동일 요청이 중복 실행되는 것을 방지함
+  if (isFeedLoading.value) {
     return
   }
 
-  isChallengeChecking.value = true
+  isFeedLoading.value = true
 
   try {
     const response = await getCurrentChallenge()
+    const challenge = response?.data?.challenge
 
-    if (!response?.data?.hasChallenge) {
-      alert('챌린지 참여가 확인되지 않습니다.')
+    // 참여 중인 챌린지가 없으면 챌린지 메인 화면으로 이동됨
+    if (!response?.data?.hasChallenge || !challenge?.challengeId) {
+      alert('현재 참여 중인 챌린지가 없습니다.')
+      await router.push('/api/challenges/current')
       return
     }
 
-    await router.push(targetPath)
+    // 조회된 ID가 URL에 안전하게 포함된 피드 경로로 이동함
+    await router.push(`/api/challenges/${encodeURIComponent(challenge.challengeId)}/feeds`)
   } catch (error) {
-    alert('챌린지 참여가 확인되지 않습니다.')
+    // API 통신 실패 사유가 사용자에게 alert로 표시됨
+    alert(error.message || '피드 목록으로 이동하지 못했습니다.')
   } finally {
-    isChallengeChecking.value = false
+    // 성공 및 실패 여부와 관계없이 로딩 상태가 해제됨
+    isFeedLoading.value = false
   }
 }
 </script>
@@ -85,12 +89,7 @@ const moveToChallengeMemberPage = async (targetPath) => {
       class="brand d-flex align-items-center"
       aria-label="왈로 대시보드로 이동"
     >
-      <img
-        :src="brandLogoSource"
-        class="brand-icon"
-        alt="왈로 로고"
-        @error="useDefaultBrandLogo"
-      />
+      <img :src="brandPenguin" class="brand-icon" alt="왈로 로고" />
       <span class="brand-name">왈로</span>
     </RouterLink>
 
@@ -109,16 +108,14 @@ const moveToChallengeMemberPage = async (targetPath) => {
 
       <div class="challenge-group" :class="{ 'challenge-group-active': isChallengeRoute }">
         <div class="challenge-heading d-flex align-items-center">
-          <button
-            type="button"
+          <RouterLink
+            to="/api/challenges/current"
             class="menu-item challenge-title d-flex flex-grow-1 align-items-center"
-            :aria-expanded="isChallengeOpen"
-            aria-controls="challenge-submenu"
-            @click="toggleChallenge"
+            @click="openChallenge"
           >
             <span class="menu-icon" aria-hidden="true">💰</span>
             <span>절약 챌린지</span>
-          </button>
+          </RouterLink>
 
           <button
             type="button"
@@ -128,11 +125,9 @@ const moveToChallengeMemberPage = async (targetPath) => {
             aria-label="절약 챌린지 하위 메뉴 열기 및 닫기"
             @click="toggleChallenge"
           >
-            <span
-              class="collapse-mark ms-auto"
-              :class="{ 'collapse-mark-open': isChallengeOpen }"
-              aria-hidden="true"
-            ></span>
+            <span class="collapse-mark ms-auto" aria-hidden="true">
+              {{ isChallengeOpen ? '⌃' : '⌄' }}
+            </span>
           </button>
         </div>
 
@@ -142,37 +137,31 @@ const moveToChallengeMemberPage = async (targetPath) => {
             id="challenge-submenu"
             class="submenu d-flex flex-column"
           >
-            <RouterLink
-              to="/api/challenges/current"
-              class="submenu-item submenu-link d-flex align-items-center"
-            >
-              <span class="submenu-dot" aria-hidden="true"></span>
-              <span>피드 목록</span>
-            </RouterLink>
-
             <button
               type="button"
               class="submenu-item submenu-link d-flex align-items-center"
-              :class="{ 'submenu-link-active': route.path === '/api/challenges/rankings/weekly' }"
-              :disabled="isChallengeChecking"
-              @click="moveToChallengeMemberPage('/api/challenges/rankings/weekly')"
+              :disabled="isFeedLoading"
+              @click="openChallengeFeed"
+            >
+              <span class="submenu-dot" aria-hidden="true"></span>
+              <span>{{ isFeedLoading ? '피드 확인 중...' : '피드 목록' }}</span>
+            </button>
+
+            <RouterLink
+              to="/api/challenges/rankings/weekly"
+              class="submenu-item submenu-link d-flex align-items-center"
             >
               <span class="submenu-dot" aria-hidden="true"></span>
               <span>주간랭킹</span>
-            </button>
+            </RouterLink>
 
-            <button
-              type="button"
+            <RouterLink
+              to="/api/users/me/challenge-dashboard"
               class="submenu-item submenu-link d-flex align-items-center"
-              :class="{
-                'submenu-link-active': route.path === '/api/users/me/challenge-dashboard',
-              }"
-              :disabled="isChallengeChecking"
-              @click="moveToChallengeMemberPage('/api/users/me/challenge-dashboard')"
             >
               <span class="submenu-dot" aria-hidden="true"></span>
               <span>내 챌린지</span>
-            </button>
+            </RouterLink>
           </div>
         </Transition>
       </div>
@@ -203,15 +192,10 @@ const moveToChallengeMemberPage = async (targetPath) => {
 
 <style scoped>
 .sidebar {
-  position: fixed;
-  top: 0;
-  bottom: 0;
-  left: 0;
   flex: 0 0 273px;
   width: 273px;
-  height: 100vh;
+  min-height: 100vh;
   padding: 20px 25px 30px;
-  overflow-y: auto;
   color: #59647f;
   background: #ffffff;
   border-right: 1px solid #f4f5fa;
@@ -283,11 +267,11 @@ const moveToChallengeMemberPage = async (targetPath) => {
 .challenge-title {
   padding: 0;
   border: 0;
-  color: inherit;
+  color: #7062de;
   background: transparent;
   font-family: inherit;
   font-size: inherit;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: inherit;
   text-align: left;
   cursor: pointer;
@@ -296,7 +280,6 @@ const moveToChallengeMemberPage = async (targetPath) => {
 .challenge-title:hover,
 .challenge-group-active .challenge-title {
   color: #5f50d2;
-  font-weight: 700;
 }
 
 .challenge-title:focus-visible,
@@ -307,8 +290,8 @@ const moveToChallengeMemberPage = async (targetPath) => {
 }
 
 .collapse-toggle {
-  width: 32px;
-  min-height: 32px;
+  width: 24px;
+  min-height: 26px;
   padding: 0;
   border: 0;
   color: inherit;
@@ -317,17 +300,11 @@ const moveToChallengeMemberPage = async (targetPath) => {
 }
 
 .collapse-mark {
-  width: 11px;
-  height: 11px;
-  margin-right: 3px;
-  border-right: 2px solid #8f96ba;
-  border-bottom: 2px solid #8f96ba;
-  transform: rotate(45deg) translate(-2px, -2px);
-  transition: transform 0.2s ease;
-}
-
-.collapse-mark-open {
-  transform: rotate(225deg) translate(-2px, -2px);
+  position: relative;
+  top: 2px;
+  color: #aab0cb;
+  font-size: 18px;
+  line-height: 1;
 }
 
 .submenu {
@@ -358,8 +335,7 @@ const moveToChallengeMemberPage = async (targetPath) => {
 }
 
 .submenu-link:hover,
-.submenu-link.router-link-exact-active,
-.submenu-link-active {
+.submenu-link.router-link-exact-active {
   color: #7062de;
 }
 
