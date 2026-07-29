@@ -1,79 +1,54 @@
 import { computed, ref } from "vue";
 import { defineStore } from "pinia";
-import { getAssets, getBudget, getExpenses } from "@/api/dashboardApi";
+import { getAssets, getBudgets, getExpenses } from "@/api/dashboardApi";
 
 const CHART_COLORS = [
-  "#0D6EFD", // Bootstrap primary
-  "#20C997", // teal
-  "#FFC107", // warning
-  "#DC3545", // danger
-  "#6F42C1", // purple
-  "#0DCAF0", // info
-  "#FD7E14", // orange
-  "#6C757D", // secondary
+  "#0D6EFD",
+  "#20C997",
+  "#FFC107",
+  "#DC3545",
+  "#6F42C1",
+  "#0DCAF0",
+  "#FD7E14",
+  "#6C757D",
 ];
 
-const EMPTY_DOUGHNUT_DATA = {
-  labels: [],
+const createDoughnutChartData = (breakdown = []) => ({
+  labels: breakdown.map((item) => item.category),
   datasets: [
     {
-      data: [],
-      backgroundColor: [],
+      data: breakdown.map((item) => item.amount),
+      backgroundColor: breakdown.map(
+        (_, index) => CHART_COLORS[index % CHART_COLORS.length],
+      ),
       borderColor: "#FFFFFF",
       borderWidth: 2,
     },
   ],
-};
-
-const toDoughnutChartData = (breakdown = []) => {
-  const safeBreakdown = Array.isArray(breakdown) ? breakdown : [];
-
-  return {
-    labels: safeBreakdown.map(
-      (item) => item.categoryName ?? item.category ?? item.name ?? "기타",
-    ),
-    datasets: [
-      {
-        data: safeBreakdown.map((item) =>
-          Number(item.amount ?? item.expenseAmount ?? item.value ?? 0),
-        ),
-        backgroundColor: safeBreakdown.map(
-          (_, index) => CHART_COLORS[index % CHART_COLORS.length],
-        ),
-        borderColor: "#FFFFFF",
-        borderWidth: 2,
-      },
-    ],
-  };
-};
+});
 
 export const useDashboardStore = defineStore("dashboard", () => {
   const isLoading = ref(false);
   const assets = ref(null);
   const budget = ref(null);
   const expenses = ref(null);
-  const error = ref("");
+  const error = ref(null);
 
-  const assetChartData = computed(() => {
-    const breakdown = assets.value?.assetCategoryBreakdown;
+  const assetChartData = computed(() =>
+    createDoughnutChartData(assets.value?.assetCategoryBreakdown ?? []),
+  );
+  const expenseChartData = computed(() =>
+    createDoughnutChartData(expenses.value?.expenseCategoryBreakdown ?? []),
+  );
 
-    return breakdown ? toDoughnutChartData(breakdown) : EMPTY_DOUGHNUT_DATA;
-  });
-
-  const expenseChartData = computed(() => {
-    const breakdown = expenses.value?.expenseCategoryBreakdown;
-
-    return breakdown ? toDoughnutChartData(breakdown) : EMPTY_DOUGHNUT_DATA;
-  });
-
-  const fetchDashboardData = async () => {
+  const fetchDashboardSummary = async () => {
     isLoading.value = true;
-    error.value = "";
+    error.value = null;
 
     try {
       const [assetsResponse, budgetResponse, expensesResponse] = await Promise.all([
         getAssets(),
-        getBudget(),
+        getBudgets(),
         getExpenses(),
       ]);
 
@@ -83,7 +58,7 @@ export const useDashboardStore = defineStore("dashboard", () => {
     } catch (caughtError) {
       const errorMessage =
         caughtError.response?.data?.error?.message ??
-        caughtError.response?.data?.message ??
+        caughtError.message ??
         "대시보드 데이터를 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
 
       error.value = errorMessage;
@@ -101,6 +76,6 @@ export const useDashboardStore = defineStore("dashboard", () => {
     error,
     assetChartData,
     expenseChartData,
-    fetchDashboardData,
+    fetchDashboardSummary,
   };
 });

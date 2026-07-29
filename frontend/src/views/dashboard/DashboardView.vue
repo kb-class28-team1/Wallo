@@ -5,7 +5,7 @@ import { useDashboardStore } from "@/stores/useDashboardStore";
 const dashboardStore = useDashboardStore();
 
 onMounted(() => {
-  dashboardStore.fetchDashboardData();
+  dashboardStore.fetchDashboardSummary();
 });
 </script>
 
