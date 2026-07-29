@@ -56,6 +56,7 @@ class ChallengeServiceImplTest {
 
     @Test
     void joinsChallengeWhenInviteCodeIsValidAndUserHasNoCurrentChallenge() {
+        FakeChallengeMapper mapper = new FakeChallengeMapper();
         mapper.challengeByInviteCode = challenge(10L, "함께 절약", "ABCDEFGH");
         ChallengeService service = new ChallengeServiceImpl(mapper);
 
