@@ -1,18 +1,82 @@
 plugins {
     id 'java'
+    id 'war'
 }
 
 group = 'com.wallo'
 version = '1.0-SNAPSHOT'
 
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
 repositories {
     mavenCentral()
 }
 
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+ext {
+    springVersion         = '5.3.39'
+    springBatchVersion    = '4.3.10'
+    mybatisVersion        = '3.5.16'
+    mybatisSpringVersion  = '2.1.2'
+    mysqlConnectorVersion = '8.4.0'
+    hikariCPVersion       = '5.1.0'
+    seleniumVersion       = '4.23.0'
+    webdrivermanagerVersion = '5.9.2'
+    jacksonVersion        = '2.17.2'
+    logbackVersion        = '1.5.6'
+    servletApiVersion     = '4.0.1'
+    junitVersion          = '5.10.0'
+}
+
 dependencies {
-    testImplementation platform('org.junit:junit-bom:5.10.0')
+    // Spring MVC (spring-web, context, beans, core, aop, expression 전이 포함)
+    implementation "org.springframework:spring-webmvc:${springVersion}"
+    implementation "org.springframework:spring-context:${springVersion}"
+    implementation "org.springframework:spring-tx:${springVersion}"
+    implementation "org.springframework:spring-jdbc:${springVersion}"
+
+    // 서블릿 API - Tomcat 9가 런타임에 제공, 컴파일 전용
+    compileOnly "javax.servlet:javax.servlet-api:${servletApiVersion}"
+
+    // MyBatis + Spring 연동
+    implementation "org.mybatis:mybatis:${mybatisVersion}"
+    implementation "org.mybatis:mybatis-spring:${mybatisSpringVersion}"
+
+    // MySQL 드라이버
+    runtimeOnly "com.mysql:mysql-connector-j:${mysqlConnectorVersion}"
+
+    // 커넥션 풀
+    implementation "com.zaxxer:HikariCP:${hikariCPVersion}"
+
+    // Spring Batch
+    implementation "org.springframework.batch:spring-batch-core:${springBatchVersion}"
+
+    // 크롤링용 Selenium
+    implementation "org.seleniumhq.selenium:selenium-java:${seleniumVersion}"
+    implementation "io.github.bonigarcia:webdrivermanager:${webdrivermanagerVersion}"
+
+    // JSON 응답 처리
+    implementation "com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}"
+
+    // 로깅
+    implementation "ch.qos.logback:logback-classic:${logbackVersion}"
+
+    // 테스트
+    testImplementation platform("org.junit:junit-bom:${junitVersion}")
     testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation "org.springframework:spring-test:${springVersion}"
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+war {
+    archiveFileName = 'wallo.war'
 }
 
 test {
