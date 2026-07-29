@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
+import { RouterLink } from 'vue-router'
 import { useUserStore } from '@/stores/userStore'
 
 const userStore = useUserStore()
@@ -17,26 +18,38 @@ onMounted(() => {
 <template>
   <header class="top-header d-flex flex-shrink-0 align-items-center justify-content-end">
     <div class="user-summary d-flex align-items-center">
-      <img
-        :src="profileImageUrl"
-        class="profile-image rounded-circle"
-        alt="사용자 프로필"
-        @error="userStore.useDefaultProfileImage"
-      />
+      <!-- 프로필 이미지와 이름을 누르면 설정 페이지로 이동함 -->
+      <RouterLink
+        to="/api/users/profile"
+        class="profile-link d-flex align-items-center"
+        aria-label="설정 페이지로 이동"
+      >
+        <img
+          :src="profileImageUrl"
+          class="profile-image rounded-circle"
+          alt="사용자 프로필"
+          @error="userStore.useDefaultProfileImage"
+        />
 
-      <span class="user-name">
-        {{ isLoading && !nickname ? '불러오는 중...' : nickname || 'username' }}
-      </span>
+        <span class="user-name">
+          {{ isLoading && !nickname ? '불러오는 중...' : nickname || 'username' }}
+        </span>
+      </RouterLink>
 
-      <span class="point-badge d-inline-flex align-items-center">
+      <!-- 보유 포인트를 누르면 포인트 샵으로 이동함 -->
+      <RouterLink
+        to="/api/point-shop"
+        class="point-badge d-inline-flex align-items-center"
+        aria-label="포인트 샵으로 이동"
+      >
         <span class="point-icon" aria-hidden="true">●</span>
         {{ formattedPointBalance }} P
-      </span>
+      </RouterLink>
 
-      <!-- 로그아웃 기능은 연결하지 않고 디자인만 표시함 -->
-      <button type="button" class="logout-button" aria-label="로그아웃">
+      <!-- 실제 로그아웃 처리는 하지 않고 로그인 경로로만 이동함 -->
+      <RouterLink to="/login" class="logout-button" aria-label="로그인 페이지로 이동">
         <span aria-hidden="true">[→</span>
-      </button>
+      </RouterLink>
     </div>
   </header>
 </template>
@@ -50,6 +63,12 @@ onMounted(() => {
 
 .user-summary {
   gap: 14px;
+}
+
+.profile-link {
+  gap: 14px;
+  color: inherit;
+  text-decoration: none;
 }
 
 .profile-image {
@@ -80,6 +99,7 @@ onMounted(() => {
   font-size: 12px;
   font-weight: 700;
   line-height: 1;
+  text-decoration: none;
 }
 
 .point-icon {
@@ -88,6 +108,7 @@ onMounted(() => {
 }
 
 .logout-button {
+  display: inline-flex;
   padding: 0 0 0 6px;
   border: 0;
   color: #5d62c8;
@@ -95,7 +116,8 @@ onMounted(() => {
   font-family: inherit;
   font-size: 29px;
   line-height: 1;
-  cursor: default;
+  cursor: pointer;
+  text-decoration: none;
 }
 
 @media (max-width: 767.98px) {
