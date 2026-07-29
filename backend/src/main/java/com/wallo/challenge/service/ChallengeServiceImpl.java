@@ -8,6 +8,7 @@ import com.wallo.challenge.domain.Challenge;
 import com.wallo.challenge.dto.request.CreateChallengeRequest;
 import com.wallo.challenge.dto.request.JoinChallengeRequest;
 import com.wallo.challenge.dto.response.CreateChallengeResponse;
+import com.wallo.challenge.dto.response.CurrentChallengeResponse;
 import com.wallo.challenge.dto.response.JoinChallengeResponse;
 import com.wallo.challenge.exception.AlreadyJoinedChallengeException;
 import com.wallo.challenge.exception.InvalidInviteCodeException;
@@ -93,6 +94,22 @@ public class ChallengeServiceImpl implements ChallengeService {
         }
 
         return JoinChallengeResponse.from(challenge);
+    }
+
+    /** 참여 중이 아니면 오류 대신 joined가 false인 정상 응답을 반환한다. */
+    @Override
+    public CurrentChallengeResponse getCurrentChallenge(Long userId) {
+        Long challengeId = challengeMapper.findCurrentChallengeIdByUserId(userId);
+        if (challengeId == null) {
+            return CurrentChallengeResponse.notJoined();
+        }
+
+        Challenge challenge = challengeMapper.findChallengeById(challengeId);
+        if (challenge == null) {
+            throw new IllegalStateException("현재 참여 챌린지를 조회할 수 없습니다.");
+        }
+
+        return CurrentChallengeResponse.joined(challenge);
     }
 
     private String generateUniqueInviteCode() {

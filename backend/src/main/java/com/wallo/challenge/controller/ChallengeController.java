@@ -4,10 +4,12 @@ import com.wallo.auth.CurrentUserProvider;
 import com.wallo.challenge.dto.request.CreateChallengeRequest;
 import com.wallo.challenge.dto.request.JoinChallengeRequest;
 import com.wallo.challenge.dto.response.CreateChallengeResponse;
+import com.wallo.challenge.dto.response.CurrentChallengeResponse;
 import com.wallo.challenge.dto.response.JoinChallengeResponse;
 import com.wallo.challenge.service.ChallengeService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -47,6 +49,15 @@ public class ChallengeController {
             @RequestBody JoinChallengeRequest request) {
         Long currentUserId = currentUserProvider.getCurrentUserId();
         JoinChallengeResponse response = challengeService.joinChallenge(currentUserId, request);
+
+        return ResponseEntity.ok(response);
+    }
+
+    /** 현재 로그인한 사용자의 챌린지 참여 상태를 조회한다. */
+    @GetMapping("/current")
+    public ResponseEntity<CurrentChallengeResponse> getCurrentChallenge() {
+        Long currentUserId = currentUserProvider.getCurrentUserId();
+        CurrentChallengeResponse response = challengeService.getCurrentChallenge(currentUserId);
 
         return ResponseEntity.ok(response);
     }
