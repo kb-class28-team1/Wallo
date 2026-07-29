@@ -17,6 +17,12 @@ public class ChallengeExceptionHandler {
         return error(HttpStatus.CONFLICT, exception.getMessage());
     }
 
+    @ExceptionHandler(InvalidInviteCodeException.class)
+    public ResponseEntity<ChallengeErrorResponse> handleInvalidInviteCode(
+            InvalidInviteCodeException exception) {
+        return error(HttpStatus.NOT_FOUND, exception.getMessage());
+    }
+
     @ExceptionHandler(UnauthenticatedException.class)
     public ResponseEntity<ChallengeErrorResponse> handleUnauthenticated(
             UnauthenticatedException exception) {

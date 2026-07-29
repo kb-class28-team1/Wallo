@@ -1,7 +1,9 @@
 package com.wallo.challenge.service;
 
 import com.wallo.challenge.dto.request.CreateChallengeRequest;
+import com.wallo.challenge.dto.request.JoinChallengeRequest;
 import com.wallo.challenge.dto.response.CreateChallengeResponse;
+import com.wallo.challenge.dto.response.JoinChallengeResponse;
 
 /** 챌린지 생성과 참여 상태 변경에 대한 비즈니스 규칙을 처리한다. */
 public interface ChallengeService {
@@ -12,4 +14,7 @@ public interface ChallengeService {
      * @param ownerId 인증 정보에서 얻은 현재 사용자 ID
      */
     CreateChallengeResponse createChallenge(Long ownerId, CreateChallengeRequest request);
+
+    /** 초대 코드로 기존 챌린지에 참여하고 사용자의 현재 챌린지를 연결한다. */
+    JoinChallengeResponse joinChallenge(Long userId, JoinChallengeRequest request);
 }

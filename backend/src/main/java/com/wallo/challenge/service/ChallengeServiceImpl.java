@@ -6,8 +6,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.wallo.challenge.domain.Challenge;
 import com.wallo.challenge.dto.request.CreateChallengeRequest;
+import com.wallo.challenge.dto.request.JoinChallengeRequest;
 import com.wallo.challenge.dto.response.CreateChallengeResponse;
+import com.wallo.challenge.dto.response.JoinChallengeResponse;
 import com.wallo.challenge.exception.AlreadyJoinedChallengeException;
+import com.wallo.challenge.exception.InvalidInviteCodeException;
 import com.wallo.challenge.mapper.ChallengeMapper;
 
 @Service
@@ -61,6 +64,35 @@ public class ChallengeServiceImpl implements ChallengeService {
         }
 
         return CreateChallengeResponse.from(createdChallenge);
+    }
+
+    /**
+     * 초대 코드가 가리키는 챌린지에 사용자를 참여시킨다.
+     * 현재 챌린지 연결 갱신이 실패하면 트랜잭션 전체가 취소된다.
+     */
+    @Override
+    @Transactional
+    public JoinChallengeResponse joinChallenge(Long userId, JoinChallengeRequest request) {
+        if (challengeMapper.findCurrentChallengeIdByUserId(userId) != null) {
+            throw new AlreadyJoinedChallengeException();
+        }
+
+        String inviteCode = request == null ? null : request.getInviteCode();
+        if (inviteCode == null || inviteCode.trim().isEmpty()) {
+            throw new InvalidInviteCodeException();
+        }
+
+        Challenge challenge = challengeMapper.findChallengeByInviteCode(inviteCode.trim());
+        if (challenge == null) {
+            throw new InvalidInviteCodeException();
+        }
+
+        int updatedRows = challengeMapper.updateCurrentChallengeId(userId, challenge.getId());
+        if (updatedRows != 1) {
+            throw new AlreadyJoinedChallengeException();
+        }
+
+        return JoinChallengeResponse.from(challenge);
     }
 
     private String generateUniqueInviteCode() {

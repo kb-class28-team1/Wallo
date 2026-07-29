@@ -2,7 +2,9 @@ package com.wallo.challenge.controller;
 
 import com.wallo.auth.CurrentUserProvider;
 import com.wallo.challenge.dto.request.CreateChallengeRequest;
+import com.wallo.challenge.dto.request.JoinChallengeRequest;
 import com.wallo.challenge.dto.response.CreateChallengeResponse;
+import com.wallo.challenge.dto.response.JoinChallengeResponse;
 import com.wallo.challenge.service.ChallengeService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -37,5 +39,15 @@ public class ChallengeController {
         CreateChallengeResponse response = challengeService.createChallenge(currentUserId, request);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    /** 현재 로그인한 사용자를 초대 코드에 해당하는 챌린지에 참여시킨다. */
+    @PostMapping("/join")
+    public ResponseEntity<JoinChallengeResponse> joinChallenge(
+            @RequestBody JoinChallengeRequest request) {
+        Long currentUserId = currentUserProvider.getCurrentUserId();
+        JoinChallengeResponse response = challengeService.joinChallenge(currentUserId, request);
+
+        return ResponseEntity.ok(response);
     }
 }
