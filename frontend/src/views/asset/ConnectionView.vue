@@ -324,7 +324,7 @@ onBeforeUnmount(() => {
                       class="asset-logo-image"
                       @error="handleLogoError"
                     />
-                    <span :class="asset.logoUrl ? &quot;d-none&quot; : &quot;&quot;">
+                    <span :class="asset.logoUrl ? 'd-none' : ''">
                       {{ asset.logoText }}
                     </span>
                   </div>

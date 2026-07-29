@@ -12,5 +12,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Wallo"
+rootProject.name = "backend"
 
