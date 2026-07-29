@@ -16,13 +16,11 @@ const progress = ref(0);
 const loadingMessage = ref("");
 const successMessage = ref("");
 const connectedAssets = ref([]);
-
 const timers = [];
 
-const isFormValid = computed(() => {
-  return Boolean(name.value.trim() && phoneNumber.value.trim() && consentAgreed.value);
-});
-
+const isFormValid = computed(() => Boolean(
+  name.value.trim() && phoneNumber.value.trim() && consentAgreed.value,
+));
 const isFormDisabled = computed(() => isLoading.value);
 
 const clearTimers = () => {
@@ -30,12 +28,10 @@ const clearTimers = () => {
   timers.length = 0;
 };
 
-const wait = (delay) => {
-  return new Promise((resolve) => {
-    const timerId = setTimeout(resolve, delay);
-    timers.push(timerId);
-  });
-};
+const wait = (delay) => new Promise((resolve) => {
+  const timerId = setTimeout(resolve, delay);
+  timers.push(timerId);
+});
 
 const resetProgressState = () => {
   clearTimers();
@@ -43,9 +39,9 @@ const resetProgressState = () => {
   loadingMessage.value = "";
 };
 
-const getInstitutionName = (result) => {
-  return result.institutionName || result.name || result.provider || "알 수 없는 기관";
-};
+const getInstitutionName = (result) => (
+  result.institutionName || result.name || result.provider || "알 수 없는 기관"
+);
 
 const getLogoText = (institutionName) => {
   if (!institutionName) {
@@ -55,29 +51,25 @@ const getLogoText = (institutionName) => {
   return institutionName.replace(/\s/g, "").slice(0, 2);
 };
 
-const isSuccessResult = (result) => {
-  return String(result.status || "").toUpperCase() === "SUCCESS";
-};
+const isSuccessResult = (result) => String(result.status || "").toUpperCase() === "SUCCESS";
 
 const handleLogoError = (event) => {
   event.target.classList.add("d-none");
   event.target.nextElementSibling?.classList.remove("d-none");
 };
 
-const getFailedInstitutions = (results = []) => {
-  return results.filter((result) => {
-    if (typeof result.connected === "boolean") {
-      return !result.connected;
-    }
+const getFailedInstitutions = (results = []) => results.filter((result) => {
+  if (typeof result.connected === "boolean") {
+    return !result.connected;
+  }
 
-    if (typeof result.success === "boolean") {
-      return !result.success;
-    }
+  if (typeof result.success === "boolean") {
+    return !result.success;
+  }
 
-    const status = String(result.status || "").toUpperCase();
-    return status === "FAILED" || status === "FAIL";
-  });
-};
+  const status = String(result.status || "").toUpperCase();
+  return status === "FAILED" || status === "FAIL";
+});
 
 const notifyConnectionResult = (results = []) => {
   const failedInstitutions = getFailedInstitutions(results);
@@ -114,12 +106,12 @@ const handleConnectionError = async (error) => {
   }
 
   if (status === 401) {
-    alert("로그인 세션이 만료되었습니다. 다시 로그인해주세요.");
+    alert("로그인 세션이 만료되었습니다. 다시 로그인해 주세요.");
     await router.push("/login");
     return;
   }
 
-  alert(serverMessage || "일시적인 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+  alert(serverMessage || "일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
 };
 
 const handleSubmit = async () => {
@@ -173,13 +165,12 @@ onBeforeUnmount(() => {
     <section class="connection-hero-panel">
       <div>
         <h1 class="connection-hero-title">
-          흩어진 내 금융 정보,<br />
+          흩어져 있던 금융 정보,<br />
           <span>한 번에 모아볼까요?</span>
         </h1>
         <p class="connection-hero-copy">
           안전한 마이데이터 연동을 통해<br />
-          모든 계좌와 카드 내역을<br />
-          한곳에서 관리하세요.
+          모든 계좌와 카드 내역을 한곳에서 관리하세요.
         </p>
       </div>
 
@@ -187,10 +178,10 @@ onBeforeUnmount(() => {
         <div>
           <div class="security-note-title">
             <i class="bi bi-shield-check security-icon" aria-hidden="true"></i>
-            <strong>안전하게 보호됩니다</strong>
+            <strong>안전하게 보호합니다</strong>
           </div>
           <p class="mb-0">
-            고객님의 금융 정보는 금융보안원 표준 가이드라인에 따라 암호화되어 안전하게 전송 및 보관됩니다.
+            고객님의 금융 정보는 금융보안원의 전송 가이드라인에 따라 암호화되어 안전하게 전송 및 보관됩니다.
           </p>
         </div>
       </div>
@@ -213,9 +204,9 @@ onBeforeUnmount(() => {
                 type="checkbox"
               />
               <span>
-                <strong>[필수] 통합 자산 정보 제공 동의</strong>
+                <strong>[필수] 통합 자산 정보 수집·이용 동의</strong>
                 <small>
-                  모든 은행, 카드, 증권 정보를 한 번에 불러오는 것에 동의하며, 마이데이터 서비스 약관에 동의합니다.
+                  모든 은행, 카드, 증권 정보를 한 번에 불러오는 것에 동의하며, 마이데이터 서비스 제공을 위해 동의합니다.
                 </small>
               </span>
             </label>
@@ -244,7 +235,6 @@ onBeforeUnmount(() => {
                 placeholder="01012345678"
               />
             </div>
-
           </fieldset>
 
           <button
@@ -334,7 +324,7 @@ onBeforeUnmount(() => {
                       class="asset-logo-image"
                       @error="handleLogoError"
                     />
-                    <span :class="asset.logoUrl ? `d-none` : ``">
+                    <span :class="asset.logoUrl ? 'd-none' : ''">
                       {{ asset.logoText }}
                     </span>
                   </div>
@@ -364,5 +354,3 @@ onBeforeUnmount(() => {
   border: 0;
 }
 </style>
-
-
