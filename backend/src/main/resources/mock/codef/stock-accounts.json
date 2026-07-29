@@ -1,0 +1,36 @@
+{
+  "result": {
+    "code": "CF-00000",
+    "message": "성공",
+    "extraMessage": ""
+  },
+  "data": [
+    {
+      "resAccountName": "위탁종합",
+      "resAccount": "12345678-01",
+      "resAccountDisplay": "123456**-**",
+      "resAccountBalance": "350000",
+      "resAccountEvalAmount": "14500000",
+      "resAccountCurrency": "KRW",
+      "resAccountStatus": "1"
+    },
+    {
+      "resAccountName": "CMA(RP형)",
+      "resAccount": "87654321-01",
+      "resAccountDisplay": "876543**-**",
+      "resAccountBalance": "2000000",
+      "resAccountEvalAmount": "2000000",
+      "resAccountCurrency": "KRW",
+      "resAccountStatus": "1"
+    },
+    {
+      "resAccountName": "연금저축",
+      "resAccount": "56781234-22",
+      "resAccountDisplay": "567812**-**",
+      "resAccountBalance": "0",
+      "resAccountEvalAmount": "8400000",
+      "resAccountCurrency": "KRW",
+      "resAccountStatus": "1"
+    }
+  ]
+}

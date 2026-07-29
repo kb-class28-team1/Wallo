@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router"
 import DefaultLayout from "@/layouts/DefaultLayout.vue"
 import DashboardView from "@/views/dashboard/DashboardView.vue"
+import ConnectionView from "@/views/asset/ConnectionView.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -10,22 +11,27 @@ const router = createRouter({
       component: DefaultLayout,
       children: [
         {
-          path: "",
-          redirect: { name: "dashboard" },
+          path: "/",
+          redirect: "/connections/mydata",
         },
         {
-          path: "api/home",
-          name: "dashboard",
+          path: "/connections/mydata",
+          name: "Connection",
+          component: ConnectionView,
+        },
+        {
+          path: "/dashboard", //home
+          name: "Dashboard",
           component: DashboardView,
         },
         {
-          path: "api/institutions",
-          name: "institutions",
-          component: DashboardView,
-        },
-        {
-          path: "api/dashboard",
+          path: "api/dashboard",//ai컨설팅 체크
           name: "ai-consulting",
+          component: DashboardView,
+        },
+        {
+          path: "api/institutions",//자산 관리
+          name: "institutions",
           component: DashboardView,
         },
         {
@@ -68,4 +74,3 @@ const router = createRouter({
   ],
 })
 
-export default router
