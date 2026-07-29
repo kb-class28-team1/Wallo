@@ -23,6 +23,7 @@ import TopHeader from '@/components/navigation/TopHeader.vue'
 
 .layout-body {
   min-width: 0;
+  margin-left: 273px;
 }
 
 .page-content {
