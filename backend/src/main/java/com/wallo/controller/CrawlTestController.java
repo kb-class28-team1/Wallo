@@ -36,7 +36,7 @@ public class CrawlTestController {
 
     private static final String ECONOMY_LIST_URL = "https://www.mk.co.kr/news/economy";
     private static final int PAGE_LOAD_TIMEOUT_SECONDS = 30;
-    private static final int MAX_ARTICLES = 5;
+    private static final int MAX_ARTICLES = 10;
 
     // 경제 홈의 실제 기사 목록 영역만 지정 (우측 "많이 본 뉴스" 랭킹 위젯/GNB 메뉴는 이 컨테이너 밖에 있어 자동 제외됨)
     private static final String ARTICLE_LIST_CONTAINER_SELECTOR = "div.list_contents";
