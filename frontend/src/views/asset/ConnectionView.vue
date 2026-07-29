@@ -152,7 +152,7 @@ const handleSubmit = async () => {
 
 const moveToDashboard = async () => {
   isSuccessModalVisible.value = false;
-  await router.push("/dashboard");
+  await router.push("/home");
 };
 
 onBeforeUnmount(() => {
