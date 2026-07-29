@@ -1,78 +1,93 @@
-import { createRouter, createWebHistory } from "vue-router"
-import DefaultLayout from "@/layouts/DefaultLayout.vue"
-import DashboardView from "@/views/dashboard/DashboardView.vue"
+import { createRouter, createWebHistory } from "vue-router";
+import DefaultLayout from "@/layouts/DefaultLayout.vue";
 import ConnectionView from "@/views/asset/ConnectionView.vue";
+import DashboardView from "@/views/dashboard/DashboardView.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: "/",
+      name: "Landing",
+      component: DashboardView, // TODO: LandingView 추가 후 교체 필요
+    },
+    {
+      path: "/login",
+      name: "Login",
+      component: DashboardView, // TODO: LoginView 추가 후 교체 필요
+    },
+    {
+      path: "/signup",
+      name: "Signup",
+      component: DashboardView, // TODO: SignupView 추가 후 교체 필요
+    },
+    {
+      path: "/asset-connections",
+      name: "AssetConnection",
+      component: ConnectionView,
+    },
+    {
+      path: "/",
       component: DefaultLayout,
       children: [
         {
-          path: "/",
-          redirect: "/connections/mydata",
-        },
-        {
-          path: "/connections/mydata",
-          name: "Connection",
-          component: ConnectionView,
-        },
-        {
-          path: "/dashboard", //home
+          path: "dashboard",
           name: "Dashboard",
           component: DashboardView,
         },
         {
-          path: "api/dashboard",//ai컨설팅 체크
-          name: "ai-consulting",
-          component: DashboardView,
+          path: "assets",
+          name: "AssetManagement",
+          component: DashboardView, // TODO: AssetView 추가 후 교체 필요
         },
         {
-          path: "api/institutions",//자산 관리
-          name: "institutions",
-          component: DashboardView,
+          path: "assets/expenses",
+          name: "ExpenseHistory",
+          component: DashboardView, // TODO: ExpenseHistoryView 추가 후 교체 필요
         },
         {
-          path: "api/challenges/current",
-          name: "current-challenge",
-          component: DashboardView,
+          path: "ai-assistant",
+          name: "AiConsulting",
+          component: DashboardView, // TODO: AiAssistantView 추가 후 교체 필요
         },
         {
-          path: "api/challenges/:challengeId/feeds",
-          name: "challenge-feed",
-          component: DashboardView,
+          path: "challenges/current",
+          name: "CurrentChallenge",
+          component: DashboardView, // TODO: ChallengeEntryView 추가 후 교체 필요
         },
         {
-          path: "api/challenges/rankings/weekly",
-          name: "weekly-ranking",
-          component: DashboardView,
+          path: "challenges/:challengeId/feeds",
+          name: "ChallengeFeed",
+          component: DashboardView, // TODO: ChallengeFeedView 추가 후 교체 필요
         },
         {
-          path: "api/users/me/challenge-dashboard",
-          name: "my-challenge",
-          component: DashboardView,
+          path: "challenges/rankings/weekly",
+          name: "WeeklyRanking",
+          component: DashboardView, // TODO: ChallengeRankingView 추가 후 교체 필요
         },
         {
-          path: "api/point-shop",
-          name: "point-shop",
-          component: DashboardView,
+          path: "my-challenge",
+          name: "MyChallenge",
+          component: DashboardView, // TODO: MyChallengeView 추가 후 교체 필요
         },
         {
-          path: "api/reports",
-          name: "reports",
-          component: DashboardView,
+          path: "point-shop",
+          name: "PointShop",
+          component: DashboardView, // TODO: PointShopView 추가 후 교체 필요
         },
         {
-          path: "api/users/profile",
-          name: "user-profile",
-          component: DashboardView,
+          path: "reports",
+          name: "Reports",
+          component: DashboardView, // TODO: ReportListView 추가 후 교체 필요
+        },
+        {
+          path: "settings",
+          name: "Settings",
+          component: DashboardView, // TODO: SettingsView 추가 후 교체 필요
         },
       ],
     },
   ],
-})
+});
 
 export default router;
-

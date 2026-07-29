@@ -8,15 +8,15 @@ import thinkingPenguin from "@/assets/thinking-penguin.svg"
 const brandLogoSource = ref(brandPenguin)
 
 const primaryMenus = [
-  { icon: "🏠", label: "대시보드", to: "/api/home" },
-  { icon: "💳", label: "자산", to: "/api/institutions" },
-  { icon: "🤖", label: "AI 컨설팅", to: "/api/dashboard" },
+  { icon: "🏠", label: "대시보드", to: "/dashboard" },
+  { icon: "💳", label: "자산", to: "/assets" },
+  { icon: "🤖", label: "AI 컨설팅", to: "/ai-consulting" },
 ]
 
 const utilityMenus = [
-  { icon: "🛍️", label: "포인트 샵", to: "/api/point-shop" },
-  { icon: "📇", label: "금융 리포트", to: "/api/reports" },
-  { icon: "⚙️", label: "설정", to: "/api/users/profile" },
+  { icon: "🛍️", label: "포인트 샵", to: "/point-shop" },
+  { icon: "📇", label: "금융 리포트", to: "/reports" },
+  { icon: "⚙️", label: "설정", to: "/users/profile" },
 ]
 
 const route = useRoute()
