@@ -21,7 +21,18 @@ export const getAssets = () => httpClient.get("/api/assets");
 
 export const getBudgets = () => httpClient.get("/api/budgets");
 
-export const getExpenses = (dateRange = getCurrentMonthDateRange()) =>
+export const getExpenses = (params = {}) =>
   httpClient.get("/api/assets/expense", {
-    params: dateRange,
+    params: {
+      ...getCurrentMonthDateRange(),
+      page: 0,
+      size: 20,
+      ...params,
+    },
+  });
+
+export const putBudget = (targetMonth, totalAmount) =>
+  httpClient.put("/api/budgets", {
+    targetMonth,
+    totalAmount,
   });

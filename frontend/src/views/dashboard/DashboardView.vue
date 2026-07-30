@@ -21,8 +21,8 @@ const hasDashboardData = computed(() => Boolean(
   assets.value || budget.value || expenses.value,
 ));
 
-const handleBudgetSave = (totalAmount) => {
-  dashboardStore.updateBudgetTotal(totalAmount);
+const handleBudgetSave = async (totalAmount) => {
+  await dashboardStore.updateBudgetTotal(totalAmount);
 };
 
 onMounted(() => {

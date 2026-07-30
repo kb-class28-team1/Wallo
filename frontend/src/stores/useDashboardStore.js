@@ -1,6 +1,6 @@
 import { computed, ref } from "vue";
 import { defineStore } from "pinia";
-import { getAssets, getBudgets, getExpenses } from "@/api/dashboardApi";
+import { getAssets, getBudgets, getExpenses, putBudget } from "@/api/dashboardApi";
 
 const CHART_COLORS = [
   "#0D6EFD",
@@ -47,6 +47,11 @@ const createAssetTrendChartData = (assetTrend = []) => ({
   ],
 });
 
+const getErrorMessage = (caughtError) =>
+  caughtError.response?.data?.error?.message ??
+  caughtError.message ??
+  "대시보드 데이터를 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
+
 export const useDashboardStore = defineStore("dashboard", () => {
   const isLoading = ref(false);
   const assets = ref(null);
@@ -79,10 +84,7 @@ export const useDashboardStore = defineStore("dashboard", () => {
       budget.value = budgetResponse.data.data;
       expenses.value = expensesResponse.data.data;
     } catch (caughtError) {
-      const errorMessage =
-        caughtError.response?.data?.error?.message ??
-        caughtError.message ??
-        "대시보드 데이터를 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
+      const errorMessage = getErrorMessage(caughtError);
 
       error.value = errorMessage;
       alert(errorMessage);
@@ -91,16 +93,20 @@ export const useDashboardStore = defineStore("dashboard", () => {
     }
   };
 
-  const updateBudgetTotal = (totalAmount) => {
+  const updateBudgetTotal = async (totalAmount) => {
     const targetMonth = budget.value?.targetMonth ?? new Date().toISOString().slice(0, 7);
 
-    budget.value = {
-      targetMonth,
-      totalAmount: Number(totalAmount),
-      spentAmount: budget.value?.spentAmount ?? 0,
-    };
+    try {
+      const response = await putBudget(targetMonth, Number(totalAmount));
 
-    // TODO: 백엔드 구현 후 PUT /api/budgets 호출로 예산 변경 내용을 저장합니다.
+      budget.value = response.data.data;
+    } catch (caughtError) {
+      const errorMessage = getErrorMessage(caughtError);
+
+      error.value = errorMessage;
+      alert(errorMessage);
+      throw caughtError;
+    }
   };
 
   return {
