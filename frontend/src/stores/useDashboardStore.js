@@ -91,6 +91,18 @@ export const useDashboardStore = defineStore("dashboard", () => {
     }
   };
 
+  const updateBudgetTotal = (totalAmount) => {
+    const targetMonth = budget.value?.targetMonth ?? new Date().toISOString().slice(0, 7);
+
+    budget.value = {
+      targetMonth,
+      totalAmount: Number(totalAmount),
+      spentAmount: budget.value?.spentAmount ?? 0,
+    };
+
+    // TODO: 백엔드 구현 후 PUT /api/budgets 호출로 예산 변경 내용을 저장합니다.
+  };
+
   return {
     isLoading,
     assets,
@@ -101,5 +113,6 @@ export const useDashboardStore = defineStore("dashboard", () => {
     expenseChartData,
     assetTrendChartData,
     fetchDashboardSummary,
+    updateBudgetTotal,
   };
 });
