@@ -1,10 +1,10 @@
 plugins {
-    id 'java'
-    id 'war'
+    id "java"
+    id "war"
 }
 
-group = 'com.wallo'
-version = '1.0-SNAPSHOT'
+group = "com.wallo"
+version = "1.0.0"
 
 java {
     toolchain {
@@ -12,28 +12,24 @@ java {
     }
 }
 
-repositories {
-    mavenCentral()
-}
-
 tasks.withType(JavaCompile).configureEach {
-    options.encoding = 'UTF-8'
+    options.encoding = "UTF-8"
 }
 
 ext {
-    springVersion         = '5.3.39'
-    springBatchVersion    = '4.3.10'
-    mybatisVersion        = '3.5.16'
-    mybatisSpringVersion  = '2.1.2'
-    mysqlConnectorVersion = '8.4.0'
-    hikariCPVersion       = '5.1.0'
-    seleniumVersion       = '4.23.0'
+    springVersion           = '5.3.39'
+    springBatchVersion      = '4.3.10'
+    mybatisVersion          = '3.5.16'
+    mybatisSpringVersion    = '2.1.2'
+    mysqlConnectorVersion   = '8.4.0'
+    hikariCPVersion         = '5.1.0'
+    seleniumVersion         = '4.23.0'
     webdrivermanagerVersion = '5.9.2'
-    jacksonVersion        = '2.17.2'
-    logbackVersion        = '1.5.6'
-    servletApiVersion     = '4.0.1'
-    junitVersion          = '5.10.0'
-    lombokVersion         = '1.18.34'
+    jacksonVersion          = '2.17.2'
+    logbackVersion          = '1.5.6'
+    servletApiVersion       = '4.0.1'
+    junitVersion            = '5.10.2'
+    lombokVersion           = '1.18.34'
 }
 
 dependencies {
@@ -72,16 +68,23 @@ dependencies {
     // Lombok
     compileOnly "org.projectlombok:lombok:${lombokVersion}"
     annotationProcessor "org.projectlombok:lombok:${lombokVersion}"
+    testCompileOnly "org.projectlombok:lombok:${lombokVersion}"
+    testAnnotationProcessor "org.projectlombok:lombok:${lombokVersion}"
 
     // 테스트
     testImplementation platform("org.junit:junit-bom:${junitVersion}")
-    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation "org.junit.jupiter:junit-jupiter"
+    testImplementation "junit:junit:4.13.2"
     testImplementation "org.springframework:spring-test:${springVersion}"
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testImplementation "org.mockito:mockito-core:5.13.0"
+    testImplementation "javax.servlet:javax.servlet-api:${servletApiVersion}"
+
+    testRuntimeOnly "org.junit.vintage:junit-vintage-engine"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
 }
 
 war {
-    archiveFileName = 'wallo.war'
+    archiveFileName = "ROOT.war"
 }
 
 test {

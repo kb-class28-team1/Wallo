@@ -1,0 +1,11 @@
+.gradle/
+.gradle-user-home/
+build/
+out/
+
+node_modules/
+dist/
+
+.idea/
+*.iml
+database/mysql/001_create_wallo_dummy_data.sql

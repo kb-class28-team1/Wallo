@@ -1,0 +1,23 @@
+{
+  "result": {
+    "code": "CF-00000",
+    "message": "성공",
+    "extraMessage": ""
+  },
+  "data": [
+    {
+      "resCardName": "하나 원더카드",
+      "resCardNo": "4321-****-****-8765",
+      "resCardType": "1",
+      "resCardState": "1",
+      "resValidPeriod": "12/28"
+    },
+    {
+      "resCardName": "하나 체크카드",
+      "resCardNo": "9876-****-****-4321",
+      "resCardType": "2",
+      "resCardState": "1",
+      "resValidPeriod": "08/27"
+    }
+  ]
+}
