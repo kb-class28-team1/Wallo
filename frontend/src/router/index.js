@@ -15,6 +15,7 @@ import DashboardView from "@/views/dashboard/DashboardView.vue"
 import PointShopView from "@/views/product/PointShopView.vue"
 import ReportListView from "@/views/report/ReportListView.vue"
 import SettingsView from "@/views/user/SettingsView.vue"
+import ConnectionManagementView from "@/views/user/ConnectionManagementView.vue"
 import ChatView from "@/views/ChatView.vue"
 
 const router = createRouter({
@@ -119,6 +120,11 @@ const router = createRouter({
           path: "/users/profile",
           name: "user-profile",
           component: SettingsView,
+        },
+        {
+          path: "/users/profile/connections",
+          name: "connection-management",
+          component: ConnectionManagementView,
         },
       ],
     },

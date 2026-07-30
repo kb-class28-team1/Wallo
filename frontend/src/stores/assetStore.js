@@ -1,15 +1,46 @@
 import { defineStore } from "pinia";
-import { connectAllAssets } from "@/api/assetApi";
+import { connectAllAssets, getAssets } from "@/api/assetApi";
+
+const getErrorMessage = (error) =>
+  error.response?.data?.error?.message ||
+  error.message ||
+  "자산 정보를 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
 
 export const useAssetStore = defineStore("asset", {
   state: () => ({
     isLoading: false,
+    isAssetLoading: false,
+    assets: null,
+    error: null,
     connectionResults: [],
   }),
 
   actions: {
+    async fetchAssets() {
+      this.isAssetLoading = true;
+      this.error = null;
+
+      try {
+        const response = await getAssets();
+        this.assets = response?.data ?? null;
+
+        return this.assets;
+      } catch (error) {
+        const errorMessage = getErrorMessage(error);
+
+        this.assets = null;
+        this.error = errorMessage;
+        alert(errorMessage);
+
+        throw error;
+      } finally {
+        this.isAssetLoading = false;
+      }
+    },
+
     async executeConnection(consentAgreed) {
       this.isLoading = true;
+      this.error = null;
 
       try {
         const response = await connectAllAssets(consentAgreed);
@@ -18,6 +49,7 @@ export const useAssetStore = defineStore("asset", {
         return response;
       } catch (error) {
         this.connectionResults = [];
+        this.error = getErrorMessage(error);
 
         const status = error.response?.status;
         const errorMessage = error.response?.data?.error?.message;
