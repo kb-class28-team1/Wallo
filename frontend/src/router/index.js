@@ -1,93 +1,115 @@
-import { createRouter, createWebHistory } from "vue-router";
-import DefaultLayout from "@/layouts/DefaultLayout.vue";
-import ConnectionView from "@/views/asset/ConnectionView.vue";
-import DashboardView from "@/views/dashboard/DashboardView.vue";
+import { createRouter, createWebHistory } from "vue-router"
+import DefaultLayout from "@/layouts/DefaultLayout.vue"
+import LandingView from "@/views/auth/LandingView.vue"
+import LoginView from "@/views/auth/LoginView.vue"
+import SignupView from "@/views/auth/SignupView.vue"
+import AiAssistantView from "@/views/ai/AiAssistantView.vue"
+import AssetView from "@/views/asset/AssetView.vue"
+import ConnectionView from "@/views/asset/ConnectionView.vue"
+import ChallengeEntryView from "@/views/challenge/ChallengeEntryView.vue"
+import ChallengeFeedView from "@/views/challenge/ChallengeFeedView.vue"
+import ChallengeRankingView from "@/views/challenge/ChallengeRankingView.vue"
+import MyChallengeView from "@/views/challenge/MyChallengeView.vue"
+import DashboardView from "@/views/dashboard/DashboardView.vue"
+import PointShopView from "@/views/product/PointShopView.vue"
+import ReportListView from "@/views/report/ReportListView.vue"
+import SettingsView from "@/views/user/SettingsView.vue"
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
+    // 서비스 최초 진입 시 랜딩 페이지를 표시하는 주소임
     {
       path: "/",
-      name: "Landing",
-      component: DashboardView, // TODO: LandingView 추가 후 교체 필요
+      name: "landing",
+      component: LandingView,
     },
+    // 로그인 페이지로 이동하는 주소임
     {
       path: "/login",
-      name: "Login",
-      component: DashboardView, // TODO: LoginView 추가 후 교체 필요
+      name: "login",
+      component: LoginView,
     },
+    // 회원가입 페이지로 이동하는 주소임
     {
       path: "/signup",
-      name: "Signup",
-      component: DashboardView, // TODO: SignupView 추가 후 교체 필요
+      name: "signup",
+      component: SignupView,
     },
+    // 로그인 이후 사이드바와 상단바를 공통으로 사용하는 페이지 그룹임
     {
-      path: "/asset-connections",
-      name: "AssetConnection",
-      component: ConnectionView,
-    },
-    {
-      path: "/",
+      path: "/app",
       component: DefaultLayout,
       children: [
+        // 첫 로그인 사용자의 통합 자산 연결 페이지로 이동하는 주소임
         {
-          path: "dashboard",
-          name: "Dashboard",
+          path: "/connections/mydata",
+          name: "connection",
+          component: ConnectionView,
+        },
+        // 대시보드 페이지로 이동하는 주소임
+        {
+          path: "/dashboard",
+          name: "dashboard",
           component: DashboardView,
         },
+        // AI 컨설팅 페이지로 이동하는 주소임
         {
-          path: "assets",
-          name: "AssetManagement",
-          component: DashboardView, // TODO: AssetView 추가 후 교체 필요
+          path: "/ai-consulting",
+          name: "ai-consulting",
+          component: AiAssistantView,
         },
+        // 자산 페이지로 이동하는 주소임
         {
-          path: "assets/expenses",
-          name: "ExpenseHistory",
-          component: DashboardView, // TODO: ExpenseHistoryView 추가 후 교체 필요
+          path: "/institutions",
+          name: "institutions",
+          component: AssetView,
         },
+        // 절약 챌린지의 피드 목록 페이지로 이동하는 주소임
         {
-          path: "ai-assistant",
-          name: "AiConsulting",
-          component: DashboardView, // TODO: AiAssistantView 추가 후 교체 필요
+          path: "/challenges/current",
+          name: "current-challenge",
+          component: ChallengeEntryView,
         },
+        // 선택한 챌린지의 피드 페이지로 이동하는 주소임
         {
-          path: "challenges/current",
-          name: "CurrentChallenge",
-          component: DashboardView, // TODO: ChallengeEntryView 추가 후 교체 필요
+          path: "/challenges/:challengeId/feeds",
+          name: "challenge-feed",
+          component: ChallengeFeedView,
         },
+        // 절약 챌린지 주간랭킹 페이지로 이동하는 주소임
         {
-          path: "challenges/:challengeId/feeds",
-          name: "ChallengeFeed",
-          component: DashboardView, // TODO: ChallengeFeedView 추가 후 교체 필요
+          path: "/challenges/rankings/weekly",
+          name: "weekly-ranking",
+          component: ChallengeRankingView,
         },
+        // 현재 사용자의 내 챌린지 페이지로 이동하는 주소임
         {
-          path: "challenges/rankings/weekly",
-          name: "WeeklyRanking",
-          component: DashboardView, // TODO: ChallengeRankingView 추가 후 교체 필요
+          path: "/users/me/challenge-dashboard",
+          name: "my-challenge",
+          component: MyChallengeView,
         },
+        // 포인트 샵 페이지로 이동하는 주소임
         {
-          path: "my-challenge",
-          name: "MyChallenge",
-          component: DashboardView, // TODO: MyChallengeView 추가 후 교체 필요
+          path: "/point-shop",
+          name: "point-shop",
+          component: PointShopView,
         },
+        // 금융 리포트 페이지로 이동하는 주소임
         {
-          path: "point-shop",
-          name: "PointShop",
-          component: DashboardView, // TODO: PointShopView 추가 후 교체 필요
+          path: "/reports",
+          name: "reports",
+          component: ReportListView,
         },
+        // 사용자 설정 페이지로 이동하는 주소임
         {
-          path: "reports",
-          name: "Reports",
-          component: DashboardView, // TODO: ReportListView 추가 후 교체 필요
-        },
-        {
-          path: "settings",
-          name: "Settings",
-          component: DashboardView, // TODO: SettingsView 추가 후 교체 필요
+          path: "/users/profile",
+          name: "user-profile",
+          component: SettingsView,
         },
       ],
     },
   ],
-});
+})
 
-export default router;
+export default router

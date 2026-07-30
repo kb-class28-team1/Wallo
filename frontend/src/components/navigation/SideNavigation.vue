@@ -9,7 +9,7 @@ const brandLogoSource = ref(brandPenguin)
 
 const primaryMenus = [
   { icon: "🏠", label: "대시보드", to: "/dashboard" },
-  { icon: "💳", label: "자산", to: "/assets" },
+  { icon: "💳", label: "자산", to: "/institutions" },
   { icon: "🤖", label: "AI 컨설팅", to: "/ai-consulting" },
 ]
 
@@ -30,7 +30,7 @@ const isChallengeRoute = computed(
   () =>
     route.path === "/challenges/current" ||
     route.path.startsWith("/challenges/") ||
-    route.path === "/my-challenge",
+    route.path === "/users/me/challenge-dashboard",
 )
 const challengeGroupClass = computed(() => ({
   "challenge-group-active": isChallengeRoute.value,
@@ -42,7 +42,7 @@ const weeklyRankingClass = computed(() => ({
   "submenu-link-active": route.path === "/challenges/rankings/weekly",
 }))
 const myChallengeClass = computed(() => ({
-  "submenu-link-active": route.path === "/my-challenge",
+  "submenu-link-active": route.path === "/users/me/challenge-dashboard",
 }))
 
 // 챌린지 관련 페이지에서는 새로고침 후에도 하위 메뉴가 펼쳐짐
@@ -94,7 +94,7 @@ const moveToWeeklyRanking = () => {
 }
 
 const moveToMyChallenge = () => {
-  moveToChallengeMemberPage("/my-challenge")
+  moveToChallengeMemberPage("/users/me/challenge-dashboard")
 }
 </script>
 

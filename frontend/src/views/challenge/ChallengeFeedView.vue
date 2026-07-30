@@ -3,5 +3,5 @@ import PagePlaceholder from "@/components/common/PagePlaceholder.vue"
 </script>
 
 <template>
-  <PagePlaceholder title="대시보드 페이지" />
+  <PagePlaceholder title="챌린지 피드 페이지" />
 </template>
