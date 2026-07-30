@@ -62,8 +62,8 @@ const router = createRouter({
         },
         // 자산 페이지로 이동하는 주소임
         {
-          path: "/institutions",
-          name: "institutions",
+          path: "/assets",
+          name: "assets",
           component: AssetView,
         },
         // 절약 챌린지의 피드 목록 페이지로 이동하는 주소임
