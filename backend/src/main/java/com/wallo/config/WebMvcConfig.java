@@ -9,12 +9,13 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @EnableWebMvc
 @ComponentScan(basePackages = {
         "com.wallo.asset.controller",
+        "com.wallo.auth.controller",
+        "com.wallo.auth.exception",
         "com.wallo.external.controller",
         "com.wallo.challenge.controller",
+        "com.wallo.challenge.exception",
         "com.wallo.common.exception"
 })
 public class WebMvcConfig implements WebMvcConfigurer {
 }
-
-
 
