@@ -1,76 +1,115 @@
 import { createRouter, createWebHistory } from "vue-router"
 import DefaultLayout from "@/layouts/DefaultLayout.vue"
+import LandingView from "@/views/auth/LandingView.vue"
+import LoginView from "@/views/auth/LoginView.vue"
+import SignupView from "@/views/auth/SignupView.vue"
+import AiAssistantView from "@/views/ai/AiAssistantView.vue"
+import AssetView from "@/views/asset/AssetView.vue"
+import ConnectionView from "@/views/asset/ConnectionView.vue"
+import ChallengeEntryView from "@/views/challenge/ChallengeEntryView.vue"
+import ChallengeFeedView from "@/views/challenge/ChallengeFeedView.vue"
+import ChallengeRankingView from "@/views/challenge/ChallengeRankingView.vue"
+import MyChallengeView from "@/views/challenge/MyChallengeView.vue"
 import DashboardView from "@/views/dashboard/DashboardView.vue"
-import ConnectionView from "@/views/asset/ConnectionView.vue";
+import PointShopView from "@/views/product/PointShopView.vue"
+import ReportListView from "@/views/report/ReportListView.vue"
+import SettingsView from "@/views/user/SettingsView.vue"
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
+    // 서비스 최초 진입 시 랜딩 페이지를 표시하는 주소임
     {
       path: "/",
+      name: "landing",
+      component: LandingView,
+    },
+    // 로그인 페이지로 이동하는 주소임
+    {
+      path: "/login",
+      name: "login",
+      component: LoginView,
+    },
+    // 회원가입 페이지로 이동하는 주소임
+    {
+      path: "/signup",
+      name: "signup",
+      component: SignupView,
+    },
+    // 로그인 이후 사이드바와 상단바를 공통으로 사용하는 페이지 그룹임
+    {
+      path: "/app",
       component: DefaultLayout,
       children: [
-        {
-          path: "/",
-          redirect: "/connections/mydata",
-        },
+        // 첫 로그인 사용자의 통합 자산 연결 페이지로 이동하는 주소임
         {
           path: "/connections/mydata",
-          name: "Connection",
+          name: "connection",
           component: ConnectionView,
         },
+        // 대시보드 페이지로 이동하는 주소임
         {
-          path: "/dashboard", //home
-          name: "Dashboard",
+          path: "/dashboard",
+          name: "dashboard",
           component: DashboardView,
         },
+        // AI 컨설팅 페이지로 이동하는 주소임
         {
-          path: "api/dashboard",//ai컨설팅 체크
+          path: "/ai-consulting",
           name: "ai-consulting",
-          component: DashboardView,
+          component: AiAssistantView,
         },
+        // 자산 페이지로 이동하는 주소임
         {
-          path: "api/institutions",//자산 관리
+          path: "/institutions",
           name: "institutions",
-          component: DashboardView,
+          component: AssetView,
         },
+        // 절약 챌린지의 피드 목록 페이지로 이동하는 주소임
         {
-          path: "api/challenges/current",
+          path: "/challenges/current",
           name: "current-challenge",
-          component: DashboardView,
+          component: ChallengeEntryView,
         },
+        // 선택한 챌린지의 피드 페이지로 이동하는 주소임
         {
-          path: "api/challenges/:challengeId/feeds",
+          path: "/challenges/:challengeId/feeds",
           name: "challenge-feed",
-          component: DashboardView,
+          component: ChallengeFeedView,
         },
+        // 절약 챌린지 주간랭킹 페이지로 이동하는 주소임
         {
-          path: "api/challenges/rankings/weekly",
+          path: "/challenges/rankings/weekly",
           name: "weekly-ranking",
-          component: DashboardView,
+          component: ChallengeRankingView,
         },
+        // 현재 사용자의 내 챌린지 페이지로 이동하는 주소임
         {
-          path: "api/users/me/challenge-dashboard",
+          path: "/users/me/challenge-dashboard",
           name: "my-challenge",
-          component: DashboardView,
+          component: MyChallengeView,
         },
+        // 포인트 샵 페이지로 이동하는 주소임
         {
-          path: "api/point-shop",
+          path: "/point-shop",
           name: "point-shop",
-          component: DashboardView,
+          component: PointShopView,
         },
+        // 금융 리포트 페이지로 이동하는 주소임
         {
-          path: "api/reports",
+          path: "/reports",
           name: "reports",
-          component: DashboardView,
+          component: ReportListView,
         },
+        // 사용자 설정 페이지로 이동하는 주소임
         {
-          path: "api/users/profile",
+          path: "/users/profile",
           name: "user-profile",
-          component: DashboardView,
+          component: SettingsView,
         },
       ],
     },
   ],
 })
 
+export default router

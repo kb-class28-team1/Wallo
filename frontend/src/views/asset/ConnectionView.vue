@@ -58,6 +58,8 @@ const handleLogoError = (event) => {
   event.target.nextElementSibling?.classList.remove("d-none");
 };
 
+const getLogoFallbackClass = (logoUrl) => (logoUrl ? "d-none" : "");
+
 const getFailedInstitutions = (results = []) => results.filter((result) => {
   if (typeof result.connected === "boolean") {
     return !result.connected;
@@ -324,7 +326,7 @@ onBeforeUnmount(() => {
                       class="asset-logo-image"
                       @error="handleLogoError"
                     />
-                    <span :class="asset.logoUrl ? 'd-none' : ''">
+                    <span :class="getLogoFallbackClass(asset.logoUrl)">
                       {{ asset.logoText }}
                     </span>
                   </div>
