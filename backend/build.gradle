@@ -33,6 +33,7 @@ ext {
     logbackVersion        = '1.5.6'
     servletApiVersion     = '4.0.1'
     junitVersion          = '5.10.0'
+    lombokVersion         = '1.18.34'
 }
 
 dependencies {
@@ -67,6 +68,10 @@ dependencies {
 
     // 로깅
     implementation "ch.qos.logback:logback-classic:${logbackVersion}"
+
+    // Lombok
+    compileOnly "org.projectlombok:lombok:${lombokVersion}"
+    annotationProcessor "org.projectlombok:lombok:${lombokVersion}"
 
     // 테스트
     testImplementation platform("org.junit:junit-bom:${junitVersion}")
