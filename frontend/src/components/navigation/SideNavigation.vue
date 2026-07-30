@@ -28,9 +28,9 @@ const isChallengeChecking = ref(false)
 // 챌린지 관련 페이지에 접속 중인지 현재 URL로 판단함
 const isChallengeRoute = computed(
   () =>
-    route.path === "/api/challenges/current" ||
-    route.path.startsWith("/api/challenges/") ||
-    route.path === "/api/users/me/challenge-dashboard",
+    route.path === "/challenges/current" ||
+    route.path.startsWith("/challenges/") ||
+    route.path === "/my-challenge",
 )
 const challengeGroupClass = computed(() => ({
   "challenge-group-active": isChallengeRoute.value,
@@ -39,10 +39,10 @@ const collapseMarkClass = computed(() => ({
   "collapse-mark-open": isChallengeOpen.value,
 }))
 const weeklyRankingClass = computed(() => ({
-  "submenu-link-active": route.path === "/api/challenges/rankings/weekly",
+  "submenu-link-active": route.path === "/challenges/rankings/weekly",
 }))
 const myChallengeClass = computed(() => ({
-  "submenu-link-active": route.path === "/api/users/me/challenge-dashboard",
+  "submenu-link-active": route.path === "/my-challenge",
 }))
 
 // 챌린지 관련 페이지에서는 새로고침 후에도 하위 메뉴가 펼쳐짐
@@ -90,18 +90,18 @@ const moveToChallengeMemberPage = async (targetPath) => {
 }
 
 const moveToWeeklyRanking = () => {
-  moveToChallengeMemberPage("/api/challenges/rankings/weekly")
+  moveToChallengeMemberPage("/challenges/rankings/weekly")
 }
 
 const moveToMyChallenge = () => {
-  moveToChallengeMemberPage("/api/users/me/challenge-dashboard")
+  moveToChallengeMemberPage("/my-challenge")
 }
 </script>
 
 <template>
   <aside class="sidebar d-flex flex-column" aria-label="주요 메뉴">
     <RouterLink
-      to="/api/home"
+      to="/dashboard"
       class="brand d-flex align-items-center"
       aria-label="왈로 대시보드로 이동"
     >
@@ -163,7 +163,7 @@ const moveToMyChallenge = () => {
             class="submenu d-flex flex-column"
           >
             <RouterLink
-              to="/api/challenges/current"
+              to="/challenges/current"
               class="submenu-item submenu-link d-flex align-items-center"
             >
               <span class="submenu-dot" aria-hidden="true"></span>
