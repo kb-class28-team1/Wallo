@@ -13,3 +13,17 @@ export const getCurrentChallenge = async () => {
     throw new Error(message)
   }
 }
+
+// 로그인 사용자가 참여 중인 GROUP 챌린지의 이번 주 랭킹을 조회함
+export const getWeeklyRanking = async () => {
+  try {
+    const response = await httpClient.get("/api/challenges/rankings/weekly")
+    return response.data
+  } catch (error) {
+    // 백엔드에서 전달한 오류 메시지를 우선 사용하고, 없으면 기본 안내 문구를 사용함
+    const message = error.response?.data?.message || "주간 랭킹을 불러오지 못했습니다."
+
+    // 화면에서 alert 등으로 안내할 수 있도록 오류를 호출한 곳으로 다시 전달함
+    throw new Error(message)
+  }
+}
