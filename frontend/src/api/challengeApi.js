@@ -27,3 +27,25 @@ export const getWeeklyRanking = async () => {
     throw new Error(message)
   }
 }
+
+// 새로운 챌린지를 생성함
+export const createChallenge = async (payload) => {
+  try {
+    const response = await httpClient.post("/api/challenges", payload)
+    return response.data
+  } catch (error) {
+    const message = error.response?.data?.message || "챌린지를 만들지 못했습니다."
+    throw new Error(message)
+  }
+}
+
+// 초대 코드로 기존 챌린지에 참여함
+export const joinChallenge = async (inviteCode) => {
+  try {
+    const response = await httpClient.post("/api/challenges/join", { inviteCode })
+    return response.data
+  } catch (error) {
+    const message = error.response?.data?.message || "챌린지에 참여하지 못했습니다."
+    throw new Error(message)
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "name": "frontend",
+  "name": "wallo-frontend",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -22,7 +22,7 @@
     "vue-router": "^4.5.0"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^6.0.8",
+    "@vitejs/plugin-vue": "^5.2.4",
     "prettier": "3.9.5",
     "jsdom": "^30.0.0",
     "vitest": "^4.1.10"
