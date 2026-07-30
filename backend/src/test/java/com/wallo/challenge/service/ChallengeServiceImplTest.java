@@ -7,14 +7,22 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import com.wallo.challenge.domain.Challenge;
+import com.wallo.challenge.domain.WeeklyRanking;
 import com.wallo.challenge.dto.request.CreateChallengeRequest;
 import com.wallo.challenge.dto.request.JoinChallengeRequest;
 import com.wallo.challenge.dto.response.CreateChallengeResponse;
 import com.wallo.challenge.dto.response.CurrentChallengeResponse;
 import com.wallo.challenge.dto.response.JoinChallengeResponse;
+import com.wallo.challenge.dto.response.WeeklyRankingResponse;
 import com.wallo.challenge.exception.AlreadyJoinedChallengeException;
+import com.wallo.challenge.exception.ChallengeNotFoundException;
 import com.wallo.challenge.exception.InvalidInviteCodeException;
+import com.wallo.challenge.exception.NotChallengeMemberException;
+import com.wallo.challenge.exception.SoloFeatureNotAllowedException;
 import com.wallo.challenge.mapper.ChallengeMapper;
 import org.junit.jupiter.api.Test;
 
@@ -119,6 +127,58 @@ class ChallengeServiceImplTest {
         assertEquals("ABCDEFGH", response.getInviteCode());
     }
 
+    @Test
+    void returnsWeeklyRankingAndLoggedInUsersRanking() {
+        FakeChallengeMapper mapper = new FakeChallengeMapper();
+        mapper.currentChallengeId = 10L;
+        mapper.savedChallenge = challenge(10L, "함께 절약", "GROUP", "ABCDEFGH");
+        mapper.weeklyRankings.add(weeklyRanking(10L, 2L, 1, 50000L, 10));
+        mapper.weeklyRankings.add(weeklyRanking(10L, 1L, 2, 30000L, 5));
+        ChallengeService service = new ChallengeServiceImpl(mapper);
+
+        WeeklyRankingResponse response = service.getWeeklyRanking(1L, 10L);
+
+        assertEquals(LocalDate.of(2026, 7, 27), response.getStartDate());
+        assertEquals(LocalDate.of(2026, 8, 2), response.getEndDate());
+        assertEquals(2, response.getRankings().size());
+        assertNotNull(response.getMyRanking());
+        assertEquals(1L, response.getMyRanking().getUserId());
+        assertEquals(2, response.getMyRanking().getRank());
+    }
+
+    @Test
+    void throwsExceptionWhenRankingChallengeDoesNotExist() {
+        ChallengeService service = new ChallengeServiceImpl(new FakeChallengeMapper());
+
+        assertThrows(
+                ChallengeNotFoundException.class,
+                () -> service.getWeeklyRanking(1L, 10L));
+    }
+
+    @Test
+    void throwsExceptionWhenUserIsNotRankingChallengeMember() {
+        FakeChallengeMapper mapper = new FakeChallengeMapper();
+        mapper.currentChallengeId = 20L;
+        mapper.savedChallenge = challenge(10L, "함께 절약", "GROUP", "ABCDEFGH");
+        ChallengeService service = new ChallengeServiceImpl(mapper);
+
+        assertThrows(
+                NotChallengeMemberException.class,
+                () -> service.getWeeklyRanking(1L, 10L));
+    }
+
+    @Test
+    void throwsExceptionWhenWeeklyRankingIsRequestedForSoloChallenge() {
+        FakeChallengeMapper mapper = new FakeChallengeMapper();
+        mapper.currentChallengeId = 10L;
+        mapper.savedChallenge = challenge(10L, "혼자 절약", "SOLO", "ABCDEFGH");
+        ChallengeService service = new ChallengeServiceImpl(mapper);
+
+        assertThrows(
+                SoloFeatureNotAllowedException.class,
+                () -> service.getWeeklyRanking(1L, 10L));
+    }
+
     private CreateChallengeRequest request(String name, String challengeType) {
         CreateChallengeRequest request = new CreateChallengeRequest();
         request.setName(name);
@@ -133,13 +193,37 @@ class ChallengeServiceImplTest {
     }
 
     private Challenge challenge(Long id, String name, String inviteCode) {
+        return challenge(id, name, "SAVING", inviteCode);
+    }
+
+    private Challenge challenge(Long id, String name, String challengeType, String inviteCode) {
         Challenge challenge = new Challenge();
         challenge.setId(id);
         challenge.setName(name);
-        challenge.setChallengeType("SAVING");
+        challenge.setChallengeType(challengeType);
         challenge.setInviteCode(inviteCode);
         challenge.setStatus("ACTIVE");
         return challenge;
+    }
+
+    private WeeklyRanking weeklyRanking(
+            Long challengeId,
+            Long userId,
+            int rankPosition,
+            long savingAmount,
+            int likeCount) {
+        WeeklyRanking ranking = new WeeklyRanking();
+        ranking.setChallengeId(challengeId);
+        ranking.setUserId(userId);
+        ranking.setWeekStartDate(LocalDate.of(2026, 7, 27));
+        ranking.setRankPosition(rankPosition);
+        ranking.setNickname("사용자" + userId);
+        ranking.setProfileImageUrl("/images/profile.svg");
+        ranking.setSavingAmount(savingAmount);
+        ranking.setStreakDays(3);
+        ranking.setLikeCount(likeCount);
+        ranking.setRewardPoint(rankPosition == 1 ? 3000 : 2000);
+        return ranking;
     }
 
     /** 실제 DB 대신 서비스 규칙만 검증하기 위한 테스트 전용 Mapper다. */
@@ -149,6 +233,7 @@ class ChallengeServiceImplTest {
         private int updateResult = 1;
         private Challenge savedChallenge;
         private Challenge challengeByInviteCode;
+        private final List<WeeklyRanking> weeklyRankings = new ArrayList<>();
 
         @Override
         public int insertChallenge(Challenge challenge) {
@@ -183,6 +268,11 @@ class ChallengeServiceImplTest {
         @Override
         public int countByInviteCode(String inviteCode) {
             return 0;
+        }
+
+        @Override
+        public List<WeeklyRanking> findWeeklyRankings(Long challengeId) {
+            return weeklyRankings;
         }
     }
 }

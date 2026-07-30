@@ -1,23 +1,35 @@
 package com.wallo.challenge.service;
 
 import java.security.SecureRandom;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.TemporalAdjusters;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.wallo.challenge.domain.Challenge;
+import com.wallo.challenge.domain.WeeklyRanking;
 import com.wallo.challenge.dto.request.CreateChallengeRequest;
 import com.wallo.challenge.dto.request.JoinChallengeRequest;
 import com.wallo.challenge.dto.response.CreateChallengeResponse;
 import com.wallo.challenge.dto.response.CurrentChallengeResponse;
 import com.wallo.challenge.dto.response.JoinChallengeResponse;
+import com.wallo.challenge.dto.response.WeeklyRankingItemResponse;
+import com.wallo.challenge.dto.response.WeeklyRankingResponse;
 import com.wallo.challenge.exception.AlreadyJoinedChallengeException;
+import com.wallo.challenge.exception.ChallengeNotFoundException;
 import com.wallo.challenge.exception.InvalidInviteCodeException;
+import com.wallo.challenge.exception.NotChallengeMemberException;
+import com.wallo.challenge.exception.SoloFeatureNotAllowedException;
 import com.wallo.challenge.mapper.ChallengeMapper;
 
 @Service
 public class ChallengeServiceImpl implements ChallengeService {
 
     private static final String ACTIVE_STATUS = "ACTIVE";
+    private static final String GROUP_CHALLENGE_TYPE = "GROUP";
     private static final String INVITE_CODE_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     private static final int INVITE_CODE_LENGTH = 8;
     private static final int MAX_INVITE_CODE_GENERATION_ATTEMPTS = 10;
@@ -110,6 +122,53 @@ public class ChallengeServiceImpl implements ChallengeService {
         }
 
         return CurrentChallengeResponse.joined(challenge);
+    }
+
+    /**
+     * 주간 랭킹을 조회하기 전에 챌린지 존재 여부, 사용자 참여 여부와 GROUP 유형을 차례로 확인함.
+     * 검증을 통과하면 VIEW 조회 결과를 화면 응답 DTO로 변환하고 로그인 사용자의 순위도 함께 찾음.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public WeeklyRankingResponse getWeeklyRanking(Long userId, Long challengeId) {
+        Challenge challenge = challengeMapper.findChallengeById(challengeId);
+        if (challenge == null) {
+            throw new ChallengeNotFoundException();
+        }
+
+        // 사용자의 현재 챌린지가 요청한 챌린지와 같아야 랭킹을 조회할 수 있음.
+        Long currentChallengeId = challengeMapper.findCurrentChallengeIdByUserId(userId);
+        if (currentChallengeId == null || !currentChallengeId.equals(challengeId)) {
+            throw new NotChallengeMemberException();
+        }
+
+        // 주간 랭킹은 여러 사용자가 참여하는 GROUP 챌린지에서만 제공함.
+        if (!GROUP_CHALLENGE_TYPE.equals(challenge.getChallengeType())) {
+            throw new SoloFeatureNotAllowedException();
+        }
+
+        List<WeeklyRanking> weeklyRankings = challengeMapper.findWeeklyRankings(challengeId);
+        List<WeeklyRankingItemResponse> rankingResponses = weeklyRankings.stream()
+                .map(WeeklyRankingItemResponse::from)
+                .collect(Collectors.toList());
+
+        // 전체 랭킹 중 로그인 사용자와 userId가 같은 항목을 내 순위로 분리함.
+        WeeklyRankingItemResponse myRanking = weeklyRankings.stream()
+                .filter(ranking -> userId.equals(ranking.getUserId()))
+                .findFirst()
+                .map(WeeklyRankingItemResponse::from)
+                .orElse(null);
+
+        // VIEW 결과가 비어 있어도 현재 주의 월요일부터 일요일까지를 응답하도록 처리함.
+        LocalDate startDate = weeklyRankings.isEmpty()
+                ? LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+                : weeklyRankings.get(0).getWeekStartDate();
+
+        return WeeklyRankingResponse.of(
+                startDate,
+                startDate.plusDays(6),
+                rankingResponses,
+                myRanking);
     }
 
     private String generateUniqueInviteCode() {

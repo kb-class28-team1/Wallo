@@ -5,6 +5,7 @@ import com.wallo.challenge.dto.request.JoinChallengeRequest;
 import com.wallo.challenge.dto.response.CreateChallengeResponse;
 import com.wallo.challenge.dto.response.CurrentChallengeResponse;
 import com.wallo.challenge.dto.response.JoinChallengeResponse;
+import com.wallo.challenge.dto.response.WeeklyRankingResponse;
 
 /** 챌린지 생성과 참여 상태 변경에 대한 비즈니스 규칙을 처리한다. */
 public interface ChallengeService {
@@ -21,4 +22,7 @@ public interface ChallengeService {
 
     /** 로그인 사용자의 현재 챌린지 참여 상태와 챌린지 정보를 조회한다. */
     CurrentChallengeResponse getCurrentChallenge(Long userId);
+
+    /** 로그인 사용자가 참여 중인 GROUP 챌린지의 이번 주 랭킹을 조회함. */
+    WeeklyRankingResponse getWeeklyRanking(Long userId, Long challengeId);
 }
