@@ -33,14 +33,14 @@ public class AssetController {
     public CommonResponse<ExpenseDto.Summary> getExpenses(
             @RequestParam(value = "startDate", required = false) String startDate,
             @RequestParam(value = "endDate", required = false) String endDate,
-            @RequestParam(value = "page", required = false) Integer page,
-            @RequestParam(value = "size", required = false) Integer size
+            @RequestParam(value = "page", defaultValue = "0") Integer page,
+            @RequestParam(value = "size", defaultValue = "20") Integer size
     ) {
         ExpenseDto.SearchCondition condition = new ExpenseDto.SearchCondition(
                 startDate,
                 endDate,
-                page == null ? 0 : page,
-                size == null ? 0 : size,
+                page,
+                size,
                 0
         );
 

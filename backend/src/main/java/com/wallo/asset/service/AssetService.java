@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class AssetService {
 
-    private static final int ASSET_TREND_MONTH_COUNT = 6;
+    private static final int ASSET_TREND_MONTH_COUNT = 5;
 
     private final AssetMapper assetMapper;
 
