@@ -15,6 +15,21 @@
         <result property="createdAt" column="created_at" />
     </resultMap>
 
+    <!-- V_WEEKLY_RANKING VIEW의 컬럼을 WeeklyRanking Domain 필드에 연결함. -->
+    <resultMap id="weeklyRankingResultMap"
+               type="com.wallo.challenge.domain.WeeklyRanking">
+        <id property="userId" column="user_id" />
+        <result property="challengeId" column="challenge_id" />
+        <result property="weekStartDate" column="week_start_date" />
+        <result property="rankPosition" column="rank_position" />
+        <result property="nickname" column="nickname" />
+        <result property="profileImageUrl" column="profile_image_url" />
+        <result property="savingAmount" column="saving_amount" />
+        <result property="streakDays" column="streak_days" />
+        <result property="likeCount" column="like_count" />
+        <result property="rewardPoint" column="reward_point" />
+    </resultMap>
+
     <!-- useGeneratedKeys: INSERT 뒤 DB가 만든 challenge.id를 객체에 반영한다. -->
     <insert id="insertChallenge"
             parameterType="com.wallo.challenge.domain.Challenge"
@@ -80,5 +95,23 @@
         SELECT COUNT(*)
         FROM challenge
         WHERE invite_code = #{inviteCode}
+    </select>
+
+    <!-- VIEW에서 특정 챌린지의 이번 주 랭킹을 조회함. -->
+    <select id="findWeeklyRankings" resultMap="weeklyRankingResultMap">
+        SELECT
+            challenge_id,
+            user_id,
+            week_start_date,
+            rank_position,
+            nickname,
+            profile_image_url,
+            saving_amount,
+            streak_days,
+            like_count,
+            reward_point
+        FROM V_WEEKLY_RANKING
+        WHERE challenge_id = #{challengeId}
+        ORDER BY rank_position, user_id
     </select>
 </mapper>

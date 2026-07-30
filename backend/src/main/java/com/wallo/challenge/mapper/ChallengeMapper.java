@@ -1,7 +1,9 @@
 package com.wallo.challenge.mapper;
 
+import java.util.List;
 import org.apache.ibatis.annotations.Param;
 import com.wallo.challenge.domain.Challenge;
+import com.wallo.challenge.domain.WeeklyRanking;
 
 /**
  * challenge 및 users 테이블에 접근하는 MyBatis Mapper.
@@ -33,4 +35,8 @@ public interface ChallengeMapper {
     /** 초대 코드 생성 시 중복 여부를 확인한다. */
     // countByInviteCode - 초대 코드 중복 확인
     int countByInviteCode(@Param("inviteCode") String inviteCode);
+
+    /** 전달받은 챌린지의 이번 주 전체 랭킹을 순위 순서로 조회함. */
+    List<WeeklyRanking> findWeeklyRankings(
+            @Param("challengeId") Long challengeId);
 }
