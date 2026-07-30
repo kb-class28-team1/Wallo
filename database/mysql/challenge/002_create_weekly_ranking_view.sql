@@ -1,5 +1,6 @@
 -- Wallo current weekly ranking view
 -- 001_create_challenge_schema.sql 실행 후 사용함
+-- 절약 금액 합계로 순위를 정하고, 금액이 같으면 좋아요 수 합계로 순위를 정함
 
 USE wallo;
 
@@ -32,7 +33,6 @@ FROM (
             PARTITION BY summary.challenge_id, summary.week_start_date
             ORDER BY
                 summary.saving_amount DESC,
-                summary.streak_days DESC,
                 summary.like_count DESC
         ) AS rank_position,
         summary.nickname,
