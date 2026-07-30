@@ -76,7 +76,7 @@ const moveToChallengeMemberPage = async (targetPath) => {
   try {
     const response = await getCurrentChallenge()
 
-    if (!response?.data?.hasChallenge) {
+    if (!response?.joined) {
       alert("챌린지 참여가 확인되지 않습니다.")
       return
     }
