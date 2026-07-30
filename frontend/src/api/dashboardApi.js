@@ -7,6 +7,14 @@ const mockAssetsResponse = {
   data: {
     totalAssets: 39900000,
     previousMonthTotalAssets: 38400000,
+    assetTrend: [
+      { month: "2월", amount: 34800000 },
+      { month: "3월", amount: 36100000 },
+      { month: "4월", amount: 35600000 },
+      { month: "5월", amount: 37200000 },
+      { month: "6월", amount: 38400000 },
+      { month: "7월", amount: 39900000 },
+    ],
     accounts: [
       {
         bank: "국민은행",

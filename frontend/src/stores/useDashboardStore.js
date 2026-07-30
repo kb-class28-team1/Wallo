@@ -27,6 +27,26 @@ const createDoughnutChartData = (breakdown = []) => ({
   ],
 });
 
+const createAssetTrendChartData = (assetTrend = []) => ({
+  labels: assetTrend.map((item) => item.month),
+  datasets: [
+    {
+      label: "총 자산",
+      data: assetTrend.map((item) => item.amount),
+      borderColor: "#8170FF",
+      backgroundColor: "rgba(129, 112, 255, 0.14)",
+      pointBackgroundColor: "#8170FF",
+      pointBorderColor: "#FFFFFF",
+      pointBorderWidth: 2,
+      pointRadius: 4,
+      pointHoverRadius: 6,
+      borderWidth: 3,
+      tension: 0.35,
+      fill: true,
+    },
+  ],
+});
+
 export const useDashboardStore = defineStore("dashboard", () => {
   const isLoading = ref(false);
   const assets = ref(null);
@@ -39,6 +59,9 @@ export const useDashboardStore = defineStore("dashboard", () => {
   );
   const expenseChartData = computed(() =>
     createDoughnutChartData(expenses.value?.expenseCategoryBreakdown ?? []),
+  );
+  const assetTrendChartData = computed(() =>
+    createAssetTrendChartData(assets.value?.assetTrend ?? []),
   );
 
   const fetchDashboardSummary = async () => {
@@ -76,6 +99,7 @@ export const useDashboardStore = defineStore("dashboard", () => {
     error,
     assetChartData,
     expenseChartData,
+    assetTrendChartData,
     fetchDashboardSummary,
   };
 });
