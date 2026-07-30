@@ -6,6 +6,7 @@ const mockAssetsResponse = {
   success: true,
   data: {
     totalAssets: 39900000,
+    previousMonthTotalAssets: 38400000,
     accounts: [
       {
         bank: "국민은행",
@@ -94,7 +95,7 @@ const mockExpensesResponse = {
 const resolveMockResponse = async (response) => {
   await new Promise((resolve) => setTimeout(resolve, MOCK_DELAY));
 
-  return Promise.resolve(response);
+  return Promise.resolve({ data: response });
 };
 
 export const getAssets = async () => {
