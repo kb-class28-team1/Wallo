@@ -11,7 +11,7 @@ defineProps({
   <div class="message-row" :class="`message-row--${message.role}`">
     <div class="message-bubble">
       <span class="message-label">
-        {{ message.role === 'assistant' ? 'AI' : '사용자' }}
+        {{ message.role === "assistant" ? "Wallo AI" : "나" }}
       </span>
       <p>{{ message.content }}</p>
     </div>
@@ -35,7 +35,7 @@ defineProps({
 .message-label {
   display: block;
   margin-bottom: 4px;
-  color: #666;
+  color: #7b849b;
   font-size: 12px;
 }
 
@@ -45,16 +45,16 @@ defineProps({
 
 .message-bubble p {
   margin: 0;
-  padding: 12px;
-  background: #f1f1f1;
-  border: 1px solid #ddd;
-  border-radius: 8px;
+  padding: 12px 14px;
+  background: #f4f3fb;
+  border-radius: 14px;
   line-height: 1.5;
   white-space: pre-wrap;
 }
 
 .message-row--user .message-bubble p {
-  background: #e5e5e5;
+  color: #fff;
+  background: #7062de;
 }
 
 @media (max-width: 640px) {
