@@ -7,6 +7,7 @@ import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 public final class AssetDto {
 
@@ -14,6 +15,7 @@ public final class AssetDto {
     }
 
     @Getter
+    @Setter
     @NoArgsConstructor
     public static class Response {
         private long totalAssets;
@@ -54,6 +56,7 @@ public final class AssetDto {
     }
 
     @Getter
+    @Setter
     @NoArgsConstructor
     @AllArgsConstructor
     public static class Account {
@@ -62,6 +65,7 @@ public final class AssetDto {
     }
 
     @Getter
+    @Setter
     @NoArgsConstructor
     @AllArgsConstructor
     public static class Card {
@@ -70,6 +74,7 @@ public final class AssetDto {
     }
 
     @Getter
+    @Setter
     @NoArgsConstructor
     @AllArgsConstructor
     public static class Stock {
@@ -78,6 +83,7 @@ public final class AssetDto {
     }
 
     @Getter
+    @Setter
     @NoArgsConstructor
     @AllArgsConstructor
     public static class CategoryBreakdown {
@@ -86,6 +92,7 @@ public final class AssetDto {
     }
 
     @Getter
+    @Setter
     @NoArgsConstructor
     @AllArgsConstructor
     public static class AssetTrend {

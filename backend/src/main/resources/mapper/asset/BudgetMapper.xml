@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wallo.asset.mapper.BudgetMapper">
+
+    <select id="selectBudget" resultType="com.wallo.asset.dto.BudgetDto$Budget">
+        SELECT
+            budget_id AS budgetId,
+            target_month AS targetMonth,
+            total_amount AS totalAmount
+        FROM BUDGETS
+        WHERE user_id = #{userId}
+          AND target_month = #{targetMonth}
+    </select>
+
+    <insert id="upsertBudget">
+        INSERT INTO BUDGETS (
+            user_id,
+            target_month,
+            total_amount
+        )
+        VALUES (
+            #{userId},
+            #{request.targetMonth},
+            #{request.totalAmount}
+        )
+        ON DUPLICATE KEY UPDATE
+            total_amount = VALUES(total_amount),
+            updated_at = CURRENT_TIMESTAMP
+    </insert>
+
+    <select id="selectSpentAmount" resultType="java.lang.Long">
+        SELECT COALESCE(SUM(amount), 0)
+        FROM TRANSACTIONS
+        WHERE user_id = #{userId}
+          AND type = 'EXPENSE'
+          AND transaction_date BETWEEN #{startDate} AND #{endDate}
+    </select>
+
+</mapper>
