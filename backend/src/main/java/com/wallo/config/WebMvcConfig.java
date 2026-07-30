@@ -10,6 +10,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @ComponentScan(basePackages = {
         "com.wallo.asset.controller",
         "com.wallo.external.controller",
+        "com.wallo.challenge.controller",
         "com.wallo.common.exception"
 })
 public class WebMvcConfig implements WebMvcConfigurer {
