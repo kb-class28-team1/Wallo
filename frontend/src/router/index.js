@@ -36,17 +36,18 @@ const router = createRouter({
       name: "signup",
       component: SignupView,
     },
+    // 첫 로그인 사용자의 통합 자산 연결 페이지로 이동하는 주소임
+    {
+       path: "/connections/mydata",
+       name: "connection",
+       component: ConnectionView,
+    },
     // 로그인 이후 사이드바와 상단바를 공통으로 사용하는 페이지 그룹임
     {
       path: "/app",
       component: DefaultLayout,
       children: [
-        // 첫 로그인 사용자의 통합 자산 연결 페이지로 이동하는 주소임
-        {
-          path: "/connections/mydata",
-          name: "connection",
-          component: ConnectionView,
-        },
+
         // 대시보드 페이지로 이동하는 주소임
         {
           path: "/dashboard",
