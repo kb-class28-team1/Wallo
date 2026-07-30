@@ -76,4 +76,9 @@ public class NewsServiceImpl implements NewsService {
         int boundedLimit = Math.min(limit, MAX_LATEST_NEWS_LIMIT);
         return newsMapper.findLatest(boundedLimit);
     }
+
+    @Override
+    public List<News> getAllNews() {
+        return newsMapper.findAll();
+    }
 }

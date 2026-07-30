@@ -22,4 +22,7 @@ public interface NewsService {
 
     /** 게시일시 기준 최신 뉴스 목록을 limit개 조회한다. */
     List<News> getLatestNews(int limit);
+
+    /** 게시일시 최신순으로 전체 뉴스 목록을 조회한다. (개수 제한 없음, 목록 조회 API용) */
+    List<News> getAllNews();
 }

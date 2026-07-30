@@ -22,4 +22,7 @@ public interface NewsMapper {
 
     /** 게시일시 기준 최신 뉴스 목록을 limit개 조회한다. */
     List<News> findLatest(@Param("limit") int limit);
+
+    /** 게시일시 최신순으로 전체 뉴스 목록을 조회한다. 개수 제한 없이 목록 조회 API에서 사용한다. */
+    List<News> findAll();
 }

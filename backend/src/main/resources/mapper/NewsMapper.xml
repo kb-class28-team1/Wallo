@@ -75,4 +75,20 @@
         ORDER BY published_at DESC
         LIMIT #{limit}
     </select>
+
+    <!-- published_at은 현재 NOT NULL이지만, 향후 컬럼 제약이 바뀌더라도 null이 뒤로 가도록 안전하게 정렬한다. -->
+    <select id="findAll" resultMap="newsResultMap">
+        SELECT
+            news_id,
+            title,
+            content,
+            source,
+            url,
+            category,
+            published_at,
+            created_at,
+            updated_at
+        FROM news
+        ORDER BY published_at IS NULL, published_at DESC, news_id DESC
+    </select>
 </mapper>
