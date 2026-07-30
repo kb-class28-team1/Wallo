@@ -6,6 +6,7 @@ import SignupView from "@/views/auth/SignupView.vue"
 import AiAssistantView from "@/views/ai/AiAssistantView.vue"
 import AssetView from "@/views/asset/AssetView.vue"
 import ConnectionView from "@/views/asset/ConnectionView.vue"
+import ExpenseHistoryView from "@/views/asset/ExpenseHistoryView.vue"
 import ChallengeEntryView from "@/views/challenge/ChallengeEntryView.vue"
 import ChallengeFeedView from "@/views/challenge/ChallengeFeedView.vue"
 import ChallengeRankingView from "@/views/challenge/ChallengeRankingView.vue"
@@ -37,17 +38,18 @@ const router = createRouter({
       name: "signup",
       component: SignupView,
     },
+    // 첫 로그인 사용자의 통합 자산 연결 페이지로 이동하는 주소임
+    {
+       path: "/connections/mydata",
+       name: "connection",
+       component: ConnectionView,
+    },
     // 로그인 이후 사이드바와 상단바를 공통으로 사용하는 페이지 그룹임
     {
       path: "/app",
       component: DefaultLayout,
       children: [
-        // 첫 로그인 사용자의 통합 자산 연결 페이지로 이동하는 주소임
-        {
-          path: "/connections/mydata",
-          name: "connection",
-          component: ConnectionView,
-        },
+
         // 대시보드 페이지로 이동하는 주소임
         {
           path: "/dashboard",
@@ -67,9 +69,14 @@ const router = createRouter({
         },
         // 자산 페이지로 이동하는 주소임
         {
-          path: "/institutions",
-          name: "institutions",
+          path: "/assets",
+          name: "assets",
           component: AssetView,
+        },
+        {
+          path: "/assets/expenses",
+          name: "expenses",
+          component: ExpenseHistoryView,
         },
         // 절약 챌린지의 피드 목록 페이지로 이동하는 주소임
         {

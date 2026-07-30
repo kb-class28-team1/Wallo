@@ -9,7 +9,7 @@ const brandLogoSource = ref(brandPenguin)
 
 const primaryMenus = [
   { icon: "🏠", label: "대시보드", to: "/dashboard" },
-  { icon: "💳", label: "자산", to: "/institutions" },
+  { icon: "💳", label: "자산", to: "/assets" },
   { icon: "🤖", label: "AI 컨설팅", to: "/ai-consulting" },
 ]
 
