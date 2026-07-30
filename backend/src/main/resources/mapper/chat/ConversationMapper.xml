@@ -58,4 +58,20 @@
             #{updatedAt}
         )
     </insert>
+
+    <update id="updateAfterUserMessage">
+        UPDATE CONVERSATIONS
+        SET title = CASE
+                WHEN title = '새 채팅' THEN #{title}
+                ELSE title
+            END,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE conversation_id = #{conversationId}
+    </update>
+
+    <update id="touch">
+        UPDATE CONVERSATIONS
+        SET updated_at = CURRENT_TIMESTAMP
+        WHERE conversation_id = #{conversationId}
+    </update>
 </mapper>

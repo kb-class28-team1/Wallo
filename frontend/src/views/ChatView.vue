@@ -1,8 +1,7 @@
 <script setup>
-import { nextTick, onMounted, ref } from "vue"
+import { computed, nextTick, onMounted, ref } from "vue"
 import { storeToRefs } from "pinia"
 
-import { requestChat } from "@/api/chat"
 import ChatInput from "@/components/chat/ChatInput.vue"
 import ChatMessage from "@/components/chat/ChatMessage.vue"
 import { useConversationStore } from "@/stores/conversationStore"
@@ -20,13 +19,16 @@ const {
   conversations,
   activeConversation,
   activeConversationId,
+  messages,
   isLoading: isConversationLoading,
+  isMessageLoading: isChatLoading,
 } = storeToRefs(conversationStore)
 
-const messages = ref([{ ...WELCOME_MESSAGE }])
-const isChatLoading = ref(false)
 const errorMessage = ref("")
 const messageList = ref(null)
+const displayMessages = computed(() =>
+  messages.value.length ? messages.value : [{ ...WELCOME_MESSAGE }],
+)
 
 const formatUpdatedAt = (updatedAt) => {
   if (!updatedAt) return ""
@@ -37,23 +39,17 @@ const formatUpdatedAt = (updatedAt) => {
   }).format(new Date(updatedAt))
 }
 
-const resetMessages = () => {
-  messages.value = [{ ...WELCOME_MESSAGE }]
+const selectConversation = async (conversationId) => {
   errorMessage.value = ""
-}
-
-const selectConversation = (conversationId) => {
-  conversationStore.selectConversation(conversationId)
-  resetMessages()
+  await conversationStore.selectConversation(conversationId, TEST_USER_ID)
+  await scrollToBottom()
 }
 
 const startNewConversation = async () => {
   const conversation =
     await conversationStore.startNewConversation(TEST_USER_ID)
 
-  if (conversation) {
-    resetMessages()
-  }
+  if (conversation) errorMessage.value = ""
 }
 
 async function scrollToBottom() {
@@ -67,33 +63,18 @@ async function scrollToBottom() {
 async function sendMessage(message) {
   if (isChatLoading.value) return
 
-  messages.value.push({
-    id: Date.now(),
-    role: "user",
-    content: message,
-  })
   errorMessage.value = ""
-  isChatLoading.value = true
+  await conversationStore.sendMessage(TEST_USER_ID, message)
   await scrollToBottom()
-
-  try {
-    const answer = await requestChat(message)
-    messages.value.push({
-      id: Date.now() + 1,
-      role: "assistant",
-      content: answer,
-    })
-  } catch (error) {
-    errorMessage.value =
-      error instanceof Error ? error.message : "메시지 전송에 실패했습니다."
-  } finally {
-    isChatLoading.value = false
-    await scrollToBottom()
-  }
 }
 
-onMounted(() => {
-  conversationStore.fetchConversations(TEST_USER_ID)
+onMounted(async () => {
+  const conversationId =
+    await conversationStore.fetchConversations(TEST_USER_ID)
+  if (conversationId) {
+    await conversationStore.fetchMessages(TEST_USER_ID, conversationId)
+    await scrollToBottom()
+  }
 })
 </script>
 
@@ -171,7 +152,7 @@ onMounted(() => {
 
           <div ref="messageList" class="message-list card-body" aria-live="polite">
             <ChatMessage
-              v-for="message in messages"
+              v-for="message in displayMessages"
               :key="message.id"
               :message="message"
             />

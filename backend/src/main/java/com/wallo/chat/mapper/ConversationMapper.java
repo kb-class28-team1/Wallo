@@ -14,4 +14,11 @@ public interface ConversationMapper {
     );
 
     int insert(Conversation conversation);
+
+    int updateAfterUserMessage(
+            @Param("conversationId") Long conversationId,
+            @Param("title") String title
+    );
+
+    int touch(@Param("conversationId") Long conversationId);
 }

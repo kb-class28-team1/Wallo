@@ -50,6 +50,30 @@ public class ConversationService {
         return ConversationResponse.from(conversation);
     }
 
+    @Transactional(readOnly = true)
+    public void validateOwnership(Long conversationId, Long userId) {
+        validateUserId(userId);
+        if (conversationId == null || conversationId < 1) {
+            throw new IllegalArgumentException("올바른 채팅방 ID가 필요합니다.");
+        }
+        if (conversationMapper.findByIdAndUserId(conversationId, userId) == null) {
+            throw new IllegalArgumentException("접근할 수 없는 채팅방입니다.");
+        }
+    }
+
+    @Transactional
+    public void updateAfterUserMessage(Long conversationId, String message) {
+        conversationMapper.updateAfterUserMessage(
+                conversationId,
+                createTitle(message)
+        );
+    }
+
+    @Transactional
+    public void touch(Long conversationId) {
+        conversationMapper.touch(conversationId);
+    }
+
     private void validateUserId(Long userId) {
         if (userId == null || userId < 1) {
             throw new IllegalArgumentException("올바른 사용자 ID가 필요합니다.");
@@ -64,5 +88,12 @@ public class ConversationService {
         return trimmedTitle.length() > 100
                 ? trimmedTitle.substring(0, 100)
                 : trimmedTitle;
+    }
+
+    private String createTitle(String message) {
+        String trimmedMessage = message.trim();
+        return trimmedMessage.length() > 30
+                ? trimmedMessage.substring(0, 30) + "..."
+                : trimmedMessage;
     }
 }
