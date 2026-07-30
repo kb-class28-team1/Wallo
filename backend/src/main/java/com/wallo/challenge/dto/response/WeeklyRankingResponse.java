@@ -1,5 +1,6 @@
 package com.wallo.challenge.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -7,9 +8,11 @@ import java.util.List;
 public class WeeklyRankingResponse {
 
     // 주간 랭킹 집계가 시작되는 월요일 날짜임
+    @JsonFormat(pattern = "yyyy-MM-dd")
     private final LocalDate startDate;
 
     // 주간 랭킹 집계가 종료되는 일요일 날짜임
+    @JsonFormat(pattern = "yyyy-MM-dd")
     private final LocalDate endDate;
 
     // 챌린지 참여자의 전체 주간 랭킹 목록임
