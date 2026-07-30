@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wallo.mapper.NewsMapper">
+
+    <!-- DB 컬럼명과 News Java 필드명을 명시적으로 연결한다. -->
+    <resultMap id="newsResultMap" type="com.wallo.domain.News">
+        <id property="newsId" column="news_id" />
+        <result property="title" column="title" />
+        <result property="content" column="content" />
+        <result property="source" column="source" />
+        <result property="url" column="url" />
+        <result property="category" column="category" />
+        <result property="publishedAt" column="published_at" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <!-- useGeneratedKeys: INSERT 뒤 DB가 만든 news.news_id를 News 객체에 반영한다. -->
+    <insert id="insertNews"
+            parameterType="com.wallo.domain.News"
+            useGeneratedKeys="true"
+            keyProperty="newsId">
+        INSERT INTO news (
+            title,
+            content,
+            source,
+            url,
+            category,
+            published_at
+        ) VALUES (
+            #{title},
+            #{content},
+            #{source},
+            #{url},
+            #{category},
+            #{publishedAt}
+        )
+    </insert>
+
+    <select id="existsByUrl" resultType="int">
+        SELECT COUNT(*)
+        FROM news
+        WHERE url = #{url}
+    </select>
+
+    <select id="findById" resultMap="newsResultMap">
+        SELECT
+            news_id,
+            title,
+            content,
+            source,
+            url,
+            category,
+            published_at,
+            created_at,
+            updated_at
+        FROM news
+        WHERE news_id = #{newsId}
+    </select>
+
+    <select id="findLatest" resultMap="newsResultMap">
+        SELECT
+            news_id,
+            title,
+            content,
+            source,
+            url,
+            category,
+            published_at,
+            created_at,
+            updated_at
+        FROM news
+        ORDER BY published_at DESC
+        LIMIT #{limit}
+    </select>
+</mapper>
