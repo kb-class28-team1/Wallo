@@ -66,6 +66,11 @@ const router = createRouter({
           name: "assets",
           component: AssetView,
         },
+        {
+          path: "/assets/expenses",
+          name: "expenses",
+          component: AssetView, // TODO: ExpenseHistoryView 추가 후 교체 필요
+        },
         // 절약 챌린지의 피드 목록 페이지로 이동하는 주소임
         {
           path: "/challenges/current",
