@@ -23,7 +23,7 @@ public class MyBatisConfig {
             @Value("${db.driverClassName}") String driverClassName,
             @Value("${db.url}") String url,
             @Value("${db.username}") String username,
-            @Value("1910") String password
+            @Value("${db.password}") String password
     ) {
         DriverManagerDataSource dataSource = new DriverManagerDataSource();
         dataSource.setDriverClassName(driverClassName);
