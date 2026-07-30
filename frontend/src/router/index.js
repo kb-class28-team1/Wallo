@@ -6,6 +6,7 @@ import SignupView from "@/views/auth/SignupView.vue"
 import AiAssistantView from "@/views/ai/AiAssistantView.vue"
 import AssetView from "@/views/asset/AssetView.vue"
 import ConnectionView from "@/views/asset/ConnectionView.vue"
+import ExpenseHistoryView from "@/views/asset/ExpenseHistoryView.vue"
 import ChallengeEntryView from "@/views/challenge/ChallengeEntryView.vue"
 import ChallengeFeedView from "@/views/challenge/ChallengeFeedView.vue"
 import ChallengeRankingView from "@/views/challenge/ChallengeRankingView.vue"
@@ -69,7 +70,7 @@ const router = createRouter({
         {
           path: "/assets/expenses",
           name: "expenses",
-          component: AssetView, // TODO: ExpenseHistoryView 추가 후 교체 필요
+          component: ExpenseHistoryView,
         },
         // 절약 챌린지의 피드 목록 페이지로 이동하는 주소임
         {
