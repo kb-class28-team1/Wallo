@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wallo.auth.mapper.AuthMapper">
+
+    <resultMap id="userResultMap" type="com.wallo.auth.domain.User">
+        <id property="id" column="id" />
+        <result property="email" column="email" />
+        <result property="passwordHash" column="password_hash" />
+        <result property="nickname" column="nickname" />
+        <result property="name" column="name" />
+        <result property="profileImageUrl" column="profile_image_url" />
+        <result property="role" column="role" />
+        <result property="point" column="point" />
+        <result property="currentChallengeId" column="current_challenge_id" />
+    </resultMap>
+
+    <sql id="userColumns">
+        id,
+        email,
+        password_hash,
+        nickname,
+        name,
+        profile_image_url,
+        role,
+        point,
+        current_challenge_id
+    </sql>
+
+    <select id="findByEmail" resultMap="userResultMap">
+        SELECT <include refid="userColumns" />
+        FROM users
+        WHERE email = #{email}
+    </select>
+
+    <select id="findById" resultMap="userResultMap">
+        SELECT <include refid="userColumns" />
+        FROM users
+        WHERE id = #{id}
+    </select>
+
+    <select id="countByEmail" resultType="int">
+        SELECT COUNT(*)
+        FROM users
+        WHERE email = #{email}
+    </select>
+
+    <select id="countByNickname" resultType="int">
+        SELECT COUNT(*)
+        FROM users
+        WHERE nickname = #{nickname}
+    </select>
+
+    <insert id="insertUser"
+            parameterType="com.wallo.auth.domain.User"
+            useGeneratedKeys="true"
+            keyProperty="id">
+        INSERT INTO users (
+            email,
+            password_hash,
+            nickname,
+            name
+        ) VALUES (
+            #{email},
+            #{passwordHash},
+            #{nickname},
+            #{name}
+        )
+    </insert>
+</mapper>

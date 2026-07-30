@@ -16,6 +16,7 @@ import PointShopView from "@/views/product/PointShopView.vue"
 import ReportListView from "@/views/report/ReportListView.vue"
 import SettingsView from "@/views/user/SettingsView.vue"
 import ConnectionManagementView from "@/views/user/ConnectionManagementView.vue"
+import { useUserStore } from "@/stores/userStore"
 import ChatView from "@/views/ChatView.vue"
 
 const router = createRouter({
@@ -32,12 +33,14 @@ const router = createRouter({
       path: "/login",
       name: "login",
       component: LoginView,
+      meta: { guestOnly: true },
     },
     // 회원가입 페이지로 이동하는 주소임
     {
       path: "/signup",
       name: "signup",
       component: SignupView,
+      meta: { guestOnly: true },
     },
     // 첫 로그인 사용자의 통합 자산 연결 페이지로 이동하는 주소임
     {
@@ -49,6 +52,7 @@ const router = createRouter({
     {
       path: "/app",
       component: DefaultLayout,
+      meta: { requiresAuth: true },
       children: [
 
         // 대시보드 페이지로 이동하는 주소임
@@ -129,6 +133,36 @@ const router = createRouter({
       ],
     },
   ],
+})
+
+router.beforeEach(async (to) => {
+  const userStore = useUserStore()
+
+  if (!userStore.hasCheckedAuth) {
+    try {
+      await userStore.restoreSession()
+    } catch (error) {
+      if (to.meta.requiresAuth) {
+        return {
+          name: "login",
+          query: { redirect: to.fullPath },
+        }
+      }
+    }
+  }
+
+  if (to.meta.requiresAuth && !userStore.isAuthenticated) {
+    return {
+      name: "login",
+      query: { redirect: to.fullPath },
+    }
+  }
+
+  if (to.meta.guestOnly && userStore.isAuthenticated) {
+    return { name: "dashboard" }
+  }
+
+  return true
 })
 
 export default router
