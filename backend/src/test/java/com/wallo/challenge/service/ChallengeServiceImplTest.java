@@ -136,7 +136,7 @@ class ChallengeServiceImplTest {
         mapper.weeklyRankings.add(weeklyRanking(10L, 1L, 2, 30000L, 5));
         ChallengeService service = new ChallengeServiceImpl(mapper);
 
-        WeeklyRankingResponse response = service.getWeeklyRanking(1L, 10L);
+        WeeklyRankingResponse response = service.getWeeklyRanking(1L);
 
         assertEquals(LocalDate.of(2026, 7, 27), response.getStartDate());
         assertEquals(LocalDate.of(2026, 8, 2), response.getEndDate());
@@ -148,23 +148,23 @@ class ChallengeServiceImplTest {
 
     @Test
     void throwsExceptionWhenRankingChallengeDoesNotExist() {
-        ChallengeService service = new ChallengeServiceImpl(new FakeChallengeMapper());
+        FakeChallengeMapper mapper = new FakeChallengeMapper();
+        mapper.currentChallengeId = 10L;
+        ChallengeService service = new ChallengeServiceImpl(mapper);
 
         assertThrows(
                 ChallengeNotFoundException.class,
-                () -> service.getWeeklyRanking(1L, 10L));
+                () -> service.getWeeklyRanking(1L));
     }
 
     @Test
     void throwsExceptionWhenUserIsNotRankingChallengeMember() {
         FakeChallengeMapper mapper = new FakeChallengeMapper();
-        mapper.currentChallengeId = 20L;
-        mapper.savedChallenge = challenge(10L, "함께 절약", "GROUP", "ABCDEFGH");
         ChallengeService service = new ChallengeServiceImpl(mapper);
 
         assertThrows(
                 NotChallengeMemberException.class,
-                () -> service.getWeeklyRanking(1L, 10L));
+                () -> service.getWeeklyRanking(1L));
     }
 
     @Test
@@ -176,7 +176,7 @@ class ChallengeServiceImplTest {
 
         assertThrows(
                 SoloFeatureNotAllowedException.class,
-                () -> service.getWeeklyRanking(1L, 10L));
+                () -> service.getWeeklyRanking(1L));
     }
 
     private CreateChallengeRequest request(String name, String challengeType) {

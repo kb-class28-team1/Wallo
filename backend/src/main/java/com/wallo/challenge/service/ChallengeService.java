@@ -24,5 +24,5 @@ public interface ChallengeService {
     CurrentChallengeResponse getCurrentChallenge(Long userId);
 
     /** 로그인 사용자가 참여 중인 GROUP 챌린지의 이번 주 랭킹을 조회함. */
-    WeeklyRankingResponse getWeeklyRanking(Long userId, Long challengeId);
+    WeeklyRankingResponse getWeeklyRanking(Long userId);
 }

@@ -130,16 +130,16 @@ public class ChallengeServiceImpl implements ChallengeService {
      */
     @Override
     @Transactional(readOnly = true)
-    public WeeklyRankingResponse getWeeklyRanking(Long userId, Long challengeId) {
+    public WeeklyRankingResponse getWeeklyRanking(Long userId) {
+        // 로그인 사용자의 current_challenge_id를 기준으로 조회 대상을 결정함.
+        Long challengeId = challengeMapper.findCurrentChallengeIdByUserId(userId);
+        if (challengeId == null) {
+            throw new NotChallengeMemberException();
+        }
+
         Challenge challenge = challengeMapper.findChallengeById(challengeId);
         if (challenge == null) {
             throw new ChallengeNotFoundException();
-        }
-
-        // 사용자의 현재 챌린지가 요청한 챌린지와 같아야 랭킹을 조회할 수 있음.
-        Long currentChallengeId = challengeMapper.findCurrentChallengeIdByUserId(userId);
-        if (currentChallengeId == null || !currentChallengeId.equals(challengeId)) {
-            throw new NotChallengeMemberException();
         }
 
         // 주간 랭킹은 여러 사용자가 참여하는 GROUP 챌린지에서만 제공함.
