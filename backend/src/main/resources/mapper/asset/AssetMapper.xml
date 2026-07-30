@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wallo.asset.mapper.AssetMapper">
+
+    <select id="selectTotalAssets" resultType="java.lang.Long">
+        SELECT COALESCE(SUM(
+            CASE
+                WHEN a.account_type = 'STOCK' THEN a.eval_amount
+                ELSE a.balance
+            END
+        ), 0)
+        FROM ACCOUNTS a
+        INNER JOIN CONNECTIONS c ON c.connection_id = a.connection_id
+        WHERE c.user_id = #{userId}
+          AND c.status = 'ACTIVE'
+          AND c.deleted_at IS NULL
+          AND a.status = 'ACTIVE'
+    </select>
+
+    <select id="selectPreviousMonthTotalAssets" resultType="java.lang.Long">
+        SELECT COALESCE(total_assets, 0)
+        FROM ASSET_SNAPSHOTS
+        WHERE user_id = #{userId}
+          AND snapshot_month = #{snapshotMonth}
+    </select>
+
+    <select id="selectAccounts" resultType="com.wallo.asset.dto.AssetDto$Account">
+        SELECT
+            i.name AS bank,
+            a.balance AS balance
+        FROM ACCOUNTS a
+        INNER JOIN CONNECTIONS c ON c.connection_id = a.connection_id
+        INNER JOIN INSTITUTIONS i ON i.institution_id = c.institution_id
+        WHERE c.user_id = #{userId}
+          AND c.status = 'ACTIVE'
+          AND c.deleted_at IS NULL
+          AND a.status = 'ACTIVE'
+          AND a.account_type = 'BANK'
+        ORDER BY i.name, a.account_id
+    </select>
+
+    <select id="selectCreditCardsWithBilledAmount" resultType="com.wallo.asset.dto.AssetDto$Card">
+        SELECT
+            i.name AS company,
+            COALESCE(SUM(t.amount), 0) AS billedAmount
+        FROM CARDS card
+        INNER JOIN CONNECTIONS c ON c.connection_id = card.connection_id
+        INNER JOIN INSTITUTIONS i ON i.institution_id = c.institution_id
+        LEFT JOIN TRANSACTIONS t ON t.card_id = card.card_id
+            AND t.type = 'EXPENSE'
+            AND t.transaction_date BETWEEN #{startDate} AND #{endDate}
+        WHERE c.user_id = #{userId}
+          AND c.status = 'ACTIVE'
+          AND c.deleted_at IS NULL
+          AND card.status = 'ACTIVE'
+          AND card.card_type = 'CREDIT'
+        GROUP BY card.card_id, i.name
+        ORDER BY i.name, card.card_id
+    </select>
+
+    <select id="selectStocks" resultType="com.wallo.asset.dto.AssetDto$Stock">
+        SELECT
+            i.name AS company,
+            a.eval_amount AS evalAmount
+        FROM ACCOUNTS a
+        INNER JOIN CONNECTIONS c ON c.connection_id = a.connection_id
+        INNER JOIN INSTITUTIONS i ON i.institution_id = c.institution_id
+        WHERE c.user_id = #{userId}
+          AND c.status = 'ACTIVE'
+          AND c.deleted_at IS NULL
+          AND a.status = 'ACTIVE'
+          AND a.account_type = 'STOCK'
+        ORDER BY i.name, a.account_id
+    </select>
+
+    <select id="selectAssetCategoryBreakdown" resultType="com.wallo.asset.dto.AssetDto$CategoryBreakdown">
+        SELECT
+            CASE
+                WHEN a.account_type = 'STOCK' THEN 'STOCK'
+                WHEN a.account_subtype IS NULL THEN 'DEPOSIT'
+                ELSE a.account_subtype
+            END AS category,
+            COALESCE(SUM(
+                CASE
+                    WHEN a.account_type = 'STOCK' THEN a.eval_amount
+                    ELSE a.balance
+                END
+            ), 0) AS amount
+        FROM ACCOUNTS a
+        INNER JOIN CONNECTIONS c ON c.connection_id = a.connection_id
+        WHERE c.user_id = #{userId}
+          AND c.status = 'ACTIVE'
+          AND c.deleted_at IS NULL
+          AND a.status = 'ACTIVE'
+        GROUP BY
+            CASE
+                WHEN a.account_type = 'STOCK' THEN 'STOCK'
+                WHEN a.account_subtype IS NULL THEN 'DEPOSIT'
+                ELSE a.account_subtype
+            END
+        ORDER BY amount DESC, category ASC
+    </select>
+
+    <select id="selectAssetTrend" resultType="com.wallo.asset.dto.AssetDto$AssetTrend">
+        SELECT
+            snapshot_month AS month,
+            total_assets AS amount
+        FROM ASSET_SNAPSHOTS
+        WHERE user_id = #{userId}
+          AND snapshot_month BETWEEN #{startMonth} AND #{endMonth}
+        ORDER BY snapshot_month ASC
+    </select>
+
+</mapper>
