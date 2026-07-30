@@ -7,7 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-@RestControllerAdvice(basePackages = "com.wallo.auth.controller")
+@RestControllerAdvice
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class AuthExceptionHandler {
 
