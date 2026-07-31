@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from "vue"
+import { RouterLink } from "vue-router"
 import { Line } from "vue-chartjs"
 import {
   CategoryScale,
@@ -19,8 +20,21 @@ const DEFAULT_PROFILE_IMAGE = "/images/profiles/default-profile.svg"
 const dashboard = ref(null)
 const isLoading = ref(true)
 const errorMessage = ref("")
+const selectedPeriod = ref("6M")
+const periodOptions = [
+  { value: "1W", label: "1주" },
+  { value: "2W", label: "2주" },
+  { value: "4W", label: "4주" },
+  { value: "1M", label: "1달" },
+  { value: "3M", label: "3달" },
+  { value: "6M", label: "6달" },
+  { value: "1Y", label: "1년" },
+]
+const selectedPeriodLabel = computed(
+  () => periodOptions.find((option) => option.value === selectedPeriod.value)?.label || "6달",
+)
 
-// API 응답의 최근 6개월 데이터를 절약 금액 차트 형식으로 변환함
+// API 응답의 선택 기간 데이터를 절약 금액 차트 형식으로 변환함
 const chartData = computed(() => ({
   labels: (dashboard.value?.monthlySavings || []).map((item) => formatMonth(item.month)),
   datasets: [
@@ -127,9 +141,15 @@ const summaryStats = computed(() => [
 
 const formatCurrency = (amount) => `${Number(amount || 0).toLocaleString("ko-KR")}원`
 const formatCount = (count) => Number(count || 0).toLocaleString("ko-KR")
-const formatMonth = (month) => {
-  const monthNumber = Number(String(month || "").split("-")[1])
-  return monthNumber ? `${monthNumber}월` : month
+const formatMonth = (period) => {
+  const dateParts = String(period || "").split("-")
+
+  if (dateParts.length === 3) {
+    return `${Number(dateParts[1])}/${Number(dateParts[2])}`
+  }
+
+  const monthNumber = Number(dateParts[1])
+  return monthNumber ? `${monthNumber}월` : period
 }
 const formatDate = (date) => String(date || "").replaceAll("-", ".")
 
@@ -150,7 +170,7 @@ const loadDashboard = async () => {
   errorMessage.value = ""
 
   try {
-    dashboard.value = await getMyChallengeDashboard()
+    dashboard.value = await getMyChallengeDashboard(selectedPeriod.value)
   } catch (error) {
     errorMessage.value = error.message
     window.alert(error.message)
@@ -210,6 +230,10 @@ onMounted(loadDashboard)
             <dd>{{ formatCount(dashboard.verificationCount) }}회</dd>
           </div>
         </dl>
+
+        <RouterLink :to="{ name: 'user-profile' }" class="btn profile-edit-button">
+          프로필 편집
+        </RouterLink>
       </article>
 
       <article class="dashboard-card saving-summary-card">
@@ -242,10 +266,19 @@ onMounted(loadDashboard)
             <h2>절약 금액 추이</h2>
             <strong :class="savingChangeClass">{{ savingChangeLabel }}</strong>
           </div>
-          <span class="period-badge">6개월</span>
+          <select
+            v-model="selectedPeriod"
+            class="form-select period-select"
+            aria-label="절약 금액 조회 기간"
+            @change="loadDashboard"
+          >
+            <option v-for="option in periodOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </select>
         </div>
 
-        <div class="trend-chart" aria-label="최근 6개월 절약 금액 차트">
+        <div class="trend-chart" :aria-label="`최근 ${selectedPeriodLabel} 절약 금액 차트`">
           <Line :data="chartData" :options="chartOptions" />
         </div>
       </article>
@@ -253,6 +286,9 @@ onMounted(loadDashboard)
       <article class="dashboard-card liked-feed-card">
         <div class="card-heading">
           <h2>좋아요 받은 게시물 TOP 3</h2>
+          <RouterLink :to="{ name: 'point-history' }" class="all-view-link">
+            전체보기
+          </RouterLink>
         </div>
 
         <ol v-if="dashboard.topLikedFeeds.length" class="liked-feed-list list-unstyled mb-0">
@@ -288,7 +324,7 @@ onMounted(loadDashboard)
 }
 
 .page-heading h1 {
-  font-size: 25px;
+  font-size: 29px;
   font-weight: 750;
 }
 
@@ -332,22 +368,27 @@ onMounted(loadDashboard)
 
 .profile-card,
 .saving-summary-card {
-  min-height: 230px;
-  padding: 24px;
+  min-height: 265px;
+  padding: 28px;
+}
+
+.profile-card {
+  display: flex;
+  flex-direction: column;
 }
 
 .profile-header {
   display: flex;
   align-items: center;
-  gap: 15px;
-  padding-bottom: 18px;
+  gap: 17px;
+  padding-bottom: 21px;
   border-bottom: 1px solid #eef0f7;
 }
 
 .profile-avatar {
   display: grid;
-  width: 62px;
-  height: 62px;
+  width: 71px;
+  height: 71px;
   place-items: center;
   overflow: hidden;
   border-radius: 50%;
@@ -355,39 +396,39 @@ onMounted(loadDashboard)
 }
 
 .profile-avatar img {
-  width: 44px;
-  height: 44px;
+  width: 51px;
+  height: 51px;
   object-fit: contain;
 }
 
 .profile-name {
   display: block;
-  margin-bottom: 7px;
-  font-size: 16px;
+  margin-bottom: 8px;
+  font-size: 18px;
 }
 
 .saving-badge {
   display: inline-flex;
-  padding: 4px 9px;
+  padding: 5px 10px;
   border-radius: 999px;
   background: #fff8df;
   color: #9b7a21;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
 }
 
 .profile-details {
   display: grid;
-  gap: 9px;
-  padding-top: 17px;
+  gap: 10px;
+  padding-top: 20px;
 }
 
 .profile-details div {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 15px;
-  font-size: 12px;
+  gap: 17px;
+  font-size: 14px;
 }
 
 .profile-details dt {
@@ -409,31 +450,45 @@ onMounted(loadDashboard)
   color: #e86750;
 }
 
+.profile-edit-button {
+  width: 100%;
+  margin-top: auto;
+  border: 1px solid #7b70f5;
+  color: #6d62eb;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.profile-edit-button:hover {
+  background: #7b70f5;
+  color: #fff;
+}
+
 .total-saving > span,
 .total-saving > small {
   display: block;
   color: #9aa3bf;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .total-saving > strong {
   display: block;
-  margin: 5px 0 2px;
+  margin: 6px 0 2px;
   color: #1d2543;
-  font-size: 27px;
+  font-size: 31px;
 }
 
 .summary-stat-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 18px;
+  gap: 9px;
+  margin-top: 21px;
 }
 
 .summary-stat {
   min-width: 0;
-  padding: 12px;
-  border-radius: 12px;
+  padding: 14px;
+  border-radius: 14px;
   background: #f8f8ff;
 }
 
@@ -442,16 +497,16 @@ onMounted(loadDashboard)
   display: block;
   overflow: hidden;
   color: #9aa3bf;
-  font-size: 9px;
+  font-size: 10px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .summary-stat strong {
   display: block;
-  margin: 5px 0;
+  margin: 6px 0;
   color: #242d4d;
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .change-positive {
@@ -465,16 +520,16 @@ onMounted(loadDashboard)
 .activity-badges {
   display: flex;
   flex-wrap: wrap;
-  gap: 7px;
-  margin-top: 15px;
+  gap: 8px;
+  margin-top: 17px;
 }
 
 .activity-badges span {
-  padding: 5px 9px;
+  padding: 6px 10px;
   border-radius: 999px;
   background: #f8f8ff;
   color: #8d96b2;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .activity-badges strong {
@@ -483,8 +538,8 @@ onMounted(loadDashboard)
 
 .trend-card,
 .liked-feed-card {
-  min-height: 285px;
-  padding: 22px;
+  min-height: 328px;
+  padding: 25px;
 }
 
 .card-heading {
@@ -495,26 +550,47 @@ onMounted(loadDashboard)
 }
 
 .card-heading h2 {
-  margin: 0 0 8px;
-  font-size: 14px;
+  margin: 0 0 9px;
+  font-size: 16px;
   font-weight: 750;
 }
 
 .card-heading strong {
-  font-size: 11px;
+  font-size: 13px;
 }
 
-.period-badge {
-  padding: 6px 10px;
+.period-select {
+  width: auto;
+  min-width: 84px;
+  padding: 7px 32px 7px 12px;
   border: 1px solid #eceef7;
   border-radius: 8px;
+  background-color: #fff;
   color: #7d86a3;
-  font-size: 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.period-select:focus {
+  border-color: #aaa2fa;
+  box-shadow: 0 0 0 3px rgb(123 112 245 / 12%);
+}
+
+.all-view-link {
+  color: #6d62eb;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.all-view-link:hover {
+  color: #5147d5;
+  text-decoration: underline;
 }
 
 .trend-chart {
-  height: 205px;
-  margin-top: 16px;
+  height: 236px;
+  margin-top: 18px;
 }
 
 .liked-feed-list {
@@ -525,7 +601,7 @@ onMounted(loadDashboard)
   display: grid;
   grid-template-columns: 24px 38px minmax(0, 1fr) auto;
   gap: 10px;
-  min-height: 65px;
+  min-height: 75px;
   align-items: center;
   border-top: 1px solid #f0f2f8;
 }
@@ -536,14 +612,14 @@ onMounted(loadDashboard)
 
 .feed-rank {
   color: #7c70f5;
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .feed-thumbnail {
   position: relative;
   display: grid;
-  width: 36px;
-  height: 36px;
+  width: 41px;
+  height: 41px;
   place-items: center;
   overflow: hidden;
   border-radius: 10px;
@@ -566,28 +642,28 @@ onMounted(loadDashboard)
 .feed-copy strong {
   overflow: hidden;
   color: #283150;
-  font-size: 12px;
+  font-size: 14px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .feed-copy span {
   color: #a2aac2;
-  font-size: 9px;
+  font-size: 10px;
 }
 
 .feed-like {
   color: #ef7898;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
 }
 
 .empty-feed-state {
   display: grid;
-  min-height: 195px;
+  min-height: 224px;
   place-items: center;
   color: #9aa3bd;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 @media (max-width: 1100px) {

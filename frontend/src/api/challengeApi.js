@@ -28,10 +28,12 @@ export const getWeeklyRanking = async () => {
   }
 }
 
-// 로그인 사용자의 프로필, 절약 통계, 월별 추이와 인기 피드를 조회함
-export const getMyChallengeDashboard = async () => {
+// 로그인 사용자의 프로필, 절약 통계, 선택 기간 추이와 인기 피드를 조회함
+export const getMyChallengeDashboard = async (period = "6M") => {
   try {
-    const response = await httpClient.get("/api/users/me/challenge-dashboard")
+    const response = await httpClient.get("/api/users/me/challenge-dashboard", {
+      params: { period },
+    })
     return response.data
   } catch (error) {
     // 백엔드 오류 메시지를 화면에서 안내할 수 있도록 호출한 곳으로 전달함
