@@ -15,6 +15,7 @@ import DashboardView from "@/views/dashboard/DashboardView.vue"
 import PointShopView from "@/views/product/PointShopView.vue"
 import ReportListView from "@/views/report/ReportListView.vue"
 import SettingsView from "@/views/user/SettingsView.vue"
+import ConnectionManagementView from "@/views/user/ConnectionManagementView.vue"
 import { useUserStore } from "@/stores/userStore"
 import ChatView from "@/views/ChatView.vue"
 
@@ -46,6 +47,7 @@ const router = createRouter({
        path: "/connections/mydata",
        name: "connection",
        component: ConnectionView,
+       meta: { requiresAuth: true },
     },
     // 로그인 이후 사이드바와 상단바를 공통으로 사용하는 페이지 그룹임
     {
@@ -123,6 +125,11 @@ const router = createRouter({
           path: "/users/profile",
           name: "user-profile",
           component: SettingsView,
+        },
+        {
+          path: "/users/profile/connections",
+          name: "connection-management",
+          component: ConnectionManagementView,
         },
       ],
     },

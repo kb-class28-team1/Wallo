@@ -8,3 +8,6 @@ dist/
 
 .idea/
 *.iml
+
+# Local backend database and external API settings
+backend/src/main/resources/application.properties

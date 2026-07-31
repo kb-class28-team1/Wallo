@@ -4,6 +4,11 @@ import org.springframework.http.HttpStatus;
 
 public enum ErrorCode {
 
+    AUTH_REQUIRED(
+            HttpStatus.UNAUTHORIZED,
+            "AUTH_001",
+            "로그인이 필요합니다."
+    ),
     CONNECTION_CONSENT_REQUIRED(
             HttpStatus.BAD_REQUEST,
             "CONNECTION_001",
@@ -23,6 +28,26 @@ public enum ErrorCode {
             HttpStatus.BAD_REQUEST,
             "DASHBOARD_001",
             "대시보드 요청 값이 올바르지 않습니다."
+    ),
+    INVALID_ANNUAL_SALARY(
+            HttpStatus.BAD_REQUEST,
+            "PROFILE_001",
+            "연봉은 0원보다 큰 금액으로 입력해주세요."
+    ),
+    USER_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "PROFILE_002",
+            "사용자 정보를 찾을 수 없습니다."
+    ),
+    INVALID_REPORT_YEAR(
+            HttpStatus.BAD_REQUEST,
+            "REPORT_001",
+            "조회 연도가 올바르지 않습니다."
+    ),
+    ANNUAL_SALARY_REQUIRED(
+            HttpStatus.BAD_REQUEST,
+            "REPORT_002",
+            "연말정산 계산을 위해 연봉을 먼저 입력해주세요."
     ),
     METHOD_NOT_ALLOWED(
             HttpStatus.METHOD_NOT_ALLOWED,
