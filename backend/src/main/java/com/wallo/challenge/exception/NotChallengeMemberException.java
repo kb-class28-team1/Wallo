@@ -4,6 +4,6 @@ package com.wallo.challenge.exception;
 public class NotChallengeMemberException extends RuntimeException {
 
     public NotChallengeMemberException() {
-        super("참여 중인 챌린지의 랭킹만 조회할 수 있습니다.");
+        super("현재 참여 중인 챌린지가 없습니다.");
     }
 }

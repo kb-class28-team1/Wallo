@@ -11,6 +11,9 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import com.wallo.challenge.domain.Challenge;
+import com.wallo.challenge.domain.MonthlySaving;
+import com.wallo.challenge.domain.MyChallengeSummary;
+import com.wallo.challenge.domain.TopLikedFeed;
 import com.wallo.challenge.domain.WeeklyRanking;
 import com.wallo.challenge.dto.request.CreateChallengeRequest;
 import com.wallo.challenge.dto.request.JoinChallengeRequest;
@@ -273,6 +276,21 @@ class ChallengeServiceImplTest {
         @Override
         public List<WeeklyRanking> findWeeklyRankings(Long challengeId) {
             return weeklyRankings;
+        }
+
+        @Override
+        public MyChallengeSummary findMyChallengeSummary(Long userId) {
+            return null;
+        }
+
+        @Override
+        public List<MonthlySaving> findMonthlySavings(Long userId) {
+            return new ArrayList<>();
+        }
+
+        @Override
+        public List<TopLikedFeed> findTopLikedFeeds(Long userId) {
+            return new ArrayList<>();
         }
     }
 }

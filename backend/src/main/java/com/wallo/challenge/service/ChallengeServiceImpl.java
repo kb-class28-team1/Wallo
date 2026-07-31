@@ -10,12 +10,16 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.wallo.challenge.domain.Challenge;
+import com.wallo.challenge.domain.MonthlySaving;
+import com.wallo.challenge.domain.MyChallengeSummary;
+import com.wallo.challenge.domain.TopLikedFeed;
 import com.wallo.challenge.domain.WeeklyRanking;
 import com.wallo.challenge.dto.request.CreateChallengeRequest;
 import com.wallo.challenge.dto.request.JoinChallengeRequest;
 import com.wallo.challenge.dto.response.CreateChallengeResponse;
 import com.wallo.challenge.dto.response.CurrentChallengeResponse;
 import com.wallo.challenge.dto.response.JoinChallengeResponse;
+import com.wallo.challenge.dto.response.MyChallengeDashboardResponse;
 import com.wallo.challenge.dto.response.WeeklyRankingItemResponse;
 import com.wallo.challenge.dto.response.WeeklyRankingResponse;
 import com.wallo.challenge.exception.AlreadyJoinedChallengeException;
@@ -169,6 +173,25 @@ public class ChallengeServiceImpl implements ChallengeService {
                 startDate.plusDays(6),
                 rankingResponses,
                 myRanking);
+    }
+
+    /**
+     * 내 챌린지 화면에 필요한 요약, 최근 6개월 절약 금액과 인기 피드를 조회함.
+     * 현재 챌린지가 없는 사용자는 대시보드에 접근할 수 없도록 처리함.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public MyChallengeDashboardResponse getMyChallengeDashboard(Long userId) {
+        MyChallengeSummary summary = challengeMapper.findMyChallengeSummary(userId);
+
+        if (summary == null || summary.getCurrentChallengeId() == null) {
+            throw new NotChallengeMemberException();
+        }
+
+        List<MonthlySaving> monthlySavings = challengeMapper.findMonthlySavings(userId);
+        List<TopLikedFeed> topLikedFeeds = challengeMapper.findTopLikedFeeds(userId);
+
+        return MyChallengeDashboardResponse.of(summary, monthlySavings, topLikedFeeds);
     }
 
     private String generateUniqueInviteCode() {
