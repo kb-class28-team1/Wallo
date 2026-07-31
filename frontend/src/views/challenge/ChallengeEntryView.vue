@@ -17,20 +17,10 @@ const activeForm = ref("create")
 
 const createForm = reactive({
   name: "",
-  challengeType: "LIVING",
 })
 const inviteCode = ref("")
 
 const hasChallenge = computed(() => currentChallenge.value?.joined === true)
-const challengeTypeLabel = computed(() => {
-  const labels = {
-    LIVING: "생활비 절약",
-    FOOD: "식비 절약",
-    SHOPPING: "쇼핑 절약",
-    TRANSPORT: "교통비 절약",
-  }
-  return labels[currentChallenge.value?.challengeType] || currentChallenge.value?.challengeType
-})
 
 const loadCurrentChallenge = async () => {
   isLoading.value = true
@@ -56,7 +46,6 @@ const submitCreate = async () => {
   try {
     await createChallenge({
       name,
-      challengeType: createForm.challengeType,
     })
     alert("챌린지가 만들어졌습니다.")
     await loadCurrentChallenge()
@@ -137,8 +126,8 @@ onMounted(loadCurrentChallenge)
         <div class="summary-main">
           <div class="challenge-symbol" aria-hidden="true">💰</div>
           <div>
-            <span class="summary-label">챌린지 유형</span>
-            <strong>{{ challengeTypeLabel }}</strong>
+            <span class="summary-label">함께하는 절약</span>
+            <strong>{{ currentChallenge.name }}</strong>
             <span class="challenge-number">Challenge #{{ currentChallenge.id }}</span>
           </div>
         </div>
@@ -232,7 +221,7 @@ onMounted(loadCurrentChallenge)
             <span class="form-step">01</span>
             <div>
               <h2>나만의 절약 챌린지 만들기</h2>
-              <p>목표에 맞는 이름과 유형을 정해 주세요.</p>
+              <p>함께 절약할 챌린지의 이름을 정해 주세요.</p>
             </div>
           </div>
 
@@ -242,23 +231,10 @@ onMounted(loadCurrentChallenge)
             v-model="createForm.name"
             type="text"
             class="form-control challenge-input"
-            maxlength="40"
+            maxlength="20"
             placeholder="예: 한 달 식비 30만 원 도전"
             :disabled="isSubmitting"
           />
-
-          <label class="field-label" for="challenge-type">챌린지 유형</label>
-          <select
-            id="challenge-type"
-            v-model="createForm.challengeType"
-            class="form-select challenge-input"
-            :disabled="isSubmitting"
-          >
-            <option value="LIVING">생활비 절약</option>
-            <option value="FOOD">식비 절약</option>
-            <option value="SHOPPING">쇼핑 절약</option>
-            <option value="TRANSPORT">교통비 절약</option>
-          </select>
 
           <button type="submit" class="submit-button" :disabled="isSubmitting">
             <span v-if="isSubmitting" class="spinner-border spinner-border-sm"></span>
@@ -271,7 +247,7 @@ onMounted(loadCurrentChallenge)
             <span class="form-step">02</span>
             <div>
               <h2>친구의 챌린지에 참여하기</h2>
-              <p>전달받은 8자리 초대 코드를 입력해 주세요.</p>
+              <p>전달받은 초대 코드를 그대로 입력해 주세요.</p>
             </div>
           </div>
 
@@ -281,9 +257,9 @@ onMounted(loadCurrentChallenge)
             v-model="inviteCode"
             type="text"
             class="form-control challenge-input invite-input"
-            maxlength="8"
+            maxlength="20"
             autocomplete="off"
-            placeholder="예: A2B3C4D5"
+            placeholder="예: PGM-7X2K9"
             :disabled="isSubmitting"
             @input="inviteCode = inviteCode.toUpperCase()"
           />

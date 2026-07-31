@@ -2,6 +2,7 @@ package com.wallo.challenge.service;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.Locale;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.wallo.challenge.domain.Challenge;
@@ -18,6 +19,7 @@ import com.wallo.challenge.mapper.ChallengeMapper;
 public class ChallengeServiceImpl implements ChallengeService {
 
     private static final String ACTIVE_STATUS = "ACTIVE";
+    private static final String DEFAULT_CHALLENGE_TYPE = "GROUP";
     private static final String INVITE_CODE_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     private static final int INVITE_CODE_LENGTH = 8;
     private static final int MAX_INVITE_CODE_GENERATION_ATTEMPTS = 10;
@@ -42,8 +44,16 @@ public class ChallengeServiceImpl implements ChallengeService {
 
         Challenge challenge = new Challenge();
         challenge.setOwnerId(ownerId);
-        challenge.setName(request.getName());
-        challenge.setChallengeType(request.getChallengeType());
+        if (request == null || request.getName() == null || request.getName().trim().isEmpty()) {
+            throw new IllegalArgumentException("챌린지 이름을 입력해 주세요.");
+        }
+        String challengeName = request.getName().trim();
+        if (challengeName.length() > 20) {
+            throw new IllegalArgumentException("챌린지 이름은 20자 이하로 입력해 주세요.");
+        }
+        challenge.setName(challengeName);
+        // 유형은 사용자에게 받지 않고 모든 신규 챌린지를 함께하는 그룹형으로 생성한다.
+        challenge.setChallengeType(DEFAULT_CHALLENGE_TYPE);
         challenge.setInviteCode(generateUniqueInviteCode());
         challenge.setStatus(ACTIVE_STATUS);
         challenge.setCreatedAt(LocalDateTime.now());
@@ -78,12 +88,12 @@ public class ChallengeServiceImpl implements ChallengeService {
             throw new AlreadyJoinedChallengeException();
         }
 
-        String inviteCode = request == null ? null : request.getInviteCode();
-        if (inviteCode == null || inviteCode.trim().isEmpty()) {
+        String inviteCode = normalizeInviteCode(request == null ? null : request.getInviteCode());
+        if (inviteCode == null || inviteCode.isEmpty()) {
             throw new InvalidInviteCodeException();
         }
 
-        Challenge challenge = challengeMapper.findChallengeByInviteCode(inviteCode.trim());
+        Challenge challenge = challengeMapper.findChallengeByInviteCode(inviteCode);
         if (challenge == null) {
             throw new InvalidInviteCodeException();
         }
@@ -130,5 +140,9 @@ public class ChallengeServiceImpl implements ChallengeService {
             builder.append(INVITE_CODE_CHARACTERS.charAt(randomIndex));
         }
         return builder.toString();
+    }
+
+    private String normalizeInviteCode(String inviteCode) {
+        return inviteCode == null ? null : inviteCode.trim().toUpperCase(Locale.ROOT);
     }
 }

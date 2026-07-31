@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from "vue"
+import { computed, reactive, ref } from "vue"
 import { RouterLink, useRoute, useRouter } from "vue-router"
 import { useUserStore } from "@/stores/userStore"
 
@@ -9,19 +9,21 @@ const userStore = useUserStore()
 
 const email = ref("")
 const password = ref("")
-const errorMessage = ref("")
+const errors = reactive({ email: "", password: "" })
 
 const sessionMessage = computed(() =>
   route.query.reason === "expired" ? "로그인이 필요하거나 세션이 만료되었습니다." : "",
 )
 
 const handleLogin = async () => {
-  errorMessage.value = ""
+  errors.email = ""
+  errors.password = ""
 
-  if (!email.value.trim() || !password.value) {
-    errorMessage.value = "이메일과 비밀번호를 모두 입력해주세요."
-    return
-  }
+  if (!email.value.trim()) errors.email = "이메일을 입력해 주세요."
+  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim()))
+    errors.email = "올바른 이메일 형식을 입력해 주세요."
+  if (!password.value) errors.password = "비밀번호를 입력해 주세요."
+  if (errors.email || errors.password) return
 
   try {
     await userStore.login({
@@ -35,9 +37,19 @@ const handleLogin = async () => {
         : "/dashboard"
     await router.replace(redirectPath)
   } catch (error) {
-    errorMessage.value = error.message || "로그인에 실패했습니다."
-  } finally {
-    password.value = ""
+    const message = error.message || "로그인에 실패했습니다."
+    errors.email = message
+    errors.password = message
+  }
+}
+
+const clearError = (field) => {
+  errors[field] = ""
+  if (field === "email" || field === "password") {
+    const otherField = field === "email" ? "password" : "email"
+    if (errors[otherField] === "이메일 또는 비밀번호가 올바르지 않습니다.") {
+      errors[otherField] = ""
+    }
   }
 }
 </script>
@@ -53,22 +65,19 @@ const handleLogin = async () => {
         <div v-if="sessionMessage" class="alert alert-warning" role="status">
           {{ sessionMessage }}
         </div>
-        <div v-if="errorMessage" class="alert alert-danger" role="alert">
-          {{ errorMessage }}
-        </div>
-
-        <form @submit.prevent="handleLogin">
+        <form novalidate @submit.prevent="handleLogin">
           <div class="mb-3">
             <label for="login-email" class="form-label">이메일</label>
             <input
               id="login-email"
               v-model="email"
               type="email"
-              class="form-control"
+              :class="['form-control', { 'is-invalid field-shake': errors.email }]"
               autocomplete="email"
               placeholder="test@wallo.com"
-              required
+              @input="clearError('email')"
             />
+            <small v-if="errors.email" class="field-error">{{ errors.email }}</small>
           </div>
 
           <div class="mb-4">
@@ -77,11 +86,12 @@ const handleLogin = async () => {
               id="login-password"
               v-model="password"
               type="password"
-              class="form-control"
+              :class="['form-control', { 'is-invalid field-shake': errors.password }]"
               autocomplete="current-password"
               placeholder="비밀번호를 입력하세요"
-              required
+              @input="clearError('password')"
             />
+            <small v-if="errors.password" class="field-error">{{ errors.password }}</small>
           </div>
 
           <button class="btn btn-primary w-100" type="submit" :disabled="userStore.isLoading">
@@ -111,5 +121,27 @@ const handleLogin = async () => {
 .auth-card {
   max-width: 480px;
   border-radius: 24px;
+}
+
+.field-error {
+  display: block;
+  margin-top: 6px;
+  color: #dc3545;
+  font-size: 0.78rem;
+}
+
+.field-shake {
+  animation: field-shake 0.35s ease-in-out;
+}
+
+@keyframes field-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  50% { transform: translateX(6px); }
+  75% { transform: translateX(-3px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .field-shake { animation: none; }
 }
 </style>
