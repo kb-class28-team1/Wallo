@@ -3,27 +3,33 @@ package com.wallo.asset.service;
 import com.wallo.asset.domain.Institution;
 import com.wallo.asset.dto.ConnectionDto;
 import com.wallo.asset.exception.ConnectionConsentRequiredException;
+import com.wallo.asset.mapper.ConnectionMapper;
 import com.wallo.external.client.CodefClient;
 import com.wallo.external.dto.CodefDto;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ConnectionService {
 
     private final CodefClient codefClient;
     private final InstitutionService institutionService;
+    private final ConnectionMapper connectionMapper;
 
     public ConnectionService(
             CodefClient codefClient,
-            InstitutionService institutionService
+            InstitutionService institutionService,
+            ConnectionMapper connectionMapper
     ) {
         this.codefClient = codefClient;
         this.institutionService = institutionService;
+        this.connectionMapper = connectionMapper;
     }
 
-    public ConnectionDto.Response connectAllAssets(ConnectionDto.Request request) {
+    @Transactional
+    public ConnectionDto.Response connectAllAssets(long userId, ConnectionDto.Request request) {
         validateConsent(request);
 
         List<ConnectionDto.Result> results = new ArrayList<>();
@@ -33,7 +39,24 @@ public class ConnectionService {
         }
 
         // 인증 사용자 식별이 구현되기 전까지 연동 결과의 DB 저장은 보류한다.
+        saveConnections(userId, results);
         return new ConnectionDto.Response(results);
+    }
+
+    private void saveConnections(long userId, List<ConnectionDto.Result> results) {
+        if (results.isEmpty()) {
+            return;
+        }
+
+        int savedRows = connectionMapper.insertConnections(
+                results,
+                userId,
+                ConnectionDto.MOCK_LOGIN_TYPE,
+                ConnectionDto.MOCK_ID,
+                ConnectionDto.MOCK_PASSWORD);
+        if (savedRows < results.size()) {
+            throw new IllegalStateException("연동 결과 저장에 실패했습니다.");
+        }
     }
 
     private void validateConsent(ConnectionDto.Request request) {

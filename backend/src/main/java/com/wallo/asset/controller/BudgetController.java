@@ -1,5 +1,6 @@
 package com.wallo.asset.controller;
 
+import com.wallo.auth.CurrentUserProvider;
 import com.wallo.asset.dto.BudgetDto;
 import com.wallo.asset.service.BudgetService;
 import com.wallo.common.response.CommonResponse;
@@ -14,25 +15,27 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/budgets")
 public class BudgetController {
 
-    private static final long TEMPORARY_USER_ID = 1L;
-
     private final BudgetService budgetService;
+    private final CurrentUserProvider currentUserProvider;
 
-    public BudgetController(BudgetService budgetService) {
+    public BudgetController(BudgetService budgetService, CurrentUserProvider currentUserProvider) {
         this.budgetService = budgetService;
+        this.currentUserProvider = currentUserProvider;
     }
 
     @GetMapping
     public CommonResponse<BudgetDto.Summary> getBudget(
             @RequestParam(value = "targetMonth", required = false) String targetMonth
     ) {
-        return CommonResponse.success(budgetService.getBudgetSummary(TEMPORARY_USER_ID, targetMonth));
+        return CommonResponse.success(
+                budgetService.getBudgetSummary(currentUserProvider.getCurrentUserId(), targetMonth));
     }
 
     @PutMapping
     public CommonResponse<BudgetDto.Summary> upsertBudget(
             @RequestBody BudgetDto.UpsertRequest request
     ) {
-        return CommonResponse.success(budgetService.upsertBudget(TEMPORARY_USER_ID, request));
+        return CommonResponse.success(
+                budgetService.upsertBudget(currentUserProvider.getCurrentUserId(), request));
     }
 }

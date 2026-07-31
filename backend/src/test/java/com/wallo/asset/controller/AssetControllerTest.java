@@ -13,6 +13,7 @@ import com.wallo.asset.dto.AssetDto;
 import com.wallo.asset.dto.ExpenseDto;
 import com.wallo.asset.service.AssetService;
 import com.wallo.asset.service.ExpenseService;
+import com.wallo.auth.CurrentUserProvider;
 import java.util.Collections;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,18 +25,20 @@ class AssetControllerTest {
 
     private final AssetService assetService = mock(AssetService.class);
     private final ExpenseService expenseService = mock(ExpenseService.class);
+    private final CurrentUserProvider currentUserProvider = mock(CurrentUserProvider.class);
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders.standaloneSetup(
-                new AssetController(assetService, expenseService)
+                new AssetController(assetService, expenseService, currentUserProvider)
         ).build();
+        when(currentUserProvider.getCurrentUserId()).thenReturn(7L);
     }
 
     @Test
     void getAssetsReturnsCommonResponse() throws Exception {
-        when(assetService.getAssets(1L)).thenReturn(new AssetDto.Response(
+        when(assetService.getAssets(7L)).thenReturn(new AssetDto.Response(
                 39_900_000L,
                 38_400_000L,
                 Collections.emptyList(),
@@ -54,12 +57,12 @@ class AssetControllerTest {
         assertTrue(responseBody.contains("\"success\":true"));
         assertTrue(responseBody.contains("\"totalAssets\":39900000"));
 
-        verify(assetService).getAssets(1L);
+        verify(assetService).getAssets(7L);
     }
 
     @Test
     void getExpensesPassesPaginationAndDatesToService() throws Exception {
-        when(expenseService.getExpenseSummary(eq(1L), org.mockito.ArgumentMatchers.any()))
+        when(expenseService.getExpenseSummary(eq(7L), org.mockito.ArgumentMatchers.any()))
                 .thenReturn(new ExpenseDto.Summary(
                         155_000L,
                         3_000_000L,
@@ -86,7 +89,7 @@ class AssetControllerTest {
         ArgumentCaptor<ExpenseDto.SearchCondition> captor = ArgumentCaptor.forClass(
                 ExpenseDto.SearchCondition.class
         );
-        verify(expenseService).getExpenseSummary(eq(1L), captor.capture());
+        verify(expenseService).getExpenseSummary(eq(7L), captor.capture());
         assertEquals("2026-07-01", captor.getValue().getStartDate());
         assertEquals("2026-07-31", captor.getValue().getEndDate());
         assertEquals(1, captor.getValue().getPage());

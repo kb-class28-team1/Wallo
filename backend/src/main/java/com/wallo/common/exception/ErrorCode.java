@@ -4,6 +4,11 @@ import org.springframework.http.HttpStatus;
 
 public enum ErrorCode {
 
+    AUTH_REQUIRED(
+            HttpStatus.UNAUTHORIZED,
+            "AUTH_001",
+            "로그인이 필요합니다."
+    ),
     CONNECTION_CONSENT_REQUIRED(
             HttpStatus.BAD_REQUEST,
             "CONNECTION_001",
