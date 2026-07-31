@@ -286,6 +286,10 @@ onMounted(loadDashboard)
       <article class="dashboard-card liked-feed-card">
         <div class="card-heading">
           <h2>좋아요 받은 게시물 TOP 3</h2>
+          <RouterLink to="/my-feeds" class="view-all-link">
+            전체보기
+            <i class="bi bi-chevron-right" aria-hidden="true"></i>
+          </RouterLink>
         </div>
 
         <ol v-if="dashboard.topLikedFeeds.length" class="liked-feed-list list-unstyled mb-0">
@@ -555,6 +559,20 @@ onMounted(loadDashboard)
 
 .card-heading strong {
   font-size: 15.6px;
+}
+
+.view-all-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: #7166ed;
+  font-size: 14.4px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.view-all-link:hover {
+  color: #5548dc;
 }
 
 .period-select {
