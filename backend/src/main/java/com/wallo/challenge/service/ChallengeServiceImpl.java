@@ -37,7 +37,7 @@ public class ChallengeServiceImpl implements ChallengeService {
     private static final String ACTIVE_STATUS = "ACTIVE";
     private static final String DEFAULT_CHALLENGE_TYPE = "GROUP";
     private static final String INVITE_CODE_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    private static final int INVITE_CODE_LENGTH = 8;
+    private static final int INVITE_CODE_LENGTH = 5;
     private static final int MAX_INVITE_CODE_GENERATION_ATTEMPTS = 10;
 
     private final ChallengeMapper challengeMapper;
