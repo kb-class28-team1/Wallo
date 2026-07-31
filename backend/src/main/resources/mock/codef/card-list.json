@@ -26,6 +26,15 @@
     "transactions": [
       {
         "resCardNo": "4321-0000-0000-8765",
+        "resCardApprovalNo": "CARD-202606-0001",
+        "resUsedDate": "2026-06-29",
+        "resUsedTime": "08:15:00",
+        "resUsedAmount": "3000",
+        "resUsedMerchantName": "카페 월로",
+        "resUsedCategory": "CAFE"
+      },
+      {
+        "resCardNo": "4321-0000-0000-8765",
         "resCardApprovalNo": "CARD-202607-0001",
         "resUsedDate": "2026-07-27",
         "resUsedTime": "12:25:00",

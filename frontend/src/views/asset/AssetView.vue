@@ -74,11 +74,10 @@ onMounted(loadAssets);
       <div class="col-12 col-lg-6">
         <article class="card tax-tracker-placeholder h-100 border-0 shadow-sm">
           <div class="card-body tax-tracker-placeholder-body">
-            <h2 class="h5 fw-bold mb-0">연말정산 트래커</h2>
+            <h2 class="h5 fw-bold mb-0">소득공제 달성률</h2>
             <div class="placeholder-content text-center">
               <i class="bi bi-bar-chart-line text-secondary fs-2" aria-hidden="true"></i>
-              <p class="fw-semibold mb-1 mt-3">소득공제 달성률</p>
-              <p class="text-secondary mb-0">연말정산 트래커를 준비하고 있습니다.</p>
+              <p class="text-secondary mb-0 mt-3">연말정산 트래커를 준비하고 있습니다.</p>
             </div>
           </div>
         </article>
