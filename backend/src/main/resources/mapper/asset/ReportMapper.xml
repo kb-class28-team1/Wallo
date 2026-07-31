@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wallo.asset.mapper.ReportMapper">
+
+    <select id="selectCategoryExpenses"
+            resultType="com.wallo.asset.dto.ReportDto$CategoryExpense">
+        SELECT
+            category AS category,
+            COALESCE(SUM(
+                CASE
+                    WHEN transaction_date BETWEEN #{currentStartDate} AND #{currentEndDate}
+                    THEN amount
+                    ELSE 0
+                END
+            ), 0) AS currentAmount,
+            COALESCE(SUM(
+                CASE
+                    WHEN transaction_date BETWEEN #{previousStartDate} AND #{previousEndDate}
+                    THEN amount
+                    ELSE 0
+                END
+            ), 0) AS previousAmount
+        FROM TRANSACTIONS
+        WHERE user_id = #{userId}
+          AND type = 'EXPENSE'
+          AND category NOT IN ('INCOME', 'SEND', 'CARD_WITHDRAWAL')
+          AND transaction_date BETWEEN #{previousStartDate} AND #{currentEndDate}
+        GROUP BY category
+        ORDER BY category ASC
+    </select>
+
+</mapper>
