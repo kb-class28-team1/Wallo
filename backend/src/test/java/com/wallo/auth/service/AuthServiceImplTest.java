@@ -95,6 +95,19 @@ class AuthServiceImplTest {
     }
 
     @Test
+    void rejectsInvalidStoredPasswordHashAsLoginFailure() {
+        FakeAuthMapper mapper = new FakeAuthMapper();
+        mapper.savedUser = user(10L, "test@wallo.com", null);
+        AuthService service = new AuthServiceImpl(mapper, passwordEncoder);
+
+        AuthException exception = assertThrows(
+                AuthException.class,
+                () -> service.login(loginRequest("test@wallo.com", "wrong-password")));
+
+        assertEquals(AuthErrorCode.LOGIN_FAILED, exception.getErrorCode());
+    }
+
+    @Test
     void rejectsMissingCurrentUser() {
         AuthService service = new AuthServiceImpl(new FakeAuthMapper(), passwordEncoder);
 
