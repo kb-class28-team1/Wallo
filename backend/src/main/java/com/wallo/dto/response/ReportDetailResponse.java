@@ -1,6 +1,7 @@
 package com.wallo.dto.response;
 
 import com.wallo.domain.News;
+import com.wallo.domain.NewsReport;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
@@ -8,8 +9,8 @@ import java.util.List;
 
 /**
  * GET /api/reports/{newsId} 상세 응답.
- * 현재는 news 테이블 원본 데이터만 채우고, news_report(AI 가공 결과) 연동 전이라
- * AI 관련 필드는 항상 null 또는 빈 배열로 내려간다.
+ * news 테이블 원본 데이터에 news_report(AI 가공 결과)를 함께 채운다.
+ * news_report가 아직 생성되지 않은 뉴스는 AI 관련 필드가 null(terms는 빈 배열)로 내려간다.
  */
 public class ReportDetailResponse {
 
@@ -29,7 +30,7 @@ public class ReportDetailResponse {
     private final String actionPlan;
     private final List<String> terms;
 
-    private ReportDetailResponse(News news) {
+    private ReportDetailResponse(News news, NewsReport newsReport) {
         this.newsId = news.getNewsId();
         this.title = news.getTitle();
         this.content = news.getContent();
@@ -41,18 +42,25 @@ public class ReportDetailResponse {
         this.category = news.getCategory();
         this.publishedAt = news.getPublishedAt();
 
-        // 아래 필드들은 news_report(AI 가공 결과) 테이블과 아직 연결하지 않았다.
-        // 향후 AI 요약·분석 생성 및 저장 기능을 구현하면 해당 값을 반환할 예정이다.
-        this.summary = null;
-        this.cause = null;
-        this.socialImpact = null;
-        this.userImpact = null;
-        this.actionPlan = null;
+        // news_report가 아직 생성되지 않은 뉴스(AI 가공 전)는 newsReport가 null로 들어와 아래 필드가 전부 null로 내려간다.
+        if (newsReport != null) {
+            this.summary = newsReport.getSummary();
+            this.cause = newsReport.getCause();
+            this.socialImpact = newsReport.getSocialImpact();
+            this.userImpact = newsReport.getUserImpact();
+            this.actionPlan = newsReport.getResponseStrategy();
+        } else {
+            this.summary = null;
+            this.cause = null;
+            this.socialImpact = null;
+            this.userImpact = null;
+            this.actionPlan = null;
+        }
         this.terms = Collections.emptyList();
     }
 
-    public static ReportDetailResponse from(News news) {
-        return new ReportDetailResponse(news);
+    public static ReportDetailResponse from(News news, NewsReport newsReport) {
+        return new ReportDetailResponse(news, newsReport);
     }
 
     public Long getNewsId() {

@@ -1,6 +1,7 @@
 package com.wallo.service;
 
 import com.wallo.domain.News;
+import com.wallo.dto.response.ReportDetailResponse;
 
 import java.util.List;
 
@@ -27,6 +28,15 @@ public interface NewsService {
      *         {@link com.wallo.common.exception.ErrorCode#REPORT_NOT_FOUND}로 발생
      */
     News getNewsByIdOrThrow(Long newsId);
+
+    /**
+     * news_id로 금융 리포트 상세 정보를 조회한다. news_report(AI 가공 결과)가 아직 없으면
+     * 오류로 처리하지 않고 관련 필드를 null(terms는 빈 배열)로 채운 응답을 반환한다.
+     *
+     * @throws com.wallo.common.exception.CustomException news_id에 해당하는 뉴스 자체가 없으면
+     *         {@link com.wallo.common.exception.ErrorCode#REPORT_NOT_FOUND}로 발생
+     */
+    ReportDetailResponse getReportDetail(Long newsId);
 
     /** 게시일시 기준 최신 뉴스 목록을 limit개 조회한다. */
     List<News> getLatestNews(int limit);

@@ -3,7 +3,10 @@ package com.wallo.service;
 import com.wallo.common.exception.CustomException;
 import com.wallo.common.exception.ErrorCode;
 import com.wallo.domain.News;
+import com.wallo.domain.NewsReport;
+import com.wallo.dto.response.ReportDetailResponse;
 import com.wallo.mapper.NewsMapper;
+import com.wallo.mapper.NewsReportMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,9 +18,11 @@ public class NewsServiceImpl implements NewsService {
     private static final int MAX_LATEST_NEWS_LIMIT = 100;
 
     private final NewsMapper newsMapper;
+    private final NewsReportMapper newsReportMapper;
 
-    public NewsServiceImpl(NewsMapper newsMapper) {
+    public NewsServiceImpl(NewsMapper newsMapper, NewsReportMapper newsReportMapper) {
         this.newsMapper = newsMapper;
+        this.newsReportMapper = newsReportMapper;
     }
 
     /**
@@ -77,6 +82,17 @@ public class NewsServiceImpl implements NewsService {
         }
 
         return news;
+    }
+
+    /**
+     * news를 먼저 조회(없으면 예외)한 뒤, news_report를 news_id로 조회해 있으면 매핑하고
+     * 없으면 AI 관련 필드를 null로 둔 채 응답을 구성한다. news_report 부재는 오류로 취급하지 않는다.
+     */
+    @Override
+    public ReportDetailResponse getReportDetail(Long newsId) {
+        News news = getNewsByIdOrThrow(newsId);
+        NewsReport newsReport = newsReportMapper.findByNewsId(newsId);
+        return ReportDetailResponse.from(news, newsReport);
     }
 
     @Override

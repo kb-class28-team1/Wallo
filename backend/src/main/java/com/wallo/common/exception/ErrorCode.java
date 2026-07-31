@@ -29,6 +29,26 @@ public enum ErrorCode {
             "REPORT_001",
             "요청하신 금융 리포트를 찾을 수 없습니다."
     ),
+    REPORT_CONTENT_EMPTY(
+            HttpStatus.BAD_REQUEST,
+            "REPORT_002",
+            "기사 본문이 비어 있어 금융 리포트를 생성할 수 없습니다."
+    ),
+    AI_REPORT_GENERATION_FAILED(
+            HttpStatus.BAD_GATEWAY,
+            "REPORT_003",
+            "AI 서버 호출에 실패했습니다."
+    ),
+    AI_REPORT_INVALID_RESPONSE(
+            HttpStatus.BAD_GATEWAY,
+            "REPORT_004",
+            "AI 서버 응답이 올바르지 않습니다."
+    ),
+    REPORT_SAVE_FAILED(
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            "REPORT_005",
+            "금융 리포트 저장에 실패했습니다."
+    ),
     METHOD_NOT_ALLOWED(
             HttpStatus.METHOD_NOT_ALLOWED,
             "COMMON_002",
