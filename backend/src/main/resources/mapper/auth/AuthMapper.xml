@@ -10,10 +10,6 @@
         <result property="passwordHash" column="password_hash" />
         <result property="nickname" column="nickname" />
         <result property="name" column="name" />
-        <result property="profileImageUrl" column="profile_image_url" />
-        <result property="role" column="role" />
-        <result property="point" column="point" />
-        <result property="currentChallengeId" column="current_challenge_id" />
     </resultMap>
 
     <sql id="userColumns">
@@ -21,11 +17,7 @@
         email,
         password_hash,
         nickname,
-        name,
-        profile_image_url,
-        role,
-        point,
-        current_challenge_id
+        name
     </sql>
 
     <select id="findByEmail" resultMap="userResultMap">

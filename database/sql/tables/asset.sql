@@ -24,7 +24,7 @@ SET FOREIGN_KEY_CHECKS = 1;
 CREATE TABLE USERS (
     id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(100) NOT NULL,
-    password VARCHAR(255) NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
     nickname VARCHAR(50) NOT NULL,
     name VARCHAR(50) NOT NULL,
     is_consent_agreed TINYINT(1) NOT NULL DEFAULT 1,
@@ -37,7 +37,7 @@ CREATE TABLE USERS (
   DEFAULT CHARSET=utf8mb4
   COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO USERS (id, email, password, nickname, name, is_consent_agreed, consent_agreed_at)
+INSERT INTO USERS (id, email, password_hash, nickname, name, is_consent_agreed, consent_agreed_at)
 VALUES (1, 'test@wallo.local', 'temporary-password', 'test-user', '테스트 사용자', 1, NOW());
 
 CREATE TABLE INSTITUTIONS (
