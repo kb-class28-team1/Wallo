@@ -7,7 +7,9 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import com.wallo.challenge.domain.Challenge;
@@ -20,6 +22,7 @@ import com.wallo.challenge.dto.request.JoinChallengeRequest;
 import com.wallo.challenge.dto.response.CreateChallengeResponse;
 import com.wallo.challenge.dto.response.CurrentChallengeResponse;
 import com.wallo.challenge.dto.response.JoinChallengeResponse;
+import com.wallo.challenge.dto.response.MyChallengeDashboardResponse;
 import com.wallo.challenge.dto.response.WeeklyRankingResponse;
 import com.wallo.challenge.exception.AlreadyJoinedChallengeException;
 import com.wallo.challenge.exception.ChallengeNotFoundException;
@@ -182,6 +185,38 @@ class ChallengeServiceImplTest {
                 () -> service.getWeeklyRanking(1L));
     }
 
+    @Test
+    void returnsMyChallengeDashboardForCurrentUser() {
+        FakeChallengeMapper mapper = new FakeChallengeMapper();
+        mapper.myChallengeSummary = myChallengeSummary(1L, 10L);
+        mapper.monthlySavings.add(monthlySaving("2026-07", 45000L));
+        mapper.topLikedFeeds.add(topLikedFeed(100L, 10L, 28));
+        ChallengeService service = new ChallengeServiceImpl(mapper);
+
+        MyChallengeDashboardResponse response = service.getMyChallengeDashboard(1L);
+
+        assertEquals(1L, response.getUserId());
+        assertEquals("김혜진", response.getNickname());
+        assertEquals(10L, response.getCurrentChallengeId());
+        assertEquals(1285600L, response.getTotalSavingAmount());
+        assertEquals(new BigDecimal("12.0"), response.getSavingChangeRate());
+        assertEquals(1, response.getMonthlySavings().size());
+        assertEquals("2026-07", response.getMonthlySavings().get(0).getMonth());
+        assertEquals(1, response.getTopLikedFeeds().size());
+        assertEquals(28, response.getTopLikedFeeds().get(0).getLikeCount());
+    }
+
+    @Test
+    void throwsExceptionWhenDashboardUserHasNoCurrentChallenge() {
+        FakeChallengeMapper mapper = new FakeChallengeMapper();
+        mapper.myChallengeSummary = myChallengeSummary(1L, null);
+        ChallengeService service = new ChallengeServiceImpl(mapper);
+
+        assertThrows(
+                NotChallengeMemberException.class,
+                () -> service.getMyChallengeDashboard(1L));
+    }
+
     private CreateChallengeRequest request(String name, String challengeType) {
         CreateChallengeRequest request = new CreateChallengeRequest();
         request.setName(name);
@@ -229,6 +264,46 @@ class ChallengeServiceImplTest {
         return ranking;
     }
 
+    private MyChallengeSummary myChallengeSummary(Long userId, Long challengeId) {
+        MyChallengeSummary summary = new MyChallengeSummary();
+        summary.setUserId(userId);
+        summary.setNickname("김혜진");
+        summary.setProfileImageUrl("/images/profile.svg");
+        summary.setJoinedAt(LocalDate.of(2025, 1, 15));
+        summary.setStreakDays(12);
+        summary.setCurrentChallengeId(challengeId);
+        summary.setCurrentChallengeName(challengeId == null ? null : "함께 절약");
+        summary.setTotalSavingAmount(1285600L);
+        summary.setCurrentMonthSavingAmount(186500L);
+        summary.setPreviousMonthSavingAmount(166500L);
+        summary.setSavingChangeRate(new BigDecimal("12.0"));
+        summary.setVerificationCount(48);
+        summary.setAverageSavingAmount(26783L);
+        summary.setPostCount(32);
+        summary.setReceivedLikeCount(236);
+        summary.setCommentCount(58);
+        return summary;
+    }
+
+    private MonthlySaving monthlySaving(String month, Long savingAmount) {
+        MonthlySaving monthlySaving = new MonthlySaving();
+        monthlySaving.setMonth(month);
+        monthlySaving.setSavingAmount(savingAmount);
+        return monthlySaving;
+    }
+
+    private TopLikedFeed topLikedFeed(Long feedId, Long challengeId, Integer likeCount) {
+        TopLikedFeed feed = new TopLikedFeed();
+        feed.setFeedId(feedId);
+        feed.setChallengeId(challengeId);
+        feed.setCaption("오늘의 커피 절약");
+        feed.setThumbnailUrl("/images/feed-thumbnail.jpg");
+        feed.setMediaUrl("/images/feed.jpg");
+        feed.setLikeCount(likeCount);
+        feed.setCreatedAt(LocalDateTime.of(2026, 7, 31, 9, 30));
+        return feed;
+    }
+
     /** 실제 DB 대신 서비스 규칙만 검증하기 위한 테스트 전용 Mapper다. */
     private static class FakeChallengeMapper implements ChallengeMapper {
 
@@ -237,6 +312,9 @@ class ChallengeServiceImplTest {
         private Challenge savedChallenge;
         private Challenge challengeByInviteCode;
         private final List<WeeklyRanking> weeklyRankings = new ArrayList<>();
+        private MyChallengeSummary myChallengeSummary;
+        private final List<MonthlySaving> monthlySavings = new ArrayList<>();
+        private final List<TopLikedFeed> topLikedFeeds = new ArrayList<>();
 
         @Override
         public int insertChallenge(Challenge challenge) {
@@ -280,17 +358,17 @@ class ChallengeServiceImplTest {
 
         @Override
         public MyChallengeSummary findMyChallengeSummary(Long userId) {
-            return null;
+            return myChallengeSummary;
         }
 
         @Override
         public List<MonthlySaving> findMonthlySavings(Long userId) {
-            return new ArrayList<>();
+            return monthlySavings;
         }
 
         @Override
         public List<TopLikedFeed> findTopLikedFeeds(Long userId) {
-            return new ArrayList<>();
+            return topLikedFeeds;
         }
     }
 }
