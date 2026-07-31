@@ -41,6 +41,10 @@ const collapseMarkClass = computed(() => ({
 const weeklyRankingClass = computed(() => ({
   "submenu-link-active": route.path === "/challenges/rankings/weekly",
 }))
+const challengeFeedClass = computed(() => ({
+  "submenu-link-active":
+    route.name === "challenge-feed" || route.path === "/challenges/current",
+}))
 const myChallengeClass = computed(() => ({
   "submenu-link-active": route.path === "/users/me/challenge-dashboard",
 }))
@@ -91,6 +95,26 @@ const moveToChallengeMemberPage = async (targetPath) => {
 
 const moveToWeeklyRanking = () => {
   moveToChallengeMemberPage("/challenges/rankings/weekly")
+}
+
+const moveToChallengeFeed = async () => {
+  if (isChallengeChecking.value) {
+    return
+  }
+
+  isChallengeChecking.value = true
+  try {
+    const challenge = await getCurrentChallenge()
+    if (!challenge?.joined || !challenge.id) {
+      await router.push("/challenges/current")
+      return
+    }
+    await router.push(`/challenges/${challenge.id}/feeds`)
+  } catch (error) {
+    alert(error.message || "챌린지 정보를 확인하지 못했습니다.")
+  } finally {
+    isChallengeChecking.value = false
+  }
 }
 
 const moveToMyChallenge = () => {
@@ -162,13 +186,16 @@ const moveToMyChallenge = () => {
             id="challenge-submenu"
             class="submenu d-flex flex-column"
           >
-            <RouterLink
-              to="/challenges/current"
+            <button
+              type="button"
               class="submenu-item submenu-link d-flex align-items-center"
+              :class="challengeFeedClass"
+              :disabled="isChallengeChecking"
+              @click="moveToChallengeFeed"
             >
               <span class="submenu-dot" aria-hidden="true"></span>
               <span>피드 목록</span>
-            </RouterLink>
+            </button>
 
             <button
               type="button"
