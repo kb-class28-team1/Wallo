@@ -115,7 +115,8 @@
             status,
             created_at
         FROM challenge
-        WHERE invite_code = #{inviteCode}
+        WHERE UPPER(TRIM(invite_code)) = #{inviteCode}
+          AND status = 'ACTIVE'
     </select>
 
     <select id="findCurrentChallengeIdByUserId" resultType="java.lang.Long">

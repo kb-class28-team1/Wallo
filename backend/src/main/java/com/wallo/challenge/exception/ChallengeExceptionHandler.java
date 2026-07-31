@@ -47,6 +47,12 @@ public class ChallengeExceptionHandler {
         return error(HttpStatus.UNAUTHORIZED, exception.getMessage());
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ChallengeErrorResponse> handleInvalidRequest(
+            IllegalArgumentException exception) {
+        return error(HttpStatus.BAD_REQUEST, exception.getMessage());
+    }
+
     private ResponseEntity<ChallengeErrorResponse> error(HttpStatus status, String message) {
         return ResponseEntity.status(status)
                 .body(new ChallengeErrorResponse(status.value(), message));

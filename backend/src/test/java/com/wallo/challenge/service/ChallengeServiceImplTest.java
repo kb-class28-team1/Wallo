@@ -39,11 +39,11 @@ class ChallengeServiceImplTest {
         FakeChallengeMapper mapper = new FakeChallengeMapper();
         ChallengeService service = new ChallengeServiceImpl(mapper);
 
-        CreateChallengeResponse response = service.createChallenge(1L, request("7월 절약", "SAVING"));
+        CreateChallengeResponse response = service.createChallenge(1L, request("7월 절약"));
 
         assertEquals(1L, response.getId());
         assertEquals("7월 절약", response.getName());
-        assertEquals("SAVING", response.getChallengeType());
+        assertEquals("GROUP", response.getChallengeType());
         assertEquals("ACTIVE", response.getStatus());
         assertNotNull(response.getInviteCode());
         assertEquals(8, response.getInviteCode().length());
@@ -58,7 +58,7 @@ class ChallengeServiceImplTest {
 
         assertThrows(
                 AlreadyJoinedChallengeException.class,
-                () -> service.createChallenge(1L, request("새 챌린지", "SAVING")));
+                () -> service.createChallenge(1L, request("새 챌린지")));
     }
 
     @Test
@@ -69,7 +69,7 @@ class ChallengeServiceImplTest {
 
         assertThrows(
                 AlreadyJoinedChallengeException.class,
-                () -> service.createChallenge(1L, request("새 챌린지", "SAVING")));
+                () -> service.createChallenge(1L, request("새 챌린지")));
     }
 
     @Test
@@ -217,10 +217,9 @@ class ChallengeServiceImplTest {
                 () -> service.getMyChallengeDashboard(1L));
     }
 
-    private CreateChallengeRequest request(String name, String challengeType) {
+    private CreateChallengeRequest request(String name) {
         CreateChallengeRequest request = new CreateChallengeRequest();
         request.setName(name);
-        request.setChallengeType(challengeType);
         return request;
     }
 

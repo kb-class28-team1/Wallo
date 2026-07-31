@@ -7,7 +7,6 @@ package com.wallo.challenge.dto.request;
 public class CreateChallengeRequest {
 
     private String name;
-    private String challengeType;
 
     public String getName() {
         return name;
@@ -17,11 +16,4 @@ public class CreateChallengeRequest {
         this.name = name;
     }
 
-    public String getChallengeType() {
-        return challengeType;
-    }
-
-    public void setChallengeType(String challengeType) {
-        this.challengeType = challengeType;
-    }
 }
