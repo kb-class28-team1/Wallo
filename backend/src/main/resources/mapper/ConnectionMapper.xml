@@ -22,8 +22,8 @@
                 #{loginId},
                 #{loginPassword},
                 <choose>
-                    <when test="connection.status.name() == 'SUCCESS'">ACTIVE</when>
-                    <otherwise>FAILED</otherwise>
+                    <when test="connection.status.name() == 'SUCCESS'">'ACTIVE'</when>
+                    <otherwise>'FAILED'</otherwise>
                 </choose>,
                 NOW()
             )
