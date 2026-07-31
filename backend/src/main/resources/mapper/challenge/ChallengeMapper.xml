@@ -51,7 +51,7 @@
         <result property="commentCount" column="comment_count" />
     </resultMap>
 
-    <!-- 최근 6개월 차트의 월과 절약 금액을 연결함. -->
+    <!-- 선택 기간 차트의 날짜 또는 월과 절약 금액을 연결함. -->
     <resultMap id="monthlySavingResultMap"
                type="com.wallo.challenge.domain.MonthlySaving">
         <id property="month" column="month" />
@@ -230,50 +230,65 @@
         WHERE users.id = #{userId}
     </select>
 
-    <!-- 데이터가 없는 월도 0원으로 표시하기 위해 최근 6개월 목록을 먼저 생성함. -->
-    <select id="findMonthlySavings" resultMap="monthlySavingResultMap">
+    <!-- 선택 기간의 모든 일 또는 월을 생성하여 데이터가 없는 구간도 0원으로 표시함. -->
+    <select id="findSavingsByPeriod" resultMap="monthlySavingResultMap">
+        WITH RECURSIVE periods AS (
+            SELECT
+                1 AS period_order,
+                <choose>
+                    <when test="bucketUnit == 'DAY'">
+                        DATE_SUB(CURDATE(), INTERVAL (#{bucketCount} - 1) DAY)
+                    </when>
+                    <otherwise>
+                        DATE_SUB(
+                            CAST(DATE_FORMAT(CURDATE(), '%Y-%m-01') AS DATE),
+                            INTERVAL (#{bucketCount} - 1) MONTH
+                        )
+                    </otherwise>
+                </choose>
+                AS period_start
+            UNION ALL
+            SELECT
+                period_order + 1,
+                <choose>
+                    <when test="bucketUnit == 'DAY'">
+                        DATE_ADD(period_start, INTERVAL 1 DAY)
+                    </when>
+                    <otherwise>
+                        DATE_ADD(period_start, INTERVAL 1 MONTH)
+                    </otherwise>
+                </choose>
+            FROM periods
+            WHERE period_order &lt; #{bucketCount}
+        )
         SELECT
-            DATE_FORMAT(months.month_start, '%Y-%m') AS month,
+            <choose>
+                <when test="bucketUnit == 'DAY'">
+                    DATE_FORMAT(periods.period_start, '%Y-%m-%d')
+                </when>
+                <otherwise>
+                    DATE_FORMAT(periods.period_start, '%Y-%m')
+                </otherwise>
+            </choose>
+            AS month,
             COALESCE(SUM(feed.saving_amount), 0) AS saving_amount
-        FROM (
-            SELECT DATE_SUB(current_month.month_start, INTERVAL 5 MONTH) AS month_start
-            FROM (
-                SELECT CAST(DATE_FORMAT(CURDATE(), '%Y-%m-01') AS DATE) AS month_start
-            ) current_month
-            UNION ALL
-            SELECT DATE_SUB(current_month.month_start, INTERVAL 4 MONTH)
-            FROM (
-                SELECT CAST(DATE_FORMAT(CURDATE(), '%Y-%m-01') AS DATE) AS month_start
-            ) current_month
-            UNION ALL
-            SELECT DATE_SUB(current_month.month_start, INTERVAL 3 MONTH)
-            FROM (
-                SELECT CAST(DATE_FORMAT(CURDATE(), '%Y-%m-01') AS DATE) AS month_start
-            ) current_month
-            UNION ALL
-            SELECT DATE_SUB(current_month.month_start, INTERVAL 2 MONTH)
-            FROM (
-                SELECT CAST(DATE_FORMAT(CURDATE(), '%Y-%m-01') AS DATE) AS month_start
-            ) current_month
-            UNION ALL
-            SELECT DATE_SUB(current_month.month_start, INTERVAL 1 MONTH)
-            FROM (
-                SELECT CAST(DATE_FORMAT(CURDATE(), '%Y-%m-01') AS DATE) AS month_start
-            ) current_month
-            UNION ALL
-            SELECT current_month.month_start
-            FROM (
-                SELECT CAST(DATE_FORMAT(CURDATE(), '%Y-%m-01') AS DATE) AS month_start
-            ) current_month
-        ) months
+        FROM periods
         LEFT JOIN feed
             ON feed.user_id = #{userId}
            AND feed.status = 'ACTIVE'
            AND feed.file_deleted_at IS NULL
-           AND feed.created_at &gt;= months.month_start
-           AND feed.created_at &lt; DATE_ADD(months.month_start, INTERVAL 1 MONTH)
-        GROUP BY months.month_start
-        ORDER BY months.month_start
+           AND feed.created_at &gt;= periods.period_start
+           AND feed.created_at &lt;
+               <choose>
+                   <when test="bucketUnit == 'DAY'">
+                       DATE_ADD(periods.period_start, INTERVAL 1 DAY)
+                   </when>
+                   <otherwise>
+                       DATE_ADD(periods.period_start, INTERVAL 1 MONTH)
+                   </otherwise>
+               </choose>
+        GROUP BY periods.period_order, periods.period_start
+        ORDER BY periods.period_order
     </select>
 
     <!-- 좋아요 수가 같으면 최신 피드가 먼저 표시되도록 정렬함. -->

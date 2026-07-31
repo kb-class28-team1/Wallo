@@ -49,7 +49,7 @@ class MyChallengeControllerTest {
                 Collections.singletonList(topLikedFeed));
 
         when(currentUserProvider.getCurrentUserId()).thenReturn(1L);
-        when(challengeService.getMyChallengeDashboard(1L)).thenReturn(response);
+        when(challengeService.getMyChallengeDashboard(1L, "6M")).thenReturn(response);
 
         mockMvc.perform(get("/api/users/me/challenge-dashboard"))
                 .andExpect(status().isOk())
@@ -65,7 +65,7 @@ class MyChallengeControllerTest {
                 .andExpect(jsonPath("$.topLikedFeeds[0].likeCount").value(28));
 
         verify(currentUserProvider).getCurrentUserId();
-        verify(challengeService).getMyChallengeDashboard(1L);
+        verify(challengeService).getMyChallengeDashboard(1L, "6M");
     }
 
     private MyChallengeSummary summary() {

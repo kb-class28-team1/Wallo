@@ -6,6 +6,7 @@ import com.wallo.challenge.service.ChallengeService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /** 로그인 사용자의 내 챌린지 화면에 필요한 API를 제공함. */
@@ -25,10 +26,11 @@ public class MyChallengeController {
 
     /** 인증 정보의 사용자 ID를 기준으로 내 챌린지 대시보드 정보를 조회함. */
     @GetMapping("/challenge-dashboard")
-    public ResponseEntity<MyChallengeDashboardResponse> getMyChallengeDashboard() {
+    public ResponseEntity<MyChallengeDashboardResponse> getMyChallengeDashboard(
+            @RequestParam(defaultValue = "6M") String period) {
         Long currentUserId = currentUserProvider.getCurrentUserId();
         MyChallengeDashboardResponse response =
-                challengeService.getMyChallengeDashboard(currentUserId);
+                challengeService.getMyChallengeDashboard(currentUserId, period);
 
         return ResponseEntity.ok(response);
     }

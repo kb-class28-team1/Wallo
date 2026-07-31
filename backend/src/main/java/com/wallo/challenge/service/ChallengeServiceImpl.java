@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.wallo.challenge.domain.Challenge;
 import com.wallo.challenge.domain.MonthlySaving;
 import com.wallo.challenge.domain.MyChallengeSummary;
+import com.wallo.challenge.domain.SavingTrendPeriod;
 import com.wallo.challenge.domain.TopLikedFeed;
 import com.wallo.challenge.domain.WeeklyRanking;
 import com.wallo.challenge.dto.request.CreateChallengeRequest;
@@ -190,14 +191,18 @@ public class ChallengeServiceImpl implements ChallengeService {
      */
     @Override
     @Transactional(readOnly = true)
-    public MyChallengeDashboardResponse getMyChallengeDashboard(Long userId) {
+    public MyChallengeDashboardResponse getMyChallengeDashboard(Long userId, String periodCode) {
         MyChallengeSummary summary = challengeMapper.findMyChallengeSummary(userId);
 
         if (summary == null || summary.getCurrentChallengeId() == null) {
             throw new NotChallengeMemberException();
         }
 
-        List<MonthlySaving> monthlySavings = challengeMapper.findMonthlySavings(userId);
+        SavingTrendPeriod period = SavingTrendPeriod.fromCode(periodCode);
+        List<MonthlySaving> monthlySavings = challengeMapper.findSavingsByPeriod(
+                userId,
+                period.getBucketCount(),
+                period.getBucketUnit());
         List<TopLikedFeed> topLikedFeeds = challengeMapper.findTopLikedFeeds(userId);
 
         return MyChallengeDashboardResponse.of(summary, monthlySavings, topLikedFeeds);

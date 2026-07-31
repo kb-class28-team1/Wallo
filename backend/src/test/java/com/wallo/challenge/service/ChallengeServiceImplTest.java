@@ -193,7 +193,7 @@ class ChallengeServiceImplTest {
         mapper.topLikedFeeds.add(topLikedFeed(100L, 10L, 28));
         ChallengeService service = new ChallengeServiceImpl(mapper);
 
-        MyChallengeDashboardResponse response = service.getMyChallengeDashboard(1L);
+        MyChallengeDashboardResponse response = service.getMyChallengeDashboard(1L, "6M");
 
         assertEquals(1L, response.getUserId());
         assertEquals("김혜진", response.getNickname());
@@ -204,6 +204,8 @@ class ChallengeServiceImplTest {
         assertEquals("2026-07", response.getMonthlySavings().get(0).getMonth());
         assertEquals(1, response.getTopLikedFeeds().size());
         assertEquals(28, response.getTopLikedFeeds().get(0).getLikeCount());
+        assertEquals(6, mapper.requestedBucketCount);
+        assertEquals("MONTH", mapper.requestedBucketUnit);
     }
 
     @Test
@@ -214,7 +216,7 @@ class ChallengeServiceImplTest {
 
         assertThrows(
                 NotChallengeMemberException.class,
-                () -> service.getMyChallengeDashboard(1L));
+                () -> service.getMyChallengeDashboard(1L, "6M"));
     }
 
     private CreateChallengeRequest request(String name) {
@@ -314,6 +316,8 @@ class ChallengeServiceImplTest {
         private MyChallengeSummary myChallengeSummary;
         private final List<MonthlySaving> monthlySavings = new ArrayList<>();
         private final List<TopLikedFeed> topLikedFeeds = new ArrayList<>();
+        private int requestedBucketCount;
+        private String requestedBucketUnit;
 
         @Override
         public int insertChallenge(Challenge challenge) {
@@ -361,7 +365,12 @@ class ChallengeServiceImplTest {
         }
 
         @Override
-        public List<MonthlySaving> findMonthlySavings(Long userId) {
+        public List<MonthlySaving> findSavingsByPeriod(
+                Long userId,
+                int bucketCount,
+                String bucketUnit) {
+            requestedBucketCount = bucketCount;
+            requestedBucketUnit = bucketUnit;
             return monthlySavings;
         }
 

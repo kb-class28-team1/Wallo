@@ -46,8 +46,11 @@ public interface ChallengeMapper {
     /** 로그인 사용자의 프로필, 현재 챌린지와 누적 활동 통계를 조회함. */
     MyChallengeSummary findMyChallengeSummary(@Param("userId") Long userId);
 
-    /** 로그인 사용자의 최근 6개월 절약 금액을 오래된 월부터 조회함. */
-    List<MonthlySaving> findMonthlySavings(@Param("userId") Long userId);
+    /** 로그인 사용자의 선택 기간 절약 금액을 일별 또는 월별로 조회함. */
+    List<MonthlySaving> findSavingsByPeriod(
+            @Param("userId") Long userId,
+            @Param("bucketCount") int bucketCount,
+            @Param("bucketUnit") String bucketUnit);
 
     /** 로그인 사용자가 작성한 활성 피드 중 좋아요 상위 3건을 조회함. */
     List<TopLikedFeed> findTopLikedFeeds(@Param("userId") Long userId);
