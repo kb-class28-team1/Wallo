@@ -33,6 +33,7 @@ ext {
     junitVersion            = '5.10.2'
     lombokVersion           = '1.18.34'
     springfoxVersion        = '3.0.0'
+    springSecurityVersion   = '5.8.11'
 }
 
 dependencies {
@@ -69,6 +70,9 @@ dependencies {
 
     // 로깅
     implementation "ch.qos.logback:logback-classic:${logbackVersion}"
+
+    // 비밀번호 해싱 (Spring Security 전체가 아닌 crypto 모듈만 사용, PasswordEncoder/BCryptPasswordEncoder)
+    implementation "org.springframework.security:spring-security-crypto:${springSecurityVersion}"
 
     // Swagger (Spring Boot 미사용 환경이라 springdoc의 Boot 자동설정 대신 springfox + @EnableSwagger2WebMvc 사용)
     implementation "io.springfox:springfox-swagger2:${springfoxVersion}"

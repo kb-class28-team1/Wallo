@@ -38,7 +38,6 @@ public class AppConfig {
         objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         return objectMapper;
     }
-}
 
     @Bean
     public PasswordEncoder passwordEncoder() {
