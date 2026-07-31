@@ -31,6 +31,10 @@ const progressRate = computed(() =>
   Math.min(Math.max(achievementRate.value, 0), 100),
 );
 
+const salaryModalTitle = computed(() =>
+  Number(taxSettlement.value?.annualSalary ?? 0) > 0 ? "연봉 수정" : "연봉 입력",
+);
+
 const achievementMessage = computed(() => {
   if (achievementRate.value >= 100) {
     return "연봉 25% 기준을 달성했습니다!";
@@ -188,9 +192,11 @@ onMounted(loadTaxSettlement);
     @keydown.esc="closeSalaryModal"
   >
     <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
+        <div class="modal-content">
         <div class="modal-header">
-          <h2 id="salaryModalTitle" class="modal-title h5 fw-bold">연봉 수정</h2>
+          <h2 id="salaryModalTitle" class="modal-title h5 fw-bold">
+            {{ salaryModalTitle }}
+          </h2>
           <button
             type="button"
             class="btn-close"
