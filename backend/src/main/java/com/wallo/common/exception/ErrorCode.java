@@ -29,6 +29,16 @@ public enum ErrorCode {
             "DASHBOARD_001",
             "대시보드 요청 값이 올바르지 않습니다."
     ),
+    INVALID_ANNUAL_SALARY(
+            HttpStatus.BAD_REQUEST,
+            "PROFILE_001",
+            "연봉은 0원보다 큰 금액으로 입력해주세요."
+    ),
+    USER_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "PROFILE_002",
+            "사용자 정보를 찾을 수 없습니다."
+    ),
     METHOD_NOT_ALLOWED(
             HttpStatus.METHOD_NOT_ALLOWED,
             "COMMON_002",
