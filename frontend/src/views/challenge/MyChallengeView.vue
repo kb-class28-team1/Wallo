@@ -81,7 +81,7 @@ const chartOptions = {
       ticks: {
         color: "#a1a9c2",
         font: {
-          size: 11,
+          size: 13.2,
         },
       },
     },
@@ -286,9 +286,6 @@ onMounted(loadDashboard)
       <article class="dashboard-card liked-feed-card">
         <div class="card-heading">
           <h2>좋아요 받은 게시물 TOP 3</h2>
-          <RouterLink :to="{ name: 'point-history' }" class="all-view-link">
-            전체보기
-          </RouterLink>
         </div>
 
         <ol v-if="dashboard.topLikedFeeds.length" class="liked-feed-list list-unstyled mb-0">
@@ -321,10 +318,11 @@ onMounted(loadDashboard)
 .my-challenge-page {
   width: 100%;
   color: #202947;
+  font-size: 19.2px;
 }
 
 .page-heading h1 {
-  font-size: 29px;
+  font-size: 34.8px;
   font-weight: 750;
 }
 
@@ -404,7 +402,7 @@ onMounted(loadDashboard)
 .profile-name {
   display: block;
   margin-bottom: 8px;
-  font-size: 18px;
+  font-size: 21.6px;
 }
 
 .saving-badge {
@@ -413,7 +411,7 @@ onMounted(loadDashboard)
   border-radius: 999px;
   background: #fff8df;
   color: #9b7a21;
-  font-size: 12px;
+  font-size: 14.4px;
   font-weight: 700;
 }
 
@@ -428,7 +426,7 @@ onMounted(loadDashboard)
   align-items: center;
   justify-content: space-between;
   gap: 17px;
-  font-size: 14px;
+  font-size: 16.8px;
 }
 
 .profile-details dt {
@@ -455,7 +453,7 @@ onMounted(loadDashboard)
   margin-top: auto;
   border: 1px solid #7b70f5;
   color: #6d62eb;
-  font-size: 13px;
+  font-size: 15.6px;
   font-weight: 700;
 }
 
@@ -468,14 +466,14 @@ onMounted(loadDashboard)
 .total-saving > small {
   display: block;
   color: #9aa3bf;
-  font-size: 13px;
+  font-size: 15.6px;
 }
 
 .total-saving > strong {
   display: block;
   margin: 6px 0 2px;
   color: #1d2543;
-  font-size: 31px;
+  font-size: 37.2px;
 }
 
 .summary-stat-grid {
@@ -497,7 +495,7 @@ onMounted(loadDashboard)
   display: block;
   overflow: hidden;
   color: #9aa3bf;
-  font-size: 10px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -506,7 +504,7 @@ onMounted(loadDashboard)
   display: block;
   margin: 6px 0;
   color: #242d4d;
-  font-size: 15px;
+  font-size: 18px;
 }
 
 .change-positive {
@@ -529,7 +527,7 @@ onMounted(loadDashboard)
   border-radius: 999px;
   background: #f8f8ff;
   color: #8d96b2;
-  font-size: 12px;
+  font-size: 14.4px;
 }
 
 .activity-badges strong {
@@ -551,12 +549,12 @@ onMounted(loadDashboard)
 
 .card-heading h2 {
   margin: 0 0 9px;
-  font-size: 16px;
+  font-size: 19.2px;
   font-weight: 750;
 }
 
 .card-heading strong {
-  font-size: 13px;
+  font-size: 15.6px;
 }
 
 .period-select {
@@ -567,25 +565,13 @@ onMounted(loadDashboard)
   border-radius: 8px;
   background-color: #fff;
   color: #7d86a3;
-  font-size: 12px;
+  font-size: 14.4px;
   cursor: pointer;
 }
 
 .period-select:focus {
   border-color: #aaa2fa;
   box-shadow: 0 0 0 3px rgb(123 112 245 / 12%);
-}
-
-.all-view-link {
-  color: #6d62eb;
-  font-size: 12px;
-  font-weight: 700;
-  text-decoration: none;
-}
-
-.all-view-link:hover {
-  color: #5147d5;
-  text-decoration: underline;
 }
 
 .trend-chart {
@@ -612,7 +598,7 @@ onMounted(loadDashboard)
 
 .feed-rank {
   color: #7c70f5;
-  font-size: 15px;
+  font-size: 18px;
 }
 
 .feed-thumbnail {
@@ -642,19 +628,19 @@ onMounted(loadDashboard)
 .feed-copy strong {
   overflow: hidden;
   color: #283150;
-  font-size: 14px;
+  font-size: 16.8px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .feed-copy span {
   color: #a2aac2;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .feed-like {
   color: #ef7898;
-  font-size: 13px;
+  font-size: 15.6px;
   font-weight: 700;
 }
 
@@ -663,7 +649,7 @@ onMounted(loadDashboard)
   min-height: 224px;
   place-items: center;
   color: #9aa3bd;
-  font-size: 14px;
+  font-size: 16.8px;
 }
 
 @media (max-width: 1100px) {
