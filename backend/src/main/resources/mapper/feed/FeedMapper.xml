@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wallo.feed.mapper.FeedMapper">
+    <resultMap id="feedMap" type="com.wallo.feed.domain.Feed">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="challengeId" column="challenge_id"/>
+        <result property="nickname" column="nickname"/>
+        <result property="profileImageUrl" column="profile_image_url"/>
+        <result property="mediaUrl" column="media_url"/>
+        <result property="thumbnailUrl" column="thumbnail_url"/>
+        <result property="mediaType" column="media_type"/>
+        <result property="spendingType" column="spending_type"/>
+        <result property="savingAmount" column="saving_amount"/>
+        <result property="category" column="category"/>
+        <result property="customCategory" column="custom_category"/>
+        <result property="caption" column="caption"/>
+        <result property="likeCount" column="like_count"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+    <resultMap id="messageMap" type="com.wallo.feed.domain.FeedMessage">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="nickname" column="nickname"/>
+        <result property="profileImageUrl" column="profile_image_url"/>
+        <result property="messageType" column="message_type"/>
+        <result property="referenceFeedId" column="reference_feed_id"/>
+        <result property="content" column="content"/>
+        <result property="mediaUrl" column="media_url"/>
+        <result property="thumbnailUrl" column="thumbnail_url"/>
+        <result property="mediaType" column="media_type"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <select id="isChallengeMember" resultType="int">
+        SELECT COUNT(*) FROM USERS
+        WHERE id = #{userId} AND current_challenge_id = #{challengeId}
+    </select>
+    <select id="findChallengeName" resultType="string">
+        SELECT name FROM CHALLENGE WHERE id = #{challengeId}
+    </select>
+    <select id="findFeeds" resultMap="feedMap">
+        SELECT f.*, u.nickname, u.profile_image_url
+        FROM FEED f JOIN USERS u ON u.id = f.user_id
+        WHERE f.challenge_id = #{challengeId} AND f.status = 'ACTIVE'
+        <if test="mineOnly">AND f.user_id = #{userId}</if>
+        ORDER BY f.created_at DESC
+    </select>
+    <insert id="insertFeed" parameterType="com.wallo.feed.domain.Feed"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO FEED
+        (user_id, challenge_id, media_url, thumbnail_url, media_type, status,
+         spending_type, saving_amount, category, custom_category, caption)
+        VALUES
+        (#{userId}, #{challengeId}, #{mediaUrl}, #{thumbnailUrl}, #{mediaType}, 'ACTIVE',
+         #{spendingType}, #{savingAmount}, #{category}, #{customCategory}, #{caption})
+    </insert>
+    <insert id="insertAnalysis">
+        INSERT INTO FEED_ANALYSIS
+        (feed_id, recommended_spending_type, recommended_category,
+         estimated_saving_amount, analysis_summary, confidence_score)
+        VALUES (#{feedId}, #{spendingType}, #{category}, #{amount}, #{summary}, #{confidence})
+    </insert>
+    <insert id="insertFeedShareMessage">
+        INSERT INTO MESSAGE (challenge_id, user_id, message_type, reference_feed_id, content)
+        VALUES (#{challengeId}, #{userId}, 'FEED_SHARE', #{feedId}, '새 절약 피드를 공유했어요.')
+    </insert>
+    <insert id="insertMessage">
+        INSERT INTO MESSAGE (challenge_id, user_id, message_type, reference_feed_id, content)
+        VALUES (#{challengeId}, #{userId}, #{type}, #{feedId}, #{content})
+    </insert>
+    <select id="findMessages" resultMap="messageMap">
+        SELECT m.id, m.user_id, u.nickname, u.profile_image_url, m.message_type,
+               m.reference_feed_id, m.content, m.created_at,
+               f.media_url, f.thumbnail_url, f.media_type
+        FROM MESSAGE m
+        JOIN USERS u ON u.id = m.user_id
+        LEFT JOIN FEED f ON f.id = m.reference_feed_id
+        WHERE m.challenge_id = #{challengeId}
+        ORDER BY m.created_at
+    </select>
+    <select id="sumSavingAmount" resultType="long">
+        SELECT COALESCE(SUM(saving_amount), 0) FROM FEED
+        WHERE challenge_id = #{challengeId} AND user_id = #{userId} AND status = 'ACTIVE'
+    </select>
+</mapper>
