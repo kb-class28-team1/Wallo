@@ -37,9 +37,6 @@ CREATE TABLE USERS (
   DEFAULT CHARSET=utf8mb4
   COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO USERS (id, email, password_hash, nickname, name, is_consent_agreed, consent_agreed_at)
-VALUES (1, 'test@wallo.local', 'temporary-password', 'test-user', '테스트 사용자', 1, NOW());
-
 CREATE TABLE INSTITUTIONS (
     institution_id VARCHAR(20) PRIMARY KEY,
     type VARCHAR(20) NOT NULL,
