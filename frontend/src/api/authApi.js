@@ -5,12 +5,19 @@ const getErrorMessage = (error, fallbackMessage) =>
   error.response?.data?.message ||
   fallbackMessage
 
+const createAuthError = (error, fallbackMessage) => {
+  const authError = new Error(getErrorMessage(error, fallbackMessage))
+  authError.code = error.response?.data?.code
+  authError.status = error.response?.status
+  return authError
+}
+
 export const signup = async (payload) => {
   try {
     const response = await httpClient.post("/api/auth/signup", payload)
     return response.data
   } catch (error) {
-    throw new Error(getErrorMessage(error, "회원가입에 실패했습니다."))
+    throw createAuthError(error, "회원가입에 실패했습니다.")
   }
 }
 
@@ -19,7 +26,7 @@ export const login = async (payload) => {
     const response = await httpClient.post("/api/auth/login", payload)
     return response.data
   } catch (error) {
-    throw new Error(getErrorMessage(error, "로그인에 실패했습니다."))
+    throw createAuthError(error, "로그인에 실패했습니다.")
   }
 }
 
