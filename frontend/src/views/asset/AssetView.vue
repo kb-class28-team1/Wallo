@@ -3,6 +3,7 @@ import { onMounted } from "vue";
 import { storeToRefs } from "pinia";
 import AssetOverviewCard from "@/components/asset/AssetOverviewCard.vue";
 import ConsumptionReportCard from "@/components/asset/ConsumptionReportCard.vue";
+import TaxDeductionTrackerCard from "@/components/asset/TaxDeductionTrackerCard.vue";
 import { useAssetStore } from "@/stores/assetStore";
 
 const assetStore = useAssetStore();
@@ -72,15 +73,7 @@ onMounted(loadAssets);
       </div>
 
       <div class="col-12 col-lg-6">
-        <article class="card tax-tracker-placeholder h-100 border-0 shadow-sm">
-          <div class="card-body tax-tracker-placeholder-body">
-            <h2 class="h5 fw-bold mb-0">소득공제 달성률</h2>
-            <div class="placeholder-content text-center">
-              <i class="bi bi-bar-chart-line text-secondary fs-2" aria-hidden="true"></i>
-              <p class="text-secondary mb-0 mt-3">연말정산 트래커를 준비하고 있습니다.</p>
-            </div>
-          </div>
-        </article>
+        <TaxDeductionTrackerCard />
       </div>
     </section>
   </section>
@@ -120,34 +113,6 @@ onMounted(loadAssets);
   border-radius: 18px;
 }
 
-.tax-tracker-placeholder {
-  min-height: 310px;
-  border-radius: 32px;
-  background: #ffffff;
-}
-
-.tax-tracker-placeholder-body {
-  display: flex;
-  min-height: 310px;
-  flex-direction: column;
-  padding: 36px 42px;
-}
-
-.placeholder-content {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-@media (max-width: 991.98px) {
-  .tax-tracker-placeholder-body {
-    min-height: auto;
-    padding: 30px;
-  }
-}
-
 @media (max-width: 575.98px) {
   .asset-view {
     padding-right: 0 !important;
@@ -157,10 +122,6 @@ onMounted(loadAssets);
   .asset-error {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .tax-tracker-placeholder-body {
-    padding: 26px 22px;
   }
 }
 </style>
