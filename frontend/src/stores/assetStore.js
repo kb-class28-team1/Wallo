@@ -1,10 +1,10 @@
 import { defineStore } from "pinia";
 import { connectAllAssets, getAssets } from "@/api/assetApi";
 
-const getErrorMessage = (error) =>
+const getErrorMessage = (error, fallbackMessage) =>
   error.response?.data?.error?.message ||
-  error.message ||
-  "자산 정보를 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
+  error.response?.data?.message ||
+  fallbackMessage;
 
 export const useAssetStore = defineStore("asset", {
   state: () => ({
@@ -26,7 +26,13 @@ export const useAssetStore = defineStore("asset", {
 
         return this.assets;
       } catch (error) {
-        const errorMessage = getErrorMessage(error);
+        const isUnauthorized = error.response?.status === 401;
+        const errorMessage = getErrorMessage(
+          error,
+          isUnauthorized
+            ? "로그인이 만료되었습니다. 다시 로그인해 주세요."
+            : "자산 정보를 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+        );
 
         this.assets = null;
         this.error = errorMessage;
@@ -49,7 +55,10 @@ export const useAssetStore = defineStore("asset", {
         return response;
       } catch (error) {
         this.connectionResults = [];
-        this.error = getErrorMessage(error);
+        this.error = getErrorMessage(
+          error,
+          "자산 연동 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+        );
 
         const status = error.response?.status;
         const errorMessage = error.response?.data?.error?.message;

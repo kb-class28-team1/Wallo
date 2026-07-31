@@ -1,13 +1,31 @@
 <script setup>
-import { RouterLink } from "vue-router";
+import { onMounted } from "vue";
+import { storeToRefs } from "pinia";
+import AssetOverviewCard from "@/components/asset/AssetOverviewCard.vue";
+import { useAssetStore } from "@/stores/assetStore";
+
+const assetStore = useAssetStore();
+const { assets, error, isAssetLoading } = storeToRefs(assetStore);
+
+const loadAssets = async () => {
+  try {
+    await assetStore.fetchAssets();
+  } catch {
+    // 오류 메시지와 401 이동은 Pinia 및 Axios 인터셉터에서 처리합니다.
+  }
+};
+
+onMounted(loadAssets);
 </script>
 
 <template>
-  <section class="asset-view container-fluid py-4 px-4">
+  <section class="asset-view container-fluid px-4 py-4">
     <header class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
       <div>
-        <h1 class="h3 fw-bold mb-1">자산 관리</h1>
-        <p class="text-secondary mb-0">연동된 계좌, 카드, 증권 자산을 확인하세요.</p>
+        <h1 class="h3 fw-bold mb-1">자산관리</h1>
+        <p class="text-secondary mb-0">
+          연결된 계좌와 투자 자산을 한곳에서 확인하세요.
+        </p>
       </div>
       <RouterLink to="/assets/expenses" class="btn btn-outline-primary">
         소비내역 보기
@@ -15,20 +33,73 @@ import { RouterLink } from "vue-router";
       </RouterLink>
     </header>
 
-    <article class="card border-0 shadow-sm asset-overview-card">
-      <div class="card-body p-4">
-        <h2 class="h5 fw-bold mb-2">연동 자산 현황</h2>
-        <p class="text-secondary mb-0">
-          자산 상세 조회 API가 연결되면 계좌, 카드, 증권별 자산 목록을 이 영역에 표시합니다.
-        </p>
+    <div v-if="isAssetLoading" class="asset-state" aria-live="polite">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">자산 정보를 불러오는 중</span>
       </div>
-    </article>
+      <p class="text-secondary mb-0 mt-3">자산 정보를 불러오고 있습니다.</p>
+    </div>
+
+    <div v-else-if="error" class="alert alert-danger asset-error" role="alert">
+      <div>
+        <h2 class="h6 fw-bold mb-1">자산 정보를 불러오지 못했습니다.</h2>
+        <p class="mb-0">{{ error }}</p>
+      </div>
+      <button type="button" class="btn btn-outline-danger flex-shrink-0" @click="loadAssets">
+        다시 시도
+      </button>
+    </div>
+
+    <AssetOverviewCard v-else-if="assets" :assets="assets" />
+
+    <div v-else class="asset-state">
+      <i class="bi bi-wallet2 fs-1 text-secondary" aria-hidden="true"></i>
+      <h2 class="h5 fw-bold mb-1 mt-3">연결된 자산이 없습니다.</h2>
+      <p class="text-secondary mb-3">
+        금융기관을 연동하면 자산 현황을 확인할 수 있습니다.
+      </p>
+      <RouterLink to="/users/profile/connections" class="btn btn-primary">
+        연동관리로 이동
+      </RouterLink>
+    </div>
   </section>
 </template>
 
 <style scoped>
-.asset-overview-card {
-  max-width: 900px;
-  border-radius: 20px;
+.asset-view {
+  width: 100%;
+}
+
+.asset-state {
+  display: flex;
+  min-height: 360px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 28px;
+  background: #ffffff;
+  box-shadow: 0 0.25rem 1rem rgba(35, 31, 67, 0.06);
+  text-align: center;
+}
+
+.asset-error {
+  display: flex;
+  min-height: 110px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border-radius: 18px;
+}
+
+@media (max-width: 575.98px) {
+  .asset-view {
+    padding-right: 0 !important;
+    padding-left: 0 !important;
+  }
+
+  .asset-error {
+    align-items: stretch;
+    flex-direction: column;
+  }
 }
 </style>
