@@ -6,6 +6,7 @@ import com.wallo.auth.CurrentUserProvider;
 import com.wallo.common.response.CommonResponse;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -27,6 +28,18 @@ public class ReportController {
     public CommonResponse<ReportDto.Insight> getConsumptionInsight() {
         return CommonResponse.success(
                 reportService.getConsumptionInsight(currentUserProvider.getCurrentUserId())
+        );
+    }
+
+    @GetMapping("/tax-settlement")
+    public CommonResponse<ReportDto.TaxSettlement> getTaxSettlement(
+            @RequestParam(value = "year", required = false) Integer year
+    ) {
+        return CommonResponse.success(
+                reportService.getTaxSettlement(
+                        currentUserProvider.getCurrentUserId(),
+                        year
+                )
         );
     }
 }

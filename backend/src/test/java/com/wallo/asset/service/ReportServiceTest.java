@@ -2,12 +2,15 @@ package com.wallo.asset.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.wallo.asset.dto.ReportDto;
 import com.wallo.asset.mapper.ReportMapper;
+import com.wallo.common.exception.CustomException;
+import com.wallo.common.exception.ErrorCode;
 import java.time.LocalDate;
 import java.util.Arrays;
 import org.junit.jupiter.api.Test;
@@ -16,6 +19,62 @@ class ReportServiceTest {
 
     private final ReportMapper reportMapper = mock(ReportMapper.class);
     private final ReportService reportService = new ReportService(reportMapper);
+
+    @Test
+    void returnsTaxSettlementIncludingCreditAndCheckCardSpending() {
+        when(reportMapper.selectAnnualSalary(7L)).thenReturn(50_000_000L);
+        when(reportMapper.selectCardSpending(
+                7L,
+                "2026-01-01",
+                "2026-07-31"
+        )).thenReturn(new ReportDto.CardSpending(
+                11_500_000L,
+                3_000_000L,
+                8_500_000L
+        ));
+
+        ReportDto.TaxSettlement result = reportService.getTaxSettlement(
+                7L,
+                2026,
+                LocalDate.of(2026, 7, 31)
+        );
+
+        assertEquals(50_000_000L, result.getAnnualSalary());
+        assertEquals(12_500_000L, result.getCreditCardThreshold());
+        assertEquals(11_500_000L, result.getCardSpentYtd());
+        assertEquals(3_000_000L, result.getCreditCardSpentYtd());
+        assertEquals(8_500_000L, result.getCheckCardSpentYtd());
+    }
+
+    @Test
+    void rejectsTaxSettlementWhenAnnualSalaryIsMissing() {
+        when(reportMapper.selectAnnualSalary(7L)).thenReturn(null);
+
+        CustomException exception = assertThrows(
+                CustomException.class,
+                () -> reportService.getTaxSettlement(
+                        7L,
+                        2026,
+                        LocalDate.of(2026, 7, 31)
+                )
+        );
+
+        assertEquals(ErrorCode.ANNUAL_SALARY_REQUIRED, exception.getErrorCode());
+    }
+
+    @Test
+    void rejectsFutureTaxSettlementYear() {
+        CustomException exception = assertThrows(
+                CustomException.class,
+                () -> reportService.getTaxSettlement(
+                        7L,
+                        2027,
+                        LocalDate.of(2026, 7, 31)
+                )
+        );
+
+        assertEquals(ErrorCode.INVALID_REPORT_YEAR, exception.getErrorCode());
+    }
 
     @Test
     void returnsCategoryWithLargestExpenseIncrease() {

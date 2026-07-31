@@ -2,6 +2,8 @@ package com.wallo.asset.service;
 
 import com.wallo.asset.dto.ReportDto;
 import com.wallo.asset.mapper.ReportMapper;
+import com.wallo.common.exception.CustomException;
+import com.wallo.common.exception.ErrorCode;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.Collections;
@@ -38,6 +40,51 @@ public class ReportService {
 
     public ReportDto.Insight getConsumptionInsight(long userId) {
         return getConsumptionInsight(userId, LocalDate.now());
+    }
+
+    public ReportDto.TaxSettlement getTaxSettlement(long userId, Integer year) {
+        return getTaxSettlement(userId, year, LocalDate.now());
+    }
+
+    ReportDto.TaxSettlement getTaxSettlement(
+            long userId,
+            Integer year,
+            LocalDate today
+    ) {
+        int targetYear = year == null ? today.getYear() : year;
+
+        if (targetYear < 2000 || targetYear > today.getYear()) {
+            throw new CustomException(ErrorCode.INVALID_REPORT_YEAR);
+        }
+
+        Long annualSalary = reportMapper.selectAnnualSalary(userId);
+        if (annualSalary == null || annualSalary <= 0) {
+            throw new CustomException(ErrorCode.ANNUAL_SALARY_REQUIRED);
+        }
+
+        LocalDate startDate = LocalDate.of(targetYear, 1, 1);
+        LocalDate endDate = targetYear == today.getYear()
+                ? today
+                : LocalDate.of(targetYear, 12, 31);
+        ReportDto.CardSpending spending = reportMapper.selectCardSpending(
+                userId,
+                startDate.toString(),
+                endDate.toString()
+        );
+
+        long cardSpentYtd = spending == null ? 0L : spending.getCardSpentYtd();
+        long creditCardSpentYtd =
+                spending == null ? 0L : spending.getCreditCardSpentYtd();
+        long checkCardSpentYtd =
+                spending == null ? 0L : spending.getCheckCardSpentYtd();
+
+        return new ReportDto.TaxSettlement(
+                annualSalary,
+                annualSalary / 4,
+                cardSpentYtd,
+                creditCardSpentYtd,
+                checkCardSpentYtd
+        );
     }
 
     ReportDto.Insight getConsumptionInsight(long userId, LocalDate today) {

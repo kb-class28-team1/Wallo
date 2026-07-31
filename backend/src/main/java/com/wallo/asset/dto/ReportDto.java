@@ -33,4 +33,26 @@ public final class ReportDto {
             return Objects.toString(category, "ETC").toUpperCase();
         }
     }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class CardSpending {
+        private long cardSpentYtd;
+        private long creditCardSpentYtd;
+        private long checkCardSpentYtd;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class TaxSettlement {
+        private long annualSalary;
+        private long creditCardThreshold;
+        private long cardSpentYtd;
+        private long creditCardSpentYtd;
+        private long checkCardSpentYtd;
+    }
 }

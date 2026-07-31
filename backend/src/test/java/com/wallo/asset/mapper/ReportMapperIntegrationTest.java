@@ -36,7 +36,7 @@ class ReportMapperIntegrationTest {
         h2DataSource.setPassword("");
         dataSource = h2DataSource;
 
-        createTransactionTable();
+        createTables();
 
         SqlSessionFactoryBean factoryBean = new SqlSessionFactoryBean();
         factoryBean.setDataSource(dataSource);
@@ -80,19 +80,109 @@ class ReportMapperIntegrationTest {
         assertEquals(100_000L, results.get(0).getPreviousAmount());
     }
 
-    private void createTransactionTable() throws Exception {
+    @Test
+    void sumsCreditAndCheckCardsAndExcludesOtherTransactions() throws Exception {
+        insertUser(7L, 50_000_000L);
+        insertUser(8L, 40_000_000L);
+        insertCard(1L, "CREDIT");
+        insertCard(2L, "CHECK");
+        insertCard(3L, "PREPAID");
+
+        insertCardTransaction(7L, 1L, "EXPENSE", 3_000_000L, "2026-03-10");
+        insertCardTransaction(7L, 2L, "EXPENSE", 8_500_000L, "2026-06-10");
+        insertCardTransaction(7L, 1L, "TRANSFER", 2_000_000L, "2026-05-10");
+        insertCardTransaction(7L, 3L, "EXPENSE", 1_000_000L, "2026-05-10");
+        insertCardTransaction(8L, 1L, "EXPENSE", 7_000_000L, "2026-05-10");
+        insertCardTransaction(7L, 1L, "EXPENSE", 4_000_000L, "2025-12-31");
+        insertCardTransaction(7L, 2L, "EXPENSE", 6_000_000L, "2026-08-01");
+
+        ReportDto.CardSpending spending = reportMapper.selectCardSpending(
+                7L,
+                "2026-01-01",
+                "2026-07-31"
+        );
+
+        assertEquals(11_500_000L, spending.getCardSpentYtd());
+        assertEquals(3_000_000L, spending.getCreditCardSpentYtd());
+        assertEquals(8_500_000L, spending.getCheckCardSpentYtd());
+        assertEquals(50_000_000L, reportMapper.selectAnnualSalary(7L));
+    }
+
+    private void createTables() throws Exception {
         try (Connection connection = dataSource.getConnection();
              Statement statement = connection.createStatement()) {
+            statement.execute("""
+                    CREATE TABLE USERS (
+                        id BIGINT PRIMARY KEY,
+                        annual_salary BIGINT NULL
+                    )
+                    """);
+            statement.execute("""
+                    CREATE TABLE CARDS (
+                        card_id BIGINT PRIMARY KEY,
+                        card_type VARCHAR(20) NOT NULL
+                    )
+                    """);
             statement.execute("""
                     CREATE TABLE TRANSACTIONS (
                         transaction_id BIGINT AUTO_INCREMENT PRIMARY KEY,
                         user_id BIGINT NOT NULL,
+                        card_id BIGINT NULL,
                         type VARCHAR(20) NOT NULL,
                         category VARCHAR(50) NOT NULL,
                         amount BIGINT NOT NULL,
                         transaction_date DATE NOT NULL
                     )
                     """);
+        }
+    }
+
+    private void insertUser(long userId, long annualSalary) throws Exception {
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(
+                     "INSERT INTO USERS (id, annual_salary) VALUES (?, ?)"
+             )) {
+            statement.setLong(1, userId);
+            statement.setLong(2, annualSalary);
+            statement.executeUpdate();
+        }
+    }
+
+    private void insertCard(long cardId, String cardType) throws Exception {
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(
+                     "INSERT INTO CARDS (card_id, card_type) VALUES (?, ?)"
+             )) {
+            statement.setLong(1, cardId);
+            statement.setString(2, cardType);
+            statement.executeUpdate();
+        }
+    }
+
+    private void insertCardTransaction(
+            long userId,
+            long cardId,
+            String type,
+            long amount,
+            String transactionDate
+    ) throws Exception {
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement("""
+                     INSERT INTO TRANSACTIONS (
+                         user_id,
+                         card_id,
+                         type,
+                         category,
+                         amount,
+                         transaction_date
+                     ) VALUES (?, ?, ?, 'ETC', ?, ?)
+                     """)) {
+            statement.setLong(1, userId);
+            statement.setLong(2, cardId);
+            statement.setString(3, type);
+            statement.setLong(4, amount);
+            statement.setDate(5, Date.valueOf(transactionDate));
+            statement.executeUpdate();
         }
     }
 

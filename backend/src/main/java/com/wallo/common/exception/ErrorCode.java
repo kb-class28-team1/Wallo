@@ -39,6 +39,16 @@ public enum ErrorCode {
             "PROFILE_002",
             "사용자 정보를 찾을 수 없습니다."
     ),
+    INVALID_REPORT_YEAR(
+            HttpStatus.BAD_REQUEST,
+            "REPORT_001",
+            "조회 연도가 올바르지 않습니다."
+    ),
+    ANNUAL_SALARY_REQUIRED(
+            HttpStatus.BAD_REQUEST,
+            "REPORT_002",
+            "연말정산 계산을 위해 연봉을 먼저 입력해주세요."
+    ),
     METHOD_NOT_ALLOWED(
             HttpStatus.METHOD_NOT_ALLOWED,
             "COMMON_002",
