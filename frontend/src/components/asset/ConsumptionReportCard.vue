@@ -1,10 +1,24 @@
 <script setup>
-import { onMounted } from "vue";
+import { computed, onMounted } from "vue";
 import { storeToRefs } from "pinia";
 import { useReportStore } from "@/stores/reportStore";
 
 const reportStore = useReportStore();
 const { insight, isInsightLoading, insightError } = storeToRefs(reportStore);
+
+const reportDescription = computed(() => {
+  const content = insight.value?.reportContent ?? "";
+  const callout = "소비 내역을 확인해 보세요!";
+
+  if (!content.endsWith(callout)) {
+    return { summary: content, callout: "" };
+  }
+
+  return {
+    summary: content.slice(0, -callout.length).trim(),
+    callout,
+  };
+});
 
 const loadInsight = async () => {
   try {
@@ -60,7 +74,10 @@ onMounted(loadInsight);
         </div>
 
         <p class="report-description mb-0">
-          {{ insight.reportContent }}
+          <span>{{ reportDescription.summary }}</span>
+          <span v-if="reportDescription.callout" class="d-block">
+            {{ reportDescription.callout }}
+          </span>
         </p>
 
         <RouterLink to="/assets/expenses" class="report-detail-link">
