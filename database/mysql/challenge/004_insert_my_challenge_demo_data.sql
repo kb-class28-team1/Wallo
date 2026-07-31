@@ -5,7 +5,7 @@
 USE wallo;
 
 -- 로그인 시 BCryptPasswordEncoder가 12341234와 비교할 수 있는 동일한 해시를 사용함
-SET @demo_password_haㅁsh = '$2a$10$dJdOCr9Sm0qBbq3QJ7U4VOkGzVgvrlO5bLtM/oxqQEjt8umS78Coq';
+SET @demo_password_hash = '$2a$10$dJdOCr9Sm0qBbq3QJ7U4VOkGzVgvrlO5bLtM/oxqQEjt8umS78Coq';
 
 -- 이전 실행이 중간에 실패했더라도 다시 실행할 수 있도록 이 파일의 더미 데이터만 정리함
 DELETE FROM MESSAGE
