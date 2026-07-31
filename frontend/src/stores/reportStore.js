@@ -3,7 +3,7 @@ import {
   getInsight,
   getTaxSettlement,
   updateAnnualSalary,
-} from "@/api/reportApi";
+} from "@/api/assetApi";
 
 const getErrorMessage = (error, fallbackMessage) =>
   error.response?.data?.error?.message ||
