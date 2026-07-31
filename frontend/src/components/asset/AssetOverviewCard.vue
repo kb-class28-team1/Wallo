@@ -114,73 +114,77 @@ const chartOptions = {
 <template>
   <article class="card asset-overview-card border-0 shadow-sm">
     <div class="card-body asset-overview-body">
-      <div class="d-flex align-items-start justify-content-between gap-3">
-        <div>
-          <h2 class="h5 fw-bold mb-2">자산 한눈에 보기</h2>
-          <p class="asset-total-label mb-1">총 보유자산</p>
-          <strong class="asset-total">{{ formatWon(totalHoldings) }}</strong>
-          <div class="asset-balance-summary mt-3">
-            <div>
-              <span>순자산</span>
-              <strong>{{ formatWon(totalAssets) }}</strong>
-            </div>
-            <div>
-              <span>대출(부채)</span>
-              <strong class="loan-balance">{{ formatWon(loanBalance) }}</strong>
-            </div>
-          </div>
-        </div>
+      <RouterLink
+        to="/users/profile/connections"
+        class="btn connection-management-button"
+      >
+        연동관리
+        <i class="bi bi-gear ms-1" aria-hidden="true"></i>
+      </RouterLink>
 
-        <RouterLink
-          to="/users/profile/connections"
-          class="btn connection-management-button"
-        >
-          연동관리
-          <i class="bi bi-gear ms-1" aria-hidden="true"></i>
-        </RouterLink>
-      </div>
-
-      <div v-if="hasCategoryData" class="row align-items-center g-4 mt-2">
-        <section class="col-md-4" aria-label="자산 카테고리 비율 차트">
-          <div class="asset-doughnut-chart">
-            <Doughnut :data="chartData" :options="chartOptions" />
-            <div class="asset-doughnut-center">
-              <template v-if="hoveredCategory">
-                <strong>{{ hoveredCategory.label }}</strong>
-                <span>{{ categoryRate(hoveredCategory.amount) }}%</span>
-                <small>{{ formatWon(hoveredCategory.amount) }}</small>
-              </template>
-              <template v-else>
-                <span>자산 비중</span>
-                <strong>전체</strong>
-              </template>
+      <div class="row align-items-center g-4 g-xl-5 asset-content-row">
+        <section class="col-lg-4 asset-summary-panel" aria-label="자산 금액 요약">
+          <h2 class="h5 fw-bold mb-3">자산 한눈에 보기</h2>
+          <div class="asset-summary-content">
+            <p class="asset-total-label mb-1">총 보유자산</p>
+            <strong class="asset-total d-block">{{ formatWon(totalHoldings) }}</strong>
+            <div class="asset-balance-summary mt-3">
+              <div>
+                <span>순자산</span>
+                <strong>{{ formatWon(totalAssets) }}</strong>
+              </div>
+              <div>
+                <span>대출(부채)</span>
+                <strong class="loan-balance">{{ formatWon(loanBalance) }}</strong>
+              </div>
             </div>
           </div>
         </section>
 
-        <section class="col-md-8" aria-label="카테고리별 자산">
-          <ul class="asset-category-list list-unstyled mb-0">
-            <li v-for="category in categories" :key="category.category">
-              <span class="asset-category-label d-flex align-items-center gap-2">
-                <span
-                  class="asset-category-dot"
-                  :style="{ backgroundColor: category.color }"
-                  aria-hidden="true"
-                ></span>
-                {{ category.label }}
-              </span>
-              <span class="asset-category-rate">{{ categoryRate(category.amount) }}%</span>
-              <strong>{{ formatWon(category.amount) }}</strong>
-            </li>
-          </ul>
-        </section>
-      </div>
+        <section class="col-lg-8 asset-visual-panel" aria-label="카테고리별 자산 구성">
+          <div v-if="hasCategoryData" class="row align-items-center g-4">
+            <div class="col-md-5" aria-label="자산 카테고리 비율 차트">
+              <div class="asset-doughnut-chart">
+                <Doughnut :data="chartData" :options="chartOptions" />
+                <div class="asset-doughnut-center">
+                  <template v-if="hoveredCategory">
+                    <strong>{{ hoveredCategory.label }}</strong>
+                    <span>{{ categoryRate(hoveredCategory.amount) }}%</span>
+                    <small>{{ formatWon(hoveredCategory.amount) }}</small>
+                  </template>
+                  <template v-else>
+                    <span>자산 비중</span>
+                    <strong>전체</strong>
+                  </template>
+                </div>
+              </div>
+            </div>
 
-      <div v-else class="asset-empty-state text-center text-secondary">
-        <i class="bi bi-pie-chart fs-2" aria-hidden="true"></i>
-        <p class="mb-0 mt-2">
-          자산을 연동하면 카테고리별 금액과 비율을 확인할 수 있습니다.
-        </p>
+            <div class="col-md-7" aria-label="카테고리별 금액과 비율">
+              <ul class="asset-category-list list-unstyled mb-0">
+                <li v-for="category in categories" :key="category.category">
+                  <span class="asset-category-label d-flex align-items-center gap-2">
+                    <span
+                      class="asset-category-dot"
+                      :style="{ backgroundColor: category.color }"
+                      aria-hidden="true"
+                    ></span>
+                    {{ category.label }}
+                  </span>
+                  <span class="asset-category-rate">{{ categoryRate(category.amount) }}%</span>
+                  <strong>{{ formatWon(category.amount) }}</strong>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div v-else class="asset-empty-state text-center text-secondary">
+            <i class="bi bi-pie-chart fs-2" aria-hidden="true"></i>
+            <p class="mb-0 mt-2">
+              자산을 연동하면 카테고리별 금액과 비율을 확인할 수 있습니다.
+            </p>
+          </div>
+        </section>
       </div>
     </div>
   </article>
@@ -189,17 +193,36 @@ const chartOptions = {
 <style scoped>
 .asset-overview-card {
   width: 100%;
-  max-width: 900px;
   border-radius: 32px;
   background: #ffffff;
 }
 
 .asset-overview-body {
+  position: relative;
   min-height: 310px;
   padding: 36px 42px;
 }
 
+.asset-content-row {
+  min-height: 238px;
+}
+
+.asset-summary-panel {
+  align-self: flex-start;
+  padding-top: 0;
+  padding-bottom: 12px;
+}
+
+.asset-summary-content,
+.asset-visual-panel {
+  transform: translateY(10px);
+}
+
 .connection-management-button {
+  position: absolute;
+  z-index: 1;
+  top: 36px;
+  right: 42px;
   border: 1px solid #8170ff;
   border-radius: 12px;
   color: #6b5bd2;
@@ -297,6 +320,7 @@ const chartOptions = {
 .asset-category-list {
   display: grid;
   gap: 12px;
+  transform: translateY(18px);
 }
 
 .asset-category-list li {
@@ -349,11 +373,24 @@ const chartOptions = {
     min-height: auto;
     padding: 32px;
   }
+
+  .asset-summary-panel {
+    padding-bottom: 4px;
+  }
 }
 
 @media (max-width: 575.98px) {
   .asset-overview-body {
     padding: 26px 22px;
+  }
+
+  .connection-management-button {
+    top: 26px;
+    right: 22px;
+  }
+
+  .asset-summary-panel h2 {
+    padding-right: 112px;
   }
 
   .asset-category-list li {

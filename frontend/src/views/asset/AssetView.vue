@@ -2,6 +2,7 @@
 import { onMounted } from "vue";
 import { storeToRefs } from "pinia";
 import AssetOverviewCard from "@/components/asset/AssetOverviewCard.vue";
+import ConsumptionReportCard from "@/components/asset/ConsumptionReportCard.vue";
 import { useAssetStore } from "@/stores/assetStore";
 
 const assetStore = useAssetStore();
@@ -33,41 +34,70 @@ onMounted(loadAssets);
       </RouterLink>
     </header>
 
-    <div v-if="isAssetLoading" class="asset-state" aria-live="polite">
-      <div class="spinner-border text-primary" role="status">
-        <span class="visually-hidden">자산 정보를 불러오는 중</span>
+    <section class="asset-overview-section" aria-label="자산 현황">
+      <div v-if="isAssetLoading" class="asset-state" aria-live="polite">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">자산 정보를 불러오는 중</span>
+        </div>
+        <p class="text-secondary mb-0 mt-3">자산 정보를 불러오고 있습니다.</p>
       </div>
-      <p class="text-secondary mb-0 mt-3">자산 정보를 불러오고 있습니다.</p>
-    </div>
 
-    <div v-else-if="error" class="alert alert-danger asset-error" role="alert">
-      <div>
-        <h2 class="h6 fw-bold mb-1">자산 정보를 불러오지 못했습니다.</h2>
-        <p class="mb-0">{{ error }}</p>
+      <div v-else-if="error" class="alert alert-danger asset-error" role="alert">
+        <div>
+          <h2 class="h6 fw-bold mb-1">자산 정보를 불러오지 못했습니다.</h2>
+          <p class="mb-0">{{ error }}</p>
+        </div>
+        <button type="button" class="btn btn-outline-danger flex-shrink-0" @click="loadAssets">
+          다시 시도
+        </button>
       </div>
-      <button type="button" class="btn btn-outline-danger flex-shrink-0" @click="loadAssets">
-        다시 시도
-      </button>
-    </div>
 
-    <AssetOverviewCard v-else-if="assets" :assets="assets" />
+      <AssetOverviewCard v-else-if="assets" :assets="assets" />
 
-    <div v-else class="asset-state">
-      <i class="bi bi-wallet2 fs-1 text-secondary" aria-hidden="true"></i>
-      <h2 class="h5 fw-bold mb-1 mt-3">연결된 자산이 없습니다.</h2>
-      <p class="text-secondary mb-3">
-        금융기관을 연동하면 자산 현황을 확인할 수 있습니다.
-      </p>
-      <RouterLink to="/users/profile/connections" class="btn btn-primary">
-        연동관리로 이동
-      </RouterLink>
-    </div>
+      <div v-else class="asset-state">
+        <i class="bi bi-wallet2 fs-1 text-secondary" aria-hidden="true"></i>
+        <h2 class="h5 fw-bold mb-1 mt-3">연결된 자산이 없습니다.</h2>
+        <p class="text-secondary mb-3">
+          금융기관을 연동하면 자산 현황을 확인할 수 있습니다.
+        </p>
+        <RouterLink to="/users/profile/connections" class="btn btn-primary">
+          연동관리로 이동
+        </RouterLink>
+      </div>
+    </section>
+
+    <section class="row g-4 mt-0 asset-report-grid" aria-label="자산 리포트">
+      <div class="col-12 col-lg-6">
+        <ConsumptionReportCard />
+      </div>
+
+      <div class="col-12 col-lg-6">
+        <article class="card tax-tracker-placeholder h-100 border-0 shadow-sm">
+          <div class="card-body tax-tracker-placeholder-body">
+            <h2 class="h5 fw-bold mb-0">연말정산 트래커</h2>
+            <div class="placeholder-content text-center">
+              <i class="bi bi-bar-chart-line text-secondary fs-2" aria-hidden="true"></i>
+              <p class="fw-semibold mb-1 mt-3">소득공제 달성률</p>
+              <p class="text-secondary mb-0">연말정산 트래커를 준비하고 있습니다.</p>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
   </section>
 </template>
 
 <style scoped>
 .asset-view {
   width: 100%;
+}
+
+.asset-overview-section {
+  width: 100%;
+}
+
+.asset-report-grid {
+  padding-top: 24px;
 }
 
 .asset-state {
@@ -91,6 +121,34 @@ onMounted(loadAssets);
   border-radius: 18px;
 }
 
+.tax-tracker-placeholder {
+  min-height: 310px;
+  border-radius: 32px;
+  background: #ffffff;
+}
+
+.tax-tracker-placeholder-body {
+  display: flex;
+  min-height: 310px;
+  flex-direction: column;
+  padding: 36px 42px;
+}
+
+.placeholder-content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 991.98px) {
+  .tax-tracker-placeholder-body {
+    min-height: auto;
+    padding: 30px;
+  }
+}
+
 @media (max-width: 575.98px) {
   .asset-view {
     padding-right: 0 !important;
@@ -100,6 +158,10 @@ onMounted(loadAssets);
   .asset-error {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .tax-tracker-placeholder-body {
+    padding: 26px 22px;
   }
 }
 </style>
