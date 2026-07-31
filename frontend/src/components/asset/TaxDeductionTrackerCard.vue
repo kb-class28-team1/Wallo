@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { storeToRefs } from "pinia";
 import { useReportStore } from "@/stores/reportStore";
 
@@ -8,7 +8,6 @@ const {
   taxSettlement,
   isTaxSettlementLoading,
   taxSettlementError,
-  isAnnualSalaryRequired,
   isAnnualSalarySaving,
   annualSalaryError,
 } = storeToRefs(reportStore);
@@ -97,12 +96,6 @@ const saveSalary = async () => {
     // 저장 오류는 모달 안에서 안내합니다.
   }
 };
-
-watch(isAnnualSalaryRequired, (isRequired) => {
-  if (isRequired) {
-    openSalaryModal();
-  }
-});
 
 onMounted(loadTaxSettlement);
 </script>
