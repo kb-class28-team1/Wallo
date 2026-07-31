@@ -1,19 +1,78 @@
 <script setup>
-import { ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
+import { storeToRefs } from "pinia";
+import { useReportStore } from "@/stores/reportStore";
 
-const achievementRate = 92;
+const reportStore = useReportStore();
+const {
+  taxSettlement,
+  isTaxSettlementLoading,
+  taxSettlementError,
+  isAnnualSalaryRequired,
+  isAnnualSalarySaving,
+  annualSalaryError,
+} = storeToRefs(reportStore);
 const salaryModalVisible = ref(false);
-const annualSalary = ref(50_000_000);
 const annualSalaryInput = ref("");
 
 const formatNumber = (amount = 0) => new Intl.NumberFormat("ko-KR").format(amount);
 
+const achievementRate = computed(() => {
+  const spentAmount = Number(taxSettlement.value?.cardSpentYtd ?? 0);
+  const threshold = Number(taxSettlement.value?.creditCardThreshold ?? 0);
+
+  if (!Number.isFinite(spentAmount) || !Number.isFinite(threshold) || threshold <= 0) {
+    return 0;
+  }
+
+  return Math.round((spentAmount / threshold) * 100);
+});
+
+const progressRate = computed(() =>
+  Math.min(Math.max(achievementRate.value, 0), 100),
+);
+
+const achievementMessage = computed(() => {
+  if (achievementRate.value >= 100) {
+    return "연봉 25% 기준을 달성했습니다!";
+  }
+
+  if (achievementRate.value >= 90) {
+    return "곧 카드 소득공제 기준을 채웁니다!";
+  }
+
+  return `카드 사용액이 연봉 25% 기준의 ${achievementRate.value}%에 도달했어요.`;
+});
+
+const loadTaxSettlement = async () => {
+  try {
+    await reportStore.fetchTaxSettlement();
+  } catch {
+    // 오류 상태와 연봉 입력 필요 상태는 Pinia에서 각각 처리합니다.
+  }
+};
+
+const retryTaxSettlement = async () => {
+  try {
+    await reportStore.retryTaxSettlement();
+  } catch {
+    // 다시 시도 결과는 Pinia 상태를 통해 카드에 표시합니다.
+  }
+};
+
 const openSalaryModal = () => {
-  annualSalaryInput.value = formatNumber(annualSalary.value);
+  const currentSalary = Number(taxSettlement.value?.annualSalary ?? 0);
+
+  annualSalaryInput.value = currentSalary > 0 ? formatNumber(currentSalary) : "";
+  reportStore.annualSalaryError = null;
   salaryModalVisible.value = true;
 };
 
 const closeSalaryModal = () => {
+  if (isAnnualSalarySaving.value) {
+    return;
+  }
+
   salaryModalVisible.value = false;
 };
 
@@ -23,17 +82,29 @@ const formatSalaryInput = () => {
   annualSalaryInput.value = numericValue ? formatNumber(numericValue) : "";
 };
 
-const saveSalary = () => {
+const saveSalary = async () => {
   const salary = Number(String(annualSalaryInput.value).replaceAll(",", ""));
 
   if (!Number.isFinite(salary) || salary <= 0) {
-    alert("연봉은 0원보다 큰 금액으로 입력해 주세요.");
+    reportStore.annualSalaryError = "연봉은 0원보다 큰 금액으로 입력해 주세요.";
     return;
   }
 
-  annualSalary.value = salary;
-  closeSalaryModal();
+  try {
+    await reportStore.saveAnnualSalary(salary);
+    salaryModalVisible.value = false;
+  } catch {
+    // 저장 오류는 모달 안에서 안내합니다.
+  }
 };
+
+watch(isAnnualSalaryRequired, (isRequired) => {
+  if (isRequired) {
+    openSalaryModal();
+  }
+});
+
+onMounted(loadTaxSettlement);
 </script>
 
 <template>
@@ -41,7 +112,31 @@ const saveSalary = () => {
     <div class="card-body tax-deduction-body">
       <h2 class="h5 fw-bold mb-0">소득공제 달성률</h2>
 
-      <div class="tax-deduction-content">
+      <div
+        v-if="isTaxSettlementLoading"
+        class="tax-deduction-state text-center"
+        aria-live="polite"
+      >
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">소득공제 달성률을 불러오는 중</span>
+        </div>
+        <p class="text-secondary mb-0 mt-3">카드 사용 내역을 계산하고 있습니다.</p>
+      </div>
+
+      <div v-else-if="taxSettlementError" class="tax-deduction-state text-center">
+        <i class="bi bi-exclamation-circle text-danger fs-2" aria-hidden="true"></i>
+        <p class="fw-semibold mb-1 mt-3">소득공제 달성률을 불러오지 못했습니다.</p>
+        <p class="small text-secondary mb-3">{{ taxSettlementError }}</p>
+        <button
+          type="button"
+          class="btn btn-outline-danger"
+          @click="retryTaxSettlement"
+        >
+          다시 시도
+        </button>
+      </div>
+
+      <div v-else-if="taxSettlement" class="tax-deduction-content">
         <div class="d-flex align-items-end justify-content-between gap-3 mb-3">
           <span class="tax-deduction-label">연봉 25% 도달률</span>
           <strong class="tax-deduction-rate">{{ achievementRate }}%</strong>
@@ -51,18 +146,18 @@ const saveSalary = () => {
           class="progress tax-deduction-progress"
           role="progressbar"
           aria-label="연봉 25% 도달률"
-          :aria-valuenow="achievementRate"
+          :aria-valuenow="progressRate"
           aria-valuemin="0"
           aria-valuemax="100"
         >
           <div
             class="progress-bar"
-            :style="{ width: `${achievementRate}%` }"
+            :style="{ width: `${progressRate}%` }"
           ></div>
         </div>
 
         <p class="tax-deduction-message mb-0">
-          곧 신용카드 공제 한도를 채웁니다!
+          {{ achievementMessage }}
         </p>
 
         <button
@@ -72,6 +167,17 @@ const saveSalary = () => {
         >
           연봉 수정하기
           <span aria-hidden="true">&gt;</span>
+        </button>
+      </div>
+
+      <div v-else class="tax-deduction-state text-center">
+        <i class="bi bi-wallet2 text-secondary fs-2" aria-hidden="true"></i>
+        <p class="fw-semibold mb-1 mt-3">연봉 정보가 필요합니다.</p>
+        <p class="small text-secondary mb-3">
+          연봉을 입력하면 카드 소득공제 도달률을 계산할 수 있습니다.
+        </p>
+        <button type="button" class="btn btn-primary" @click="openSalaryModal">
+          연봉 입력하기
         </button>
       </div>
     </div>
@@ -102,6 +208,14 @@ const saveSalary = () => {
 
         <form @submit.prevent="saveSalary">
           <div class="modal-body">
+            <div
+              v-if="annualSalaryError"
+              class="alert alert-danger py-2"
+              role="alert"
+            >
+              {{ annualSalaryError }}
+            </div>
+
             <label for="annualSalary" class="form-label fw-semibold">연봉</label>
             <div class="input-group">
               <input
@@ -112,6 +226,7 @@ const saveSalary = () => {
                 inputmode="numeric"
                 autocomplete="off"
                 required
+                :disabled="isAnnualSalarySaving"
                 @input="formatSalaryInput"
               />
               <span class="input-group-text">원</span>
@@ -122,10 +237,26 @@ const saveSalary = () => {
           </div>
 
           <div class="modal-footer">
-            <button type="button" class="btn btn-light" @click="closeSalaryModal">
+            <button
+              type="button"
+              class="btn btn-light"
+              :disabled="isAnnualSalarySaving"
+              @click="closeSalaryModal"
+            >
               취소
             </button>
-            <button type="submit" class="btn btn-primary">저장</button>
+            <button
+              type="submit"
+              class="btn btn-primary"
+              :disabled="isAnnualSalarySaving"
+            >
+              <span
+                v-if="isAnnualSalarySaving"
+                class="spinner-border spinner-border-sm me-2"
+                aria-hidden="true"
+              ></span>
+              {{ isAnnualSalarySaving ? "저장 중..." : "저장" }}
+            </button>
           </div>
         </form>
       </div>
@@ -152,6 +283,15 @@ const saveSalary = () => {
   flex: 1;
   flex-direction: column;
   padding-top: 30px;
+}
+
+.tax-deduction-state {
+  display: flex;
+  min-height: 220px;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .tax-deduction-label {

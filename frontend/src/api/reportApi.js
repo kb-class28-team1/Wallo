@@ -9,3 +9,27 @@ export const getInsight = async () => {
     throw error;
   }
 };
+
+export const getTaxSettlement = async (year) => {
+  try {
+    const response = await httpClient.get("/api/reports/tax-settlement", {
+      params: year ? { year } : {},
+    });
+
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const updateAnnualSalary = async (annualSalary) => {
+  try {
+    const response = await httpClient.patch("/api/users/profile", {
+      annualSalary,
+    });
+
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
