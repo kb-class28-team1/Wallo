@@ -47,6 +47,7 @@ const router = createRouter({
        path: "/connections/mydata",
        name: "connection",
        component: ConnectionView,
+       meta: { requiresAuth: true },
     },
     // 로그인 이후 사이드바와 상단바를 공통으로 사용하는 페이지 그룹임
     {
