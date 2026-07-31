@@ -28,6 +28,19 @@ export const getWeeklyRanking = async () => {
   }
 }
 
+// 로그인 사용자의 프로필, 절약 통계, 월별 추이와 인기 피드를 조회함
+export const getMyChallengeDashboard = async () => {
+  try {
+    const response = await httpClient.get("/api/users/me/challenge-dashboard")
+    return response.data
+  } catch (error) {
+    // 백엔드 오류 메시지를 화면에서 안내할 수 있도록 호출한 곳으로 전달함
+    const message =
+      error.response?.data?.message || "내 챌린지 정보를 불러오지 못했습니다."
+    throw new Error(message)
+  }
+}
+
 // 새로운 챌린지를 생성함
 export const createChallenge = async (payload) => {
   try {
