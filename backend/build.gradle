@@ -38,6 +38,7 @@ dependencies {
     testImplementation "junit:junit:4.13.2"
     testImplementation "org.springframework:spring-test:5.3.39"
     testImplementation "org.mockito:mockito-core:5.13.0"
+    testImplementation "com.jayway.jsonpath:json-path:2.9.0"
     testImplementation "javax.servlet:javax.servlet-api:4.0.1"
 
     testRuntimeOnly "org.junit.vintage:junit-vintage-engine"

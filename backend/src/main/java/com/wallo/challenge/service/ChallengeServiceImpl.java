@@ -1,18 +1,34 @@
 package com.wallo.challenge.service;
 
 import java.security.SecureRandom;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.TemporalAdjusters;
+import java.util.List;
+import java.util.stream.Collectors;
 import java.util.Locale;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.wallo.challenge.domain.Challenge;
+import com.wallo.challenge.domain.MonthlySaving;
+import com.wallo.challenge.domain.MyChallengeSummary;
+import com.wallo.challenge.domain.SavingTrendPeriod;
+import com.wallo.challenge.domain.TopLikedFeed;
+import com.wallo.challenge.domain.WeeklyRanking;
 import com.wallo.challenge.dto.request.CreateChallengeRequest;
 import com.wallo.challenge.dto.request.JoinChallengeRequest;
 import com.wallo.challenge.dto.response.CreateChallengeResponse;
 import com.wallo.challenge.dto.response.CurrentChallengeResponse;
 import com.wallo.challenge.dto.response.JoinChallengeResponse;
+import com.wallo.challenge.dto.response.MyChallengeDashboardResponse;
+import com.wallo.challenge.dto.response.WeeklyRankingItemResponse;
+import com.wallo.challenge.dto.response.WeeklyRankingResponse;
 import com.wallo.challenge.exception.AlreadyJoinedChallengeException;
+import com.wallo.challenge.exception.ChallengeNotFoundException;
 import com.wallo.challenge.exception.InvalidInviteCodeException;
+import com.wallo.challenge.exception.NotChallengeMemberException;
+import com.wallo.challenge.exception.SoloFeatureNotAllowedException;
 import com.wallo.challenge.mapper.ChallengeMapper;
 
 @Service
@@ -120,6 +136,76 @@ public class ChallengeServiceImpl implements ChallengeService {
         }
 
         return CurrentChallengeResponse.joined(challenge);
+    }
+
+    /**
+     * 주간 랭킹을 조회하기 전에 챌린지 존재 여부, 사용자 참여 여부와 GROUP 유형을 차례로 확인함.
+     * 검증을 통과하면 VIEW 조회 결과를 화면 응답 DTO로 변환하고 로그인 사용자의 순위도 함께 찾음.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public WeeklyRankingResponse getWeeklyRanking(Long userId) {
+        // 로그인 사용자의 current_challenge_id를 기준으로 조회 대상을 결정함.
+        Long challengeId = challengeMapper.findCurrentChallengeIdByUserId(userId);
+        if (challengeId == null) {
+            throw new NotChallengeMemberException();
+        }
+
+        Challenge challenge = challengeMapper.findChallengeById(challengeId);
+        if (challenge == null) {
+            throw new ChallengeNotFoundException();
+        }
+
+        // 신규 챌린지는 GROUP으로 생성되지만 기존 SOLO 데이터의 랭킹 접근도 차단함.
+        if (!DEFAULT_CHALLENGE_TYPE.equals(challenge.getChallengeType())) {
+            throw new SoloFeatureNotAllowedException();
+        }
+
+        List<WeeklyRanking> weeklyRankings = challengeMapper.findWeeklyRankings(challengeId);
+        List<WeeklyRankingItemResponse> rankingResponses = weeklyRankings.stream()
+                .map(WeeklyRankingItemResponse::from)
+                .collect(Collectors.toList());
+
+        // 전체 랭킹 중 로그인 사용자와 userId가 같은 항목을 내 순위로 분리함.
+        WeeklyRankingItemResponse myRanking = weeklyRankings.stream()
+                .filter(ranking -> userId.equals(ranking.getUserId()))
+                .findFirst()
+                .map(WeeklyRankingItemResponse::from)
+                .orElse(null);
+
+        // VIEW 결과가 비어 있어도 현재 주의 월요일부터 일요일까지를 응답하도록 처리함.
+        LocalDate startDate = weeklyRankings.isEmpty()
+                ? LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+                : weeklyRankings.get(0).getWeekStartDate();
+
+        return WeeklyRankingResponse.of(
+                startDate,
+                startDate.plusDays(6),
+                rankingResponses,
+                myRanking);
+    }
+
+    /**
+     * 내 챌린지 화면에 필요한 요약, 최근 6개월 절약 금액과 인기 피드를 조회함.
+     * 현재 챌린지가 없는 사용자는 대시보드에 접근할 수 없도록 처리함.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public MyChallengeDashboardResponse getMyChallengeDashboard(Long userId, String periodCode) {
+        MyChallengeSummary summary = challengeMapper.findMyChallengeSummary(userId);
+
+        if (summary == null || summary.getCurrentChallengeId() == null) {
+            throw new NotChallengeMemberException();
+        }
+
+        SavingTrendPeriod period = SavingTrendPeriod.fromCode(periodCode);
+        List<MonthlySaving> monthlySavings = challengeMapper.findSavingsByPeriod(
+                userId,
+                period.getBucketCount(),
+                period.getBucketUnit());
+        List<TopLikedFeed> topLikedFeeds = challengeMapper.findTopLikedFeeds(userId);
+
+        return MyChallengeDashboardResponse.of(summary, monthlySavings, topLikedFeeds);
     }
 
     private String generateUniqueInviteCode() {

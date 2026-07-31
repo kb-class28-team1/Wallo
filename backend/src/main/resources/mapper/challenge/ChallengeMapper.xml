@@ -15,6 +15,61 @@
         <result property="createdAt" column="created_at" />
     </resultMap>
 
+    <!-- V_WEEKLY_RANKING VIEW의 컬럼을 WeeklyRanking Domain 필드에 연결함. -->
+    <resultMap id="weeklyRankingResultMap"
+               type="com.wallo.challenge.domain.WeeklyRanking">
+        <id property="userId" column="user_id" />
+        <result property="challengeId" column="challenge_id" />
+        <result property="weekStartDate" column="week_start_date" />
+        <result property="rankPosition" column="rank_position" />
+        <result property="nickname" column="nickname" />
+        <result property="profileImageUrl" column="profile_image_url" />
+        <result property="savingAmount" column="saving_amount" />
+        <result property="streakDays" column="streak_days" />
+        <result property="likeCount" column="like_count" />
+        <result property="rewardPoint" column="reward_point" />
+    </resultMap>
+
+    <!-- 내 챌린지 화면의 프로필과 활동 통계 컬럼을 Domain 필드에 연결함. -->
+    <resultMap id="myChallengeSummaryResultMap"
+               type="com.wallo.challenge.domain.MyChallengeSummary">
+        <id property="userId" column="user_id" />
+        <result property="nickname" column="nickname" />
+        <result property="profileImageUrl" column="profile_image_url" />
+        <result property="joinedAt" column="joined_at" />
+        <result property="streakDays" column="streak_days" />
+        <result property="currentChallengeId" column="current_challenge_id" />
+        <result property="currentChallengeName" column="current_challenge_name" />
+        <result property="totalSavingAmount" column="total_saving_amount" />
+        <result property="currentMonthSavingAmount" column="current_month_saving_amount" />
+        <result property="previousMonthSavingAmount" column="previous_month_saving_amount" />
+        <result property="savingChangeRate" column="saving_change_rate" />
+        <result property="verificationCount" column="verification_count" />
+        <result property="averageSavingAmount" column="average_saving_amount" />
+        <result property="postCount" column="post_count" />
+        <result property="receivedLikeCount" column="received_like_count" />
+        <result property="commentCount" column="comment_count" />
+    </resultMap>
+
+    <!-- 선택 기간 차트의 날짜 또는 월과 절약 금액을 연결함. -->
+    <resultMap id="monthlySavingResultMap"
+               type="com.wallo.challenge.domain.MonthlySaving">
+        <id property="month" column="month" />
+        <result property="savingAmount" column="saving_amount" />
+    </resultMap>
+
+    <!-- 좋아요 상위 피드의 화면 표시 정보를 연결함. -->
+    <resultMap id="topLikedFeedResultMap"
+               type="com.wallo.challenge.domain.TopLikedFeed">
+        <id property="feedId" column="feed_id" />
+        <result property="challengeId" column="challenge_id" />
+        <result property="caption" column="caption" />
+        <result property="thumbnailUrl" column="thumbnail_url" />
+        <result property="mediaUrl" column="media_url" />
+        <result property="likeCount" column="like_count" />
+        <result property="createdAt" column="created_at" />
+    </resultMap>
+
     <!-- useGeneratedKeys: INSERT 뒤 DB가 만든 challenge.id를 객체에 반영한다. -->
     <insert id="insertChallenge"
             parameterType="com.wallo.challenge.domain.Challenge"
@@ -81,5 +136,176 @@
         SELECT COUNT(*)
         FROM challenge
         WHERE invite_code = #{inviteCode}
+    </select>
+
+    <!-- VIEW에서 특정 챌린지의 이번 주 랭킹을 조회함. -->
+    <select id="findWeeklyRankings" resultMap="weeklyRankingResultMap">
+        SELECT
+            challenge_id,
+            user_id,
+            week_start_date,
+            rank_position,
+            nickname,
+            profile_image_url,
+            saving_amount,
+            streak_days,
+            like_count,
+            reward_point
+        FROM V_WEEKLY_RANKING
+        WHERE challenge_id = #{challengeId}
+        ORDER BY rank_position, user_id
+    </select>
+
+    <!-- 활성 피드만 집계하여 로그인 사용자의 내 챌린지 요약 정보를 조회함. -->
+    <select id="findMyChallengeSummary" resultMap="myChallengeSummaryResultMap">
+        SELECT
+            users.id AS user_id,
+            users.nickname,
+            users.profile_image_url,
+            DATE(users.created_at) AS joined_at,
+            users.streak_days,
+            users.current_challenge_id,
+            challenge.name AS current_challenge_name,
+            COALESCE(feed_stats.total_saving_amount, 0) AS total_saving_amount,
+            COALESCE(feed_stats.current_month_saving_amount, 0) AS current_month_saving_amount,
+            COALESCE(feed_stats.previous_month_saving_amount, 0) AS previous_month_saving_amount,
+            CASE
+                WHEN COALESCE(feed_stats.previous_month_saving_amount, 0) = 0 THEN 0
+                ELSE ROUND(
+                    (feed_stats.current_month_saving_amount
+                        - feed_stats.previous_month_saving_amount)
+                    * 100.0 / feed_stats.previous_month_saving_amount,
+                    1
+                )
+            END AS saving_change_rate,
+            COALESCE(feed_stats.verification_count, 0) AS verification_count,
+            COALESCE(feed_stats.average_saving_amount, 0) AS average_saving_amount,
+            COALESCE(feed_stats.post_count, 0) AS post_count,
+            COALESCE(feed_stats.received_like_count, 0) AS received_like_count,
+            (
+                SELECT COUNT(*)
+                FROM message
+                WHERE message.user_id = users.id
+                  AND message.message_type = 'REPLY'
+            ) AS comment_count
+        FROM users
+        LEFT JOIN challenge
+            ON challenge.id = users.current_challenge_id
+        LEFT JOIN (
+            SELECT
+                feed.user_id,
+                SUM(feed.saving_amount) AS total_saving_amount,
+                SUM(
+                    CASE
+                        WHEN feed.created_at &gt;= CAST(DATE_FORMAT(CURDATE(), '%Y-%m-01') AS DATE)
+                         AND feed.created_at &lt; DATE_ADD(
+                                CAST(DATE_FORMAT(CURDATE(), '%Y-%m-01') AS DATE),
+                                INTERVAL 1 MONTH
+                             )
+                        THEN feed.saving_amount
+                        ELSE 0
+                    END
+                ) AS current_month_saving_amount,
+                SUM(
+                    CASE
+                        WHEN feed.created_at &gt;= DATE_SUB(
+                                CAST(DATE_FORMAT(CURDATE(), '%Y-%m-01') AS DATE),
+                                INTERVAL 1 MONTH
+                             )
+                         AND feed.created_at &lt; CAST(DATE_FORMAT(CURDATE(), '%Y-%m-01') AS DATE)
+                        THEN feed.saving_amount
+                        ELSE 0
+                    END
+                ) AS previous_month_saving_amount,
+                COUNT(*) AS verification_count,
+                ROUND(AVG(feed.saving_amount), 0) AS average_saving_amount,
+                COUNT(*) AS post_count,
+                SUM(feed.like_count) AS received_like_count
+            FROM feed
+            WHERE feed.status = 'ACTIVE'
+              AND feed.file_deleted_at IS NULL
+            GROUP BY feed.user_id
+        ) feed_stats
+            ON feed_stats.user_id = users.id
+        WHERE users.id = #{userId}
+    </select>
+
+    <!-- 선택 기간의 모든 일 또는 월을 생성하여 데이터가 없는 구간도 0원으로 표시함. -->
+    <select id="findSavingsByPeriod" resultMap="monthlySavingResultMap">
+        WITH RECURSIVE periods AS (
+            SELECT
+                1 AS period_order,
+                <choose>
+                    <when test="bucketUnit == 'DAY'">
+                        DATE_SUB(CURDATE(), INTERVAL (#{bucketCount} - 1) DAY)
+                    </when>
+                    <otherwise>
+                        DATE_SUB(
+                            CAST(DATE_FORMAT(CURDATE(), '%Y-%m-01') AS DATE),
+                            INTERVAL (#{bucketCount} - 1) MONTH
+                        )
+                    </otherwise>
+                </choose>
+                AS period_start
+            UNION ALL
+            SELECT
+                period_order + 1,
+                <choose>
+                    <when test="bucketUnit == 'DAY'">
+                        DATE_ADD(period_start, INTERVAL 1 DAY)
+                    </when>
+                    <otherwise>
+                        DATE_ADD(period_start, INTERVAL 1 MONTH)
+                    </otherwise>
+                </choose>
+            FROM periods
+            WHERE period_order &lt; #{bucketCount}
+        )
+        SELECT
+            <choose>
+                <when test="bucketUnit == 'DAY'">
+                    DATE_FORMAT(periods.period_start, '%Y-%m-%d')
+                </when>
+                <otherwise>
+                    DATE_FORMAT(periods.period_start, '%Y-%m')
+                </otherwise>
+            </choose>
+            AS month,
+            COALESCE(SUM(feed.saving_amount), 0) AS saving_amount
+        FROM periods
+        LEFT JOIN feed
+            ON feed.user_id = #{userId}
+           AND feed.status = 'ACTIVE'
+           AND feed.file_deleted_at IS NULL
+           AND feed.created_at &gt;= periods.period_start
+           AND feed.created_at &lt;
+               <choose>
+                   <when test="bucketUnit == 'DAY'">
+                       DATE_ADD(periods.period_start, INTERVAL 1 DAY)
+                   </when>
+                   <otherwise>
+                       DATE_ADD(periods.period_start, INTERVAL 1 MONTH)
+                   </otherwise>
+               </choose>
+        GROUP BY periods.period_order, periods.period_start
+        ORDER BY periods.period_order
+    </select>
+
+    <!-- 좋아요 수가 같으면 최신 피드가 먼저 표시되도록 정렬함. -->
+    <select id="findTopLikedFeeds" resultMap="topLikedFeedResultMap">
+        SELECT
+            feed.id AS feed_id,
+            feed.challenge_id,
+            feed.caption,
+            feed.thumbnail_url,
+            feed.media_url,
+            feed.like_count,
+            feed.created_at
+        FROM feed
+        WHERE feed.user_id = #{userId}
+          AND feed.status = 'ACTIVE'
+          AND feed.file_deleted_at IS NULL
+        ORDER BY feed.like_count DESC, feed.created_at DESC, feed.id
+        LIMIT 3
     </select>
 </mapper>
