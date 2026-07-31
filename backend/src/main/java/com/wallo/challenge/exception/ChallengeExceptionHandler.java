@@ -1,5 +1,6 @@
 package com.wallo.challenge.exception;
 
+import com.wallo.auth.UnauthenticatedException;
 import com.wallo.challenge.dto.response.ChallengeErrorResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +21,18 @@ public class ChallengeExceptionHandler {
     public ResponseEntity<ChallengeErrorResponse> handleInvalidInviteCode(
             InvalidInviteCodeException exception) {
         return error(HttpStatus.NOT_FOUND, exception.getMessage());
+    }
+
+    @ExceptionHandler(UnauthenticatedException.class)
+    public ResponseEntity<ChallengeErrorResponse> handleUnauthenticated(
+            UnauthenticatedException exception) {
+        return error(HttpStatus.UNAUTHORIZED, exception.getMessage());
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ChallengeErrorResponse> handleInvalidRequest(
+            IllegalArgumentException exception) {
+        return error(HttpStatus.BAD_REQUEST, exception.getMessage());
     }
 
     private ResponseEntity<ChallengeErrorResponse> error(HttpStatus status, String message) {
