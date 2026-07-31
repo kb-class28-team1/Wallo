@@ -51,7 +51,10 @@ const handleSignup = async () => {
       password: form.password,
     })
     alert("회원가입이 완료되었습니다. 로그인해주세요.")
-    await router.replace("/login")
+    await router.replace({
+      name: "login",
+      query: { redirect: "/connections/mydata" },
+    })
   } catch (error) {
     errorMessage.value = error.message || "회원가입에 실패했습니다."
   } finally {
