@@ -1,10 +1,11 @@
 <script setup>
 import { computed, onMounted } from "vue"
 import { storeToRefs } from "pinia"
-import { RouterLink } from "vue-router"
+import { RouterLink, useRouter } from "vue-router"
 import { useUserStore } from "@/stores/userStore"
 
 const userStore = useUserStore()
+const router = useRouter()
 const { nickname, profileImageUrl, pointBalance, isLoading } = storeToRefs(userStore)
 
 // 포인트 숫자에 천 단위 구분 기호를 적용함
@@ -16,6 +17,15 @@ const displayedNickname = computed(() =>
 onMounted(() => {
   userStore.fetchUserProfile()
 })
+
+const handleLogout = async () => {
+  try {
+    await userStore.logout()
+    await router.replace("/login")
+  } catch (error) {
+    alert(error.message || "로그아웃에 실패했습니다.")
+  }
+}
 </script>
 
 <template>
@@ -49,10 +59,15 @@ onMounted(() => {
         {{ formattedPointBalance }} P
       </RouterLink>
 
-      <!-- 실제 로그아웃 처리는 하지 않고 로그인 경로로만 이동함 -->
-      <RouterLink to="/login" class="logout-button" aria-label="로그인 페이지로 이동">
+      <button
+        type="button"
+        class="logout-button"
+        aria-label="로그아웃"
+        :disabled="isLoading"
+        @click="handleLogout"
+      >
         <span aria-hidden="true">[→</span>
-      </RouterLink>
+      </button>
     </div>
   </header>
 </template>
