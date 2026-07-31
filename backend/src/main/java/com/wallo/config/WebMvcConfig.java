@@ -16,8 +16,11 @@ import java.util.List;
 @ComponentScan(basePackages = {
         "com.wallo.controller",
         "com.wallo.asset.controller",
+        "com.wallo.auth.controller",
+        "com.wallo.auth.exception",
         "com.wallo.external.controller",
         "com.wallo.challenge.controller",
+        "com.wallo.challenge.exception",
         "com.wallo.common.exception"
 })
 // SwaggerConfig가 컨트롤러와 같은(서블릿) 컨텍스트에서 로딩되어야 실제 API를 문서화할 수 있어 여기서 가져온다.

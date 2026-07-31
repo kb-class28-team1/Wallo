@@ -5,23 +5,23 @@
 <mapper namespace="com.wallo.asset.mapper.ConnectionMapper">
     <insert id="insertConnections" parameterType="java.util.List">
         INSERT IGNORE INTO CONNECTIONS (
+            USER_ID,
             INSTITUTION_ID,
-            INSTITUTION_NAME,
-            INSTITUTION_TYPE,
             LOGIN_TYPE,
             LOGIN_ID,
             LOGIN_PASSWORD,
-            CREATED_AT
+            STATUS,
+            CONNECTED_AT
         )
         VALUES
         <foreach collection="connections" item="connection" separator=",">
             (
+                #{userId},
                 #{connection.institutionId},
-                #{connection.institutionName},
-                #{connection.institutionType},
                 #{loginType},
                 #{loginId},
                 #{loginPassword},
+                #{connection.status},
                 NOW()
             )
         </foreach>

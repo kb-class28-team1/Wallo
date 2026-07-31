@@ -19,6 +19,11 @@ public enum ErrorCode {
             "CONNECTION_003",
             "연동 결과 저장에 실패했습니다. CONNECTIONS 테이블 스키마를 확인해주세요."
     ),
+    INVALID_DASHBOARD_REQUEST(
+            HttpStatus.BAD_REQUEST,
+            "DASHBOARD_001",
+            "대시보드 요청 값이 올바르지 않습니다."
+    ),
     METHOD_NOT_ALLOWED(
             HttpStatus.METHOD_NOT_ALLOWED,
             "COMMON_002",

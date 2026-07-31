@@ -9,7 +9,7 @@ const brandLogoSource = ref(brandPenguin)
 
 const primaryMenus = [
   { icon: "🏠", label: "대시보드", to: "/dashboard" },
-  { icon: "💳", label: "자산", to: "/institutions" },
+  { icon: "💳", label: "자산", to: "/assets" },
   { icon: "🤖", label: "AI 컨설팅", to: "/ai-consulting" },
 ]
 
@@ -76,7 +76,7 @@ const moveToChallengeMemberPage = async (targetPath) => {
   try {
     const response = await getCurrentChallenge()
 
-    if (!response?.data?.hasChallenge) {
+    if (!response?.joined) {
       alert("챌린지 참여가 확인되지 않습니다.")
       return
     }
