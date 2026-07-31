@@ -10,6 +10,7 @@
         <result property="passwordHash" column="password_hash" />
         <result property="nickname" column="nickname" />
         <result property="name" column="name" />
+        <result property="annualSalary" column="annual_salary" />
     </resultMap>
 
     <sql id="userColumns">
@@ -17,7 +18,8 @@
         email,
         password_hash,
         nickname,
-        name
+        name,
+        annual_salary
     </sql>
 
     <select id="findByEmail" resultMap="userResultMap">

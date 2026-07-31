@@ -27,6 +27,7 @@ CREATE TABLE USERS (
     password_hash VARCHAR(255) NOT NULL,
     nickname VARCHAR(50) NOT NULL,
     name VARCHAR(50) NOT NULL,
+    annual_salary BIGINT NULL,
     is_consent_agreed TINYINT(1) NOT NULL DEFAULT 1,
     consent_agreed_at DATETIME NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
