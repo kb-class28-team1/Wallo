@@ -8,3 +8,4 @@ dist/
 
 .idea/
 *.iml
+backend/src/main/resources/application.properties
