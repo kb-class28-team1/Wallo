@@ -20,6 +20,14 @@ public interface NewsService {
     /** news_id로 뉴스 1건을 조회한다. 없으면 null을 반환한다. */
     News getNewsById(Long newsId);
 
+    /**
+     * news_id로 뉴스 1건을 조회한다. 상세 조회 API처럼 반드시 값이 있어야 하는 경우 사용한다.
+     *
+     * @throws com.wallo.common.exception.CustomException news_id에 해당하는 뉴스가 없으면
+     *         {@link com.wallo.common.exception.ErrorCode#REPORT_NOT_FOUND}로 발생
+     */
+    News getNewsByIdOrThrow(Long newsId);
+
     /** 게시일시 기준 최신 뉴스 목록을 limit개 조회한다. */
     List<News> getLatestNews(int limit);
 

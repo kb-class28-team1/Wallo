@@ -1,5 +1,7 @@
 package com.wallo.service;
 
+import com.wallo.common.exception.CustomException;
+import com.wallo.common.exception.ErrorCode;
 import com.wallo.domain.News;
 import com.wallo.mapper.NewsMapper;
 import org.springframework.stereotype.Service;
@@ -65,6 +67,16 @@ public class NewsServiceImpl implements NewsService {
         }
 
         return newsMapper.findById(newsId);
+    }
+
+    @Override
+    public News getNewsByIdOrThrow(Long newsId) {
+        News news = newsMapper.findById(newsId);
+        if (news == null) {
+            throw new CustomException(ErrorCode.REPORT_NOT_FOUND);
+        }
+
+        return news;
     }
 
     @Override

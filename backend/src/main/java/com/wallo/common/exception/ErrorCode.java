@@ -24,6 +24,11 @@ public enum ErrorCode {
             "DASHBOARD_001",
             "대시보드 요청 값이 올바르지 않습니다."
     ),
+    REPORT_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "REPORT_001",
+            "요청하신 금융 리포트를 찾을 수 없습니다."
+    ),
     METHOD_NOT_ALLOWED(
             HttpStatus.METHOD_NOT_ALLOWED,
             "COMMON_002",
