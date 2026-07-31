@@ -73,6 +73,26 @@ class ReportServiceTest {
     }
 
     @Test
+    void returnsNullWhenCurrentMonthHasNoDeliveryExpense() {
+        when(reportMapper.selectCategoryExpenses(
+                7L,
+                "2026-07-01",
+                "2026-07-15",
+                "2026-06-01",
+                "2026-06-15"
+        )).thenReturn(Arrays.asList(
+                new ReportDto.CategoryExpense("DELIVERY", 0L, 100_000L)
+        ));
+
+        ReportDto.Insight insight = reportService.getConsumptionInsight(
+                7L,
+                LocalDate.of(2026, 7, 15)
+        );
+
+        assertNull(insight);
+    }
+
+    @Test
     void keepsDeliverySpecificMessageWhenDeliveryHasLargestIncrease() {
         when(reportMapper.selectCategoryExpenses(
                 7L,
