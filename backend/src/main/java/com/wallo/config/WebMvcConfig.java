@@ -2,10 +2,12 @@ package com.wallo.config;
 
 import com.fasterxml.jackson.databind.SerializationFeature;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
+import org.springframework.web.multipart.support.StandardServletMultipartResolver;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -21,6 +23,7 @@ import java.util.List;
         "com.wallo.external.controller",
         "com.wallo.challenge.controller",
         "com.wallo.challenge.exception",
+        "com.wallo.feed.controller",
         "com.wallo.common.exception"
 })
 // SwaggerConfig가 컨트롤러와 같은(서블릿) 컨텍스트에서 로딩되어야 실제 API를 문서화할 수 있어 여기서 가져온다.
@@ -36,5 +39,10 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
             }
         }
+    }
+
+    @Bean
+    public StandardServletMultipartResolver multipartResolver() {
+        return new StandardServletMultipartResolver();
     }
 }
