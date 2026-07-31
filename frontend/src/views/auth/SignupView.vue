@@ -49,11 +49,6 @@ const handleSignup = async () => {
       email: form.email.trim(),
       password: form.password,
     })
-    alert("회원가입이 완료되었습니다. 로그인해주세요.")
-    await router.replace({
-      name: "login",
-      query: { redirect: "/connections/mydata" },
-    })
     showSuccessModal.value = true
   } catch (error) {
     if (error.code === "AUTH_EMAIL_ALREADY_EXISTS") errors.email = error.message
@@ -73,7 +68,10 @@ const clearError = (field) => {
 
 const moveToLogin = async () => {
   showSuccessModal.value = false
-  await router.replace("/login")
+  await router.replace({
+    name: "login",
+    query: { redirect: "/connections/mydata" },
+  })
 }
 </script>
 
