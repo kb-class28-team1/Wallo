@@ -46,7 +46,7 @@ class ChallengeServiceImplTest {
         assertEquals("GROUP", response.getChallengeType());
         assertEquals("ACTIVE", response.getStatus());
         assertNotNull(response.getInviteCode());
-        assertEquals(8, response.getInviteCode().length());
+        assertEquals(5, response.getInviteCode().length());
         assertEquals(1L, mapper.currentChallengeId);
     }
 
