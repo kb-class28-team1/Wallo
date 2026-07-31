@@ -29,7 +29,7 @@ public class CodefMockResponseLoaderTest {
         assertSuccessResponse(response);
         CodefDto.AssetData data = new ObjectMapper().convertValue(response.getData(), CodefDto.AssetData.class);
         assertEquals(2, data.getCards().size());
-        assertEquals(3, data.getTransactions().size());
+        assertEquals(4, data.getTransactions().size());
     }
 
     @Test
