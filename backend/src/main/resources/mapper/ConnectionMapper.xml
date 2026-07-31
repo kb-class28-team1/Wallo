@@ -37,5 +37,13 @@
             connected_at = CURRENT_TIMESTAMP,
             deleted_at = NULL
     </insert>
+
+    <select id="findActiveConnectionId" resultType="java.lang.Long">
+        SELECT connection_id
+        FROM CONNECTIONS
+        WHERE user_id = #{userId}
+          AND institution_id = #{institutionId}
+          AND deleted_at IS NULL
+    </select>
 </mapper>
 

@@ -24,8 +24,9 @@ public class ConnectionServiceTest {
     private final CodefClient codefClient = mock(CodefClient.class);
     private final InstitutionService institutionService = mock(InstitutionService.class);
     private final ConnectionMapper connectionMapper = mock(ConnectionMapper.class);
+    private final AssetSyncService assetSyncService = mock(AssetSyncService.class);
     private final ConnectionService connectionService = new ConnectionService(
-            codefClient, institutionService, connectionMapper);
+            codefClient, institutionService, connectionMapper, assetSyncService);
 
     @Test
     public void connectAllAssetsThrowsConsentExceptionWhenConsentIsMissing() {
@@ -47,6 +48,8 @@ public class ConnectionServiceTest {
 
         when(connectionMapper.insertConnections(any(), org.mockito.ArgumentMatchers.eq(7L), any(), any(), any()))
                 .thenReturn(3);
+        when(connectionMapper.findActiveConnectionId(org.mockito.ArgumentMatchers.eq(7L), any()))
+                .thenReturn(1L);
         ConnectionDto.Response response = connectionService.connectAllAssets(7L, request);
 
         assertEquals(3, response.getResults().size());
@@ -70,6 +73,8 @@ public class ConnectionServiceTest {
 
         when(connectionMapper.insertConnections(any(), org.mockito.ArgumentMatchers.eq(7L), any(), any(), any()))
                 .thenReturn(3);
+        when(connectionMapper.findActiveConnectionId(org.mockito.ArgumentMatchers.eq(7L), any()))
+                .thenReturn(1L);
         ConnectionDto.Response response = connectionService.connectAllAssets(7L, request);
 
         assertEquals(3, response.getResults().size());

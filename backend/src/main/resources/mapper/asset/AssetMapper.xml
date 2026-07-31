@@ -8,6 +8,7 @@
         SELECT COALESCE(SUM(
             CASE
                 WHEN a.account_type = 'STOCK' THEN a.eval_amount
+                WHEN a.account_type = 'LOAN' THEN -a.balance
                 ELSE a.balance
             END
         ), 0)
@@ -79,13 +80,15 @@
         SELECT
             CASE
                 WHEN a.account_type = 'STOCK' THEN 'STOCK'
+                WHEN a.account_type = 'LOAN' THEN 'LOAN'
                 WHEN a.account_subtype IS NULL THEN 'DEPOSIT'
                 ELSE a.account_subtype
             END AS category,
             COALESCE(SUM(
-                CASE
-                    WHEN a.account_type = 'STOCK' THEN a.eval_amount
-                    ELSE a.balance
+            CASE
+                WHEN a.account_type = 'STOCK' THEN a.eval_amount
+                WHEN a.account_type = 'LOAN' THEN -a.balance
+                ELSE a.balance
                 END
             ), 0) AS amount
         FROM ACCOUNTS a
@@ -97,6 +100,7 @@
         GROUP BY
             CASE
                 WHEN a.account_type = 'STOCK' THEN 'STOCK'
+                WHEN a.account_type = 'LOAN' THEN 'LOAN'
                 WHEN a.account_subtype IS NULL THEN 'DEPOSIT'
                 ELSE a.account_subtype
             END

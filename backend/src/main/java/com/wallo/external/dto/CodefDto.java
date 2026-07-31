@@ -1,5 +1,7 @@
 package com.wallo.external.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -47,5 +49,84 @@ public final class CodefDto {
         private String code;
         private String message;
         private String extraMessage;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class AssetData {
+        private List<Account> accounts;
+        private List<Loan> loans;
+        private List<Card> cards;
+        private List<Transaction> transactions;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class Account {
+        private String resAccountName;
+        private String resAccount;
+        private String resAccountDisplay;
+        private String resAccountBalance;
+        private String resAccountEvalAmount;
+        private String resAccountCurrency;
+        private String resAccountStatus;
+        private String resAccountSubtype;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class Loan {
+        private String resLoanName;
+        private String resLoanAccount;
+        private String resLoanDisplay;
+        private String resLoanBalance;
+        private String resLoanStatus;
+        private String resLoanCurrency;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class Card {
+        private String resCardName;
+        private String resCardNo;
+        private String resCardType;
+        private String resCardState;
+        private String resValidPeriod;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class Transaction {
+        private String resAccount;
+        private String resAccountTrNo;
+        private String resAccountTrDate;
+        private String resAccountTrTime;
+        private String resAccountTrType;
+        private String resAccountTrAmount;
+        private String resAccountTrDesc;
+        private String resAccountTrCategory;
+        private String resCardNo;
+        private String resCardApprovalNo;
+        private String resUsedDate;
+        private String resUsedTime;
+        private String resUsedAmount;
+        private String resUsedMerchantName;
+        private String resUsedCategory;
+        private String resLoanAccount;
+        private String resLoanPaymentNo;
+        private String resLoanPaymentDate;
+        private String resLoanPaymentTime;
+        private String resLoanPaymentAmount;
+        private String resLoanPaymentCategory;
     }
 }
