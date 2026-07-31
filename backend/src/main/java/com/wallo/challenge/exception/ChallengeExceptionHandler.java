@@ -23,6 +23,24 @@ public class ChallengeExceptionHandler {
         return error(HttpStatus.NOT_FOUND, exception.getMessage());
     }
 
+    @ExceptionHandler(ChallengeNotFoundException.class)
+    public ResponseEntity<ChallengeErrorResponse> handleChallengeNotFound(
+            ChallengeNotFoundException exception) {
+        return error(HttpStatus.NOT_FOUND, exception.getMessage());
+    }
+
+    @ExceptionHandler(NotChallengeMemberException.class)
+    public ResponseEntity<ChallengeErrorResponse> handleNotChallengeMember(
+            NotChallengeMemberException exception) {
+        return error(HttpStatus.FORBIDDEN, exception.getMessage());
+    }
+
+    @ExceptionHandler(SoloFeatureNotAllowedException.class)
+    public ResponseEntity<ChallengeErrorResponse> handleSoloFeatureNotAllowed(
+            SoloFeatureNotAllowedException exception) {
+        return error(HttpStatus.FORBIDDEN, exception.getMessage());
+    }
+
     @ExceptionHandler(UnauthenticatedException.class)
     public ResponseEntity<ChallengeErrorResponse> handleUnauthenticated(
             UnauthenticatedException exception) {

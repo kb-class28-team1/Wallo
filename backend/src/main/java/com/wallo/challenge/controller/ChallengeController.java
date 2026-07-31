@@ -6,6 +6,7 @@ import com.wallo.challenge.dto.request.JoinChallengeRequest;
 import com.wallo.challenge.dto.response.CreateChallengeResponse;
 import com.wallo.challenge.dto.response.CurrentChallengeResponse;
 import com.wallo.challenge.dto.response.JoinChallengeResponse;
+import com.wallo.challenge.dto.response.WeeklyRankingResponse;
 import com.wallo.challenge.service.ChallengeService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -58,6 +59,15 @@ public class ChallengeController {
     public ResponseEntity<CurrentChallengeResponse> getCurrentChallenge() {
         Long currentUserId = currentUserProvider.getCurrentUserId();
         CurrentChallengeResponse response = challengeService.getCurrentChallenge(currentUserId);
+
+        return ResponseEntity.ok(response);
+    }
+
+    /** 현재 로그인한 사용자가 참여 중인 GROUP 챌린지의 이번 주 랭킹을 조회함. */
+    @GetMapping("/rankings/weekly")
+    public ResponseEntity<WeeklyRankingResponse> getWeeklyRanking() {
+        Long currentUserId = currentUserProvider.getCurrentUserId();
+        WeeklyRankingResponse response = challengeService.getWeeklyRanking(currentUserId);
 
         return ResponseEntity.ok(response);
     }
