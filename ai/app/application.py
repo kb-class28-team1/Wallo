@@ -7,6 +7,15 @@ from fastapi.responses import JSONResponse
 from openai import OpenAI, OpenAIError
 from pydantic import BaseModel, Field
 
+from app.financial_report import (
+    NewsReportGenerateRequest,
+    NewsReportGenerateResponse,
+    build_mock_response,
+    generate_financial_report,
+    is_mock_enabled,
+    resolve_report_model,
+)
+
 logger = logging.getLogger("wallo_ai")
 logging.basicConfig(level=logging.INFO)
 
@@ -17,23 +26,6 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     answer: str
-
-
-class NewsReportGenerateRequest(BaseModel):
-    newsId: int
-    title: str
-    content: str
-    category: str
-    source: str
-    publishedAt: str
-
-
-class NewsReportGenerateResponse(BaseModel):
-    summary: str
-    cause: str
-    socialImpact: str
-    userImpact: str
-    responseStrategy: str
 
 
 app = FastAPI(title="Wallo AI Server")
@@ -77,17 +69,28 @@ def chat(request: ChatRequest) -> ChatResponse:
 
 @app.post("/api/reports/generate", response_model=NewsReportGenerateResponse)
 def generate_report(request: NewsReportGenerateRequest) -> NewsReportGenerateResponse:
-    """개발용 mock 엔드포인트.
+    """실제 OpenAI(Responses API 구조화 출력)로 금융 리포트를 생성한다.
 
-    아직 이 엔드포인트는 실제 LLM과 연결되어 있지 않다. 지금은 Java 쪽의 저장 흐름
-    (news_report INSERT, 중복 방지 등)을 검증할 수 있도록 고정된 더미 응답만 반환한다.
-    실제 LLM 연동은 /api/chat과 동일한 패턴(OpenAI client + 프롬프트)으로 이후 별도
-    작업에서 붙이면 된다 — 금융 리포트용 프롬프트 설계는 이번 작업 범위가 아니다.
+    AI_REPORT_MOCK_ENABLED=true일 때만 개발용 더미 응답([MOCK] 표시)을 반환하고,
+    그 외에는 항상 실제 OpenAI를 호출한다. 실패 시 mock으로 자동 대체하지 않는다.
     """
-    return NewsReportGenerateResponse(
-        summary=f"[MOCK] {request.title} 핵심 요약입니다.",
-        cause="[MOCK] 아직 실제 LLM과 연결되지 않은 개발용 더미 응답입니다.",
-        socialImpact="[MOCK] 아직 실제 LLM과 연결되지 않은 개발용 더미 응답입니다.",
-        userImpact="[MOCK] 아직 실제 LLM과 연결되지 않은 개발용 더미 응답입니다.",
-        responseStrategy="[MOCK] 아직 실제 LLM과 연결되지 않은 개발용 더미 응답입니다.",
-    )
+    if is_mock_enabled():
+        return build_mock_response(request)
+
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        logger.error("OPENAI_API_KEY가 설정되지 않았습니다 - newsId: %s", request.newsId)
+        raise HTTPException(status_code=503, detail="AI 서버 설정이 완료되지 않았습니다.")
+
+    client = OpenAI(api_key=api_key)
+
+    try:
+        return generate_financial_report(client, request, resolve_report_model())
+    except HTTPException:
+        raise
+    except Exception as error:
+        logger.error(
+            "리포트 생성 중 예상하지 못한 오류 - newsId: %s, 예외: %s",
+            request.newsId, type(error).__name__,
+        )
+        raise HTTPException(status_code=500, detail="리포트 생성 중 오류가 발생했습니다.") from error

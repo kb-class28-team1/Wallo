@@ -2,3 +2,6 @@ fastapi
 openai
 uvicorn[standard]
 
+# 테스트 전용 (단위 테스트에서만 필요, 실제 OpenAI를 호출하지 않음)
+pytest
+
