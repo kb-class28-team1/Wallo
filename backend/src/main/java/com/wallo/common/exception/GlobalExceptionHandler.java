@@ -1,5 +1,6 @@
 package com.wallo.common.exception;
 
+import com.wallo.auth.UnauthenticatedException;
 import com.wallo.common.response.CommonResponse;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -13,6 +14,15 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 public class GlobalExceptionHandler {
 
     private static final Logger log = Logger.getLogger(GlobalExceptionHandler.class.getName());
+
+    @ExceptionHandler(UnauthenticatedException.class)
+    public ResponseEntity<CommonResponse<Void>> handleUnauthenticated(
+            UnauthenticatedException exception) {
+        ErrorCode errorCode = ErrorCode.AUTH_REQUIRED;
+        return ResponseEntity
+                .status(errorCode.getHttpStatus())
+                .body(CommonResponse.failure(errorCode.getCode(), errorCode.getMessage()));
+    }
 
     @ExceptionHandler(CustomException.class)
     public ResponseEntity<CommonResponse<Void>> handleCustomException(CustomException exception) {
