@@ -8,6 +8,7 @@ import com.wallo.domain.NewsReport;
 import com.wallo.dto.ai.NewsReportAiRequest;
 import com.wallo.dto.ai.NewsReportAiResponse;
 import com.wallo.dto.response.ReportDetailResponse;
+import com.wallo.dto.response.ReportListResponse;
 import com.wallo.mapper.NewsReportMapper;
 import com.wallo.term.service.FinancialTermMatchingService;
 import org.junit.jupiter.api.Test;
@@ -223,7 +224,7 @@ class NewsReportGenerationServiceImplTest {
         }
 
         @Override
-        public List<News> getAllNews() {
+        public List<ReportListResponse> getReportList() {
             throw new UnsupportedOperationException();
         }
     }

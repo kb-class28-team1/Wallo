@@ -76,19 +76,35 @@
         LIMIT #{limit}
     </select>
 
-    <!-- published_at은 현재 NOT NULL이지만, 향후 컬럼 제약이 바뀌더라도 null이 뒤로 가도록 안전하게 정렬한다. -->
-    <select id="findAll" resultMap="newsResultMap">
+    <!-- DB 컬럼명과 NewsReportListItem Java 필드명을 명시적으로 연결한다. -->
+    <resultMap id="newsReportListItemResultMap" type="com.wallo.domain.NewsReportListItem">
+        <id property="newsId" column="news_id" />
+        <result property="title" column="title" />
+        <result property="category" column="category" />
+        <result property="source" column="source" />
+        <result property="url" column="url" />
+        <result property="publishedAt" column="published_at" />
+        <result property="summary" column="summary" />
+        <result property="analyzed" column="analyzed" />
+    </resultMap>
+
+    <!--
+        news_report가 없는 뉴스도 빠짐없이 나오도록 LEFT JOIN한다. 리포트가 있으면 summary가 채워지고
+        analyzed가 true, 없으면 summary는 null이고 analyzed는 false다. 단일 쿼리라 N+1이 발생하지 않는다.
+        published_at은 현재 NOT NULL이지만, 향후 컬럼 제약이 바뀌더라도 null이 뒤로 가도록 안전하게 정렬한다.
+    -->
+    <select id="findAllWithReportSummary" resultMap="newsReportListItemResultMap">
         SELECT
-            news_id,
-            title,
-            content,
-            source,
-            url,
-            category,
-            published_at,
-            created_at,
-            updated_at
-        FROM news
-        ORDER BY published_at IS NULL, published_at DESC, news_id DESC
+            n.news_id,
+            n.title,
+            n.category,
+            n.source,
+            n.url,
+            n.published_at,
+            nr.summary,
+            CASE WHEN nr.news_id IS NOT NULL THEN true ELSE false END AS analyzed
+        FROM news n
+        LEFT JOIN news_report nr ON n.news_id = nr.news_id
+        ORDER BY n.published_at IS NULL, n.published_at DESC, n.news_id DESC
     </select>
 </mapper>

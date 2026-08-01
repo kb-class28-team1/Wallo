@@ -4,8 +4,10 @@ import com.wallo.common.exception.CustomException;
 import com.wallo.common.exception.ErrorCode;
 import com.wallo.domain.News;
 import com.wallo.domain.NewsReport;
+import com.wallo.domain.NewsReportListItem;
 import com.wallo.dto.response.MatchedTermResponse;
 import com.wallo.dto.response.ReportDetailResponse;
+import com.wallo.dto.response.ReportListResponse;
 import com.wallo.mapper.NewsMapper;
 import com.wallo.mapper.NewsReportMapper;
 import com.wallo.term.domain.FinancialTerm;
@@ -56,6 +58,77 @@ class NewsServiceImplTest {
                 () -> service.getNewsByIdOrThrow(999L));
 
         assertEquals(ErrorCode.REPORT_NOT_FOUND, exception.getErrorCode());
+    }
+
+    // news_report가 있는 뉴스는 목록에서도 summary가 채워지고 analyzed가 true여야 한다.
+    @Test
+    void getReportListReturnsSummaryAndAnalyzedTrueWhenReportExists() {
+        FakeNewsMapper newsMapper = new FakeNewsMapper();
+        newsMapper.listItems = List.of(
+                NewsReportListItem.builder()
+                        .newsId(1L)
+                        .title("제목")
+                        .category("경제")
+                        .source("매일경제")
+                        .url("https://example.com/1")
+                        .publishedAt(LocalDateTime.of(2026, 7, 30, 12, 0))
+                        .summary("요약입니다")
+                        .analyzed(true)
+                        .build()
+        );
+        NewsService service = new NewsServiceImpl(newsMapper, new FakeNewsReportMapper(), new FakeNewsTermMapper());
+
+        List<ReportListResponse> result = service.getReportList();
+
+        assertEquals(1, result.size());
+        assertEquals(1L, result.get(0).getId());
+        assertEquals("요약입니다", result.get(0).getSummary());
+        assertTrue(result.get(0).isAnalyzed());
+    }
+
+    // news_report가 없는 뉴스는 목록에서 summary가 null이고 analyzed가 false여야 한다(하드코딩 null 제거 검증).
+    @Test
+    void getReportListReturnsNullSummaryAndAnalyzedFalseWhenReportDoesNotExist() {
+        FakeNewsMapper newsMapper = new FakeNewsMapper();
+        newsMapper.listItems = List.of(
+                NewsReportListItem.builder()
+                        .newsId(2L)
+                        .title("제목2")
+                        .category("경제")
+                        .source("매일경제")
+                        .url("https://example.com/2")
+                        .publishedAt(LocalDateTime.of(2026, 7, 29, 9, 0))
+                        .summary(null)
+                        .analyzed(false)
+                        .build()
+        );
+        NewsService service = new NewsServiceImpl(newsMapper, new FakeNewsReportMapper(), new FakeNewsTermMapper());
+
+        List<ReportListResponse> result = service.getReportList();
+
+        assertNull(result.get(0).getSummary());
+        assertTrue(!result.get(0).isAnalyzed());
+    }
+
+    // Mapper가 이미 published_at 최신순으로 정렬해 반환하므로, Service는 순서를 바꾸지 않고 그대로 매핑해야 한다.
+    @Test
+    void getReportListPreservesMapperOrderingAndReturnsEmptyListWhenNoNews() {
+        FakeNewsMapper emptyMapper = new FakeNewsMapper();
+        NewsService emptyService =
+                new NewsServiceImpl(emptyMapper, new FakeNewsReportMapper(), new FakeNewsTermMapper());
+        assertTrue(emptyService.getReportList().isEmpty());
+
+        FakeNewsMapper newsMapper = new FakeNewsMapper();
+        newsMapper.listItems = List.of(
+                NewsReportListItem.builder().newsId(3L).publishedAt(LocalDateTime.of(2026, 7, 30, 0, 0)).build(),
+                NewsReportListItem.builder().newsId(1L).publishedAt(LocalDateTime.of(2026, 7, 29, 0, 0)).build(),
+                NewsReportListItem.builder().newsId(2L).publishedAt(LocalDateTime.of(2026, 7, 28, 0, 0)).build()
+        );
+        NewsService service = new NewsServiceImpl(newsMapper, new FakeNewsReportMapper(), new FakeNewsTermMapper());
+
+        List<ReportListResponse> result = service.getReportList();
+
+        assertEquals(List.of(3L, 1L, 2L), result.stream().map(ReportListResponse::getId).collect(java.util.stream.Collectors.toList()));
     }
 
     @Test
@@ -206,9 +279,11 @@ class NewsServiceImplTest {
         }
 
         @Override
-        public List<News> findAll() {
-            return new ArrayList<>();
+        public List<NewsReportListItem> findAllWithReportSummary() {
+            return listItems;
         }
+
+        private List<NewsReportListItem> listItems = new ArrayList<>();
     }
 
     /** 실제 DB 대신 서비스 규칙만 검증하기 위한 테스트 전용 Mapper다. */

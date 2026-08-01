@@ -6,6 +6,7 @@ import com.wallo.domain.News;
 import com.wallo.domain.NewsReport;
 import com.wallo.dto.response.MatchedTermResponse;
 import com.wallo.dto.response.ReportDetailResponse;
+import com.wallo.dto.response.ReportListResponse;
 import com.wallo.mapper.NewsMapper;
 import com.wallo.mapper.NewsReportMapper;
 import com.wallo.term.mapper.NewsTermMapper;
@@ -115,8 +116,14 @@ public class NewsServiceImpl implements NewsService {
         return newsMapper.findLatest(boundedLimit);
     }
 
+    /**
+     * news와 news_report를 LEFT JOIN하는 단일 쿼리(findAllWithReportSummary)로 조회해 N+1 없이
+     * 목록 DTO를 만든다. Mapper가 이미 published_at 최신순으로 정렬해 반환하므로 여기서는 매핑만 한다.
+     */
     @Override
-    public List<News> getAllNews() {
-        return newsMapper.findAll();
+    public List<ReportListResponse> getReportList() {
+        return newsMapper.findAllWithReportSummary().stream()
+                .map(ReportListResponse::from)
+                .collect(Collectors.toList());
     }
 }

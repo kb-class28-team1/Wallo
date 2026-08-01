@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 /** 금융 리포트(뉴스) 조회 및 생성 API. */
 @RestController
@@ -27,14 +26,13 @@ public class ReportController {
         this.newsReportGenerationService = newsReportGenerationService;
     }
 
-    /** 저장된 뉴스를 게시일시 최신순으로 조회한다. 데이터가 없으면 빈 배열을 반환한다. */
+    /**
+     * 저장된 뉴스를 news_report(AI 요약)와 함께 게시일시 최신순으로 조회한다. 데이터가 없으면 빈 배열을 반환한다.
+     * 리포트가 생성된 뉴스는 summary가 채워지고 analyzed가 true, 아직 없으면 summary는 null이고 analyzed는 false다.
+     */
     @GetMapping
     public CommonResponse<List<ReportListResponse>> getReports() {
-        List<ReportListResponse> reports = newsService.getAllNews().stream()
-                .map(ReportListResponse::from)
-                .collect(Collectors.toList());
-
-        return CommonResponse.success(reports);
+        return CommonResponse.success(newsService.getReportList());
     }
 
     /**

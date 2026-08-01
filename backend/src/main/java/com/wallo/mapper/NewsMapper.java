@@ -1,6 +1,7 @@
 package com.wallo.mapper;
 
 import com.wallo.domain.News;
+import com.wallo.domain.NewsReportListItem;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
@@ -23,6 +24,9 @@ public interface NewsMapper {
     /** 게시일시 기준 최신 뉴스 목록을 limit개 조회한다. */
     List<News> findLatest(@Param("limit") int limit);
 
-    /** 게시일시 최신순으로 전체 뉴스 목록을 조회한다. 개수 제한 없이 목록 조회 API에서 사용한다. */
-    List<News> findAll();
+    /**
+     * news와 news_report를 LEFT JOIN해 게시일시 최신순으로 전체 목록을 조회한다(개수 제한 없음,
+     * 목록 조회 API 전용). N+1 없이 단일 쿼리로 처리하며, 리포트가 없는 뉴스는 summary가 null이다.
+     */
+    List<NewsReportListItem> findAllWithReportSummary();
 }

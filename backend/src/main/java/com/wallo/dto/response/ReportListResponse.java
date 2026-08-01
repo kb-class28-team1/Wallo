@@ -1,10 +1,14 @@
 package com.wallo.dto.response;
 
-import com.wallo.domain.News;
+import com.wallo.domain.NewsReportListItem;
 
 import java.time.LocalDateTime;
 
-/** GET /api/reports 목록의 항목 하나. news 테이블 원본 데이터를 기반으로 한다. */
+/**
+ * GET /api/reports 목록의 항목 하나.
+ * news와 news_report를 LEFT JOIN한 결과(NewsReportListItem)를 기반으로 한다.
+ * 리포트가 생성된 뉴스는 summary가 채워지고 analyzed가 true, 아직 없으면 summary는 null이고 analyzed는 false다.
+ */
 public class ReportListResponse {
 
     private final Long id;
@@ -15,24 +19,24 @@ public class ReportListResponse {
     private final String url;
     private final String thumbnailUrl;
     private final LocalDateTime publishedAt;
+    private final boolean analyzed;
 
-    private ReportListResponse(News news) {
-        this.id = news.getNewsId();
-        this.title = news.getTitle();
-        // 현재 news 테이블에는 AI 요약을 저장하는 컬럼이 없다.
-        // 향후 AI 요약 생성 및 저장 기능을 구현하면 해당 값을 반환할 예정이다.
-        this.summary = null;
-        this.category = news.getCategory();
-        this.source = news.getSource();
-        this.url = news.getUrl();
+    private ReportListResponse(NewsReportListItem item) {
+        this.id = item.getNewsId();
+        this.title = item.getTitle();
+        this.summary = item.getSummary();
+        this.category = item.getCategory();
+        this.source = item.getSource();
+        this.url = item.getUrl();
         // 현재 뉴스 크롤러는 썸네일 URL을 수집·저장하지 않고, news 테이블에도 썸네일 URL 컬럼이 없다.
         // 향후 크롤러와 DB 구조를 확장하면 저장된 썸네일 URL을 반환할 예정이다.
         this.thumbnailUrl = null;
-        this.publishedAt = news.getPublishedAt();
+        this.publishedAt = item.getPublishedAt();
+        this.analyzed = Boolean.TRUE.equals(item.getAnalyzed());
     }
 
-    public static ReportListResponse from(News news) {
-        return new ReportListResponse(news);
+    public static ReportListResponse from(NewsReportListItem item) {
+        return new ReportListResponse(item);
     }
 
     public Long getId() {
@@ -65,5 +69,9 @@ public class ReportListResponse {
 
     public LocalDateTime getPublishedAt() {
         return publishedAt;
+    }
+
+    public boolean isAnalyzed() {
+        return analyzed;
     }
 }

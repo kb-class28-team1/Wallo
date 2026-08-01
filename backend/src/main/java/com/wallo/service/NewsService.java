@@ -2,6 +2,7 @@ package com.wallo.service;
 
 import com.wallo.domain.News;
 import com.wallo.dto.response.ReportDetailResponse;
+import com.wallo.dto.response.ReportListResponse;
 
 import java.util.List;
 
@@ -41,6 +42,10 @@ public interface NewsService {
     /** 게시일시 기준 최신 뉴스 목록을 limit개 조회한다. */
     List<News> getLatestNews(int limit);
 
-    /** 게시일시 최신순으로 전체 뉴스 목록을 조회한다. (개수 제한 없음, 목록 조회 API용) */
-    List<News> getAllNews();
+    /**
+     * news와 news_report(있으면)를 함께 조회해 게시일시 최신순으로 전체 목록을 반환한다.
+     * (개수 제한 없음, 목록 조회 API용) 리포트가 생성된 뉴스는 summary가 채워지고 analyzed가 true이며,
+     * 아직 생성되지 않은 뉴스는 summary가 null이고 analyzed가 false다.
+     */
+    List<ReportListResponse> getReportList();
 }
