@@ -124,6 +124,10 @@ def build_insert_sql(final_rows: list[dict]) -> str:
     lines = [
         "-- financial_term 테이블 INSERT 문 (병합된 금융용어 데이터)",
         "-- 생성 스크립트: ai/scripts/merge_financial_terms.py",
+        "--",
+        "-- INSERT IGNORE를 사용한다: financial_term.term_name은 UNIQUE라 재실행 시 이미 적재된",
+        "-- 용어는 오류 없이 건너뛴다. news_term.term_id가 financial_term.term_id를 FK로 참조하므로",
+        "-- DELETE 후 재적재하면 AUTO_INCREMENT가 바뀌어 기존 news_term 매칭이 깨질 수 있어 사용하지 않는다.",
         "USE wallo;",
         "",
     ]
@@ -132,7 +136,7 @@ def build_insert_sql(final_rows: list[dict]) -> str:
         description = sql_escape(row["definition"])
         source = sql_escape(row["source"])
         lines.append(
-            "INSERT INTO financial_term (term_name, description, source) "
+            "INSERT IGNORE INTO financial_term (term_name, description, source) "
             f"VALUES ('{term_name}', '{description}', '{source}');"
         )
     return "\n".join(lines) + "\n"

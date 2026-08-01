@@ -136,14 +136,24 @@ def test_build_insert_sql_generates_valid_insert_statements():
 
     sql = build_insert_sql(rows)
 
-    assert "INSERT INTO financial_term (term_name, description, source) VALUES" in sql
+    assert "INSERT IGNORE INTO financial_term (term_name, description, source) VALUES" in sql
     assert "'가계수지'" in sql
     assert "'정의1'" in sql
     assert "'한국은행'" in sql
     # 작은따옴표는 SQL 표준 방식으로 이스케이프되어야 한다 (' -> '')
     assert "O''Brien 지수" in sql
     assert "따옴표''s 포함" in sql
-    assert sql.count("INSERT INTO financial_term") == 2
+    assert sql.count("INSERT IGNORE INTO financial_term") == 2
+
+
+# financial_term.term_name은 UNIQUE라, 재실행해도 오류 없이 안전하게 건너뛰려면 INSERT IGNORE여야 한다.
+def test_build_insert_sql_uses_insert_ignore_for_rerun_safety():
+    rows = [{"term": "가계수지", "normalized_term": "가계수지", "definition": "정의1", "source": "한국은행", "source_url": ""}]
+
+    sql = build_insert_sql(rows)
+
+    assert "INSERT IGNORE INTO" in sql
+    assert "INSERT INTO financial_term" not in sql
 
 
 def test_read_source_csv_reads_common_columns(tmp_path):
