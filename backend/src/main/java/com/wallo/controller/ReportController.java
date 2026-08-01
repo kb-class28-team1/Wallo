@@ -1,8 +1,6 @@
 package com.wallo.controller;
 
 import com.wallo.common.response.CommonResponse;
-import com.wallo.domain.News;
-import com.wallo.domain.NewsReport;
 import com.wallo.dto.response.ReportDetailResponse;
 import com.wallo.dto.response.ReportListResponse;
 import com.wallo.service.NewsReportGenerationService;
@@ -51,11 +49,12 @@ public class ReportController {
     /**
      * news_report가 이미 있으면 AI를 다시 호출하지 않고 기존 값을 반환하고,
      * 없으면 AI로 생성해 저장한 뒤 반환한다. 뉴스 자체가 없으면 CustomException으로 404를 반환한다.
+     * generateIfAbsent()가 내부에서 금융용어 매칭·news_term 저장까지 끝내므로, 이후 getReportDetail()로
+     * 조회하면 방금 저장된 용어까지 포함된 응답을 그대로 재사용할 수 있다.
      */
     @PostMapping("/{newsId}/generate")
     public CommonResponse<ReportDetailResponse> generateReport(@PathVariable Long newsId) {
-        NewsReport newsReport = newsReportGenerationService.generateIfAbsent(newsId);
-        News news = newsService.getNewsByIdOrThrow(newsId);
-        return CommonResponse.success(ReportDetailResponse.from(news, newsReport));
+        newsReportGenerationService.generateIfAbsent(newsId);
+        return CommonResponse.success(newsService.getReportDetail(newsId));
     }
 }

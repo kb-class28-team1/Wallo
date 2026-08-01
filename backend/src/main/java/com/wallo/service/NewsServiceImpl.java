@@ -4,13 +4,16 @@ import com.wallo.common.exception.CustomException;
 import com.wallo.common.exception.ErrorCode;
 import com.wallo.domain.News;
 import com.wallo.domain.NewsReport;
+import com.wallo.dto.response.MatchedTermResponse;
 import com.wallo.dto.response.ReportDetailResponse;
 import com.wallo.mapper.NewsMapper;
 import com.wallo.mapper.NewsReportMapper;
+import com.wallo.term.mapper.NewsTermMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class NewsServiceImpl implements NewsService {
@@ -19,10 +22,12 @@ public class NewsServiceImpl implements NewsService {
 
     private final NewsMapper newsMapper;
     private final NewsReportMapper newsReportMapper;
+    private final NewsTermMapper newsTermMapper;
 
-    public NewsServiceImpl(NewsMapper newsMapper, NewsReportMapper newsReportMapper) {
+    public NewsServiceImpl(NewsMapper newsMapper, NewsReportMapper newsReportMapper, NewsTermMapper newsTermMapper) {
         this.newsMapper = newsMapper;
         this.newsReportMapper = newsReportMapper;
+        this.newsTermMapper = newsTermMapper;
     }
 
     /**
@@ -87,12 +92,17 @@ public class NewsServiceImpl implements NewsService {
     /**
      * news를 먼저 조회(없으면 예외)한 뒤, news_report를 news_id로 조회해 있으면 매핑하고
      * 없으면 AI 관련 필드를 null로 둔 채 응답을 구성한다. news_report 부재는 오류로 취급하지 않는다.
+     * 매칭된 금융용어(news_term + financial_term)도 함께 조회해 terms에 채운다. 매칭 결과가
+     * 없으면 빈 리스트가 된다(ReportDetailResponse 생성자에서도 null-safe하게 한 번 더 보장한다).
      */
     @Override
     public ReportDetailResponse getReportDetail(Long newsId) {
         News news = getNewsByIdOrThrow(newsId);
         NewsReport newsReport = newsReportMapper.findByNewsId(newsId);
-        return ReportDetailResponse.from(news, newsReport);
+        List<MatchedTermResponse> terms = newsTermMapper.findTermsByNewsId(newsId).stream()
+                .map(MatchedTermResponse::from)
+                .collect(Collectors.toList());
+        return ReportDetailResponse.from(news, newsReport, terms);
     }
 
     @Override

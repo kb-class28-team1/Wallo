@@ -9,6 +9,7 @@ import com.wallo.dto.ai.NewsReportAiRequest;
 import com.wallo.dto.ai.NewsReportAiResponse;
 import com.wallo.dto.response.ReportDetailResponse;
 import com.wallo.mapper.NewsReportMapper;
+import com.wallo.term.service.FinancialTermMatchingService;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DuplicateKeyException;
 
@@ -27,14 +28,17 @@ class NewsReportGenerationServiceImplTest {
         NewsReport existing = existingReport(1L);
         newsReportMapper.initialReport = existing;
         FakeNewsReportAiClient aiClient = new FakeNewsReportAiClient((NewsReportAiResponse) null);
+        FakeFinancialTermMatchingService termMatchingService = new FakeFinancialTermMatchingService();
         NewsReportGenerationService service =
-                new NewsReportGenerationServiceImpl(newsService, newsReportMapper, aiClient);
+                new NewsReportGenerationServiceImpl(newsService, newsReportMapper, aiClient, termMatchingService);
 
         NewsReport result = service.generateIfAbsent(1L);
 
         assertEquals(existing, result);
         assertEquals(0, aiClient.callCount);
         assertEquals(0, newsReportMapper.insertCallCount);
+        // news_report가 이미 있어도 news_term은 뉴스 내용 기반이라 매번 다시 매칭해도 안전하다.
+        assertEquals(1, termMatchingService.callCount);
     }
 
     @Test
@@ -44,8 +48,9 @@ class NewsReportGenerationServiceImplTest {
         NewsReportAiResponse aiResponse =
                 new NewsReportAiResponse("요약", "원인", "사회영향", "사용자영향", "대응방안");
         FakeNewsReportAiClient aiClient = new FakeNewsReportAiClient(aiResponse);
+        FakeFinancialTermMatchingService termMatchingService = new FakeFinancialTermMatchingService();
         NewsReportGenerationService service =
-                new NewsReportGenerationServiceImpl(newsService, newsReportMapper, aiClient);
+                new NewsReportGenerationServiceImpl(newsService, newsReportMapper, aiClient, termMatchingService);
 
         NewsReport result = service.generateIfAbsent(1L);
 
@@ -53,6 +58,7 @@ class NewsReportGenerationServiceImplTest {
         assertEquals(1, newsReportMapper.insertCallCount);
         assertEquals("요약", result.getSummary());
         assertEquals("대응방안", result.getResponseStrategy());
+        assertEquals(1, termMatchingService.callCount);
     }
 
     @Test
@@ -61,7 +67,8 @@ class NewsReportGenerationServiceImplTest {
         FakeNewsReportMapper newsReportMapper = new FakeNewsReportMapper();
         FakeNewsReportAiClient aiClient = new FakeNewsReportAiClient((NewsReportAiResponse) null);
         NewsReportGenerationService service =
-                new NewsReportGenerationServiceImpl(newsService, newsReportMapper, aiClient);
+                new NewsReportGenerationServiceImpl(
+                        newsService, newsReportMapper, aiClient, new FakeFinancialTermMatchingService());
 
         CustomException exception = assertThrows(
                 CustomException.class,
@@ -77,7 +84,8 @@ class NewsReportGenerationServiceImplTest {
         FakeNewsReportMapper newsReportMapper = new FakeNewsReportMapper();
         FakeNewsReportAiClient aiClient = new FakeNewsReportAiClient((NewsReportAiResponse) null);
         NewsReportGenerationService service =
-                new NewsReportGenerationServiceImpl(newsService, newsReportMapper, aiClient);
+                new NewsReportGenerationServiceImpl(
+                        newsService, newsReportMapper, aiClient, new FakeFinancialTermMatchingService());
 
         CustomException exception = assertThrows(
                 CustomException.class,
@@ -95,7 +103,8 @@ class NewsReportGenerationServiceImplTest {
         FakeNewsReportAiClient aiClient =
                 new FakeNewsReportAiClient(new CustomException(ErrorCode.AI_REPORT_GENERATION_FAILED));
         NewsReportGenerationService service =
-                new NewsReportGenerationServiceImpl(newsService, newsReportMapper, aiClient);
+                new NewsReportGenerationServiceImpl(
+                        newsService, newsReportMapper, aiClient, new FakeFinancialTermMatchingService());
 
         CustomException exception = assertThrows(
                 CustomException.class,
@@ -113,7 +122,8 @@ class NewsReportGenerationServiceImplTest {
                 new NewsReportAiResponse("   ", "원인", "사회영향", "사용자영향", "대응방안");
         FakeNewsReportAiClient aiClient = new FakeNewsReportAiClient(aiResponse);
         NewsReportGenerationService service =
-                new NewsReportGenerationServiceImpl(newsService, newsReportMapper, aiClient);
+                new NewsReportGenerationServiceImpl(
+                        newsService, newsReportMapper, aiClient, new FakeFinancialTermMatchingService());
 
         CustomException exception = assertThrows(
                 CustomException.class,
@@ -141,7 +151,8 @@ class NewsReportGenerationServiceImplTest {
                 new NewsReportAiResponse("요약", "원인", "사회영향", "사용자영향", "대응방안");
         FakeNewsReportAiClient aiClient = new FakeNewsReportAiClient(aiResponse);
         NewsReportGenerationService service =
-                new NewsReportGenerationServiceImpl(newsService, newsReportMapper, aiClient);
+                new NewsReportGenerationServiceImpl(
+                        newsService, newsReportMapper, aiClient, new FakeFinancialTermMatchingService());
 
         NewsReport result = service.generateIfAbsent(1L);
 
@@ -270,6 +281,18 @@ class NewsReportGenerationServiceImplTest {
                 throw exceptionToThrow;
             }
             return response;
+        }
+    }
+
+    /** 실제 DB 대신 호출 여부만 확인하기 위한 테스트 전용 Fake다. */
+    private static class FakeFinancialTermMatchingService implements FinancialTermMatchingService {
+
+        private int callCount = 0;
+
+        @Override
+        public int matchAndSaveTerms(Long newsId, String title, String content) {
+            callCount++;
+            return 0;
         }
     }
 }

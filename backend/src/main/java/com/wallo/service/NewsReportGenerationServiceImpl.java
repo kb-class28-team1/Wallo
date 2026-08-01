@@ -8,6 +8,7 @@ import com.wallo.domain.NewsReport;
 import com.wallo.dto.ai.NewsReportAiRequest;
 import com.wallo.dto.ai.NewsReportAiResponse;
 import com.wallo.mapper.NewsReportMapper;
+import com.wallo.term.service.FinancialTermMatchingService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
@@ -21,15 +22,18 @@ public class NewsReportGenerationServiceImpl implements NewsReportGenerationServ
     private final NewsService newsService;
     private final NewsReportMapper newsReportMapper;
     private final NewsReportAiClient newsReportAiClient;
+    private final FinancialTermMatchingService financialTermMatchingService;
 
     public NewsReportGenerationServiceImpl(
             NewsService newsService,
             NewsReportMapper newsReportMapper,
-            NewsReportAiClient newsReportAiClient
+            NewsReportAiClient newsReportAiClient,
+            FinancialTermMatchingService financialTermMatchingService
     ) {
         this.newsService = newsService;
         this.newsReportMapper = newsReportMapper;
         this.newsReportAiClient = newsReportAiClient;
+        this.financialTermMatchingService = financialTermMatchingService;
     }
 
     /**
@@ -43,6 +47,7 @@ public class NewsReportGenerationServiceImpl implements NewsReportGenerationServ
 
         NewsReport existing = newsReportMapper.findByNewsId(newsId);
         if (existing != null) {
+            matchFinancialTerms(news);
             return existing;
         }
 
@@ -67,7 +72,22 @@ public class NewsReportGenerationServiceImpl implements NewsReportGenerationServ
                 .responseStrategy(aiResponse.responseStrategy())
                 .build();
 
-        return insertOrReuseExisting(newsId, newsReport);
+        NewsReport saved = insertOrReuseExisting(newsId, newsReport);
+        matchFinancialTerms(news);
+        return saved;
+    }
+
+    /**
+     * news_report 저장이 끝난 뒤 뉴스 제목/본문에서 금융용어를 매칭해 news_term에 저장한다.
+     * news_term은 리포트의 부가 정보이므로, 매칭 과정에서 예외가 나더라도 리포트 조회/생성 자체는
+     * 실패시키지 않고 로그만 남긴다.
+     */
+    private void matchFinancialTerms(News news) {
+        try {
+            financialTermMatchingService.matchAndSaveTerms(news.getNewsId(), news.getTitle(), news.getContent());
+        } catch (RuntimeException exception) {
+            log.error("금융용어 매칭에 실패했습니다 - newsId: {}", news.getNewsId(), exception);
+        }
     }
 
     private NewsReportAiRequest toAiRequest(News news) {

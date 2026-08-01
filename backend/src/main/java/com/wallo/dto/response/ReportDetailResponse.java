@@ -28,9 +28,9 @@ public class ReportDetailResponse {
     private final String socialImpact;
     private final String userImpact;
     private final String actionPlan;
-    private final List<String> terms;
+    private final List<MatchedTermResponse> terms;
 
-    private ReportDetailResponse(News news, NewsReport newsReport) {
+    private ReportDetailResponse(News news, NewsReport newsReport, List<MatchedTermResponse> terms) {
         this.newsId = news.getNewsId();
         this.title = news.getTitle();
         this.content = news.getContent();
@@ -56,11 +56,12 @@ public class ReportDetailResponse {
             this.userImpact = null;
             this.actionPlan = null;
         }
-        this.terms = Collections.emptyList();
+        // terms가 null로 들어오면(매칭 결과가 없는 경우 포함) 빈 배열로 내려간다.
+        this.terms = terms != null ? terms : Collections.emptyList();
     }
 
-    public static ReportDetailResponse from(News news, NewsReport newsReport) {
-        return new ReportDetailResponse(news, newsReport);
+    public static ReportDetailResponse from(News news, NewsReport newsReport, List<MatchedTermResponse> terms) {
+        return new ReportDetailResponse(news, newsReport, terms);
     }
 
     public Long getNewsId() {
@@ -115,7 +116,7 @@ public class ReportDetailResponse {
         return actionPlan;
     }
 
-    public List<String> getTerms() {
+    public List<MatchedTermResponse> getTerms() {
         return terms;
     }
 }
