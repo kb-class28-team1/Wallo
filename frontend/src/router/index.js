@@ -14,6 +14,7 @@ import MyChallengeView from "@/views/challenge/MyChallengeView.vue"
 import DashboardView from "@/views/dashboard/DashboardView.vue"
 import PointShopView from "@/views/product/PointShopView.vue"
 import ReportListView from "@/views/report/ReportListView.vue"
+import ReportDetailView from "@/views/report/ReportDetailView.vue"
 import SettingsView from "@/views/user/SettingsView.vue"
 import { useUserStore } from "@/stores/userStore"
 import ChatView from "@/views/ChatView.vue"
@@ -117,6 +118,12 @@ const router = createRouter({
           path: "/reports",
           name: "reports",
           component: ReportListView,
+        },
+        // 금융 리포트 상세 페이지로 이동하는 주소임
+        {
+          path: "/reports/:newsId",
+          name: "report-detail",
+          component: ReportDetailView,
         },
         // 사용자 설정 페이지로 이동하는 주소임
         {
