@@ -131,6 +131,30 @@ class NewsServiceImplTest {
         assertEquals(List.of(3L, 1L, 2L), result.stream().map(ReportListResponse::getId).collect(java.util.stream.Collectors.toList()));
     }
 
+    // findAllWithReportSummary는 news_report가 있는 뉴스만 반환해야 한다(목록에 나온 기사는 클릭 즉시
+    // AI 리포트가 보여야 함). 이 프로젝트에는 테스트 DB가 없어 SQL을 직접 실행하는 대신, 쿼리 텍스트가
+    // INNER JOIN(리포트 없는 뉴스 제외)인지 검증해 LEFT JOIN으로 되돌아가는 회귀를 막는다.
+    @Test
+    void findAllWithReportSummaryQueryOnlyIncludesNewsWithReport() throws java.io.IOException {
+        String mapperXml = readNewsMapperXml();
+
+        int selectStart = mapperXml.indexOf("id=\"findAllWithReportSummary\"");
+        assertTrue(selectStart >= 0, "findAllWithReportSummary 쿼리를 찾지 못했습니다.");
+
+        int selectEnd = mapperXml.indexOf("</select>", selectStart);
+        String querySql = mapperXml.substring(selectStart, selectEnd);
+
+        assertTrue(querySql.contains("JOIN news_report"), "news_report와의 JOIN이 없습니다.");
+        assertTrue(!querySql.contains("LEFT JOIN"), "LEFT JOIN을 사용하면 리포트가 없는 뉴스까지 노출됩니다.");
+    }
+
+    private String readNewsMapperXml() throws java.io.IOException {
+        try (java.io.InputStream inputStream = getClass().getResourceAsStream("/mapper/NewsMapper.xml")) {
+            org.junit.jupiter.api.Assertions.assertNotNull(inputStream, "mapper/NewsMapper.xml을 클래스패스에서 찾지 못했습니다.");
+            return new String(inputStream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        }
+    }
+
     @Test
     void getReportDetailFillsAiFieldsWhenNewsReportExists() {
         FakeNewsMapper newsMapper = new FakeNewsMapper();
@@ -281,6 +305,11 @@ class NewsServiceImplTest {
         @Override
         public List<NewsReportListItem> findAllWithReportSummary() {
             return listItems;
+        }
+
+        @Override
+        public List<Long> findNewsIdsWithoutReport(int limit) {
+            throw new UnsupportedOperationException();
         }
 
         private List<NewsReportListItem> listItems = new ArrayList<>();

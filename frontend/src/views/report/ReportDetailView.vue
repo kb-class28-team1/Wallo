@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from "vue"
 import { RouterLink, useRoute } from "vue-router"
-import { generateReport, getReportDetail } from "@/api/reportApi"
+import { getReportDetail } from "@/api/reportApi"
 import ReportSection from "@/components/report/ReportSection.vue"
 import TermDefinitionModal from "@/components/report/TermDefinitionModal.vue"
 
@@ -11,9 +11,6 @@ const newsId = computed(() => route.params.newsId)
 const report = ref(null)
 const isLoading = ref(true)
 const errorMessage = ref("")
-
-const isGenerating = ref(false)
-const generateErrorMessage = ref("")
 
 const selectedTerm = ref(null)
 
@@ -45,22 +42,6 @@ const loadDetail = async () => {
     errorMessage.value = error.message
   } finally {
     isLoading.value = false
-  }
-}
-
-const handleGenerate = async () => {
-  // 버튼 disabled와 별개로 중복 클릭을 한 번 더 막음
-  if (isGenerating.value) return
-
-  isGenerating.value = true
-  generateErrorMessage.value = ""
-
-  try {
-    report.value = await generateReport(newsId.value)
-  } catch (error) {
-    generateErrorMessage.value = error.message
-  } finally {
-    isGenerating.value = false
   }
 }
 
@@ -142,24 +123,9 @@ watch(newsId, () => {
           </section>
         </template>
 
-        <div v-else class="text-center py-5 generate-panel">
-          <i class="bi bi-robot fs-1 text-secondary d-block mb-3" aria-hidden="true"></i>
-          <p class="text-secondary mb-3">아직 이 뉴스에 대한 AI 리포트가 생성되지 않았습니다.</p>
-          <button
-            type="button"
-            class="btn btn-primary"
-            :disabled="isGenerating"
-            @click="handleGenerate"
-          >
-            <span
-              v-if="isGenerating"
-              class="spinner-border spinner-border-sm me-2"
-              role="status"
-              aria-hidden="true"
-            ></span>
-            {{ isGenerating ? "AI 리포트 생성 중..." : "AI 리포트 생성하기" }}
-          </button>
-          <p v-if="generateErrorMessage" class="text-danger mt-3 mb-0">{{ generateErrorMessage }}</p>
+        <div v-else class="text-center py-5 not-ready-panel">
+          <i class="bi bi-hourglass-split fs-1 text-secondary d-block mb-3" aria-hidden="true"></i>
+          <p class="text-secondary mb-0">아직 리포트가 준비되지 않았습니다.</p>
         </div>
       </div>
     </div>

@@ -25,8 +25,18 @@ public interface NewsMapper {
     List<News> findLatest(@Param("limit") int limit);
 
     /**
-     * news와 news_report를 LEFT JOIN해 게시일시 최신순으로 전체 목록을 조회한다(개수 제한 없음,
-     * 목록 조회 API 전용). N+1 없이 단일 쿼리로 처리하며, 리포트가 없는 뉴스는 summary가 null이다.
+     * news와 news_report를 INNER JOIN해, news_report가 이미 생성된 뉴스만 게시일시 최신순으로
+     * 전체 조회한다(개수 제한 없음, 목록 조회 API 전용). 목록에 나온 기사는 클릭 즉시 AI 리포트가
+     * 보여야 하므로 리포트가 없는 뉴스는 여기서부터 제외되고, summary는 항상 채워지며 analyzed는
+     * 항상 true다. N+1 없이 단일 쿼리로 처리한다.
      */
     List<NewsReportListItem> findAllWithReportSummary();
+
+    /**
+     * news_report가 아직 없는 뉴스의 news_id를 게시일시 최신순으로 최대 limit개 조회한다.
+     * 본문이 NULL이거나 공백뿐인 뉴스는 애초에 대상에서 제외한다(항상 REPORT_CONTENT_EMPTY로
+     * 스킵될 뿐이라 매 스케줄마다 반복 선택되지 않게 하기 위함).
+     * 금융 리포트 자동 생성 스케줄러(FinancialReportGenerationScheduler)가 처리 대상을 고를 때 사용한다.
+     */
+    List<Long> findNewsIdsWithoutReport(@Param("limit") int limit);
 }

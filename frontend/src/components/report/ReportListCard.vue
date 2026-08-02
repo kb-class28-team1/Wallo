@@ -26,23 +26,10 @@ const formattedDate = computed(() => {
       <div class="card-body p-4">
         <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
           <span class="badge rounded-pill text-bg-light">{{ report.category }}</span>
-          <span
-            class="badge rounded-pill d-inline-flex align-items-center gap-1"
-            :class="report.analyzed ? 'text-bg-primary' : 'text-bg-secondary'"
-          >
-            <i
-              class="bi"
-              :class="report.analyzed ? 'bi-check-circle' : 'bi-hourglass-split'"
-              aria-hidden="true"
-            ></i>
-            {{ report.analyzed ? "AI 분석 완료" : "분석 대기중" }}
-          </span>
         </div>
 
         <h2 class="h5 fw-bold mb-2 report-title">{{ report.title }}</h2>
-        <p class="text-secondary mb-3 report-summary">
-          {{ report.summary || "아직 AI 요약이 생성되지 않았습니다." }}
-        </p>
+        <p class="text-secondary mb-3 report-summary">{{ report.summary }}</p>
 
         <div class="d-flex align-items-center gap-2 text-secondary small">
           <span>{{ report.source }}</span>

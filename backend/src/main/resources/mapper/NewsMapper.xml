@@ -89,9 +89,11 @@
     </resultMap>
 
     <!--
-        news_report가 없는 뉴스도 빠짐없이 나오도록 LEFT JOIN한다. 리포트가 있으면 summary가 채워지고
-        analyzed가 true, 없으면 summary는 null이고 analyzed는 false다. 단일 쿼리라 N+1이 발생하지 않는다.
-        published_at은 현재 NOT NULL이지만, 향후 컬럼 제약이 바뀌더라도 null이 뒤로 가도록 안전하게 정렬한다.
+        news_report가 이미 생성된 뉴스만 노출한다(INNER JOIN). 목록에서 기사를 클릭하면 곧바로
+        AI 리포트가 보여야 하므로, 아직 리포트가 없는 뉴스는 여기서부터 제외한다 — 그런 뉴스는
+        크롤링 직후 FinancialReportGenerationScheduler가 백그라운드에서 채운 뒤에야 노출된다.
+        단일 쿼리라 N+1이 발생하지 않는다. published_at은 현재 NOT NULL이지만, 향후 컬럼 제약이
+        바뀌더라도 null이 뒤로 가도록 안전하게 정렬한다.
     -->
     <select id="findAllWithReportSummary" resultMap="newsReportListItemResultMap">
         SELECT
@@ -102,9 +104,28 @@
             n.url,
             n.published_at,
             nr.summary,
-            CASE WHEN nr.news_id IS NOT NULL THEN true ELSE false END AS analyzed
+            true AS analyzed
+        FROM news n
+        JOIN news_report nr ON n.news_id = nr.news_id
+        ORDER BY n.published_at IS NULL, n.published_at DESC, n.news_id DESC
+    </select>
+
+    <!--
+        news_report가 없는 뉴스만 골라 게시일시 최신순으로 limit개 반환한다. 금융 리포트 자동 생성 스케줄러 전용.
+        본문이 없거나(NULL) 공백뿐인 뉴스는 애초에 대상에서 제외한다 — 그런 뉴스는 항상
+        REPORT_CONTENT_EMPTY로 스킵될 뿐이라, 걸러내지 않으면 매 스케줄마다 계속 뽑혀서
+        정상 대상의 자리를 차지하게 된다. 뉴스 조회 이후 삭제되거나 본문이 지워지는 경쟁 상황은
+        이 필터로 막을 수 없으므로, FinancialReportGenerationScheduler의 REPORT_CONTENT_EMPTY
+        스킵 처리는 최종 방어선으로 그대로 유지한다.
+    -->
+    <select id="findNewsIdsWithoutReport" resultType="long">
+        SELECT n.news_id
         FROM news n
         LEFT JOIN news_report nr ON n.news_id = nr.news_id
+        WHERE nr.news_id IS NULL
+          AND n.content IS NOT NULL
+          AND TRIM(n.content) &lt;&gt; ''
         ORDER BY n.published_at IS NULL, n.published_at DESC, n.news_id DESC
+        LIMIT #{limit}
     </select>
 </mapper>
