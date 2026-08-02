@@ -227,6 +227,27 @@ class FinancialReportGenerationSchedulerTest {
         assertEquals(0, generationService.callCount());
     }
 
+    // 14. 크롤링 직후 호출(generateForCrawledNews)과 30분 백업 스케줄(generateMissingReports)이 겹쳐도
+    //     isRunning 가드 때문에 재진입 호출은 대상 조회조차 없이 즉시 건너뛴다. 실제 스레드 동시 실행 대신,
+    //     처리 도중(generateIfAbsent 안에서) 같은 스케줄러를 재호출하는 방식으로 결정적으로(non-flaky) 검증한다.
+    @Test
+    void skipsOverlappingCallWhileAlreadyRunning() {
+        FakeNewsMapper newsMapper = new FakeNewsMapper();
+        newsMapper.targetIds = List.of(1L);
+        FinancialReportGenerationScheduler[] schedulerHolder = new FinancialReportGenerationScheduler[1];
+        ReentrantFakeNewsReportGenerationService generationService =
+                new ReentrantFakeNewsReportGenerationService(() -> schedulerHolder[0].generateMissingReports());
+        FinancialReportGenerationScheduler scheduler =
+                new FinancialReportGenerationScheduler(newsMapper, generationService, true, 10);
+        schedulerHolder[0] = scheduler;
+
+        scheduler.generateMissingReports();
+
+        // 재진입 호출이 대상을 실제로 처리했다면 백로그 조회와 generateIfAbsent 호출이 2번씩 찍혔을 것이다.
+        assertEquals(1, newsMapper.findNewsIdsWithoutReportCallCount);
+        assertEquals(List.of(1L), generationService.requestedNewsIds);
+    }
+
     private String readNewsMapperXml() throws IOException {
         try (InputStream inputStream =
                      getClass().getResourceAsStream("/mapper/NewsMapper.xml")) {
@@ -290,6 +311,32 @@ class FinancialReportGenerationSchedulerTest {
                 throw failure;
             }
 
+            return NewsReport.builder().newsId(newsId).summary("요약").build();
+        }
+
+        private int callCount() {
+            return requestedNewsIds.size();
+        }
+    }
+
+    /**
+     * isRunning 재진입 방지 가드를 검증하기 위한 테스트 전용 Fake다. generateIfAbsent 처리 도중
+     * (즉 바깥쪽 실행이 아직 isRunning=true인 상태에서) 주어진 콜백으로 스케줄러를 다시 호출해,
+     * 크롤링 직후 트리거와 백업 스케줄이 겹치는 상황을 스레드 없이 재현한다.
+     */
+    private static class ReentrantFakeNewsReportGenerationService implements NewsReportGenerationService {
+
+        private final Runnable overlappingCall;
+        private final List<Long> requestedNewsIds = new ArrayList<>();
+
+        private ReentrantFakeNewsReportGenerationService(Runnable overlappingCall) {
+            this.overlappingCall = overlappingCall;
+        }
+
+        @Override
+        public NewsReport generateIfAbsent(Long newsId) {
+            requestedNewsIds.add(newsId);
+            overlappingCall.run();
             return NewsReport.builder().newsId(newsId).summary("요약").build();
         }
 

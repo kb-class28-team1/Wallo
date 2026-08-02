@@ -115,23 +115,35 @@ class NewsReportGenerationServiceImplTest {
         assertEquals(0, newsReportMapper.insertCallCount);
     }
 
+    // AI 응답의 5개 핵심 필드(summary/cause/socialImpact/userImpact/responseStrategy) 중 하나라도
+    // 비어 있으면 "반쪽짜리" 리포트를 저장하지 않고 실패시킨다. summary만 검증하면 나머지 필드가
+    // 비어도 news_report에 저장돼 목록/상세에 불완전한 리포트가 그대로 노출되는 문제가 있어 보강했다.
     @Test
-    void throwsAiReportInvalidResponseAndDoesNotInsertWhenSummaryIsBlank() {
-        FakeNewsService newsService = new FakeNewsService(news(1L, "본문 내용"));
-        FakeNewsReportMapper newsReportMapper = new FakeNewsReportMapper();
-        NewsReportAiResponse aiResponse =
-                new NewsReportAiResponse("   ", "원인", "사회영향", "사용자영향", "대응방안");
-        FakeNewsReportAiClient aiClient = new FakeNewsReportAiClient(aiResponse);
-        NewsReportGenerationService service =
-                new NewsReportGenerationServiceImpl(
-                        newsService, newsReportMapper, aiClient, new FakeFinancialTermMatchingService());
+    void throwsAiReportInvalidResponseAndDoesNotInsertWhenAnyCoreFieldIsBlank() {
+        List<NewsReportAiResponse> incompleteResponses = List.of(
+                new NewsReportAiResponse(null, "원인", "사회영향", "사용자영향", "대응방안"),
+                new NewsReportAiResponse("   ", "원인", "사회영향", "사용자영향", "대응방안"),
+                new NewsReportAiResponse("요약", null, "사회영향", "사용자영향", "대응방안"),
+                new NewsReportAiResponse("요약", "원인", null, "사용자영향", "대응방안"),
+                new NewsReportAiResponse("요약", "원인", "사회영향", "   ", "대응방안"),
+                new NewsReportAiResponse("요약", "원인", "사회영향", "사용자영향", null)
+        );
 
-        CustomException exception = assertThrows(
-                CustomException.class,
-                () -> service.generateIfAbsent(1L));
+        for (NewsReportAiResponse incomplete : incompleteResponses) {
+            FakeNewsService newsService = new FakeNewsService(news(1L, "본문 내용"));
+            FakeNewsReportMapper newsReportMapper = new FakeNewsReportMapper();
+            FakeNewsReportAiClient aiClient = new FakeNewsReportAiClient(incomplete);
+            NewsReportGenerationService service =
+                    new NewsReportGenerationServiceImpl(
+                            newsService, newsReportMapper, aiClient, new FakeFinancialTermMatchingService());
 
-        assertEquals(ErrorCode.AI_REPORT_INVALID_RESPONSE, exception.getErrorCode());
-        assertEquals(0, newsReportMapper.insertCallCount);
+            CustomException exception = assertThrows(
+                    CustomException.class,
+                    () -> service.generateIfAbsent(1L));
+
+            assertEquals(ErrorCode.AI_REPORT_INVALID_RESPONSE, exception.getErrorCode());
+            assertEquals(0, newsReportMapper.insertCallCount);
+        }
     }
 
     /**

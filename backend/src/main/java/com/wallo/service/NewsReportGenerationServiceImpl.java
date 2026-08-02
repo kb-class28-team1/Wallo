@@ -57,11 +57,7 @@ public class NewsReportGenerationServiceImpl implements NewsReportGenerationServ
         }
 
         NewsReportAiResponse aiResponse = newsReportAiClient.generateReport(toAiRequest(news));
-
-        if (aiResponse.summary() == null || aiResponse.summary().isBlank()) {
-            log.warn("AI 응답의 summary가 비어 있어 저장하지 않습니다 - newsId: {}", newsId);
-            throw new CustomException(ErrorCode.AI_REPORT_INVALID_RESPONSE);
-        }
+        validateComplete(newsId, aiResponse);
 
         NewsReport newsReport = NewsReport.builder()
                 .newsId(newsId)
@@ -88,6 +84,26 @@ public class NewsReportGenerationServiceImpl implements NewsReportGenerationServ
         } catch (RuntimeException exception) {
             log.error("금융용어 매칭에 실패했습니다 - newsId: {}", news.getNewsId(), exception);
         }
+    }
+
+    /**
+     * AI 응답 5개 핵심 필드가 모두 채워졌는지 확인한다. 하나라도 비어 있으면 저장하지 않고
+     * AI_REPORT_INVALID_RESPONSE로 실패시켜 다음 스케줄에서 재시도되게 한다 — summary만 있고
+     * 나머지가 비어 있는 "반쪽짜리" 리포트가 news_report에 저장되는 것을 막기 위함이다.
+     */
+    private void validateComplete(Long newsId, NewsReportAiResponse aiResponse) {
+        if (isBlank(aiResponse.summary())
+                || isBlank(aiResponse.cause())
+                || isBlank(aiResponse.socialImpact())
+                || isBlank(aiResponse.userImpact())
+                || isBlank(aiResponse.responseStrategy())) {
+            log.warn("AI 응답에 빈 필드가 있어 저장하지 않습니다 - newsId: {}", newsId);
+            throw new CustomException(ErrorCode.AI_REPORT_INVALID_RESPONSE);
+        }
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     private NewsReportAiRequest toAiRequest(News news) {

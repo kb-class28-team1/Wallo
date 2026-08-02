@@ -6,8 +6,8 @@ import java.time.LocalDateTime;
 
 /**
  * GET /api/reports 목록의 항목 하나.
- * news와 news_report를 LEFT JOIN한 결과(NewsReportListItem)를 기반으로 한다.
- * 리포트가 생성된 뉴스는 summary가 채워지고 analyzed가 true, 아직 없으면 summary는 null이고 analyzed는 false다.
+ * news와 news_report를 INNER JOIN한 결과(NewsReportListItem)를 기반으로 하며, 목록에는
+ * news_report가 이미 생성된 뉴스만 나온다. 따라서 summary는 항상 채워지고 analyzed는 항상 true다.
  */
 public class ReportListResponse {
 
