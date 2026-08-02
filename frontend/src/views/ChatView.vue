@@ -5,9 +5,8 @@ import { storeToRefs } from "pinia"
 import ChatInput from "@/components/chat/ChatInput.vue"
 import ChatMessage from "@/components/chat/ChatMessage.vue"
 import { useConversationStore } from "@/stores/conversationStore"
+import { useUserStore } from "@/stores/userStore"
 
-// 로그인 기능 연동 전 더미 사용자 people1의 ID를 사용한다.
-const TEST_USER_ID = 1
 const WELCOME_MESSAGE = {
   id: "welcome",
   role: "assistant",
@@ -15,17 +14,21 @@ const WELCOME_MESSAGE = {
 }
 
 const conversationStore = useConversationStore()
+const userStore = useUserStore()
 const {
   conversations,
   activeConversation,
   activeConversationId,
   messages,
   isLoading: isConversationLoading,
-  isMessageLoading: isChatLoading,
+  isMessageLoading,
+  isSending: isChatLoading,
 } = storeToRefs(conversationStore)
+const { user } = storeToRefs(userStore)
 
 const errorMessage = ref("")
 const messageList = ref(null)
+const userId = computed(() => user.value?.id ?? null)
 const displayMessages = computed(() =>
   messages.value.length ? messages.value : [{ ...WELCOME_MESSAGE }],
 )
@@ -40,39 +43,62 @@ const formatUpdatedAt = (updatedAt) => {
 }
 
 const selectConversation = async (conversationId) => {
+  if (!userId.value) return
+
   errorMessage.value = ""
-  await conversationStore.selectConversation(conversationId, TEST_USER_ID)
+  await conversationStore.selectConversation(conversationId, userId.value)
   await scrollToBottom()
 }
 
 const startNewConversation = async () => {
+  if (!userId.value) {
+    errorMessage.value = "로그인 사용자 정보를 확인할 수 없습니다."
+    return
+  }
+
   const conversation =
-    await conversationStore.startNewConversation(TEST_USER_ID)
+    await conversationStore.startNewConversation(userId.value)
 
   if (conversation) errorMessage.value = ""
 }
 
-async function scrollToBottom() {
+async function scrollToBottom(behavior = "smooth") {
   await nextTick()
   messageList.value?.scrollTo({
     top: messageList.value.scrollHeight,
-    behavior: "smooth",
+    behavior,
   })
 }
 
+const followTypingMessage = () => scrollToBottom("auto")
+const completeTypingMessage = (messageId) => {
+  conversationStore.completeMessageAnimation(messageId)
+}
+
 async function sendMessage(message) {
-  if (isChatLoading.value) return
+  if (isChatLoading.value || !userId.value) return
 
   errorMessage.value = ""
-  await conversationStore.sendMessage(TEST_USER_ID, message)
+  const sendPromise = conversationStore.sendMessage(userId.value, message)
+  await scrollToBottom()
+  await sendPromise
   await scrollToBottom()
 }
 
 onMounted(async () => {
+  if (!userId.value) {
+    await userStore.restoreSession()
+  }
+
+  if (!userId.value) {
+    errorMessage.value = "로그인 사용자 정보를 확인할 수 없습니다."
+    return
+  }
+
   const conversationId =
-    await conversationStore.fetchConversations(TEST_USER_ID)
+    await conversationStore.fetchConversations(userId.value)
   if (conversationId) {
-    await conversationStore.fetchMessages(TEST_USER_ID, conversationId)
+    await conversationStore.fetchMessages(userId.value, conversationId)
     await scrollToBottom()
   }
 })
@@ -81,13 +107,51 @@ onMounted(async () => {
 <template>
   <main class="chat-page">
     <div class="row g-3">
+      <section class="col-12 col-lg-8 col-xl-9" aria-labelledby="chat-title">
+        <div class="chat-panel card border-0 shadow-sm">
+          <header class="card-header border-bottom bg-white px-4 py-3">
+            <h1 id="chat-title" class="mb-1 fs-5 fw-bold">
+              {{ activeConversation?.title || "새 채팅" }}
+            </h1>
+            <p class="mb-0 small text-secondary">Wallo AI 금융 컨설턴트</p>
+          </header>
+
+          <div ref="messageList" class="message-list card-body" aria-live="polite">
+            <ChatMessage
+              v-for="message in displayMessages"
+              :key="message.id"
+              :message="message"
+              @typing="followTypingMessage"
+              @typing-complete="completeTypingMessage"
+            />
+
+            <div
+              v-if="isChatLoading"
+              class="loading-message"
+              aria-label="AI 답변 생성 중"
+            >
+              AI 답변을 기다리는 중...
+            </div>
+          </div>
+
+          <div v-if="errorMessage" class="alert alert-danger mx-3 mb-2" role="alert">
+            {{ errorMessage }}
+          </div>
+
+          <ChatInput
+            :disabled="isChatLoading || isMessageLoading || !userId"
+            @send="sendMessage"
+          />
+        </div>
+      </section>
+
       <aside class="col-12 col-lg-4 col-xl-3">
         <section class="conversation-panel card border-0 shadow-sm">
           <div class="card-body d-flex flex-column p-3">
             <button
               type="button"
               class="btn btn-primary w-100 fw-semibold"
-              :disabled="isConversationLoading"
+              :disabled="isConversationLoading || !userId"
               @click="startNewConversation"
             >
               <i class="bi bi-plus-lg me-2" aria-hidden="true"></i>
@@ -141,110 +205,8 @@ onMounted(async () => {
         </section>
       </aside>
 
-      <section class="col-12 col-lg-8 col-xl-9" aria-labelledby="chat-title">
-        <div class="chat-panel card border-0 shadow-sm">
-          <header class="card-header border-bottom bg-white px-4 py-3">
-            <h1 id="chat-title" class="mb-1 fs-5 fw-bold">
-              {{ activeConversation?.title || "새 채팅" }}
-            </h1>
-            <p class="mb-0 small text-secondary">Wallo AI 금융 컨설턴트</p>
-          </header>
-
-          <div ref="messageList" class="message-list card-body" aria-live="polite">
-            <ChatMessage
-              v-for="message in displayMessages"
-              :key="message.id"
-              :message="message"
-            />
-
-            <div
-              v-if="isChatLoading"
-              class="loading-message"
-              aria-label="AI 답변 생성 중"
-            >
-              AI 답변을 기다리는 중...
-            </div>
-          </div>
-
-          <div v-if="errorMessage" class="alert alert-danger mx-3 mb-2" role="alert">
-            {{ errorMessage }}
-          </div>
-
-          <ChatInput :disabled="isChatLoading" @send="sendMessage" />
-        </div>
-      </section>
     </div>
   </main>
 </template>
 
-<style scoped>
-.chat-page {
-  width: 100%;
-}
-
-.conversation-panel,
-.chat-panel {
-  height: calc(100vh - 132px);
-  min-height: 560px;
-  border-radius: 20px;
-  overflow: hidden;
-}
-
-.conversation-list {
-  min-height: 0;
-  overflow-y: auto;
-}
-
-.conversation-item {
-  margin-bottom: 4px;
-  padding: 12px;
-  color: #59647f;
-}
-
-.conversation-item.active {
-  color: #4f43b8;
-  background: #f0eefe;
-}
-
-.conversation-date {
-  color: #9299ab;
-}
-
-.conversation-item.active .conversation-date {
-  color: #7062de;
-}
-
-.message-list {
-  min-height: 0;
-  overflow-y: auto;
-  padding: 24px;
-}
-
-.loading-message {
-  width: fit-content;
-  padding: 12px;
-  color: #666;
-  background: #f1f1f1;
-  border-radius: 8px;
-}
-
-.btn-primary {
-  --bs-btn-bg: #7062de;
-  --bs-btn-border-color: #7062de;
-  --bs-btn-hover-bg: #5f50d2;
-  --bs-btn-hover-border-color: #5f50d2;
-}
-
-@media (max-width: 991.98px) {
-  .conversation-panel {
-    height: auto;
-    min-height: 0;
-    max-height: 320px;
-  }
-
-  .chat-panel {
-    height: 640px;
-    min-height: 0;
-  }
-}
-</style>
+<style scoped src="@/assets/styles/chat.css"></style>

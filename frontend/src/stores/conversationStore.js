@@ -8,11 +8,12 @@ import {
   sendConversationMessage,
 } from "@/api/conversationApi"
 
-const toViewMessage = (message) => ({
+const toViewMessage = (message, animate = false) => ({
   id: message.messageId,
   role: message.role.toLowerCase(),
   content: message.content,
   createdAt: message.createdAt,
+  animate,
 })
 
 export const useConversationStore = defineStore("conversation", () => {
@@ -21,6 +22,7 @@ export const useConversationStore = defineStore("conversation", () => {
   const messages = ref([])
   const isLoading = ref(false)
   const isMessageLoading = ref(false)
+  const isSending = ref(false)
 
   const activeConversation = computed(() =>
     conversations.value.find(
@@ -65,7 +67,7 @@ export const useConversationStore = defineStore("conversation", () => {
     isMessageLoading.value = true
     try {
       const response = await getConversationMessages(conversationId, userId)
-      messages.value = response.map(toViewMessage)
+      messages.value = response.map((message) => toViewMessage(message))
     } catch (error) {
       messages.value = []
       alert(error.message || "대화 내용을 불러오지 못했습니다.")
@@ -96,32 +98,61 @@ export const useConversationStore = defineStore("conversation", () => {
     await fetchMessages(userId, conversationId)
   }
 
+  const completeMessageAnimation = (messageId) => {
+    const message = messages.value.find((item) => item.id === messageId)
+    if (message) {
+      message.animate = false
+    }
+  }
+
   const sendMessage = async (userId, content) => {
     if (!activeConversationId.value) {
       alert("새 채팅을 먼저 시작해 주세요.")
       return false
     }
 
-    isMessageLoading.value = true
+    const conversationId = activeConversationId.value
+    const pendingMessageId = `pending-${Date.now()}`
+    messages.value.push({
+      id: pendingMessageId,
+      role: "user",
+      content,
+      createdAt: new Date().toISOString(),
+    })
+    isSending.value = true
+
     try {
       const response = await sendConversationMessage(
-        activeConversationId.value,
+        conversationId,
         userId,
         content,
       )
-      messages.value.push(
-        toViewMessage(response.userMessage),
-        toViewMessage(response.assistantMessage),
-      )
+
+      if (activeConversationId.value === conversationId) {
+        const pendingMessageIndex = messages.value.findIndex(
+          (message) => message.id === pendingMessageId,
+        )
+        const savedUserMessage = toViewMessage(response.userMessage)
+
+        if (pendingMessageIndex >= 0) {
+          messages.value.splice(pendingMessageIndex, 1, savedUserMessage)
+        } else {
+          messages.value.push(savedUserMessage)
+        }
+        messages.value.push(toViewMessage(response.assistantMessage, true))
+      }
+
       await fetchConversations(userId)
       return true
     } catch (error) {
       // 사용자 메시지는 AI 호출 전에 저장되므로 실패 시 DB 상태를 다시 읽는다.
-      await fetchMessages(userId, activeConversationId.value)
+      if (activeConversationId.value === conversationId) {
+        await fetchMessages(userId, conversationId)
+      }
       alert(error.message || "메시지를 전송하지 못했습니다.")
       return false
     } finally {
-      isMessageLoading.value = false
+      isSending.value = false
     }
   }
 
@@ -132,10 +163,12 @@ export const useConversationStore = defineStore("conversation", () => {
     messages,
     isLoading,
     isMessageLoading,
+    isSending,
     fetchConversations,
     fetchMessages,
     startNewConversation,
     selectConversation,
+    completeMessageAnimation,
     sendMessage,
   }
 })
