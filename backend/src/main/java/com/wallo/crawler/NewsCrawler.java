@@ -33,14 +33,25 @@ public class NewsCrawler {
 
     private static final Logger log = LoggerFactory.getLogger(NewsCrawler.class);
 
-    private static final String ECONOMY_LIST_URL = "https://www.mk.co.kr/news/economy";
     private static final int PAGE_LOAD_TIMEOUT_SECONDS = 30;
-    private static final int MAX_ARTICLES = 10;
+    private static final int MAX_ARTICLES_PER_SECTION = 10;
     private static final String SOURCE = "매일경제";
-    // news.category는 NOT NULL인데 이번 단계 추출 대상에는 없어, 크롤링 대상 섹션에 맞춰 고정값을 채운다.
-    private static final String DEFAULT_CATEGORY = "경제";
 
-    // 경제 홈의 실제 기사 목록 영역만 지정 (우측 "많이 본 뉴스" 랭킹 위젯/GNB 메뉴는 이 컨테이너 밖에 있어 자동 제외됨)
+    /**
+     * 크롤링할 목록 페이지와, 그 목록에서 발견한 기사에 매길 category(news.category는 NOT NULL)를
+     * 함께 관리한다. 기사 상세 URL은 실제로는 어느 목록 페이지에서 왔든 항상
+     * https://www.mk.co.kr/news/economy/{id} 형태로 발급되므로(매일경제 사이트의 canonical 경로),
+     * category는 URL이 아니라 "어느 목록 페이지에서 발견했는지"로 결정한다.
+     */
+    private record NewsSection(String listUrl, String category) {
+    }
+
+    private static final List<NewsSection> SECTIONS = List.of(
+            new NewsSection("https://www.mk.co.kr/news/economy", "경제"),
+            new NewsSection("https://www.mk.co.kr/news/financial", "금융")
+    );
+
+    // 목록 페이지의 실제 기사 목록 영역만 지정 (우측 "많이 본 뉴스" 랭킹 위젯/GNB 메뉴는 이 컨테이너 밖에 있어 자동 제외됨)
     private static final String ARTICLE_LIST_CONTAINER_SELECTOR = "div.list_contents";
     private static final String ARTICLE_LINK_SELECTOR = "a.link_style4, a.link_style_list, a.link_style2";
     private static final Pattern ARTICLE_URL_PATTERN =
@@ -87,8 +98,14 @@ public class NewsCrawler {
         this.newsService = newsService;
     }
 
-    /** 경제 뉴스 목록을 수집하고, 기사마다 상세 페이지를 방문해 저장까지 수행한다. */
-    public void crawlAndSave() {
+    /**
+     * 경제·금융 각 섹션의 뉴스 목록을 수집하고, 기사마다 상세 페이지를 방문해 저장까지 수행한다.
+     * 두 섹션에 동시에 걸린 기사(URL 중복)는 먼저 처리된 섹션의 category로 한 번만 저장된다.
+     *
+     * @return 이번 실행에서 새로 저장된 뉴스의 news_id 목록(이미 저장돼 있었거나 처리에 실패한 기사는
+     *         제외). 크롤링 직후 이 뉴스들의 금융 리포트를 batch-size 제한과 무관하게 우선 생성하는 데 쓰인다.
+     */
+    public List<Long> crawlAndSave() {
         WebDriverManager.chromedriver().setup();
 
         WebDriver driver = null;
@@ -96,12 +113,21 @@ public class NewsCrawler {
             driver = new ChromeDriver(new ChromeOptions());
             driver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(PAGE_LOAD_TIMEOUT_SECONDS));
 
-            List<String> articleUrls = collectArticleUrls(driver);
-            log.info("수집 대상 기사 {}건", articleUrls.size());
+            List<Long> savedNewsIds = new ArrayList<>();
+            Set<String> seenUrls = new LinkedHashSet<>();
 
-            for (String url : articleUrls) {
-                processArticle(driver, url);
+            for (NewsSection section : SECTIONS) {
+                List<String> articleUrls = collectArticleUrls(driver, section.listUrl(), seenUrls);
+                log.info("[{}] 수집 대상 기사 {}건", section.category(), articleUrls.size());
+
+                for (String url : articleUrls) {
+                    Long savedNewsId = processArticle(driver, url, section.category());
+                    if (savedNewsId != null) {
+                        savedNewsIds.add(savedNewsId);
+                    }
+                }
             }
+            return savedNewsIds;
         } finally {
             if (driver != null) {
                 driver.quit();
@@ -109,26 +135,31 @@ public class NewsCrawler {
         }
     }
 
-    private void processArticle(WebDriver driver, String url) {
+    /** @return 새로 저장된 뉴스의 news_id. 이미 존재하거나(중복 URL) 처리에 실패했으면 null. */
+    private Long processArticle(WebDriver driver, String url, String category) {
         try {
-            News news = fetchArticle(driver, url);
+            News news = fetchArticle(driver, url, category);
             if (news == null) {
-                return;
+                return null;
             }
 
             boolean saved = newsService.saveNews(news);
             if (saved) {
                 log.info("뉴스 저장 완료 - url: {}", url);
+                return news.getNewsId();
             } else {
                 log.info("이미 저장된 뉴스라 건너뜀 - url: {}", url);
+                return null;
             }
         } catch (Exception e) {
             log.error("기사 처리 실패 - url: {}, 원인: {} - {}", url, e.getClass().getName(), e.getMessage(), e);
+            return null;
         }
     }
 
-    private List<String> collectArticleUrls(WebDriver driver) {
-        driver.get(ECONOMY_LIST_URL);
+    /** @param seenUrls 섹션 간 중복 수집을 막기 위해 호출자가 공유해서 전달하는 집합(이 메서드가 채워 나간다). */
+    private List<String> collectArticleUrls(WebDriver driver, String listUrl, Set<String> seenUrls) {
+        driver.get(listUrl);
 
         WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(PAGE_LOAD_TIMEOUT_SECONDS));
         wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector(ARTICLE_LIST_CONTAINER_SELECTOR)));
@@ -139,9 +170,8 @@ public class NewsCrawler {
         List<WebElement> linkElements = container.findElements(By.cssSelector(ARTICLE_LINK_SELECTOR));
 
         List<String> urls = new ArrayList<>();
-        Set<String> seenUrls = new LinkedHashSet<>();
         for (WebElement link : linkElements) {
-            if (urls.size() >= MAX_ARTICLES) {
+            if (urls.size() >= MAX_ARTICLES_PER_SECTION) {
                 break;
             }
 
@@ -156,7 +186,7 @@ public class NewsCrawler {
         return urls;
     }
 
-    private News fetchArticle(WebDriver driver, String url) {
+    private News fetchArticle(WebDriver driver, String url, String category) {
         driver.get(url);
 
         WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(PAGE_LOAD_TIMEOUT_SECONDS));
@@ -186,7 +216,7 @@ public class NewsCrawler {
                 .content(content)
                 .source(SOURCE)
                 .url(url)
-                .category(DEFAULT_CATEGORY)
+                .category(category)
                 .publishedAt(publishedAt)
                 .build();
     }

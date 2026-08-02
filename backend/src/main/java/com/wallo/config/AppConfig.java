@@ -22,6 +22,10 @@ import org.springframework.web.client.RestTemplate;
         }
 )
 @PropertySource("classpath:application.properties")
+// 개발자 개인 로컬 값(DB 비밀번호 등)을 override하는 파일. gitignore 대상이라 커밋되지 않으며,
+// 파일이 없어도(다른 팀원/CI 환경) 부팅에 실패하지 않도록 ignoreResourceNotFound를 켠다.
+// 뒤에 선언된 PropertySource가 우선순위가 높아, 여기 있는 값이 application.properties보다 우선 적용된다.
+@PropertySource(value = "classpath:application-local.properties", ignoreResourceNotFound = true)
 @EnableScheduling
 public class AppConfig {
 
