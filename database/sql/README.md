@@ -23,6 +23,7 @@ database/sql/
 | `news_report.sql` | AI가 생성한 금융 리포트 저장 테이블 (`news`와 1:1, `news_id`에 FK + UNIQUE) |
 | `financial_term.sql` | 금융 용어 사전 테이블 |
 | `news_term.sql` | `news`와 `financial_term`의 다대다 연결 테이블 (복합 PK, 양쪽에 FK) |
+| `news_report_add_event_description.sql` | `news_report.sql`을 이미 실행해 테이블이 존재하는 환경에만 필요한 마이그레이션(`event_description` 컬럼 추가) |
 
 모든 SQL은 재실행해도 에러가 나지 않도록 `IF NOT EXISTS`를 사용하고, 파일 상단에 `USE wallo;`를 포함합니다.
 

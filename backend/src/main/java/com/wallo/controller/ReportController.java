@@ -27,8 +27,8 @@ public class ReportController {
     }
 
     /**
-     * 저장된 뉴스를 news_report(AI 요약)와 함께 게시일시 최신순으로 조회한다. 데이터가 없으면 빈 배열을 반환한다.
-     * 리포트가 생성된 뉴스는 summary가 채워지고 analyzed가 true, 아직 없으면 summary는 null이고 analyzed는 false다.
+     * news_report가 이미 생성된 뉴스만 게시일시 최신순으로 조회한다(INNER JOIN). 데이터가 없으면 빈 배열을 반환한다.
+     * 목록에 나오는 뉴스는 summary가 항상 채워지고 analyzed도 항상 true다.
      */
     @GetMapping
     public CommonResponse<List<ReportListResponse>> getReports() {

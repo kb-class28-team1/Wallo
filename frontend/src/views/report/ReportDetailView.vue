@@ -14,8 +14,8 @@ const errorMessage = ref("")
 
 const selectedTerm = ref(null)
 
-// news_report가 아직 없으면 summary를 포함한 AI 필드가 전부 null로 내려옴(백엔드 ReportDetailResponse 규칙)
-const hasReport = computed(() => Boolean(report.value?.summary))
+// news_report가 아직 없으면 summaryPoints가 빈 배열로 내려옴(백엔드 ReportDetailResponse 규칙)
+const hasReport = computed(() => Boolean(report.value?.summaryPoints?.length))
 
 const formattedDate = computed(() => {
   if (!report.value?.publishedAt) return ""
@@ -93,17 +93,27 @@ watch(newsId, () => {
         <p class="text-secondary mb-4">{{ report.source }} · {{ formattedDate }}</p>
 
         <template v-if="hasReport">
-          <ReportSection icon="bi-clipboard-data" title="핵심 요약" :content="report.summary" />
-          <ReportSection icon="bi-question-circle" title="왜 이런 일이 발생했나요?" :content="report.cause" />
+          <section class="summary-highlight bg-primary-subtle rounded-4 p-4 mb-4">
+            <h2 class="h6 fw-bold d-flex align-items-center gap-2 mb-3">
+              <i class="bi bi-clipboard-data" aria-hidden="true"></i>
+              핵심 요약
+            </h2>
+            <ul class="summary-points mb-0">
+              <li v-for="(point, index) in report.summaryPoints" :key="index">{{ point }}</li>
+            </ul>
+          </section>
+
+          <ReportSection icon="bi-newspaper" title="어떤 일이 있었나요?" :content="report.eventDescription" />
+          <ReportSection icon="bi-question-circle" title="왜 이런 결정이 내려졌나요?" :content="report.cause" />
           <ReportSection
             icon="bi-people"
-            title="사회에는 어떤 영향이 있나요?"
+            title="사회에는 어떤 영향이 있을까요?"
             :content="report.socialImpact"
           />
-          <ReportSection icon="bi-person" title="나에게 어떤 영향이 있나요?" :content="report.userImpact" />
+          <ReportSection icon="bi-person" title="나에게 어떤 영향이 있을까요?" :content="report.userImpact" />
           <ReportSection
             icon="bi-lightbulb"
-            title="지금 할 수 있는 대응 방법"
+            title="지금 내가 할 수 있는 대응 방법"
             :content="report.actionPlan"
           />
 
@@ -138,5 +148,17 @@ watch(newsId, () => {
 .report-detail-card {
   border-radius: 20px;
   max-width: 860px;
+}
+
+.summary-points {
+  padding-left: 1.25rem;
+}
+
+.summary-points li {
+  margin-bottom: 0.4rem;
+}
+
+.summary-points li:last-child {
+  margin-bottom: 0;
 }
 </style>

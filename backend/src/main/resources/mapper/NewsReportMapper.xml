@@ -9,6 +9,7 @@
         <id property="reportId" column="report_id" />
         <result property="newsId" column="news_id" />
         <result property="summary" column="summary" />
+        <result property="eventDescription" column="event_description" />
         <result property="cause" column="cause" />
         <result property="socialImpact" column="social_impact" />
         <result property="userImpact" column="user_impact" />
@@ -22,6 +23,7 @@
             report_id,
             news_id,
             summary,
+            event_description,
             cause,
             social_impact,
             user_impact,
@@ -40,6 +42,7 @@
         INSERT INTO news_report (
             news_id,
             summary,
+            event_description,
             cause,
             social_impact,
             user_impact,
@@ -47,6 +50,7 @@
         ) VALUES (
             #{newsId},
             #{summary},
+            #{eventDescription},
             #{cause},
             #{socialImpact},
             #{userImpact},

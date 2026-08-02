@@ -164,7 +164,8 @@ class NewsServiceImplTest {
         newsReportMapper.reportByNewsId.put(1L, NewsReport.builder()
                 .reportId(1L)
                 .newsId(1L)
-                .summary("요약")
+                .summary("요약1\n요약2")
+                .eventDescription("사건 설명입니다.")
                 .cause("원인")
                 .socialImpact("사회적 영향")
                 .userImpact("사용자 영향")
@@ -175,12 +176,37 @@ class NewsServiceImplTest {
         ReportDetailResponse response = service.getReportDetail(1L);
 
         assertEquals(1L, response.getNewsId());
-        assertEquals("요약", response.getSummary());
+        // news_report.summary는 bullet을 줄바꿈으로 이어붙인 TEXT라, 다시 줄바꿈 기준으로 나눠 돌려준다.
+        assertEquals(List.of("요약1", "요약2"), response.getSummaryPoints());
+        assertEquals("사건 설명입니다.", response.getEventDescription());
         assertEquals("원인", response.getCause());
         assertEquals("사회적 영향", response.getSocialImpact());
         assertEquals("사용자 영향", response.getUserImpact());
         assertEquals("대응 방안", response.getActionPlan());
         assertTrue(response.getTerms().isEmpty());
+    }
+
+    // 마이그레이션 이전의 기존 리포트는 summary가 bullet이 아니라 문단 하나였다. 줄바꿈이 없어도
+    // 깨지지 않고 항목 1개짜리 목록으로 안전하게 내려가야 한다.
+    @Test
+    void getReportDetailReturnsSingleItemSummaryPointsForPreMigrationParagraphSummary() {
+        FakeNewsMapper newsMapper = new FakeNewsMapper();
+        FakeNewsReportMapper newsReportMapper = new FakeNewsReportMapper();
+        FakeNewsTermMapper newsTermMapper = new FakeNewsTermMapper();
+        newsMapper.newsById.put(1L, news(1L));
+        newsReportMapper.reportByNewsId.put(1L, NewsReport.builder()
+                .reportId(1L)
+                .newsId(1L)
+                .summary("줄바꿈 없이 저장된 기존 문단 요약입니다.")
+                .build());
+        NewsService service = new NewsServiceImpl(newsMapper, newsReportMapper, newsTermMapper);
+
+        ReportDetailResponse response = service.getReportDetail(1L);
+
+        assertEquals(List.of("줄바꿈 없이 저장된 기존 문단 요약입니다."), response.getSummaryPoints());
+        // 마이그레이션 이전 리포트는 event_description이 없어(NULL) null로 내려간다 — 프론트가 이미
+        // 빈 값을 안전하게 처리하므로(ReportSection의 "아직 내용이 준비되지 않았습니다") 별도 처리 불필요.
+        assertNull(response.getEventDescription());
     }
 
     // 매칭된 금융용어가 있으면 news_term + financial_term 조인 결과가 termId/term/definition/source로 채워져야 한다.
@@ -243,7 +269,8 @@ class NewsServiceImplTest {
         ReportDetailResponse response = service.getReportDetail(1L);
 
         assertEquals(1L, response.getNewsId());
-        assertNull(response.getSummary());
+        assertTrue(response.getSummaryPoints().isEmpty());
+        assertNull(response.getEventDescription());
         assertNull(response.getCause());
         assertNull(response.getSocialImpact());
         assertNull(response.getUserImpact());

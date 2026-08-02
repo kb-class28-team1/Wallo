@@ -29,7 +29,8 @@ def _sample_request(content: str = "정상적인 기사 본문입니다.") -> Ne
 
 def _valid_report() -> NewsReportGenerateResponse:
     return NewsReportGenerateResponse(
-        summary="요약 내용입니다.",
+        summary=["요약 문장 1입니다.", "요약 문장 2입니다."],
+        eventDescription="사건 설명 내용입니다.",
         cause="원인 내용입니다.",
         socialImpact="사회적 영향 내용입니다.",
         userImpact="사용자 영향 내용입니다.",
@@ -70,7 +71,8 @@ def test_generates_valid_structured_report():
 
     result = generate_financial_report(client, _sample_request(), "gpt-4o-mini")
 
-    assert result.summary == "요약 내용입니다."
+    assert result.summary == ["요약 문장 1입니다.", "요약 문장 2입니다."]
+    assert result.eventDescription == "사건 설명 내용입니다."
     assert result.responseStrategy == "대응 방안 내용입니다."
     assert client.responses.calls[0]["model"] == "gpt-4o-mini"
     assert client.responses.calls[0]["text_format"] is NewsReportGenerateResponse
@@ -80,6 +82,7 @@ def test_generates_valid_structured_report():
 def test_missing_summary_field_raises_validation_error():
     with pytest.raises(ValidationError):
         NewsReportGenerateResponse(
+            eventDescription="사건 설명",
             cause="원인",
             socialImpact="영향",
             userImpact="영향",
@@ -87,11 +90,51 @@ def test_missing_summary_field_raises_validation_error():
         )
 
 
-# 3. summary 공백
-def test_blank_summary_raises_validation_error():
+# 3. summary가 빈 리스트
+def test_empty_summary_list_raises_validation_error():
     with pytest.raises(ValidationError):
         NewsReportGenerateResponse(
-            summary="   ",
+            summary=[],
+            eventDescription="사건 설명",
+            cause="원인",
+            socialImpact="영향",
+            userImpact="영향",
+            responseStrategy="대응",
+        )
+
+
+# 3-보조. summary 안의 항목 하나가 공백
+def test_blank_summary_bullet_raises_validation_error():
+    with pytest.raises(ValidationError):
+        NewsReportGenerateResponse(
+            summary=["정상 문장", "   "],
+            eventDescription="사건 설명",
+            cause="원인",
+            socialImpact="영향",
+            userImpact="영향",
+            responseStrategy="대응",
+        )
+
+
+# 3-보조. summary bullet 개수가 상한을 초과
+def test_too_many_summary_bullets_raises_validation_error():
+    with pytest.raises(ValidationError):
+        NewsReportGenerateResponse(
+            summary=["문장1", "문장2", "문장3", "문장4", "문장5", "문장6"],
+            eventDescription="사건 설명",
+            cause="원인",
+            socialImpact="영향",
+            userImpact="영향",
+            responseStrategy="대응",
+        )
+
+
+# eventDescription 공백
+def test_blank_event_description_raises_validation_error():
+    with pytest.raises(ValidationError):
+        NewsReportGenerateResponse(
+            summary=["정상 문장"],
+            eventDescription="   ",
             cause="원인",
             socialImpact="영향",
             userImpact="영향",
@@ -137,7 +180,8 @@ def test_generate_report_returns_mock_response_when_mock_mode_enabled(monkeypatc
 
     result = generate_report(_sample_request())
 
-    assert "[MOCK]" in result.summary
+    assert all("[MOCK]" in bullet for bullet in result.summary)
+    assert "[MOCK]" in result.eventDescription
     assert "[MOCK]" in result.responseStrategy
 
 
@@ -150,7 +194,8 @@ def test_mock_mode_disabled_by_default(monkeypatch):
 def test_build_mock_response_contains_mock_marker():
     response = build_mock_response(_sample_request())
 
-    assert "[MOCK]" in response.summary
+    assert all("[MOCK]" in bullet for bullet in response.summary)
+    assert "[MOCK]" in response.eventDescription
 
 
 # 8. 기사 안의 프롬프트 인젝션 문장이 <article> 구분자 안에만 갇히는지 확인

@@ -14,6 +14,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 public class NewsReportGenerationServiceImpl implements NewsReportGenerationService {
 
@@ -61,7 +63,10 @@ public class NewsReportGenerationServiceImpl implements NewsReportGenerationServ
 
         NewsReport newsReport = NewsReport.builder()
                 .newsId(newsId)
-                .summary(aiResponse.summary())
+                // news_report.summary는 TEXT 컬럼 하나라, 화면 상단 bullet 목록(2~3개의 짧은 문장)을
+                // 줄바꿈으로 이어붙여 저장한다. 읽을 때(ReportDetailResponse)는 다시 줄바꿈 기준으로 분리한다.
+                .summary(String.join("\n", aiResponse.summary()))
+                .eventDescription(aiResponse.eventDescription())
                 .cause(aiResponse.cause())
                 .socialImpact(aiResponse.socialImpact())
                 .userImpact(aiResponse.userImpact())
@@ -87,12 +92,13 @@ public class NewsReportGenerationServiceImpl implements NewsReportGenerationServ
     }
 
     /**
-     * AI 응답 5개 핵심 필드가 모두 채워졌는지 확인한다. 하나라도 비어 있으면 저장하지 않고
-     * AI_REPORT_INVALID_RESPONSE로 실패시켜 다음 스케줄에서 재시도되게 한다 — summary만 있고
-     * 나머지가 비어 있는 "반쪽짜리" 리포트가 news_report에 저장되는 것을 막기 위함이다.
+     * AI 응답 6개 핵심 필드가 모두 채워졌는지 확인한다. 하나라도 비어 있으면 저장하지 않고
+     * AI_REPORT_INVALID_RESPONSE로 실패시켜 다음 스케줄에서 재시도되게 한다 — 일부만 채워진
+     * "반쪽짜리" 리포트가 news_report에 저장되는 것을 막기 위함이다.
      */
     private void validateComplete(Long newsId, NewsReportAiResponse aiResponse) {
-        if (isBlank(aiResponse.summary())
+        if (isBlankSummary(aiResponse.summary())
+                || isBlank(aiResponse.eventDescription())
                 || isBlank(aiResponse.cause())
                 || isBlank(aiResponse.socialImpact())
                 || isBlank(aiResponse.userImpact())
@@ -100,6 +106,11 @@ public class NewsReportGenerationServiceImpl implements NewsReportGenerationServ
             log.warn("AI 응답에 빈 필드가 있어 저장하지 않습니다 - newsId: {}", newsId);
             throw new CustomException(ErrorCode.AI_REPORT_INVALID_RESPONSE);
         }
+    }
+
+    /** summary는 bullet 목록이라 목록 자체가 비었거나, 안의 항목 중 하나라도 빈 문자열이면 무효다. */
+    private boolean isBlankSummary(List<String> summary) {
+        return summary == null || summary.isEmpty() || summary.stream().anyMatch(this::isBlank);
     }
 
     private boolean isBlank(String value) {

@@ -5,6 +5,7 @@ import com.wallo.term.mapper.FinancialTermMapper;
 import com.wallo.term.mapper.NewsTermMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,10 +35,14 @@ import java.util.regex.Pattern;
  * </ul>
  *
  * <p>financial_term은 약 4,149건이라 뉴스 1건마다 정규식을 새로 컴파일하지 않도록, 조회·정렬·컴파일
- * 결과를 인스턴스 캐시에 보관하고 최초 호출 시 한 번만 만든다(지연 초기화 + 락).
+ * 결과를 인스턴스 캐시에 보관한다. 캐시는 서버 기동 시({@link #afterPropertiesSet()}) 한 번 미리
+ * 채워두고, {@link com.wallo.scheduler.FinancialTermCacheRefreshScheduler}가 주기적으로
+ * {@link #refreshCache()}를 호출해 재시작 없이도 최신 financial_term 데이터를 반영한다. 두 경로가
+ * 모두 실패하는 극단적인 경우를 대비해, 캐시가 비어 있으면 실제 매칭 시점({@link #getCachedTerms()})에도
+ * 한 번 더 채우는 지연 초기화 경로를 안전망으로 남겨둔다.
  */
 @Service
-public class FinancialTermMatchingServiceImpl implements FinancialTermMatchingService {
+public class FinancialTermMatchingServiceImpl implements FinancialTermMatchingService, InitializingBean {
 
     private static final Logger log = LoggerFactory.getLogger(FinancialTermMatchingServiceImpl.class);
 
@@ -53,6 +58,16 @@ public class FinancialTermMatchingServiceImpl implements FinancialTermMatchingSe
     public FinancialTermMatchingServiceImpl(FinancialTermMapper financialTermMapper, NewsTermMapper newsTermMapper) {
         this.financialTermMapper = financialTermMapper;
         this.newsTermMapper = newsTermMapper;
+    }
+
+    /**
+     * 이 빈의 의존성 주입이 끝난 직후(서버 기동 시) Spring이 자동으로 호출한다. 캐시를 미리 채워둬서,
+     * 첫 매칭 요청이 지연 초기화 비용(약 4,149건 조회·정렬·정규식 컴파일)을 떠안지 않게 하고, financial_term이
+     * 비어 있는 상태로 배포됐다면 그 사실을 요청을 기다리지 않고 기동 시점에 바로 로그로 드러낸다.
+     */
+    @Override
+    public void afterPropertiesSet() {
+        refreshCache();
     }
 
     /**
@@ -141,19 +156,28 @@ public class FinancialTermMatchingServiceImpl implements FinancialTermMatchingSe
     }
 
     /**
-     * financial_term이 서버 재시작 없이 바뀔 수 있다면(신규 용어 추가 등) 이 메서드로 캐시를 비우면
-     * 된다. 다음 매칭 요청에서 자동으로 다시 조회·정렬·컴파일한다. 현재는 어떤 스케줄러나 관리자
-     * API에도 연결하지 않았다 — 필요해지면 기존 com.wallo.scheduler 패키지의 스케줄러 패턴을 따라
-     * 주기적으로 호출하거나, 관리자 전용 엔드포인트에서 호출하도록 연결하면 된다.
+     * financial_term을 다시 조회해 캐시를 즉시 새로 만든다. financial_term이 서버 기동 뒤에 적재·변경돼도
+     * 이 메서드가 호출되기 전까지는 예전 상태로 계속 매칭된다({@link #afterPropertiesSet()}로 기동 시
+     * 한 번, {@link com.wallo.scheduler.FinancialTermCacheRefreshScheduler}로 주기적으로 자동 호출됨).
+     * DB 조회·정렬·정규식 컴파일은 락 밖에서 수행해, 이 작업이 오래 걸려도 다른 요청 스레드의
+     * {@link #getCachedTerms()} 호출을 막지 않는다 — 락은 완성된 결과를 교체하는 짧은 구간에만 건다.
      */
+    @Override
     public void refreshCache() {
+        List<CompiledTerm> rebuilt = buildCompiledTerms();
         synchronized (cacheLock) {
-            cachedTerms = null;
+            cachedTerms = rebuilt;
         }
     }
 
     private List<CompiledTerm> buildCompiledTerms() {
         List<FinancialTerm> terms = financialTermMapper.findAll();
+        if (terms.isEmpty()) {
+            log.warn("financial_term 테이블이 비어 있어 금융용어 매칭이 항상 0건입니다. "
+                    + "데이터를 적재한 뒤에는 refreshCache()가 자동으로 호출될 때까지(주기적 스케줄러) "
+                    + "기다리거나 애플리케이션을 재시작하지 않아도 곧 반영됩니다.");
+        }
+
         List<CompiledTerm> compiled = new ArrayList<>();
         for (FinancialTerm term : terms) {
             CompiledTerm compiledTerm = compile(term);

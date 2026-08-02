@@ -1,9 +1,14 @@
 package com.wallo.term.service;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.wallo.term.domain.FinancialTerm;
 import com.wallo.term.mapper.FinancialTermMapper;
 import com.wallo.term.mapper.NewsTermMapper;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -262,6 +267,50 @@ class FinancialTermMatchingServiceImplTest {
         service.matchAndSaveTerms(101L, "가계수지", null);
 
         assertEquals(2, termMapper.findAllCallCount);
+    }
+
+    // 서버 기동 시 Spring이 호출하는 afterPropertiesSet()이 첫 매칭 요청을 기다리지 않고
+    // financial_term을 미리 조회해 캐시를 채워야 한다(지연 초기화 비용을 첫 요청이 떠안지 않게 함).
+    @Test
+    void afterPropertiesSetEagerlyLoadsCacheBeforeFirstMatch() {
+        FakeFinancialTermMapper termMapper = new FakeFinancialTermMapper(List.of(term(1L, "가계수지")));
+        FakeNewsTermMapper newsTermMapper = new FakeNewsTermMapper();
+        FinancialTermMatchingServiceImpl service = new FinancialTermMatchingServiceImpl(termMapper, newsTermMapper);
+
+        service.afterPropertiesSet();
+
+        assertEquals(1, termMapper.findAllCallCount);
+
+        service.matchAndSaveTerms(100L, "가계수지", null);
+
+        // 이미 캐시가 채워져 있으니 매칭 요청이 추가로 조회하지 않아야 한다.
+        assertEquals(1, termMapper.findAllCallCount);
+    }
+
+    // financial_term이 비어 있으면 매칭은 조용히 0건으로 끝나지 않고 경고 로그를 남겨야 한다 —
+    // 그래야 데이터 적재를 깜빡했거나 캐시가 갱신되지 않은 상황을 운영자가 알아챌 수 있다.
+    @Test
+    void logsWarningWhenFinancialTermTableIsEmpty() {
+        FakeFinancialTermMapper termMapper = new FakeFinancialTermMapper(List.of());
+        FakeNewsTermMapper newsTermMapper = new FakeNewsTermMapper();
+        FinancialTermMatchingServiceImpl service = new FinancialTermMatchingServiceImpl(termMapper, newsTermMapper);
+
+        Logger logger = (Logger) LoggerFactory.getLogger(FinancialTermMatchingServiceImpl.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+
+        try {
+            int matchedCount = service.matchAndSaveTerms(100L, "제목", "본문");
+            assertEquals(0, matchedCount);
+        } finally {
+            logger.detachAppender(appender);
+        }
+
+        boolean warned = appender.list.stream().anyMatch(
+                event -> event.getLevel() == Level.WARN
+                        && event.getFormattedMessage().contains("financial_term 테이블이 비어"));
+        assertTrue(warned, "financial_term이 비어 있을 때 경고 로그가 남아야 합니다.");
     }
 
     private FinancialTerm term(Long id, String name) {

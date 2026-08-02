@@ -46,8 +46,7 @@ class NewsReportGenerationServiceImplTest {
     void generatesCallsAiOnceAndInsertsOnceWhenAbsent() {
         FakeNewsService newsService = new FakeNewsService(news(1L, "본문 내용"));
         FakeNewsReportMapper newsReportMapper = new FakeNewsReportMapper();
-        NewsReportAiResponse aiResponse =
-                new NewsReportAiResponse("요약", "원인", "사회영향", "사용자영향", "대응방안");
+        NewsReportAiResponse aiResponse = validAiResponse();
         FakeNewsReportAiClient aiClient = new FakeNewsReportAiClient(aiResponse);
         FakeFinancialTermMatchingService termMatchingService = new FakeFinancialTermMatchingService();
         NewsReportGenerationService service =
@@ -57,7 +56,9 @@ class NewsReportGenerationServiceImplTest {
 
         assertEquals(1, aiClient.callCount);
         assertEquals(1, newsReportMapper.insertCallCount);
-        assertEquals("요약", result.getSummary());
+        // summary는 bullet 목록(List<String>)을 줄바꿈으로 이어붙여 하나의 TEXT 컬럼에 저장한다.
+        assertEquals("요약1\n요약2", result.getSummary());
+        assertEquals("사건 설명입니다.", result.getEventDescription());
         assertEquals("대응방안", result.getResponseStrategy());
         assertEquals(1, termMatchingService.callCount);
     }
@@ -115,18 +116,21 @@ class NewsReportGenerationServiceImplTest {
         assertEquals(0, newsReportMapper.insertCallCount);
     }
 
-    // AI 응답의 5개 핵심 필드(summary/cause/socialImpact/userImpact/responseStrategy) 중 하나라도
-    // 비어 있으면 "반쪽짜리" 리포트를 저장하지 않고 실패시킨다. summary만 검증하면 나머지 필드가
-    // 비어도 news_report에 저장돼 목록/상세에 불완전한 리포트가 그대로 노출되는 문제가 있어 보강했다.
+    // AI 응답의 6개 핵심 필드(summary/eventDescription/cause/socialImpact/userImpact/responseStrategy)
+    // 중 하나라도 비어 있으면 "반쪽짜리" 리포트를 저장하지 않고 실패시킨다. summary만 검증하면 나머지
+    // 필드가 비어도 news_report에 저장돼 목록/상세에 불완전한 리포트가 그대로 노출되는 문제가 있어 보강했다.
     @Test
     void throwsAiReportInvalidResponseAndDoesNotInsertWhenAnyCoreFieldIsBlank() {
         List<NewsReportAiResponse> incompleteResponses = List.of(
-                new NewsReportAiResponse(null, "원인", "사회영향", "사용자영향", "대응방안"),
-                new NewsReportAiResponse("   ", "원인", "사회영향", "사용자영향", "대응방안"),
-                new NewsReportAiResponse("요약", null, "사회영향", "사용자영향", "대응방안"),
-                new NewsReportAiResponse("요약", "원인", null, "사용자영향", "대응방안"),
-                new NewsReportAiResponse("요약", "원인", "사회영향", "   ", "대응방안"),
-                new NewsReportAiResponse("요약", "원인", "사회영향", "사용자영향", null)
+                new NewsReportAiResponse(null, "사건 설명입니다.", "원인", "사회영향", "사용자영향", "대응방안"),
+                new NewsReportAiResponse(List.of(), "사건 설명입니다.", "원인", "사회영향", "사용자영향", "대응방안"),
+                new NewsReportAiResponse(List.of("요약1", "   "), "사건 설명입니다.", "원인", "사회영향", "사용자영향", "대응방안"),
+                new NewsReportAiResponse(List.of("요약1", "요약2"), null, "원인", "사회영향", "사용자영향", "대응방안"),
+                new NewsReportAiResponse(List.of("요약1", "요약2"), "   ", "원인", "사회영향", "사용자영향", "대응방안"),
+                new NewsReportAiResponse(List.of("요약1", "요약2"), "사건 설명입니다.", null, "사회영향", "사용자영향", "대응방안"),
+                new NewsReportAiResponse(List.of("요약1", "요약2"), "사건 설명입니다.", "원인", null, "사용자영향", "대응방안"),
+                new NewsReportAiResponse(List.of("요약1", "요약2"), "사건 설명입니다.", "원인", "사회영향", "   ", "대응방안"),
+                new NewsReportAiResponse(List.of("요약1", "요약2"), "사건 설명입니다.", "원인", "사회영향", "사용자영향", null)
         );
 
         for (NewsReportAiResponse incomplete : incompleteResponses) {
@@ -160,8 +164,7 @@ class NewsReportGenerationServiceImplTest {
         newsReportMapper.throwDuplicateKeyOnInsert = true;
         NewsReport winner = existingReport(1L);
         newsReportMapper.reportAfterDuplicateKey = winner;
-        NewsReportAiResponse aiResponse =
-                new NewsReportAiResponse("요약", "원인", "사회영향", "사용자영향", "대응방안");
+        NewsReportAiResponse aiResponse = validAiResponse();
         FakeNewsReportAiClient aiClient = new FakeNewsReportAiClient(aiResponse);
         NewsReportGenerationService service =
                 new NewsReportGenerationServiceImpl(
@@ -171,6 +174,11 @@ class NewsReportGenerationServiceImplTest {
 
         assertEquals(winner, result);
         assertEquals(1, newsReportMapper.insertCallCount);
+    }
+
+    private NewsReportAiResponse validAiResponse() {
+        return new NewsReportAiResponse(
+                List.of("요약1", "요약2"), "사건 설명입니다.", "원인", "사회영향", "사용자영향", "대응방안");
     }
 
     private News news(Long newsId, String content) {
@@ -306,6 +314,11 @@ class NewsReportGenerationServiceImplTest {
         public int matchAndSaveTerms(Long newsId, String title, String content) {
             callCount++;
             return 0;
+        }
+
+        @Override
+        public void refreshCache() {
+            throw new UnsupportedOperationException();
         }
     }
 }
