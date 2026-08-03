@@ -100,7 +100,8 @@ const notifyConnectionResult = (results = []) => {
 
 const handleConnectionError = async (error) => {
   const status = error.response?.status;
-  const serverMessage = error.response?.data?.error?.message;
+  const serverMessage = error.response?.data?.error?.message
+    || error.response?.data?.message;
 
   if (status === 400) {
     alert(serverMessage || "개인신용정보 수집·이용 동의가 필요합니다.");
@@ -134,7 +135,7 @@ const handleSubmit = async () => {
     loadingMessage.value = "계좌 및 카드 데이터를 안전하게 수집하는 중...";
 
     await wait(700);
-    const response = await connectAllAssets(true);
+    const response = await connectAllAssets(consentAgreed.value);
 
     progress.value = 100;
     loadingMessage.value = "연동 결과를 정리하는 중...";
