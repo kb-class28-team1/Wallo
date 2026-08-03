@@ -7,6 +7,16 @@
   "data": [
     {
       "resCardNo": "4321-0000-0000-8765",
+      "resUsedDate": "20260702",
+      "resUsedTime": "190500",
+      "resApprovalNo": "20731468",
+      "resMemberName": "배달의민족",
+      "resUsedAmount": "20000",
+      "resMemberSector": "요식/음료",
+      "resCardType": "1"
+    },
+    {
+      "resCardNo": "4321-0000-0000-8765",
       "resUsedDate": "20260629",
       "resUsedTime": "081500",
       "resApprovalNo": "60492173",
@@ -43,6 +53,16 @@
       "resMemberName": "무신사",
       "resUsedAmount": "85000",
       "resMemberSector": "온라인쇼핑",
+      "resCardType": "1"
+    },
+    {
+      "resCardNo": "4321-0000-0000-8765",
+      "resUsedDate": "20260802",
+      "resUsedTime": "183000",
+      "resApprovalNo": "83025197",
+      "resMemberName": "배달의민족",
+      "resUsedAmount": "30000",
+      "resMemberSector": "요식/음료",
       "resCardType": "1"
     },
     {

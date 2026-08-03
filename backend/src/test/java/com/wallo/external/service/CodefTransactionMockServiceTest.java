@@ -2,6 +2,7 @@ package com.wallo.external.service;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -33,6 +34,27 @@ public class CodefTransactionMockServiceTest {
         assertEquals(2, approvals.size());
         assertEquals("12345678", approvals.get(0).getResApprovalNo());
         assertEquals("87654321", approvals.get(1).getResApprovalNo());
+    }
+
+    @Test
+    public void cardApprovalsContainPreviousAndCurrentMonthDeliverySamples() {
+        CodefDto.Response response = service.getCardApprovals(cardRequest("20260701", "20260803"));
+
+        assertSuccess(response);
+        List<CodefDto.CardApproval> approvals = objectMapper.convertValue(
+                response.getData(),
+                new TypeReference<List<CodefDto.CardApproval>>() { }
+        );
+        assertTrue(approvals.stream().anyMatch(approval ->
+                "20260702".equals(approval.getResUsedDate())
+                        && "20731468".equals(approval.getResApprovalNo())
+                        && "20000".equals(approval.getResUsedAmount())
+        ));
+        assertTrue(approvals.stream().anyMatch(approval ->
+                "20260802".equals(approval.getResUsedDate())
+                        && "83025197".equals(approval.getResApprovalNo())
+                        && "30000".equals(approval.getResUsedAmount())
+        ));
     }
 
     @Test

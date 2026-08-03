@@ -35,6 +35,13 @@ public final class AssetSyncDto {
     }
 
     @Getter
+    @AllArgsConstructor
+    public static class AssetSnapshot {
+        private final String month;
+        private final long totalAssets;
+    }
+
+    @Getter
     public static class Transaction {
         private final long userId;
         private final Long cardId;

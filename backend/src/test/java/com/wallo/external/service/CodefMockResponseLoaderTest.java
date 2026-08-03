@@ -21,6 +21,9 @@ public class CodefMockResponseLoaderTest {
         assertEquals(2, data.getAccounts().size());
         assertEquals(1, data.getLoans().size());
         assertEquals(1, data.getTransactions().size());
+        assertEquals(5, data.getAssetSnapshots().size());
+        assertEquals("2026-08", data.getAssetSnapshots().get(4).getSnapshotMonth());
+        assertEquals("40100000", data.getAssetSnapshots().get(4).getTotalAssets());
     }
 
     @Test

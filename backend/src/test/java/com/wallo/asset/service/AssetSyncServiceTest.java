@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -75,6 +76,10 @@ class AssetSyncServiceTest {
                                 "resAccountStatus", "1"
                         )
                 ),
+                "assetSnapshots", List.of(
+                        Map.of("snapshotMonth", "2026-07", "totalAssets", "38400000"),
+                        Map.of("snapshotMonth", "2026-08", "totalAssets", "40100000")
+                ),
                 "transactions", List.of(Map.of(
                         "resAccount", "123456-01-789012",
                         "resAccountTrNo", "legacy-bank-transaction"
@@ -90,6 +95,9 @@ class AssetSyncServiceTest {
         );
         verify(bankTransactionCollectionService).collectInitial(
                 7L, 32L, "987654-01-321098", institution
+        );
+        verify(assetSyncMapper, times(2)).upsertAssetSnapshot(
+                eq(7L), any(AssetSyncDto.AssetSnapshot.class)
         );
         verify(assetSyncMapper, never()).updateTransactionByApproval(any());
         verify(assetSyncMapper, never()).insertTransaction(any());

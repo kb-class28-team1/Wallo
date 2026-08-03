@@ -87,6 +87,16 @@ public final class CodefDto {
         private List<Loan> loans;
         private List<Card> cards;
         private List<Transaction> transactions;
+        private List<AssetSnapshot> assetSnapshots;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class AssetSnapshot {
+        private String snapshotMonth;
+        private String totalAssets;
     }
 
     @Getter

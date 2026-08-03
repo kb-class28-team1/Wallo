@@ -35,6 +35,7 @@ class AssetSyncMapperIntegrationTest {
         h2DataSource.setPassword("");
         dataSource = h2DataSource;
         createTransactionsTable();
+        createAssetSnapshotsTable();
 
         SqlSessionFactoryBean factoryBean = new SqlSessionFactoryBean();
         factoryBean.setDataSource(dataSource);
@@ -70,6 +71,22 @@ class AssetSyncMapperIntegrationTest {
             assertEquals(1, resultSet.getInt("row_count"));
             assertEquals(39_000L, resultSet.getLong("amount"));
             assertEquals("FOOD", resultSet.getString("category"));
+        }
+    }
+
+    @Test
+    void snapshotMonthMakesRepeatedSnapshotAnUpdate() throws Exception {
+        assetSyncMapper.upsertAssetSnapshot(7L, new AssetSyncDto.AssetSnapshot("2026-08", 39_000_000L));
+        assetSyncMapper.upsertAssetSnapshot(7L, new AssetSyncDto.AssetSnapshot("2026-08", 40_100_000L));
+
+        try (Connection connection = dataSource.getConnection();
+             Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(
+                     "SELECT COUNT(*) AS row_count, MAX(total_assets) AS total_assets FROM ASSET_SNAPSHOTS"
+             )) {
+            resultSet.next();
+            assertEquals(1, resultSet.getInt("row_count"));
+            assertEquals(40_100_000L, resultSet.getLong("total_assets"));
         }
     }
 
@@ -123,6 +140,23 @@ class AssetSyncMapperIntegrationTest {
                         transaction_date DATE NOT NULL,
                         transaction_time TIME NOT NULL,
                         UNIQUE (user_id, source_type, source_organization_code, source_dedup_key)
+                    )
+                    """);
+        }
+    }
+
+    private void createAssetSnapshotsTable() throws Exception {
+        try (Connection connection = dataSource.getConnection();
+             Statement statement = connection.createStatement()) {
+            statement.execute("""
+                    CREATE TABLE ASSET_SNAPSHOTS (
+                        asset_snapshot_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                        user_id BIGINT NOT NULL,
+                        snapshot_month CHAR(7) NOT NULL,
+                        total_assets BIGINT NOT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE (user_id, snapshot_month)
                     )
                     """);
         }

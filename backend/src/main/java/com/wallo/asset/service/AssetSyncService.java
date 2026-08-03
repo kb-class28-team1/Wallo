@@ -5,8 +5,10 @@ import com.wallo.asset.domain.Institution;
 import com.wallo.asset.dto.AssetSyncDto;
 import com.wallo.asset.mapper.AssetSyncMapper;
 import com.wallo.external.dto.CodefDto;
+import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.YearMonth;
 import java.util.Collections;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -33,6 +35,12 @@ public class AssetSyncService {
 
     public void sync(long userId, long connectionId, Institution institution, CodefDto.Response response) {
         CodefDto.AssetData data = objectMapper.convertValue(response.getData(), CodefDto.AssetData.class);
+
+        for (CodefDto.AssetSnapshot snapshot : values(data.getAssetSnapshots())) {
+            assetSyncMapper.upsertAssetSnapshot(userId, new AssetSyncDto.AssetSnapshot(
+                    snapshotMonth(snapshot.getSnapshotMonth()), amount(snapshot.getTotalAssets())
+            ));
+        }
 
         for (CodefDto.Account account : values(data.getAccounts())) {
             assetSyncMapper.upsertAccount(connectionId, new AssetSyncDto.Account(
@@ -127,6 +135,14 @@ public class AssetSyncService {
     private long amount(String value) {
         try { return Long.parseLong(value); }
         catch (NumberFormatException exception) { throw new IllegalArgumentException("연동 금액 형식이 올바르지 않습니다.", exception); }
+    }
+
+    private String snapshotMonth(String value) {
+        try {
+            return YearMonth.parse(value).toString();
+        } catch (DateTimeException exception) {
+            throw new IllegalArgumentException("Invalid asset snapshot month: " + value, exception);
+        }
     }
 
     private String status(String value) {

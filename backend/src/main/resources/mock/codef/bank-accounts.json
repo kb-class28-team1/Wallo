@@ -40,6 +40,13 @@
         "resLoanCurrency": "KRW"
       }
     ],
+    "assetSnapshots": [
+      { "snapshotMonth": "2026-04", "totalAssets": "34200000" },
+      { "snapshotMonth": "2026-05", "totalAssets": "35150000" },
+      { "snapshotMonth": "2026-06", "totalAssets": "36400000" },
+      { "snapshotMonth": "2026-07", "totalAssets": "38400000" },
+      { "snapshotMonth": "2026-08", "totalAssets": "40100000" }
+    ],
     "transactions": [
       {
         "resLoanAccount": "STUDENT-LOAN-2021-001",
