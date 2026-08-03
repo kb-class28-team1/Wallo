@@ -11,3 +11,14 @@ export const getPointShop = async () => {
     throw new Error(message)
   }
 }
+
+// 기본 랜덤박스를 열고 포인트 차감 및 당첨 결과를 조회함
+export const openRandomBox = async (boxId) => {
+  try {
+    const response = await httpClient.post(`/api/point-shop/boxes/${boxId}/open`)
+    return response.data
+  } catch (error) {
+    const message = error.response?.data?.message || "랜덤박스를 열지 못했습니다."
+    throw new Error(message)
+  }
+}

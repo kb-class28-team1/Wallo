@@ -1,12 +1,13 @@
 <script setup>
 import { computed, onMounted, ref } from "vue"
-import { getPointShop } from "@/api/pointShopApi"
+import { getPointShop, openRandomBox } from "@/api/pointShopApi"
 import { useUserStore } from "@/stores/userStore"
 
 const userStore = useUserStore()
 const activeProbabilityBox = ref(null)
 const shopPointBalance = ref(null)
 const isLoading = ref(false)
+const isOpeningBox = ref(false)
 const errorMessage = ref("")
 
 // API에서 박스 정보를 받기 전에도 기본 상자 UI가 유지되도록 기본값을 둠
@@ -31,6 +32,10 @@ const inventoryItems = ref([])
 
 const formattedPoint = computed(() =>
   `${Number(shopPointBalance.value ?? userStore.pointBalance ?? 0).toLocaleString("ko-KR")}P`,
+)
+
+const currentPoint = computed(() =>
+  Number(shopPointBalance.value ?? userStore.pointBalance ?? 0),
 )
 
 const getInventoryIcon = (itemName) => {
@@ -89,6 +94,32 @@ const toggleProbability = (boxId) => {
     activeProbabilityBox.value === boxId ? null : boxId
 }
 
+const handleOpenBox = async (box) => {
+  if (isOpeningBox.value || currentPoint.value < box.price) {
+    if (currentPoint.value < box.price) {
+      alert("보유 포인트가 부족합니다.")
+    }
+    return
+  }
+
+  if (!window.confirm(`${box.price.toLocaleString("ko-KR")}P를 사용해 상자를 열까요?`)) {
+    return
+  }
+
+  isOpeningBox.value = true
+  try {
+    const response = await openRandomBox(box.id)
+    const result = response?.data || response
+    shopPointBalance.value = result?.remainingPoint ?? shopPointBalance.value
+    alert(`${result?.reward?.itemName || "상품"}에 당첨되었습니다!`)
+    await loadPointShop()
+  } catch (error) {
+    alert(error.message || "랜덤박스를 열지 못했습니다.")
+  } finally {
+    isOpeningBox.value = false
+  }
+}
+
 // 사용 처리된 아이템만 화면 목록에서 삭제함
 const removeUsedItem = (itemId) => {
   inventoryItems.value = inventoryItems.value.filter(
@@ -143,6 +174,14 @@ onMounted(loadPointShop)
         <h3>{{ box.name }}</h3>
         <p>{{ box.description }}</p>
         <strong class="box-price">🪙 {{ box.price.toLocaleString("ko-KR") }}P</strong>
+        <button
+          type="button"
+          class="open-box-button"
+          :disabled="isOpeningBox || currentPoint < box.price"
+          @click="handleOpenBox(box)"
+        >
+          {{ isOpeningBox ? "상자를 여는 중임..." : "상자 열기" }}
+        </button>
         <button
           type="button"
           class="probability-button"
@@ -330,6 +369,24 @@ onMounted(loadPointShop)
   margin: 10px 0;
   color: #edaa00;
   font-size: 20px;
+}
+
+.open-box-button {
+  display: block;
+  width: 100%;
+  margin: 12px 0 8px;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 10px;
+  background: #6d5df0;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.open-box-button:disabled {
+  background: #c9cbe0;
+  cursor: not-allowed;
 }
 
 .probability-button {
