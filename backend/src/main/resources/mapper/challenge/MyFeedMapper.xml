@@ -23,6 +23,7 @@
     <sql id="myFeedConditions">
         feed.user_id = #{userId}
         AND feed.status = 'ACTIVE'
+        AND feed.file_deleted_at IS NULL
         <if test="category != null and category != '' and category != 'ALL'">
             AND feed.category = #{category}
         </if>

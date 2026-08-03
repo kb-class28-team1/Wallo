@@ -1,6 +1,7 @@
 package com.wallo.challenge.controller;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -8,8 +9,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.wallo.auth.CurrentUserProvider;
+import com.wallo.auth.UnauthenticatedException;
 import com.wallo.challenge.domain.MyFeed;
 import com.wallo.challenge.dto.response.MyFeedListResponse;
+import com.wallo.challenge.exception.ChallengeExceptionHandler;
 import com.wallo.challenge.service.MyFeedService;
 import java.time.LocalDateTime;
 import java.util.Collections;
@@ -30,7 +33,9 @@ class MyFeedControllerTest {
         currentUserProvider = mock(CurrentUserProvider.class);
 
         MyFeedController controller = new MyFeedController(myFeedService, currentUserProvider);
-        mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(controller)
+                .setControllerAdvice(new ChallengeExceptionHandler())
+                .build();
     }
 
     @Test
@@ -82,6 +87,18 @@ class MyFeedControllerTest {
                 .andExpect(jsonPath("$.size").value(5));
 
         verify(myFeedService).getMyFeeds(1L, "LATEST", "CAFE", 2, 5);
+    }
+
+    @Test
+    void returnsUnauthorizedWhenLoginSessionIsMissing() throws Exception {
+        when(currentUserProvider.getCurrentUserId()).thenThrow(new UnauthenticatedException());
+
+        mockMvc.perform(get("/api/users/me/feeds"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.message").value("로그인이 필요합니다."));
+
+        verifyNoInteractions(myFeedService);
     }
 
     private MyFeed feed() {

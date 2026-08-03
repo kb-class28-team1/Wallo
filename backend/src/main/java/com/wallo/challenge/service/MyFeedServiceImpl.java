@@ -19,6 +19,7 @@ public class MyFeedServiceImpl implements MyFeedService {
     private static final String DEFAULT_CATEGORY = "ALL";
     private static final int DEFAULT_PAGE = 0;
     private static final int DEFAULT_SIZE = 10;
+    private static final int MAX_SIZE = 100;
 
     // SQL에서 허용하는 정렬 조건만 Mapper에 전달하도록 제한함.
     private static final Set<String> ALLOWED_SORTS = Set.of(
@@ -111,8 +112,8 @@ public class MyFeedServiceImpl implements MyFeedService {
 
     private int normalizeSize(Integer size) {
         int normalizedSize = size == null ? DEFAULT_SIZE : size;
-        if (normalizedSize <= 0) {
-            throw new IllegalArgumentException("페이지 크기는 1 이상이어야 합니다.");
+        if (normalizedSize <= 0 || normalizedSize > MAX_SIZE) {
+            throw new IllegalArgumentException("페이지 크기는 1 이상 100 이하여야 합니다.");
         }
         return normalizedSize;
     }

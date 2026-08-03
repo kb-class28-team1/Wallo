@@ -77,6 +77,9 @@ class MyFeedServiceImplTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () -> service.getMyFeeds(10L, "LIKE_DESC", "ALL", 0, 0));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> service.getMyFeeds(10L, "LIKE_DESC", "ALL", 0, 101));
     }
 
     private MyFeed feed(Long feedId) {
