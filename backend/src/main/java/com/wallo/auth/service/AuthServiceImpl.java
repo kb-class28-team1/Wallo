@@ -63,8 +63,11 @@ public class AuthServiceImpl implements AuthService {
         }
 
         User user = authMapper.findByEmail(normalizeEmail(request.getEmail()));
-        if (user == null || !passwordMatches(request.getPassword(), user.getPasswordHash())) {
-            throw new AuthException(AuthErrorCode.LOGIN_FAILED);
+        if (user == null) {
+            throw new AuthException(AuthErrorCode.LOGIN_EMAIL_NOT_FOUND);
+        }
+        if (!passwordMatches(request.getPassword(), user.getPasswordHash())) {
+            throw new AuthException(AuthErrorCode.LOGIN_PASSWORD_MISMATCH);
         }
 
         return AuthUserResponse.from(user);

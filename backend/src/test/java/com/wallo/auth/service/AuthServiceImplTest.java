@@ -81,7 +81,7 @@ class AuthServiceImplTest {
     }
 
     @Test
-    void rejectsWrongPasswordWithoutRevealingWhetherUserExists() {
+    void rejectsWrongPasswordWithPasswordSpecificMessage() {
         FakeAuthMapper mapper = new FakeAuthMapper();
         mapper.savedUser = user(10L, "test@wallo.com", passwordEncoder.encode("password123!"));
         AuthService service = new AuthServiceImpl(mapper, passwordEncoder);
@@ -90,8 +90,21 @@ class AuthServiceImplTest {
                 AuthException.class,
                 () -> service.login(loginRequest("test@wallo.com", "wrong-password")));
 
-        assertEquals(AuthErrorCode.LOGIN_FAILED, exception.getErrorCode());
-        assertEquals("이메일 또는 비밀번호가 올바르지 않습니다.", exception.getMessage());
+        assertEquals(AuthErrorCode.LOGIN_PASSWORD_MISMATCH, exception.getErrorCode());
+        assertEquals("비밀번호가 틀렸습니다.", exception.getMessage());
+    }
+
+    @Test
+    void rejectsUnknownEmailWithEmailSpecificMessage() {
+        FakeAuthMapper mapper = new FakeAuthMapper();
+        AuthService service = new AuthServiceImpl(mapper, passwordEncoder);
+
+        AuthException exception = assertThrows(
+                AuthException.class,
+                () -> service.login(loginRequest("unknown@wallo.com", "password123!")));
+
+        assertEquals(AuthErrorCode.LOGIN_EMAIL_NOT_FOUND, exception.getErrorCode());
+        assertEquals("아이디가 틀렸습니다.", exception.getMessage());
     }
 
     @Test
@@ -104,7 +117,7 @@ class AuthServiceImplTest {
                 AuthException.class,
                 () -> service.login(loginRequest("test@wallo.com", "wrong-password")));
 
-        assertEquals(AuthErrorCode.LOGIN_FAILED, exception.getErrorCode());
+        assertEquals(AuthErrorCode.LOGIN_PASSWORD_MISMATCH, exception.getErrorCode());
     }
 
     @Test
