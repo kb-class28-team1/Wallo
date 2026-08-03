@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wallo.challenge.mapper.MyFeedMapper">
+
+    <!-- FEED와 댓글 집계 결과를 내 게시물 조회 객체에 연결함. -->
+    <resultMap id="myFeedResultMap" type="com.wallo.challenge.domain.MyFeed">
+        <id property="feedId" column="feed_id" />
+        <result property="challengeId" column="challenge_id" />
+        <result property="caption" column="caption" />
+        <result property="category" column="category" />
+        <result property="customCategory" column="custom_category" />
+        <result property="savingAmount" column="saving_amount" />
+        <result property="likeCount" column="like_count" />
+        <result property="commentCount" column="comment_count" />
+        <result property="thumbnailUrl" column="thumbnail_url" />
+        <result property="mediaUrl" column="media_url" />
+        <result property="createdAt" column="created_at" />
+    </resultMap>
+
+    <!-- 목록 쿼리와 개수 쿼리에 동일한 사용자 및 카테고리 조건을 적용함. -->
+    <sql id="myFeedConditions">
+        feed.user_id = #{userId}
+        AND feed.status = 'ACTIVE'
+        AND feed.file_deleted_at IS NULL
+        <if test="category != null and category != '' and category != 'ALL'">
+            AND feed.category = #{category}
+        </if>
+    </sql>
+
+    <!-- 문자열을 SQL에 직접 삽입하지 않고 허용된 정렬 조건만 선택함. -->
+    <select id="findMyFeeds" resultMap="myFeedResultMap">
+        SELECT
+            feed.id AS feed_id,
+            feed.challenge_id,
+            feed.caption,
+            feed.category,
+            feed.custom_category,
+            feed.saving_amount,
+            feed.like_count,
+            COALESCE(comment_stats.comment_count, 0) AS comment_count,
+            feed.thumbnail_url,
+            feed.media_url,
+            feed.created_at
+        FROM FEED feed
+        LEFT JOIN (
+            SELECT
+                message.reference_feed_id,
+                COUNT(*) AS comment_count
+            FROM MESSAGE message
+            WHERE message.message_type = 'REPLY'
+              AND message.reference_feed_id IS NOT NULL
+            GROUP BY message.reference_feed_id
+        ) comment_stats
+            ON comment_stats.reference_feed_id = feed.id
+        WHERE <include refid="myFeedConditions" />
+        ORDER BY
+        <choose>
+            <when test="sort == 'LATEST'">
+                feed.created_at DESC, feed.id DESC
+            </when>
+            <when test="sort == 'SAVING_DESC'">
+                feed.saving_amount DESC, feed.created_at DESC, feed.id DESC
+            </when>
+            <otherwise>
+                feed.like_count DESC, feed.created_at DESC, feed.id DESC
+            </otherwise>
+        </choose>
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <!-- 페이지 수 계산에 사용할 필터 적용 후 전체 게시물 개수를 조회함. -->
+    <select id="countMyFeeds" resultType="long">
+        SELECT COUNT(*)
+        FROM FEED feed
+        WHERE <include refid="myFeedConditions" />
+    </select>
+</mapper>

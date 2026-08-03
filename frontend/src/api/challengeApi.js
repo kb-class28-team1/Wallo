@@ -64,3 +64,29 @@ export const joinChallenge = async (inviteCode) => {
     throw new Error(message)
   }
 }
+
+// 로그인 사용자가 작성한 게시물을 정렬, 카테고리, 페이지 조건에 맞춰 조회함.
+export const getMyFeeds = async ({
+  sort = "LIKE_DESC",
+  category = "ALL",
+  page = 0,
+  size = 10,
+} = {}) => {
+  try {
+    const response = await httpClient.get("/api/users/me/feeds", {
+      params: {
+        sort,
+        category,
+        page,
+        size,
+      },
+    })
+
+    return response.data
+  } catch (error) {
+    // 백엔드 메시지를 우선 사용하고, 없으면 화면에서 표시할 기본 메시지를 전달함.
+    const message =
+      error.response?.data?.message || "내 게시물 목록을 불러오지 못했습니다."
+    throw new Error(message)
+  }
+}

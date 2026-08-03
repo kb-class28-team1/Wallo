@@ -1,28 +1,28 @@
 <script setup>
-import { computed, reactive, ref } from "vue"
-import { RouterLink, useRoute, useRouter } from "vue-router"
-import { useUserStore } from "@/stores/userStore"
+import { computed, reactive, ref } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { useUserStore } from '@/stores/userStore'
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 
-const email = ref("")
-const password = ref("")
-const errors = reactive({ email: "", password: "" })
+const email = ref('')
+const password = ref('')
+const errors = reactive({ email: '', password: '' })
 
 const sessionMessage = computed(() =>
-  route.query.reason === "expired" ? "로그인이 필요하거나 세션이 만료되었습니다." : "",
+  route.query.reason === 'expired' ? '로그인이 필요하거나 세션이 만료되었습니다.' : '',
 )
 
 const handleLogin = async () => {
-  errors.email = ""
-  errors.password = ""
+  errors.email = ''
+  errors.password = ''
 
-  if (!email.value.trim()) errors.email = "이메일을 입력해 주세요."
+  if (!email.value.trim()) errors.email = '이메일을 입력해 주세요.'
   else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim()))
-    errors.email = "올바른 이메일 형식을 입력해 주세요."
-  if (!password.value) errors.password = "비밀번호를 입력해 주세요."
+    errors.email = '올바른 이메일 형식을 입력해 주세요.'
+  if (!password.value) errors.password = '비밀번호를 입력해 주세요.'
   if (errors.email || errors.password) return
 
   try {
@@ -32,23 +32,23 @@ const handleLogin = async () => {
     })
 
     const redirectPath =
-      typeof route.query.redirect === "string" && route.query.redirect.startsWith("/")
+      typeof route.query.redirect === 'string' && route.query.redirect.startsWith('/')
         ? route.query.redirect
-        : "/dashboard"
+        : '/dashboard'
     await router.replace(redirectPath)
   } catch (error) {
-    if (error.code === "AUTH_LOGIN_EMAIL_NOT_FOUND") {
-      errors.email = error.message || "아이디가 틀렸습니다."
-    } else if (error.code === "AUTH_LOGIN_PASSWORD_MISMATCH") {
-      errors.password = error.message || "비밀번호가 틀렸습니다."
+    if (error.code === 'AUTH_LOGIN_EMAIL_NOT_FOUND') {
+      errors.email = error.message || '아이디가 틀렸습니다.'
+    } else if (error.code === 'AUTH_LOGIN_PASSWORD_MISMATCH') {
+      errors.password = error.message || '비밀번호가 틀렸습니다.'
     } else {
-      errors.email = error.message || "로그인에 실패했습니다."
+      errors.email = error.message || '로그인에 실패했습니다.'
     }
   }
 }
 
 const clearError = (field) => {
-  errors[field] = ""
+  errors[field] = ''
 }
 </script>
 
@@ -104,7 +104,7 @@ const clearError = (field) => {
               class="spinner-border spinner-border-sm me-2"
               aria-hidden="true"
             />
-            {{ userStore.isLoading ? "로그인 중..." : "로그인" }}
+            {{ userStore.isLoading ? '로그인 중...' : '로그인' }}
           </button>
         </form>
 
@@ -139,13 +139,24 @@ const clearError = (field) => {
 }
 
 @keyframes field-shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-6px); }
-  50% { transform: translateX(6px); }
-  75% { transform: translateX(-3px); }
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-6px);
+  }
+  50% {
+    transform: translateX(6px);
+  }
+  75% {
+    transform: translateX(-3px);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .field-shake { animation: none; }
+  .field-shake {
+    animation: none;
+  }
 }
 </style>
