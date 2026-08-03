@@ -1,0 +1,69 @@
+.chat-page {
+  width: 100%;
+}
+
+.conversation-panel,
+.chat-panel {
+  height: calc(100vh - 132px);
+  min-height: 560px;
+  overflow: hidden;
+  border-radius: 20px;
+}
+
+.conversation-list {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.conversation-item {
+  margin-bottom: 4px;
+  padding: 12px;
+  color: #59647f;
+}
+
+.conversation-item.active {
+  color: #4f43b8;
+  background: #f0eefe;
+}
+
+.conversation-date {
+  color: #9299ab;
+}
+
+.conversation-item.active .conversation-date {
+  color: #7062de;
+}
+
+.message-list {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.loading-message {
+  width: fit-content;
+  padding: 12px;
+  color: #666;
+  background: #f1f1f1;
+  border-radius: 8px;
+}
+
+.btn-primary {
+  --bs-btn-bg: #7062de;
+  --bs-btn-border-color: #7062de;
+  --bs-btn-hover-bg: #5f50d2;
+  --bs-btn-hover-border-color: #5f50d2;
+}
+
+@media (max-width: 991.98px) {
+  .conversation-panel {
+    height: auto;
+    min-height: 0;
+    max-height: 320px;
+  }
+
+  .chat-panel {
+    height: 640px;
+    min-height: 0;
+  }
+}

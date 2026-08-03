@@ -3,37 +3,74 @@ package com.wallo.asset.service;
 import com.wallo.asset.domain.Institution;
 import com.wallo.asset.dto.ConnectionDto;
 import com.wallo.asset.exception.ConnectionConsentRequiredException;
+import com.wallo.asset.mapper.ConnectionMapper;
 import com.wallo.external.client.CodefClient;
 import com.wallo.external.dto.CodefDto;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ConnectionService {
 
     private final CodefClient codefClient;
     private final InstitutionService institutionService;
+    private final ConnectionMapper connectionMapper;
+    private final AssetSyncService assetSyncService;
 
     public ConnectionService(
             CodefClient codefClient,
-            InstitutionService institutionService
+            InstitutionService institutionService,
+            ConnectionMapper connectionMapper,
+            AssetSyncService assetSyncService
     ) {
         this.codefClient = codefClient;
         this.institutionService = institutionService;
+        this.connectionMapper = connectionMapper;
+        this.assetSyncService = assetSyncService;
     }
 
-    public ConnectionDto.Response connectAllAssets(ConnectionDto.Request request) {
+    @Transactional
+    public ConnectionDto.Response connectAllAssets(long userId, ConnectionDto.Request request) {
         validateConsent(request);
 
-        List<ConnectionDto.Result> results = new ArrayList<>();
+        List<ConnectionAttempt> attempts = new ArrayList<>();
         for (Institution institution : institutionService.getConnectionTargetInstitutions()) {
             CodefDto.Response codefResponse = codefClient.connectInstitution(createCodefRequest(institution));
-            results.add(toConnectionResult(institution, codefResponse));
+            attempts.add(new ConnectionAttempt(institution, codefResponse, toConnectionResult(institution, codefResponse)));
         }
 
-        // 인증 사용자 식별이 구현되기 전까지 연동 결과의 DB 저장은 보류한다.
+        List<ConnectionDto.Result> results = attempts.stream().map(ConnectionAttempt::result).toList();
+        saveConnections(userId, results);
+        syncAssets(userId, attempts);
         return new ConnectionDto.Response(results);
+    }
+
+    private void syncAssets(long userId, List<ConnectionAttempt> attempts) {
+        for (ConnectionAttempt attempt : attempts) {
+            if (attempt.result().getStatus() == ConnectionDto.Status.SUCCESS) {
+                Long connectionId = connectionMapper.findActiveConnectionId(userId, attempt.institution().getInstitutionId());
+                if (connectionId == null) throw new IllegalStateException("연동 정보를 찾을 수 없습니다.");
+                assetSyncService.sync(userId, connectionId, attempt.institution(), attempt.response());
+            }
+        }
+    }
+
+    private void saveConnections(long userId, List<ConnectionDto.Result> results) {
+        if (results.isEmpty()) {
+            return;
+        }
+
+        int savedRows = connectionMapper.insertConnections(
+                results,
+                userId,
+                ConnectionDto.MOCK_LOGIN_TYPE,
+                ConnectionDto.MOCK_ID,
+                ConnectionDto.MOCK_PASSWORD);
+        if (savedRows < results.size()) {
+            throw new IllegalStateException("연동 결과 저장에 실패했습니다.");
+        }
     }
 
     private void validateConsent(ConnectionDto.Request request) {
@@ -84,5 +121,8 @@ public class ConnectionService {
                 status,
                 message
         );
+    }
+
+    private record ConnectionAttempt(Institution institution, CodefDto.Response response, ConnectionDto.Result result) {
     }
 }

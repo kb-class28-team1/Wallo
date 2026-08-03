@@ -8,6 +8,7 @@ public class User {
     private String passwordHash;
     private String nickname;
     private String name;
+    private Long annualSalary;
     private String profileImageUrl;
     private String role;
     private Integer point;
@@ -51,6 +52,14 @@ public class User {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public Long getAnnualSalary() {
+        return annualSalary;
+    }
+
+    public void setAnnualSalary(Long annualSalary) {
+        this.annualSalary = annualSalary;
     }
 
     public String getProfileImageUrl() {

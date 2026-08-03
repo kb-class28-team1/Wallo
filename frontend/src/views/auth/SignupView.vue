@@ -68,7 +68,10 @@ const clearError = (field) => {
 
 const moveToLogin = async () => {
   showSuccessModal.value = false
-  await router.replace("/login")
+  await router.replace({
+    name: "login",
+    query: { redirect: "/connections/mydata" },
+  })
 }
 </script>
 

@@ -25,3 +25,10 @@ UI 스타일링: 화면 레이아웃 및 스타일링은 Bootstrap 프레임워�
 전역 상태 관리: 로그인 상태, 사용자 자산 정보 등의 전역 상태는 Vuex가 아닌 Pinia를 사용하여 관리하세요.
 
 API 통신 및 에러 핸들링: 백엔드 API와의 통신은 Axios를 사용합니다. 모든 API 호출 시에는 try-catch문을 사용하여 성공 시의 로직뿐만 아니라, 통신 실패(4xx, 5xx) 시 사용자에게 보여줄 에러 처리(alert 등)를 반드시 포함하여 작성하세요.
+
+4. Vite 버전 고정 규칙 (CRITICAL)
+   frontend/package.json의 Vite 관련 의존성 버전은 아래 값으로 고정하며, 어떠한 작업에서도 변경하지 마세요.
+
+   - @vitejs/plugin-vue: ^6.0.8
+   - vite: ^6.4.3
+   - vitest: ^4.1.10
