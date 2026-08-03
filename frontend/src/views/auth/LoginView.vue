@@ -37,20 +37,18 @@ const handleLogin = async () => {
         : "/dashboard"
     await router.replace(redirectPath)
   } catch (error) {
-    const message = error.message || "로그인에 실패했습니다."
-    errors.email = message
-    errors.password = message
+    if (error.code === "AUTH_LOGIN_EMAIL_NOT_FOUND") {
+      errors.email = error.message || "아이디가 틀렸습니다."
+    } else if (error.code === "AUTH_LOGIN_PASSWORD_MISMATCH") {
+      errors.password = error.message || "비밀번호가 틀렸습니다."
+    } else {
+      errors.email = error.message || "로그인에 실패했습니다."
+    }
   }
 }
 
 const clearError = (field) => {
   errors[field] = ""
-  if (field === "email" || field === "password") {
-    const otherField = field === "email" ? "password" : "email"
-    if (errors[otherField] === "이메일 또는 비밀번호가 올바르지 않습니다.") {
-      errors[otherField] = ""
-    }
-  }
 }
 </script>
 
@@ -75,9 +73,12 @@ const clearError = (field) => {
               :class="['form-control', { 'is-invalid field-shake': errors.email }]"
               autocomplete="email"
               placeholder="test@wallo.com"
+              :aria-describedby="errors.email ? 'login-email-error' : undefined"
               @input="clearError('email')"
             />
-            <small v-if="errors.email" class="field-error">{{ errors.email }}</small>
+            <small v-if="errors.email" id="login-email-error" class="field-error">
+              {{ errors.email }}
+            </small>
           </div>
 
           <div class="mb-4">
@@ -89,9 +90,12 @@ const clearError = (field) => {
               :class="['form-control', { 'is-invalid field-shake': errors.password }]"
               autocomplete="current-password"
               placeholder="비밀번호를 입력하세요"
+              :aria-describedby="errors.password ? 'login-password-error' : undefined"
               @input="clearError('password')"
             />
-            <small v-if="errors.password" class="field-error">{{ errors.password }}</small>
+            <small v-if="errors.password" id="login-password-error" class="field-error">
+              {{ errors.password }}
+            </small>
           </div>
 
           <button class="btn btn-primary w-100" type="submit" :disabled="userStore.isLoading">
