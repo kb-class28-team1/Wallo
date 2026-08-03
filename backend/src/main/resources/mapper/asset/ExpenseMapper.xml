@@ -34,7 +34,7 @@
 
     <select id="selectTransactions" resultType="com.wallo.asset.dto.ExpenseDto$Transaction">
         SELECT
-            DATE_FORMAT(transaction_date, '%Y-%m-%d') AS date,
+            transaction_date AS date,
             type AS type,
             category AS category,
             amount AS amount,
@@ -42,6 +42,7 @@
         FROM TRANSACTIONS
         WHERE user_id = #{userId}
           AND transaction_date BETWEEN #{condition.startDate} AND #{condition.endDate}
+          AND category &lt;&gt; 'CARD_WITHDRAWAL'
         ORDER BY transaction_date DESC, transaction_time DESC, transaction_id DESC
         LIMIT #{condition.size} OFFSET #{condition.offset}
     </select>
@@ -51,6 +52,7 @@
         FROM TRANSACTIONS
         WHERE user_id = #{userId}
           AND transaction_date BETWEEN #{condition.startDate} AND #{condition.endDate}
+          AND category &lt;&gt; 'CARD_WITHDRAWAL'
     </select>
 
 </mapper>

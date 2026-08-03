@@ -25,8 +25,15 @@ public class ConnectionServiceTest {
     private final InstitutionService institutionService = mock(InstitutionService.class);
     private final ConnectionMapper connectionMapper = mock(ConnectionMapper.class);
     private final AssetSyncService assetSyncService = mock(AssetSyncService.class);
+    private final CardWithdrawalReconciliationService cardWithdrawalReconciliationService =
+            mock(CardWithdrawalReconciliationService.class);
     private final ConnectionService connectionService = new ConnectionService(
-            codefClient, institutionService, connectionMapper, assetSyncService);
+            codefClient,
+            institutionService,
+            connectionMapper,
+            assetSyncService,
+            cardWithdrawalReconciliationService
+    );
 
     @Test
     public void connectAllAssetsThrowsConsentExceptionWhenConsentIsMissing() {
@@ -58,6 +65,7 @@ public class ConnectionServiceTest {
         assertEquals(ConnectionDto.Status.SUCCESS, response.getResults().get(2).getStatus());
         verify(codefClient, times(3)).connectInstitution(any(CodefDto.Request.class));
         verify(connectionMapper).insertConnections(any(), org.mockito.ArgumentMatchers.eq(7L), any(), any(), any());
+        verify(cardWithdrawalReconciliationService).reconcile(7L);
     }
 
     @Test
