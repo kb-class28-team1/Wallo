@@ -1,14 +1,18 @@
 <script setup>
-import { computed, ref } from "vue"
+import { computed, onMounted, ref } from "vue"
+import { getPointShop } from "@/api/pointShopApi"
 import { useUserStore } from "@/stores/userStore"
 
 const userStore = useUserStore()
 const activeProbabilityBox = ref(null)
+const shopPointBalance = ref(null)
+const isLoading = ref(false)
+const errorMessage = ref("")
 
-// 실제 랜덤박스 API를 연결하기 전 화면 확인용 상품 데이터임
-const randomBoxes = [
+// API에서 박스 정보를 받기 전에도 기본 상자 UI가 유지되도록 기본값을 둠
+const randomBoxes = ref([
   {
-    id: "basic",
+    id: 1,
     icon: "📦",
     name: "기본 절약 상자",
     description: "가볍게 도전하고 소소한 기프티콘이 나와요",
@@ -20,18 +24,65 @@ const randomBoxes = [
       { label: "편의점 5,000원 금액권", rate: 10 },
     ],
   },
-]
-
-// 실제 보관함 API를 연결하기 전 화면 확인용 획득 아이템 데이터임
-const inventoryItems = ref([
-  { id: 1, icon: "🎟️", name: "편의점 5,000원 금액권", acquiredAt: "2025.05.25", used: false },
-  { id: 2, icon: "☕", name: "아메리카노 기프티콘", acquiredAt: "2025.05.20", used: false },
-  { id: 3, icon: "🎫", name: "편의점 1,000원 금액권", acquiredAt: "2025.05.11", used: true },
 ])
 
+// 보관함 목록은 포인트샵 조회 API 응답으로 교체함
+const inventoryItems = ref([])
+
 const formattedPoint = computed(() =>
-  `${Number(userStore.pointBalance || 0).toLocaleString("ko-KR")}P`,
+  `${Number(shopPointBalance.value ?? userStore.pointBalance ?? 0).toLocaleString("ko-KR")}P`,
 )
+
+const getInventoryIcon = (itemName) => {
+  if (itemName?.includes("아메리카노") || itemName?.includes("커피")) {
+    return "☕"
+  }
+  if (itemName?.includes("금액권") || itemName?.includes("쿠폰")) {
+    return "🎟️"
+  }
+  return "🎁"
+}
+
+const formatAcquiredAt = (acquiredAt) =>
+  acquiredAt ? String(acquiredAt).slice(0, 10).replaceAll("-", ".") : "날짜 정보 없음"
+
+const loadPointShop = async () => {
+  isLoading.value = true
+  errorMessage.value = ""
+
+  try {
+    const response = await getPointShop()
+    const pointShop = response?.data || response
+
+    shopPointBalance.value = pointShop?.pointBalance ?? 0
+    if (Array.isArray(pointShop?.boxes) && pointShop.boxes.length) {
+      const box = pointShop.boxes[0]
+      randomBoxes.value = [
+        {
+          ...randomBoxes.value[0],
+          id: box.boxId,
+          name: box.boxName,
+          price: box.price,
+        },
+      ]
+    }
+
+    inventoryItems.value = Array.isArray(pointShop?.inventory)
+      ? pointShop.inventory.map((item) => ({
+          id: item.inventoryId,
+          icon: getInventoryIcon(item.itemName),
+          name: item.itemName,
+          acquiredAt: formatAcquiredAt(item.acquiredAt),
+          used: item.status === "USED",
+        }))
+      : []
+  } catch (error) {
+    errorMessage.value = error.message || "포인트 샵 정보를 불러오지 못했습니다."
+    alert(errorMessage.value)
+  } finally {
+    isLoading.value = false
+  }
+}
 
 const toggleProbability = (boxId) => {
   activeProbabilityBox.value =
@@ -44,6 +95,9 @@ const removeUsedItem = (itemId) => {
     (item) => item.id !== itemId || !item.used,
   )
 }
+
+// 페이지에 들어오면 로그인 사용자의 포인트와 보관함을 조회함
+onMounted(loadPointShop)
 </script>
 
 <template>
@@ -61,6 +115,17 @@ const removeUsedItem = (itemId) => {
       <strong>{{ formattedPoint }}</strong>
       <p>오늘의 미션을 인증하고 포인트를 모아보세요 🪙</p>
     </article>
+
+    <div v-if="isLoading" class="loading-message" role="status">
+      포인트샵 정보를 불러오는 중임...
+    </div>
+
+    <div v-if="errorMessage" class="error-message" role="alert">
+      <span>{{ errorMessage }}</span>
+      <button type="button" class="btn retry-button" @click="loadPointShop">
+        다시 시도
+      </button>
+    </div>
 
     <div class="section-title">
       <h2>🎁 랜덤 박스</h2>
@@ -167,6 +232,33 @@ const removeUsedItem = (itemId) => {
   margin: 0;
   opacity: 0.82;
   font-size: 14px;
+}
+
+.loading-message,
+.error-message {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #fff;
+  color: #747d9a;
+  font-size: 13px;
+}
+
+.error-message {
+  background: #fff1f1;
+  color: #c85a67;
+}
+
+.retry-button {
+  border: 1px solid #efb4bb;
+  border-radius: 999px;
+  color: #c85a67;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .point-summary-card strong {
