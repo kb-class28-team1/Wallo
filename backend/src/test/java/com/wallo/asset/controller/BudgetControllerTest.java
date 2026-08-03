@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.wallo.asset.dto.BudgetDto;
 import com.wallo.asset.service.BudgetService;
+import com.wallo.auth.CurrentUserProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -21,16 +22,19 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 class BudgetControllerTest {
 
     private final BudgetService budgetService = mock(BudgetService.class);
+    private final CurrentUserProvider currentUserProvider = mock(CurrentUserProvider.class);
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new BudgetController(budgetService)).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(
+                new BudgetController(budgetService, currentUserProvider)).build();
+        when(currentUserProvider.getCurrentUserId()).thenReturn(7L);
     }
 
     @Test
     void getBudgetReturnsCommonResponse() throws Exception {
-        when(budgetService.getBudgetSummary(1L, "2026-07"))
+        when(budgetService.getBudgetSummary(7L, "2026-07"))
                 .thenReturn(new BudgetDto.Summary("2026-07", 500_000L, 350_000L));
 
         String responseBody = mockMvc.perform(get("/api/budgets").param("targetMonth", "2026-07"))
@@ -43,12 +47,12 @@ class BudgetControllerTest {
         assertTrue(responseBody.contains("\"targetMonth\":\"2026-07\""));
         assertTrue(responseBody.contains("\"totalAmount\":500000"));
 
-        verify(budgetService).getBudgetSummary(1L, "2026-07");
+        verify(budgetService).getBudgetSummary(7L, "2026-07");
     }
 
     @Test
     void upsertBudgetPassesRequestToService() throws Exception {
-        when(budgetService.upsertBudget(eq(1L), org.mockito.ArgumentMatchers.any()))
+        when(budgetService.upsertBudget(eq(7L), org.mockito.ArgumentMatchers.any()))
                 .thenReturn(new BudgetDto.Summary("2026-07", 500_000L, 350_000L));
 
         String responseBody = mockMvc.perform(put("/api/budgets")
@@ -65,7 +69,7 @@ class BudgetControllerTest {
         ArgumentCaptor<BudgetDto.UpsertRequest> captor = ArgumentCaptor.forClass(
                 BudgetDto.UpsertRequest.class
         );
-        verify(budgetService).upsertBudget(eq(1L), captor.capture());
+        verify(budgetService).upsertBudget(eq(7L), captor.capture());
         org.junit.jupiter.api.Assertions.assertEquals("2026-07", captor.getValue().getTargetMonth());
         org.junit.jupiter.api.Assertions.assertEquals(500_000L, captor.getValue().getTotalAmount());
     }

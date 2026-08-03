@@ -42,12 +42,14 @@ const chartOptions = {
 
 const expenseCategoryLabel = (category) => ({
   FOOD: "식비",
+  CAFE: "카페",
   TRANSPORT: "교통",
   SHOPPING: "쇼핑",
   LIVING: "생활",
   CULTURE: "문화",
   HEALTH: "건강",
   EDUCATION: "교육",
+  LOAN_REPAYMENT: "대출 상환",
   ETC: "기타",
 }[category] ?? category);
 

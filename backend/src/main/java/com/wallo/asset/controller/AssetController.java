@@ -1,5 +1,6 @@
 package com.wallo.asset.controller;
 
+import com.wallo.auth.CurrentUserProvider;
 import com.wallo.asset.dto.AssetDto;
 import com.wallo.asset.dto.ExpenseDto;
 import com.wallo.asset.service.AssetService;
@@ -14,19 +15,22 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/assets")
 public class AssetController {
 
-    private static final long TEMPORARY_USER_ID = 1L;
-
     private final AssetService assetService;
     private final ExpenseService expenseService;
+    private final CurrentUserProvider currentUserProvider;
 
-    public AssetController(AssetService assetService, ExpenseService expenseService) {
+    public AssetController(
+            AssetService assetService,
+            ExpenseService expenseService,
+            CurrentUserProvider currentUserProvider) {
         this.assetService = assetService;
         this.expenseService = expenseService;
+        this.currentUserProvider = currentUserProvider;
     }
 
     @GetMapping
     public CommonResponse<AssetDto.Response> getAssets() {
-        return CommonResponse.success(assetService.getAssets(TEMPORARY_USER_ID));
+        return CommonResponse.success(assetService.getAssets(currentUserProvider.getCurrentUserId()));
     }
 
     @GetMapping("/expense")
@@ -44,6 +48,7 @@ public class AssetController {
                 0
         );
 
-        return CommonResponse.success(expenseService.getExpenseSummary(TEMPORARY_USER_ID, condition));
+        return CommonResponse.success(expenseService.getExpenseSummary(
+                currentUserProvider.getCurrentUserId(), condition));
     }
 }

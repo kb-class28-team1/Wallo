@@ -96,7 +96,7 @@ public class AuthServiceImpl implements AuthService {
         String nickname = request.getNickname().trim();
         String email = normalizeEmail(request.getEmail());
 
-        if (name.length() > 50 || nickname.length() > 50 || email.length() > 255) {
+        if (name.length() > 50 || nickname.length() > 50 || email.length() > 100) {
             throw new AuthException(AuthErrorCode.INVALID_REQUEST);
         }
         if (!EMAIL_PATTERN.matcher(email).matches()) {

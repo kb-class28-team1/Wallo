@@ -13,6 +13,11 @@ public interface ConnectionMapper {
             @Param("loginId") String loginId,
             @Param("loginPassword") String loginPassword
     );
+
+    Long findActiveConnectionId(
+            @Param("userId") long userId,
+            @Param("institutionId") String institutionId
+    );
 }
 
 
