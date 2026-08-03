@@ -239,8 +239,18 @@ onBeforeUnmount(() => {
       <div class="feed-layout">
         <main class="feed-column">
           <nav class="feed-tabs">
-            <button :class="{ active: activeTab === 'all' }" @click="changeTab('all')">전체 피드</button>
-            <button :class="{ active: activeTab === 'mine' }" @click="changeTab('mine')">내 피드</button>
+            <button
+              :class="{ active: activeTab === &quot;all&quot; }"
+              @click="changeTab(&quot;all&quot;)"
+            >
+              전체 피드
+            </button>
+            <button
+              :class="{ active: activeTab === &quot;mine&quot; }"
+              @click="changeTab(&quot;mine&quot;)"
+            >
+              내 피드
+            </button>
           </nav>
           <div v-if="!feeds.length" class="empty-feed">
             <span>📷</span><strong>아직 등록된 피드가 없어요</strong>
@@ -256,12 +266,25 @@ onBeforeUnmount(() => {
           >
             <span v-if="isFocusedFeed(feed)" class="focus-badge">선택한 게시물</span>
             <header>
-              <img :src="feed.profileImageUrl || '/images/profiles/default-profile.svg'" alt="" />
+              <img
+                :src="feed.profileImageUrl || &quot;/images/profiles/default-profile.svg&quot;"
+                alt=""
+              />
               <div><strong>{{ feed.nickname }}</strong><small>{{ spendingLabel(feed.spendingType) }} · {{ categoryLabel(feed.category, feed.customCategory) }}</small></div>
               <span class="saving-badge">+ {{ formatWon(feed.savingAmount) }}</span>
             </header>
-            <video v-if="feed.mediaType === 'VIDEO'" :src="feed.mediaUrl" controls preload="metadata"></video>
-            <img v-else class="feed-media" :src="feed.mediaUrl" :alt="feed.caption || '절약 인증 사진'" />
+            <video
+              v-if="feed.mediaType === &quot;VIDEO&quot;"
+              :src="feed.mediaUrl"
+              controls
+              preload="metadata"
+            ></video>
+            <img
+              v-else
+              class="feed-media"
+              :src="feed.mediaUrl"
+              :alt="feed.caption || &quot;절약 인증 사진&quot;"
+            />
             <footer>
               <p>{{ feed.caption || "오늘의 절약 기록을 공유했어요." }}</p>
               <span>🤖 AI 분석 완료 · 절약 금액 {{ formatWon(feed.savingAmount) }}</span>
@@ -275,7 +298,7 @@ onBeforeUnmount(() => {
             <div v-for="item in messages" :key="item.id" class="message" :class="{ mine: item.userId === userStore.user?.id }">
               <strong>{{ item.nickname }}</strong>
               <button v-if="item.referenceFeedId" class="shared-feed" @click="mentionFeed(item)">
-                <video v-if="item.mediaType === 'VIDEO'" :src="item.mediaUrl" muted></video>
+                <video v-if="item.mediaType === &quot;VIDEO&quot;" :src="item.mediaUrl" muted></video>
                 <img v-else :src="item.thumbnailUrl || item.mediaUrl" alt="공유 피드 썸네일" />
                 <span><b>피드 #{{ item.referenceFeedId }}</b><small>눌러서 언급하기</small></span>
               </button>
@@ -319,7 +342,13 @@ onBeforeUnmount(() => {
             <button v-for="item in categories" :key="item.value" type="button"
               :class="{ selected: form.category === item.value }" @click="form.category = item.value">{{ item.label }}</button>
           </div>
-          <input v-if="form.category === 'CUSTOM'" v-model="form.customCategory" class="custom-input" maxlength="50" placeholder="카테고리를 직접 입력해 주세요" />
+          <input
+            v-if="form.category === &quot;CUSTOM&quot;"
+            v-model="form.customCategory"
+            class="custom-input"
+            maxlength="50"
+            placeholder="카테고리를 직접 입력해 주세요"
+          />
 
           <div class="analysis-box">
             <div><b>🤖 AI 분석</b><span>선택 정보와 미디어를 외부 AI 분석기로 전달합니다.</span></div>

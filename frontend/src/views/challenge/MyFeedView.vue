@@ -131,7 +131,11 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
 <template>
   <section class="my-feed-page">
     <header class="page-heading d-flex align-items-center gap-3 mb-4">
-      <button type="button" class="btn back-button" @click="router.push({ name: 'my-challenge' })">
+      <button
+        type="button"
+        class="btn back-button"
+        @click="router.push({ name: &quot;my-challenge&quot; })"
+      >
         <i class="bi bi-chevron-left" aria-hidden="true"></i>
         내 챌린지
       </button>

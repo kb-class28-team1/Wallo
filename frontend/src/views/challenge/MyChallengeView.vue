@@ -231,7 +231,7 @@ onMounted(loadDashboard)
           </div>
         </dl>
 
-        <RouterLink :to="{ name: 'user-profile' }" class="btn profile-edit-button">
+        <RouterLink :to="{ name: &quot;user-profile&quot; }" class="btn profile-edit-button">
           프로필 편집
         </RouterLink>
       </article>
@@ -247,7 +247,7 @@ onMounted(loadDashboard)
           <div v-for="stat in summaryStats" :key="stat.label" class="summary-stat">
             <span>{{ stat.label }}</span>
             <strong>{{ stat.value }}</strong>
-            <small :class="stat.label === '이번 달 절약' ? savingChangeClass : null">
+            <small :class="stat.label === &quot;이번 달 절약&quot; ? savingChangeClass : null">
               {{ stat.subText }}
             </small>
           </div>
