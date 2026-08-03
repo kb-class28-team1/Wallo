@@ -72,10 +72,10 @@ const clearError = (field) => {
               id="login-email"
               v-model="email"
               type="email"
-              :class="['form-control', { 'is-invalid field-shake': errors.email }]"
+              :class="[&quot;form-control&quot;, { &quot;is-invalid field-shake&quot;: errors.email }]"
               autocomplete="email"
               placeholder="test@wallo.com"
-              @input="clearError('email')"
+              @input="clearError(&quot;email&quot;)"
             />
             <small v-if="errors.email" class="field-error">{{ errors.email }}</small>
           </div>
@@ -86,10 +86,10 @@ const clearError = (field) => {
               id="login-password"
               v-model="password"
               type="password"
-              :class="['form-control', { 'is-invalid field-shake': errors.password }]"
+              :class="[&quot;form-control&quot;, { &quot;is-invalid field-shake&quot;: errors.password }]"
               autocomplete="current-password"
               placeholder="비밀번호를 입력하세요"
-              @input="clearError('password')"
+              @input="clearError(&quot;password&quot;)"
             />
             <small v-if="errors.password" class="field-error">{{ errors.password }}</small>
           </div>
