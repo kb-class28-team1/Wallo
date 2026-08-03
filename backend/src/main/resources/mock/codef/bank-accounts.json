@@ -42,26 +42,6 @@
     ],
     "transactions": [
       {
-        "resAccount": "123456-01-789012",
-        "resAccountTrNo": "BANK-202607-0001",
-        "resAccountTrDate": "2026-07-25",
-        "resAccountTrTime": "09:10:00",
-        "resAccountTrType": "INCOME",
-        "resAccountTrAmount": "3200000",
-        "resAccountTrDesc": "급여",
-        "resAccountTrCategory": "INCOME"
-      },
-      {
-        "resAccount": "123456-01-789012",
-        "resAccountTrNo": "BANK-202607-0002",
-        "resAccountTrDate": "2026-07-28",
-        "resAccountTrTime": "18:42:00",
-        "resAccountTrType": "EXPENSE",
-        "resAccountTrAmount": "55000",
-        "resAccountTrDesc": "관리비",
-        "resAccountTrCategory": "LIVING"
-      },
-      {
         "resLoanAccount": "STUDENT-LOAN-2021-001",
         "resLoanPaymentNo": "LOAN-202607-0001",
         "resLoanPaymentDate": "2026-07-25",
