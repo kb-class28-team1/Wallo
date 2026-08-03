@@ -82,7 +82,7 @@ onBeforeUnmount(completeTyping)
         {{ message.role === "assistant" ? "Wallo AI" : "나" }}
       </span>
       <div
-        v-if="message.role === 'assistant'"
+        v-if="message.role === &quot;assistant&quot;"
         class="message-content message-content--markdown"
         v-html="renderedMarkdown"
       ></div>

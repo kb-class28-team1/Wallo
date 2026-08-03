@@ -1,0 +1,128 @@
+package com.wallo.challenge.service;
+
+import com.wallo.challenge.domain.MyFeed;
+import com.wallo.challenge.dto.response.MyFeedListResponse;
+import com.wallo.challenge.mapper.MyFeedMapper;
+import java.util.Collections;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+import java.util.regex.Pattern;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+/** 내 게시물 조회 조건을 검증하고 MyBatis 조회 결과를 응답 DTO로 변환하는 서비스임. */
+@Service
+public class MyFeedServiceImpl implements MyFeedService {
+
+    private static final String DEFAULT_SORT = "LIKE_DESC";
+    private static final String DEFAULT_CATEGORY = "ALL";
+    private static final int DEFAULT_PAGE = 0;
+    private static final int DEFAULT_SIZE = 10;
+    private static final int MAX_SIZE = 100;
+
+    // SQL에서 허용하는 정렬 조건만 Mapper에 전달하도록 제한함.
+    private static final Set<String> ALLOWED_SORTS = Set.of(
+            "LATEST",
+            "LIKE_DESC",
+            "SAVING_DESC");
+
+    // category 컬럼에 저장되는 영문 코드 형식만 허용하되 새로운 카테고리 추가는 막지 않음.
+    private static final Pattern CATEGORY_PATTERN = Pattern.compile("[A-Z][A-Z0-9_]{0,49}");
+
+    private final MyFeedMapper myFeedMapper;
+
+    public MyFeedServiceImpl(MyFeedMapper myFeedMapper) {
+        this.myFeedMapper = myFeedMapper;
+    }
+
+    /**
+     * 요청 조건을 표준 형식으로 변환한 뒤 전체 개수와 현재 페이지의 게시물을 조회함.
+     * 조회 결과가 없으면 목록 쿼리를 생략하고 빈 페이지 응답을 반환함.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public MyFeedListResponse getMyFeeds(
+            Long userId,
+            String sort,
+            String category,
+            Integer page,
+            Integer size) {
+        validateUserId(userId);
+
+        String normalizedSort = normalizeSort(sort);
+        String normalizedCategory = normalizeCategory(category);
+        int normalizedPage = normalizePage(page);
+        int normalizedSize = normalizeSize(size);
+        int offset = calculateOffset(normalizedPage, normalizedSize);
+
+        long totalElements = myFeedMapper.countMyFeeds(userId, normalizedCategory);
+        List<MyFeed> feeds = totalElements == 0
+                ? Collections.emptyList()
+                : myFeedMapper.findMyFeeds(
+                        userId,
+                        normalizedSort,
+                        normalizedCategory,
+                        offset,
+                        normalizedSize);
+
+        return MyFeedListResponse.of(
+                feeds,
+                normalizedPage,
+                normalizedSize,
+                totalElements);
+    }
+
+    private void validateUserId(Long userId) {
+        if (userId == null || userId <= 0) {
+            throw new IllegalArgumentException("사용자 ID가 올바르지 않습니다.");
+        }
+    }
+
+    private String normalizeSort(String sort) {
+        String normalizedSort = normalizeOrDefault(sort, DEFAULT_SORT);
+        if (!ALLOWED_SORTS.contains(normalizedSort)) {
+            throw new IllegalArgumentException("지원하지 않는 게시물 정렬 조건입니다.");
+        }
+        return normalizedSort;
+    }
+
+    private String normalizeCategory(String category) {
+        String normalizedCategory = normalizeOrDefault(category, DEFAULT_CATEGORY);
+        if (!CATEGORY_PATTERN.matcher(normalizedCategory).matches()) {
+            throw new IllegalArgumentException("게시물 카테고리 형식이 올바르지 않습니다.");
+        }
+        return normalizedCategory;
+    }
+
+    private String normalizeOrDefault(String value, String defaultValue) {
+        if (value == null || value.trim().isEmpty()) {
+            return defaultValue;
+        }
+        return value.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private int normalizePage(Integer page) {
+        int normalizedPage = page == null ? DEFAULT_PAGE : page;
+        if (normalizedPage < 0) {
+            throw new IllegalArgumentException("페이지 번호는 0 이상이어야 합니다.");
+        }
+        return normalizedPage;
+    }
+
+    private int normalizeSize(Integer size) {
+        int normalizedSize = size == null ? DEFAULT_SIZE : size;
+        if (normalizedSize <= 0 || normalizedSize > MAX_SIZE) {
+            throw new IllegalArgumentException("페이지 크기는 1 이상 100 이하여야 합니다.");
+        }
+        return normalizedSize;
+    }
+
+    private int calculateOffset(int page, int size) {
+        long offset = (long) page * size;
+        if (offset > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("요청한 페이지 범위가 너무 큽니다.");
+        }
+        return (int) offset;
+    }
+}

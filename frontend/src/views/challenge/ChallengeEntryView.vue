@@ -160,7 +160,7 @@ onMounted(loadCurrentChallenge)
         <button
           type="button"
           class="action-card"
-          @click="router.push('/challenges/rankings/weekly')"
+          @click="router.push(&quot;/challenges/rankings/weekly&quot;)"
         >
           <span class="action-icon"><i class="bi bi-trophy"></i></span>
           <span>
@@ -172,7 +172,7 @@ onMounted(loadCurrentChallenge)
         <button
           type="button"
           class="action-card"
-          @click="router.push('/users/me/challenge-dashboard')"
+          @click="router.push(&quot;/users/me/challenge-dashboard&quot;)"
         >
           <span class="action-icon"><i class="bi bi-graph-up-arrow"></i></span>
           <span>
@@ -199,24 +199,28 @@ onMounted(loadCurrentChallenge)
           <button
             type="button"
             role="tab"
-            :aria-selected="activeForm === 'create'"
-            :class="{ active: activeForm === 'create' }"
-            @click="activeForm = 'create'"
+            :aria-selected="activeForm === &quot;create&quot;"
+            :class="{ active: activeForm === &quot;create&quot; }"
+            @click="activeForm = &quot;create&quot;"
           >
             챌린지 만들기
           </button>
           <button
             type="button"
             role="tab"
-            :aria-selected="activeForm === 'join'"
-            :class="{ active: activeForm === 'join' }"
-            @click="activeForm = 'join'"
+            :aria-selected="activeForm === &quot;join&quot;"
+            :class="{ active: activeForm === &quot;join&quot; }"
+            @click="activeForm = &quot;join&quot;"
           >
             초대 코드로 참여
           </button>
         </div>
 
-        <form v-if="activeForm === 'create'" class="challenge-form" @submit.prevent="submitCreate">
+        <form
+          v-if="activeForm === &quot;create&quot;"
+          class="challenge-form"
+          @submit.prevent="submitCreate"
+        >
           <div class="form-copy">
             <span class="form-step">01</span>
             <div>
