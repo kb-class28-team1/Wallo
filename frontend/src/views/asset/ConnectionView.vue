@@ -3,9 +3,11 @@ import { computed, onBeforeUnmount, ref } from "vue";
 import { useRouter } from "vue-router";
 import { connectAllAssets } from "@/api/assetApi";
 import { useAssetStore } from "@/stores/assetStore";
+import { useUserStore } from "@/stores/userStore";
 
 const router = useRouter();
 const assetStore = useAssetStore();
+const userStore = useUserStore();
 
 const name = ref("");
 const phoneNumber = ref("");
@@ -154,7 +156,13 @@ const handleSubmit = async () => {
 
 const moveToDashboard = async () => {
   isSuccessModalVisible.value = false;
-  await router.push("/dashboard");
+  try {
+    await userStore.restoreSession(true);
+    await router.replace("/dashboard");
+  } catch (error) {
+    alert(error.message || "사용자 연동 상태를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+    isSuccessModalVisible.value = true;
+  }
 };
 
 onBeforeUnmount(() => {

@@ -159,8 +159,20 @@ router.beforeEach(async (to) => {
     }
   }
 
+  if (
+    to.meta.requiresAuth &&
+    userStore.isAuthenticated &&
+    !userStore.user?.connectionCompleted &&
+    to.name !== "connection"
+  ) {
+    return { name: "connection", replace: true }
+  }
+
   if (to.meta.guestOnly && userStore.isAuthenticated) {
-    return { name: "dashboard" }
+    return {
+      name: userStore.user?.connectionCompleted ? "dashboard" : "connection",
+      replace: true,
+    }
   }
 
   return true

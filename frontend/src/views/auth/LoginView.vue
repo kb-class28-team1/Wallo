@@ -31,7 +31,7 @@ const handleLogin = async () => {
       password: password.value,
     })
 
-    const redirectPath = authenticatedUser.firstLogin
+    const redirectPath = !authenticatedUser.connectionCompleted
       ? "/connections/mydata"
       : typeof route.query.redirect === "string" && route.query.redirect.startsWith("/")
         ? route.query.redirect

@@ -16,4 +16,6 @@ public interface AuthMapper {
     int insertUser(User user);
 
     int markFirstLoginComplete(@Param("id") Long id);
+
+    int countActiveConnections(@Param("userId") Long userId);
 }

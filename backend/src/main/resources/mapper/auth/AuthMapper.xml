@@ -71,4 +71,12 @@
         WHERE id = #{id}
           AND has_logged_in = FALSE
     </update>
+
+    <select id="countActiveConnections" resultType="int">
+        SELECT COUNT(*)
+        FROM connections
+        WHERE user_id = #{userId}
+          AND status = 'ACTIVE'
+          AND deleted_at IS NULL
+    </select>
 </mapper>

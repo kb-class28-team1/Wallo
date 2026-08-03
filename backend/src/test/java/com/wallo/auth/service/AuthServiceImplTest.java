@@ -94,6 +94,18 @@ class AuthServiceImplTest {
     }
 
     @Test
+    void includesConnectionCompletionInLoginResponse() {
+        FakeAuthMapper mapper = new FakeAuthMapper();
+        mapper.savedUser = user(10L, "test@wallo.com", passwordEncoder.encode("password123!"));
+        mapper.activeConnectionCount = 1;
+        AuthService service = new AuthServiceImpl(mapper, passwordEncoder);
+
+        AuthUserResponse response = service.login(loginRequest("test@wallo.com", "password123!"));
+
+        assertTrue(response.isConnectionCompleted());
+    }
+
+    @Test
     void rejectsWrongPasswordWithoutRevealingWhetherUserExists() {
         FakeAuthMapper mapper = new FakeAuthMapper();
         mapper.savedUser = user(10L, "test@wallo.com", passwordEncoder.encode("password123!"));
@@ -153,6 +165,7 @@ class AuthServiceImplTest {
         private int nicknameCount;
         private boolean insertCalled;
         private User savedUser;
+        private int activeConnectionCount;
 
         @Override
         public User findByEmail(String email) {
@@ -198,6 +211,11 @@ class AuthServiceImplTest {
             }
             savedUser.setHasLoggedIn(true);
             return 1;
+        }
+
+        @Override
+        public int countActiveConnections(Long userId) {
+            return activeConnectionCount;
         }
     }
 }
