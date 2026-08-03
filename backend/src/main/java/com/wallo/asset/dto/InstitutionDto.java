@@ -29,7 +29,8 @@ public final class InstitutionDto {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class Item {
-        private String institutionId;
+        private Long institutionId;
+        private String codefOrganizationCode;
         private String name;
         private String logoUrl;
         private List<String> services;

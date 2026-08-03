@@ -86,9 +86,9 @@ public class ConnectionServiceTest {
 
     private void givenConnectionTargets() {
         List<Institution> institutions = Arrays.asList(
-                new Institution("0004", "Bank", "BANK", "bank-logo"),
-                new Institution("0311", "Card", "CARD", "card-logo"),
-                new Institution("0264", "Stock", "STOCK", "stock-logo")
+                new Institution(1L, "0004", "Bank", "BANK", "bank-logo"),
+                new Institution(2L, "0311", "Card", "CARD", "card-logo"),
+                new Institution(3L, "0264", "Stock", "STOCK", "stock-logo")
         );
         when(institutionService.getConnectionTargetInstitutions()).thenReturn(institutions);
     }

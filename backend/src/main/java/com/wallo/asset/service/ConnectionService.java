@@ -81,7 +81,7 @@ public class ConnectionService {
 
     private CodefDto.Request createCodefRequest(Institution institution) {
         return new CodefDto.Request(
-                institution.getInstitutionId(),
+                institution.getCodefOrganizationCode(),
                 institution.getInstitutionType(),
                 ConnectionDto.MOCK_LOGIN_TYPE,
                 ConnectionDto.MOCK_ID,

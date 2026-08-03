@@ -54,25 +54,36 @@ CREATE TABLE USERS (
   COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE INSTITUTIONS (
-    institution_id VARCHAR(20) PRIMARY KEY,
+    institution_id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    codef_organization_code VARCHAR(20) NOT NULL,
     type VARCHAR(20) NOT NULL,
     name VARCHAR(100) NOT NULL,
     logo_url VARCHAR(1000) NULL,
-    services JSON NULL
+    services JSON NULL,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    display_order INT NOT NULL DEFAULT 0,
+    UNIQUE KEY uk_institutions_codef_type (codef_organization_code, type)
 ) ENGINE=InnoDB
   DEFAULT CHARSET=utf8mb4
   COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO INSTITUTIONS (institution_id, type, name, logo_url, services)
+INSERT INTO INSTITUTIONS (
+    codef_organization_code,
+    type,
+    name,
+    logo_url,
+    services,
+    display_order
+)
 VALUES
-    ('0004', 'BANK', '국민은행', 'https://www.kbstar.com/favicon.ico', JSON_ARRAY('입출금', '적금', '대출')),
-    ('0311', 'CARD', '하나카드', 'https://www.hanacard.co.kr/favicon.ico', JSON_ARRAY('신용카드', '체크카드')),
-    ('0264', 'STOCK', '키움증권', 'https://www.kiwoom.com/favicon.ico', JSON_ARRAY('주식', 'CMA'));
+    ('0004', 'BANK', '국민은행', 'https://www.kbstar.com/favicon.ico', JSON_ARRAY('입출금', '적금', '대출'), 10),
+    ('0311', 'CARD', '하나카드', 'https://www.hanacard.co.kr/favicon.ico', JSON_ARRAY('신용카드', '체크카드'), 20),
+    ('0264', 'STOCK', '키움증권', 'https://www.kiwoom.com/favicon.ico', JSON_ARRAY('주식', 'CMA'), 30);
 
 CREATE TABLE CONNECTIONS (
     connection_id BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT NOT NULL,
-    institution_id VARCHAR(20) NOT NULL,
+    institution_id BIGINT NOT NULL,
     login_type VARCHAR(10) NOT NULL,
     login_id VARCHAR(255) NOT NULL,
     login_password VARCHAR(255) NOT NULL,
