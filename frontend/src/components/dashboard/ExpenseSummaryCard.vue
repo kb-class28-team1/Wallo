@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import { Doughnut } from "vue-chartjs";
 import { ArcElement, Chart as ChartJS, Legend, Tooltip } from "chart.js";
+import { getExpenseCategoryLabel } from "@/constants/expenseCategories";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -39,20 +40,6 @@ const chartOptions = {
     },
   },
 };
-
-const expenseCategoryLabel = (category) => ({
-  FOOD: "식비",
-  CAFE: "카페",
-  TRANSPORT: "교통",
-  SHOPPING: "쇼핑",
-  LIVING: "생활",
-  CULTURE: "문화",
-  HEALTH: "건강",
-  EDUCATION: "교육",
-  LOAN_REPAYMENT: "대출 상환",
-  OTHER: "기타",
-  ETC: "기타",
-}[category] ?? category);
 
 const expenseCategoryColor = (category) => {
   const categoryIndex = (props.expenses.expenseCategoryBreakdown ?? []).findIndex(
@@ -102,7 +89,7 @@ const expenseCategoryRate = (amount) => {
                   class="expense-category-dot"
                   :style="{ backgroundColor: expenseCategoryColor(category.category) }"
                 ></span>
-                {{ expenseCategoryLabel(category.category) }}
+                {{ getExpenseCategoryLabel(category.category) }}
               </span>
               <span class="expense-category-rate">{{ expenseCategoryRate(category.amount) }}%</span>
               <strong>{{ formatWon(category.amount) }}</strong>

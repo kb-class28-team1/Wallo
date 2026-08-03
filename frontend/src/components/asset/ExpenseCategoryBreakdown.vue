@@ -2,21 +2,13 @@
 import { computed, nextTick, ref } from "vue";
 import { Doughnut } from "vue-chartjs";
 import { ArcElement, Chart as ChartJS, Tooltip } from "chart.js";
+import {
+  EXPENSE_CATEGORY_META,
+  getExpenseCategoryMeta,
+  normalizeExpenseCategory,
+} from "@/constants/expenseCategories";
 
 ChartJS.register(ArcElement, Tooltip);
-
-const CATEGORY_META = {
-  FOOD: { label: "식비", color: "#ff7b6b", icon: "bi-cup-hot" },
-  CAFE: { label: "카페", color: "#f28c66", icon: "bi-cup-straw" },
-  TRANSPORT: { label: "교통/차량", color: "#2fc595", icon: "bi-bus-front" },
-  SHOPPING: { label: "쇼핑", color: "#5b8def", icon: "bi-bag" },
-  DELIVERY: { label: "배달", color: "#ffad66", icon: "bi-fork-knife" },
-  HOUSING: { label: "주거/통신", color: "#8170ff", icon: "bi-house" },
-  LIVING: { label: "생활", color: "#46b8d8", icon: "bi-basket" },
-  LOAN_REPAYMENT: { label: "대출상환", color: "#c47cff", icon: "bi-bank" },
-  ETC: { label: "기타", color: "#a0a6b5", icon: "bi-receipt" },
-};
-const FALLBACK_COLORS = ["#46b8d8", "#c47cff", "#f28c66", "#8d99ae"];
 
 const props = defineProps({
   breakdown: {
@@ -36,8 +28,7 @@ const categories = computed(() => {
   const amountByCategory = new Map();
 
   for (const item of props.breakdown ?? []) {
-    const sourceCategory = String(item.category || "ETC").toUpperCase();
-    const category = sourceCategory === "OTHER" ? "ETC" : sourceCategory;
+    const category = normalizeExpenseCategory(item.category);
     amountByCategory.set(
       category,
       (amountByCategory.get(category) ?? 0) + (Number(item.amount) || 0),
@@ -45,14 +36,14 @@ const categories = computed(() => {
   }
 
   const normalizedCategories = [...amountByCategory.entries()]
-    .map(([category, amount], index) => {
-      const meta = CATEGORY_META[category];
+    .map(([category, amount]) => {
+      const meta = getExpenseCategoryMeta(category);
       return {
         category,
-        label: meta?.label ?? category,
+        label: meta.label,
         amount,
-        color: meta?.color ?? FALLBACK_COLORS[index % FALLBACK_COLORS.length],
-        icon: meta?.icon ?? "bi-receipt",
+        color: meta.color,
+        icon: meta.icon,
       };
     })
     .filter((item) => item.amount > 0)
@@ -73,10 +64,10 @@ const categories = computed(() => {
   if (etcAmount > 0) {
     topCategories.push({
       category: "ETC",
-      label: CATEGORY_META.ETC.label,
+      label: EXPENSE_CATEGORY_META.ETC.label,
       amount: etcAmount,
-      color: CATEGORY_META.ETC.color,
-      icon: CATEGORY_META.ETC.icon,
+      color: EXPENSE_CATEGORY_META.ETC.color,
+      icon: EXPENSE_CATEGORY_META.ETC.icon,
     });
   }
 
@@ -118,6 +109,11 @@ const chartOptions = {
 };
 
 const formatWon = (amount) => `${new Intl.NumberFormat("ko-KR").format(Number(amount) || 0)}원`;
+
+const categoryRate = (amount) => {
+  const totalExpense = Number(props.totalExpense) || 0;
+  return totalExpense > 0 ? Math.round(((Number(amount) || 0) / totalExpense) * 100) : 0;
+};
 
 const setHoveredCategory = async (index) => {
   hoveredIndex.value = index;
@@ -173,7 +169,10 @@ const clearHoveredCategory = async () => {
                 </span>
                 {{ category.label }}
               </span>
-              <strong>{{ formatWon(category.amount) }}</strong>
+              <span class="category-value">
+                <span class="category-rate">{{ categoryRate(category.amount) }}%</span>
+                <strong>{{ formatWon(category.amount) }}</strong>
+              </span>
             </li>
           </ul>
         </div>
@@ -265,6 +264,20 @@ const clearHoveredCategory = async () => {
 .category-list strong {
   color: #343044;
   white-space: nowrap;
+}
+
+.category-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.category-rate {
+  min-width: 38px;
+  color: #8a90a2;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-align: right;
 }
 
 .category-empty {

@@ -14,6 +14,8 @@ const props = defineProps({
   },
 });
 
+const emit = defineEmits(["select-date"]);
+
 const formatDateKey = (year, month, day) =>
   `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 
@@ -54,6 +56,12 @@ const calendarCells = computed(() => {
 });
 
 const formatAmount = (amount) => new Intl.NumberFormat("ko-KR").format(Number(amount) || 0);
+
+const selectDate = (cell) => {
+  if (!cell.isBlank) {
+    emit("select-date", cell.date);
+  }
+};
 </script>
 
 <template>
@@ -68,15 +76,18 @@ const formatAmount = (amount) => new Intl.NumberFormat("ko-KR").format(Number(am
         {{ weekday }}
       </div>
 
-      <div
+      <component
         v-for="(cell, index) in calendarCells"
         :key="cell.key"
+        :is="cell.isBlank ? 'div' : 'button'"
+        :type="cell.isBlank ? undefined : 'button'"
         class="calendar-day"
         :class="{
           'calendar-day-blank': cell.isBlank,
           sunday: !cell.isBlank && index % 7 === 0,
           saturday: !cell.isBlank && index % 7 === 6,
         }"
+        @click="selectDate(cell)"
       >
         <template v-if="!cell.isBlank">
           <span class="calendar-day-number">{{ cell.day }}</span>
@@ -89,7 +100,7 @@ const formatAmount = (amount) => new Intl.NumberFormat("ko-KR").format(Number(am
             </span>
           </div>
         </template>
-      </div>
+      </component>
     </div>
   </div>
 </template>
@@ -120,11 +131,29 @@ const formatAmount = (amount) => new Intl.NumberFormat("ko-KR").format(Number(am
 }
 
 .calendar-day {
+  position: relative;
   min-height: 112px;
   padding: 10px;
   border-right: 1px solid #edf0f5;
+  border-top: 0;
+  border-left: 0;
   border-bottom: 1px solid #edf0f5;
   background: #ffffff;
+  font-family: inherit;
+  text-align: initial;
+}
+
+button.calendar-day {
+  cursor: pointer;
+}
+
+button.calendar-day:hover,
+button.calendar-day:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 2px solid #d9d3ff;
+  outline-offset: -2px;
+  background: #faf9ff;
 }
 
 .calendar-day-blank {
@@ -132,6 +161,9 @@ const formatAmount = (amount) => new Intl.NumberFormat("ko-KR").format(Number(am
 }
 
 .calendar-day-number {
+  position: absolute;
+  top: 10px;
+  left: 10px;
   display: inline-flex;
   width: 25px;
   height: 25px;
@@ -146,7 +178,7 @@ const formatAmount = (amount) => new Intl.NumberFormat("ko-KR").format(Number(am
 .calendar-day-amounts {
   display: grid;
   gap: 4px;
-  margin-top: 10px;
+  margin-top: 30px;
   font-size: 0.72rem;
   font-weight: 700;
   text-align: right;

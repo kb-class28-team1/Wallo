@@ -1,17 +1,5 @@
 <script setup>
-const CATEGORY_META = {
-  FOOD: { label: "식비", icon: "bi-cup-hot", colorClass: "coral" },
-  CAFE: { label: "카페", icon: "bi-cup-straw", colorClass: "coral" },
-  TRANSPORT: { label: "교통/차량", icon: "bi-bus-front", colorClass: "green" },
-  SHOPPING: { label: "쇼핑", icon: "bi-bag", colorClass: "blue" },
-  DELIVERY: { label: "배달", icon: "bi-fork-knife", colorClass: "coral" },
-  HOUSING: { label: "주거/통신", icon: "bi-house", colorClass: "purple" },
-  LIVING: { label: "생활", icon: "bi-basket", colorClass: "green" },
-  LOAN_REPAYMENT: { label: "대출상환", icon: "bi-bank", colorClass: "purple" },
-  INCOME: { label: "수입", icon: "bi-wallet2", colorClass: "blue" },
-  SEND: { label: "보낸 돈", icon: "bi-arrow-up-right", colorClass: "purple" },
-  ETC: { label: "기타", icon: "bi-receipt", colorClass: "gray" },
-};
+import { getExpenseCategoryMeta } from "@/constants/expenseCategories";
 
 defineProps({
   transactions: {
@@ -30,16 +18,13 @@ defineProps({
     type: String,
     default: "",
   },
+  emptyMessage: {
+    type: String,
+    default: "이 달의 거래 내역이 없습니다.",
+  },
 });
 
 defineEmits(["load-more"]);
-
-const categoryMeta = (category) =>
-  CATEGORY_META[
-    String(category || "ETC").toUpperCase() === "OTHER"
-      ? "ETC"
-      : String(category || "ETC").toUpperCase()
-  ] ?? CATEGORY_META.ETC;
 
 const formatDate = (date) => {
   const [, month, day] = String(date || "").split("-");
@@ -64,13 +49,13 @@ const typeLabel = (type) => ({
   <div>
     <ul v-if="transactions.length" class="transaction-list list-unstyled mb-0">
       <li v-for="(transaction, index) in transactions" :key="`${transaction.date}-${transaction.merchantName}-${transaction.amount}-${index}`">
-        <span class="transaction-icon" :class="categoryMeta(transaction.category).colorClass">
-          <i :class="['bi', categoryMeta(transaction.category).icon]" aria-hidden="true"></i>
+        <span class="transaction-icon" :class="getExpenseCategoryMeta(transaction.category).colorClass">
+          <i :class="['bi', getExpenseCategoryMeta(transaction.category).icon]" aria-hidden="true"></i>
         </span>
         <span class="transaction-info">
           <strong>{{ transaction.merchantName }}</strong>
           <small>
-            {{ formatDate(transaction.date) }} · {{ categoryMeta(transaction.category).label }} ·
+            {{ formatDate(transaction.date) }} · {{ getExpenseCategoryMeta(transaction.category).label }} ·
             {{ typeLabel(transaction.type) }}
           </small>
         </span>
@@ -82,7 +67,7 @@ const typeLabel = (type) => ({
 
     <div v-else class="transaction-empty text-center">
       <i class="bi bi-receipt text-secondary fs-2" aria-hidden="true"></i>
-      <p class="text-secondary mb-0 mt-2">이 달의 거래 내역이 없습니다.</p>
+      <p class="text-secondary mb-0 mt-2">{{ emptyMessage }}</p>
     </div>
 
     <p v-if="loadMoreError" class="small text-danger text-center mb-2 mt-3" role="alert">
@@ -118,13 +103,6 @@ const typeLabel = (type) => ({
   border: 1px solid #edf0f5;
   border-radius: 16px;
   background: #ffffff;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
-}
-
-.transaction-list li:hover {
-  border-color: #ddd8ff;
-  box-shadow: 0 8px 22px rgba(56, 47, 111, 0.08);
-  transform: translateY(-1px);
 }
 
 .transaction-icon {
