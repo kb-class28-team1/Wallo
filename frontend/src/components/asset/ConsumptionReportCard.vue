@@ -81,7 +81,7 @@ onMounted(loadInsight);
         </p>
 
         <RouterLink to="/assets/expenses" class="report-detail-link">
-          자세히 보기
+          월별 리포트 보기
           <span aria-hidden="true">&gt;</span>
         </RouterLink>
       </div>

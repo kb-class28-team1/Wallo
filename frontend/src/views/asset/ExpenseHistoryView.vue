@@ -270,7 +270,7 @@ onMounted(loadSelectedMonth);
           <i class="bi bi-chevron-left" aria-hidden="true"></i>
         </RouterLink>
         <div>
-          <h1 class="h3 fw-bold mb-1">소비 내역</h1>
+          <h1 class="h3 fw-bold mb-1">월별 리포트</h1>
           <p class="text-secondary mb-0">{{ summaryDescription }}</p>
         </div>
       </div>
