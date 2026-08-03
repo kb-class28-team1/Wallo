@@ -1,22 +1,22 @@
 <script setup>
-import { computed, ref, watch } from "vue"
-import { RouterLink, useRoute, useRouter } from "vue-router"
-import { getCurrentChallenge } from "@/api/challengeApi"
-import brandPenguin from "@/assets/penguin-coins.svg"
-import thinkingPenguin from "@/assets/thinking-penguin.svg"
+import { computed, ref, watch } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { getCurrentChallenge } from '@/api/challengeApi'
+import brandPenguin from '@/assets/penguin-coins.svg'
+import thinkingPenguin from '@/assets/thinking-penguin.svg'
 
 const brandLogoSource = ref(brandPenguin)
 
 const primaryMenus = [
-  { icon: "🏠", label: "대시보드", to: "/dashboard" },
-  { icon: "💳", label: "자산", to: "/assets" },
-  { icon: "🤖", label: "AI 컨설팅", to: "/ai-consulting" },
+  { icon: '🏠', label: '대시보드', to: '/dashboard' },
+  { icon: '💳', label: '자산', to: '/assets' },
+  { icon: '🤖', label: 'AI 컨설팅', to: '/ai-consulting' },
 ]
 
 const utilityMenus = [
-  { icon: "🛍️", label: "포인트 샵", to: "/point-shop" },
-  { icon: "📇", label: "금융 리포트", to: "/reports" },
-  { icon: "⚙️", label: "설정", to: "/users/profile" },
+  { icon: '🛍️', label: '포인트 샵', to: '/point-shop' },
+  { icon: '📇', label: '금융 리포트', to: '/reports' },
+  { icon: '⚙️', label: '설정', to: '/users/profile' },
 ]
 
 const route = useRoute()
@@ -28,21 +28,24 @@ const isChallengeChecking = ref(false)
 // 챌린지 관련 페이지에 접속 중인지 현재 URL로 판단함
 const isChallengeRoute = computed(
   () =>
-    route.path === "/challenges/current" ||
-    route.path.startsWith("/challenges/") ||
-    route.path === "/users/me/challenge-dashboard",
+    route.path === '/challenges/current' ||
+    route.path.startsWith('/challenges/') ||
+    route.path === '/users/me/challenge-dashboard',
 )
 const challengeGroupClass = computed(() => ({
-  "challenge-group-active": isChallengeRoute.value,
+  'challenge-group-active': isChallengeRoute.value,
 }))
 const collapseMarkClass = computed(() => ({
-  "collapse-mark-open": isChallengeOpen.value,
+  'collapse-mark-open': isChallengeOpen.value,
 }))
 const weeklyRankingClass = computed(() => ({
-  "submenu-link-active": route.path === "/challenges/rankings/weekly",
+  'submenu-link-active': route.path === '/challenges/rankings/weekly',
+}))
+const challengeFeedClass = computed(() => ({
+  'submenu-link-active': route.name === 'challenge-feed' || route.path === '/challenges/current',
 }))
 const myChallengeClass = computed(() => ({
-  "submenu-link-active": route.path === "/users/me/challenge-dashboard",
+  'submenu-link-active': route.path === '/users/me/challenge-dashboard',
 }))
 
 // 챌린지 관련 페이지에서는 새로고침 후에도 하위 메뉴가 펼쳐짐
@@ -77,24 +80,44 @@ const moveToChallengeMemberPage = async (targetPath) => {
     const response = await getCurrentChallenge()
 
     if (!response?.joined) {
-      alert("챌린지 참여가 확인되지 않습니다.")
+      alert('챌린지 참여가 확인되지 않습니다.')
       return
     }
 
     await router.push(targetPath)
   } catch (error) {
-    alert("챌린지 참여가 확인되지 않습니다.")
+    alert('챌린지 참여가 확인되지 않습니다.')
   } finally {
     isChallengeChecking.value = false
   }
 }
 
 const moveToWeeklyRanking = () => {
-  moveToChallengeMemberPage("/challenges/rankings/weekly")
+  moveToChallengeMemberPage('/challenges/rankings/weekly')
+}
+
+const moveToChallengeFeed = async () => {
+  if (isChallengeChecking.value) {
+    return
+  }
+
+  isChallengeChecking.value = true
+  try {
+    const challenge = await getCurrentChallenge()
+    if (!challenge?.joined || !challenge.id) {
+      await router.push('/challenges/current')
+      return
+    }
+    await router.push(`/challenges/${challenge.id}/feeds`)
+  } catch (error) {
+    alert(error.message || '챌린지 정보를 확인하지 못했습니다.')
+  } finally {
+    isChallengeChecking.value = false
+  }
 }
 
 const moveToMyChallenge = () => {
-  moveToChallengeMemberPage("/users/me/challenge-dashboard")
+  moveToChallengeMemberPage('/users/me/challenge-dashboard')
 }
 </script>
 
@@ -105,12 +128,7 @@ const moveToMyChallenge = () => {
       class="brand d-flex align-items-center"
       aria-label="왈로 대시보드로 이동"
     >
-      <img
-        :src="brandLogoSource"
-        class="brand-icon"
-        alt="왈로 로고"
-        @error="useDefaultBrandLogo"
-      />
+      <img :src="brandLogoSource" class="brand-icon" alt="왈로 로고" @error="useDefaultBrandLogo" />
       <span class="brand-name">왈로</span>
     </RouterLink>
 
@@ -157,18 +175,17 @@ const moveToMyChallenge = () => {
         </div>
 
         <Transition name="submenu">
-          <div
-            v-if="isChallengeOpen"
-            id="challenge-submenu"
-            class="submenu d-flex flex-column"
-          >
-            <RouterLink
-              to="/challenges/current"
+          <div v-if="isChallengeOpen" id="challenge-submenu" class="submenu d-flex flex-column">
+            <button
+              type="button"
               class="submenu-item submenu-link d-flex align-items-center"
+              :class="challengeFeedClass"
+              :disabled="isChallengeChecking"
+              @click="moveToChallengeFeed"
             >
               <span class="submenu-dot" aria-hidden="true"></span>
               <span>피드 목록</span>
-            </RouterLink>
+            </button>
 
             <button
               type="button"
@@ -209,11 +226,7 @@ const moveToMyChallenge = () => {
     </nav>
 
     <div class="sidebar-card mt-auto text-center">
-      <img
-        :src="thinkingPenguin"
-        class="sidebar-card-image"
-        alt="생각하는 왈로 캐릭터"
-      />
+      <img :src="thinkingPenguin" class="sidebar-card-image" alt="생각하는 왈로 캐릭터" />
       <p class="sidebar-card-text mb-0">뭔가 넣을 공간</p>
     </div>
   </aside>
