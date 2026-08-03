@@ -1,0 +1,54 @@
+{
+  "result": {
+    "code": "CF-00000",
+    "message": "성공",
+    "extraMessage": ""
+  },
+  "data": [
+    {
+      "resUsedDate": "20260629",
+      "resUsedTime": "081500",
+      "resApprovalNo": "60492173",
+      "resMemberName": "월로카페",
+      "resUsedAmount": "5500",
+      "resMemberSector": "요식/음료",
+      "resCardType": "1"
+    },
+    {
+      "resUsedDate": "20260722",
+      "resUsedTime": "081500",
+      "resApprovalNo": "12345678",
+      "resMemberName": "SK에너지",
+      "resUsedAmount": "50000",
+      "resMemberSector": "주유",
+      "resCardType": "1"
+    },
+    {
+      "resUsedDate": "20260726",
+      "resUsedTime": "193000",
+      "resApprovalNo": "87654321",
+      "resMemberName": "배달의민족",
+      "resUsedAmount": "38000",
+      "resMemberSector": "요식/음료",
+      "resCardType": "1"
+    },
+    {
+      "resUsedDate": "20260729",
+      "resUsedTime": "121000",
+      "resApprovalNo": "47291035",
+      "resMemberName": "무신사",
+      "resUsedAmount": "85000",
+      "resMemberSector": "온라인쇼핑",
+      "resCardType": "1"
+    },
+    {
+      "resUsedDate": "20260801",
+      "resUsedTime": "204500",
+      "resApprovalNo": "39182640",
+      "resMemberName": "동네식당",
+      "resUsedAmount": "24000",
+      "resMemberSector": "요식/음료",
+      "resCardType": "1"
+    }
+  ]
+}
