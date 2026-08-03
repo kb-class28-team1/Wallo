@@ -31,4 +31,49 @@
           AND deleted_at IS NULL
         ORDER BY acquired_at DESC, id DESC
     </select>
+
+    <!-- 잔액이 충분한 경우에만 포인트를 차감하여 음수 잔액을 방지함. -->
+    <update id="deductPoints">
+        UPDATE USERS
+        SET point = point - #{price}
+        WHERE id = #{userId}
+          AND point &gt;= #{price}
+    </update>
+
+    <!-- 랜덤박스에 사용한 포인트를 음수 금액으로 기록함. -->
+    <insert id="insertPointHistory">
+        INSERT INTO POINT_HISTORY (
+            user_id,
+            amount,
+            type,
+            reference_key,
+            description
+        ) VALUES (
+            #{userId},
+            #{amount},
+            'BOX_OPEN',
+            #{referenceKey},
+            #{description}
+        )
+    </insert>
+
+    <!-- 당첨된 상품을 사용 가능한 상태로 보관함에 추가함. -->
+    <insert id="insertInventoryReward"
+            parameterType="com.wallo.pointshop.domain.PointShopReward"
+            useGeneratedKeys="true"
+            keyProperty="inventoryId">
+        INSERT INTO USER_INVENTORY (
+            user_id,
+            item_name,
+            coupon_code,
+            grade,
+            status
+        ) VALUES (
+            #{userId},
+            #{itemName},
+            #{couponCode},
+            #{grade},
+            'AVAILABLE'
+        )
+    </insert>
 </mapper>
