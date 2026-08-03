@@ -14,6 +14,7 @@ const emit = defineEmits(["typing", "typing-complete"])
 const displayedContent = ref("")
 const isTyping = ref(false)
 let typingTimer = null
+const TYPING_INTERVAL_MS = 35
 
 marked.setOptions({
   breaks: true,
@@ -63,7 +64,7 @@ const startTyping = () => {
     if (cursor >= characters.length) {
       completeTyping()
     }
-  }, 16)
+  }, TYPING_INTERVAL_MS)
 }
 
 watch(
@@ -122,13 +123,18 @@ onBeforeUnmount(completeTyping)
   padding: 12px 14px;
   background: #f4f3fb;
   border-radius: 14px;
-  line-height: 1.5;
+  line-height: 1.35;
   white-space: pre-wrap;
 }
 
 .message-row--user .message-content {
   color: #fff;
   background: #7062de;
+}
+
+.message-content--markdown {
+  line-height: 1.55;
+  white-space: normal;
 }
 
 .message-content--markdown :deep(> :first-child) {
@@ -152,12 +158,24 @@ onBeforeUnmount(completeTyping)
 .message-content--markdown :deep(ol),
 .message-content--markdown :deep(blockquote),
 .message-content--markdown :deep(pre) {
-  margin: 0 0 0.75em;
+  margin: 0 0 0.7em;
+}
+
+.message-content--markdown :deep(p) {
+  margin-bottom: 0.55em;
+}
+
+.message-content--markdown :deep(p:empty) {
+  display: none;
 }
 
 .message-content--markdown :deep(ul),
 .message-content--markdown :deep(ol) {
   padding-left: 1.4rem;
+}
+
+.message-content--markdown :deep(li + li) {
+  margin-top: 0.25em;
 }
 
 .message-content--markdown :deep(code) {
