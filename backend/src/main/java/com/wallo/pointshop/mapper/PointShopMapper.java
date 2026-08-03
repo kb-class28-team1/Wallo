@@ -32,6 +32,11 @@ public interface PointShopMapper {
             @Param("userId") Long userId,
             @Param("amount") Integer amount);
 
+    /** 로그인 사용자가 사용 완료한 상품에 삭제 시각을 기록함. */
+    int softDeleteUsedInventoryItem(
+            @Param("userId") Long userId,
+            @Param("inventoryId") Long inventoryId);
+
     /** 당첨 상품을 사용자 보관함에 저장하고 생성된 ID를 채움. */
     int insertInventoryReward(PointShopReward reward);
 }

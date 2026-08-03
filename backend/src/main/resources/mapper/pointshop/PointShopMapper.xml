@@ -64,6 +64,16 @@
         WHERE id = #{userId}
     </update>
 
+    <!-- 로그인 사용자의 사용 완료 상품만 소프트 삭제함. -->
+    <update id="softDeleteUsedInventoryItem">
+        UPDATE USER_INVENTORY
+        SET deleted_at = CURRENT_TIMESTAMP
+        WHERE id = #{inventoryId}
+          AND user_id = #{userId}
+          AND status = 'USED'
+          AND deleted_at IS NULL
+    </update>
+
     <!-- 당첨된 상품을 사용 가능한 상태로 보관함에 추가함. -->
     <insert id="insertInventoryReward"
             parameterType="com.wallo.pointshop.domain.PointShopReward"

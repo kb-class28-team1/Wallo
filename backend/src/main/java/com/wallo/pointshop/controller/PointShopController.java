@@ -2,6 +2,7 @@ package com.wallo.pointshop.controller;
 
 import com.wallo.auth.CurrentUserProvider;
 import com.wallo.pointshop.dto.response.OpenBoxResponse;
+import com.wallo.pointshop.dto.response.PointShopBoxDetailResponse;
 import com.wallo.pointshop.dto.response.PointShopResponse;
 import com.wallo.pointshop.service.PointShopService;
 import org.springframework.http.ResponseEntity;
@@ -31,6 +32,12 @@ public class PointShopController {
     public ResponseEntity<PointShopResponse> getPointShop() {
         Long currentUserId = currentUserProvider.getCurrentUserId();
         return ResponseEntity.ok(pointShopService.getPointShop(currentUserId));
+    }
+
+    /** 기본 랜덤박스의 상품 구성과 당첨 확률을 조회함. */
+    @GetMapping("/boxes/{boxId}")
+    public ResponseEntity<PointShopBoxDetailResponse> getBoxDetail(@PathVariable Long boxId) {
+        return ResponseEntity.ok(pointShopService.getBoxDetail(boxId));
     }
 
     /** 포인트를 차감하고 기본 랜덤박스의 당첨 상품을 보관함에 추가함. */

@@ -3,6 +3,7 @@ package com.wallo.pointshop.service;
 import com.wallo.pointshop.domain.PointShopInventoryItem;
 import com.wallo.pointshop.domain.PointShopReward;
 import com.wallo.pointshop.dto.response.OpenBoxResponse;
+import com.wallo.pointshop.dto.response.PointShopBoxDetailResponse;
 import com.wallo.pointshop.dto.response.PointShopResponse;
 import com.wallo.pointshop.mapper.PointShopMapper;
 import java.util.Collections;
@@ -41,14 +42,19 @@ public class PointShopServiceImpl implements PointShopService {
                 inventoryItems == null ? Collections.emptyList() : inventoryItems);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public PointShopBoxDetailResponse getBoxDetail(Long boxId) {
+        validateBoxId(boxId);
+        return PointShopBoxDetailResponse.basicBox();
+    }
+
     /** 포인트 차감, 이력 저장과 보관함 저장을 하나의 트랜잭션으로 처리함. */
     @Override
     @Transactional
     public OpenBoxResponse openBox(Long userId, Long boxId) {
         validateUserId(userId);
-        if (boxId == null || boxId != BASIC_BOX_ID) {
-            throw new IllegalArgumentException("지원하지 않는 랜덤박스입니다.");
-        }
+        validateBoxId(boxId);
 
         int updatedRows = pointShopMapper.deductPoints(userId, BASIC_BOX_PRICE);
         if (updatedRows == 0) {
@@ -101,29 +107,43 @@ public class PointShopServiceImpl implements PointShopService {
                 reward);
     }
 
+    @Override
+    @Transactional
+    public void deleteUsedInventoryItem(Long userId, Long inventoryId) {
+        validateUserId(userId);
+        if (inventoryId == null || inventoryId <= 0) {
+            throw new IllegalArgumentException("보관함 상품 ID가 올바르지 않습니다.");
+        }
+
+        int updatedRows = pointShopMapper.softDeleteUsedInventoryItem(userId, inventoryId);
+        if (updatedRows == 0) {
+            throw new IllegalArgumentException("삭제할 수 있는 사용 완료 상품을 찾지 못했습니다.");
+        }
+    }
+
     /** 상품 당첨 구간이면 보관함 상품을 만들고 나머지 구간이면 null을 반환함. */
     private PointShopReward drawReward(
             Long userId,
             String requestKey,
             int drawNumber) {
-        if (drawNumber < 10) {
+        if (drawNumber < 5) {
             return reward(userId, "편의점 1,000원 금액권", "NORMAL", requestKey);
         }
-        if (drawNumber < 18) {
+        if (drawNumber < 8) {
             return reward(userId, "아메리카노 기프티콘", "NORMAL", requestKey);
         }
-        if (drawNumber < 23) {
+        if (drawNumber < 9) {
             return reward(userId, "편의점 5,000원 금액권", "RARE", requestKey);
         }
         return null;
     }
 
-    /** 40% 꽝 이후 구간을 250P 25%, 500P 12% 즉시 지급으로 구분함. */
+    /** 상품 및 꽝 구간 이후 250P 12%, 500P 8% 즉시 지급 구간을 구분함. */
     private int drawRewardPoint(int drawNumber) {
-        if (drawNumber >= 63 && drawNumber < 88) {
+        if (drawNumber >= 80 && drawNumber < 92) {
             return 250;
         }
-        if (drawNumber >= 88) {
+        if (drawNumber >= 92) {
             return 500;
         }
         return 0;
@@ -144,6 +164,12 @@ public class PointShopServiceImpl implements PointShopService {
     private void validateUserId(Long userId) {
         if (userId == null || userId <= 0) {
             throw new IllegalArgumentException("사용자 ID가 올바르지 않습니다.");
+        }
+    }
+
+    private void validateBoxId(Long boxId) {
+        if (boxId == null || boxId != BASIC_BOX_ID) {
+            throw new IllegalArgumentException("지원하지 않는 랜덤박스입니다.");
         }
     }
 }
