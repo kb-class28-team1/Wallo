@@ -11,3 +11,4 @@ dist/
 
 # Local backend database and external API settings
 backend/src/main/resources/application.properties
+database/sql/tables/dbInit.sql

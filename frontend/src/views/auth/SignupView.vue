@@ -91,10 +91,10 @@ const moveToLogin = async () => {
               v-model="form.name"
               type="text"
               maxlength="50"
-              :class="['form-control', { 'is-invalid field-shake': errors.name }]"
+              :class="[&quot;form-control&quot;, { &quot;is-invalid field-shake&quot;: errors.name }]"
               autocomplete="name"
-              :aria-describedby="errors.name ? 'signup-name-error' : undefined"
-              @input="clearError('name')"
+              :aria-describedby="errors.name ? &quot;signup-name-error&quot; : undefined"
+              @input="clearError(&quot;name&quot;)"
             />
             <small v-if="errors.name" id="signup-name-error" class="field-error">{{ errors.name }}</small>
           </div>
@@ -106,9 +106,9 @@ const moveToLogin = async () => {
               v-model="form.nickname"
               type="text"
               maxlength="50"
-              :class="['form-control', { 'is-invalid field-shake': errors.nickname }]"
+              :class="[&quot;form-control&quot;, { &quot;is-invalid field-shake&quot;: errors.nickname }]"
               autocomplete="nickname"
-              @input="clearError('nickname')"
+              @input="clearError(&quot;nickname&quot;)"
             />
             <small v-if="errors.nickname" class="field-error">{{ errors.nickname }}</small>
           </div>
@@ -120,10 +120,10 @@ const moveToLogin = async () => {
               v-model="form.email"
               type="email"
               maxlength="255"
-              :class="['form-control', { 'is-invalid field-shake': errors.email }]"
+              :class="[&quot;form-control&quot;, { &quot;is-invalid field-shake&quot;: errors.email }]"
               autocomplete="email"
               placeholder="test@wallo.com"
-              @input="clearError('email')"
+              @input="clearError(&quot;email&quot;)"
             />
             <small v-if="errors.email" class="field-error">{{ errors.email }}</small>
           </div>
@@ -134,11 +134,11 @@ const moveToLogin = async () => {
               id="signup-password"
               v-model="form.password"
               type="password"
-              :class="['form-control', { 'is-invalid field-shake': errors.password }]"
+              :class="[&quot;form-control&quot;, { &quot;is-invalid field-shake&quot;: errors.password }]"
               autocomplete="new-password"
               minlength="8"
               maxlength="72"
-              @input="clearError('password')"
+              @input="clearError(&quot;password&quot;)"
             />
             <small v-if="errors.password" class="field-error">{{ errors.password }}</small>
             <div v-else class="form-text">8자 이상 72자 이하로 입력해주세요.</div>
@@ -150,11 +150,11 @@ const moveToLogin = async () => {
               id="signup-password-confirm"
               v-model="form.passwordConfirm"
               type="password"
-              :class="['form-control', { 'is-invalid field-shake': errors.passwordConfirm }]"
+              :class="[&quot;form-control&quot;, { &quot;is-invalid field-shake&quot;: errors.passwordConfirm }]"
               autocomplete="new-password"
               minlength="8"
               maxlength="72"
-              @input="clearError('passwordConfirm')"
+              @input="clearError(&quot;passwordConfirm&quot;)"
             />
             <small v-if="errors.passwordConfirm" class="field-error">
               {{ errors.passwordConfirm }}
