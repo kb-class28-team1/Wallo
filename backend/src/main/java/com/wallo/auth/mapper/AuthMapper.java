@@ -14,4 +14,6 @@ public interface AuthMapper {
     int countByNickname(@Param("nickname") String nickname);
 
     int insertUser(User user);
+
+    int markFirstLoginComplete(@Param("id") Long id);
 }

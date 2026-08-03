@@ -39,6 +39,7 @@ CREATE TABLE USERS (
         DEFAULT '/images/profiles/default-profile.svg',
     role VARCHAR(20) NOT NULL DEFAULT 'USER',
     point INT UNSIGNED NOT NULL DEFAULT 0,
+    has_logged_in TINYINT(1) NOT NULL DEFAULT 0,
     current_challenge_id BIGINT NULL,
     total_attendance_days INT UNSIGNED NOT NULL DEFAULT 0,
     streak_days INT UNSIGNED NOT NULL DEFAULT 0,

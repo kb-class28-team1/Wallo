@@ -78,6 +78,19 @@ class AuthServiceImplTest {
 
         assertEquals(10L, response.getId());
         assertEquals("test@wallo.com", response.getEmail());
+        assertTrue(response.isFirstLogin());
+    }
+
+    @Test
+    void doesNotTreatSubsequentLoginsAsFirstLogin() {
+        FakeAuthMapper mapper = new FakeAuthMapper();
+        mapper.savedUser = user(10L, "test@wallo.com", passwordEncoder.encode("password123!"));
+        AuthService service = new AuthServiceImpl(mapper, passwordEncoder);
+
+        service.login(loginRequest("test@wallo.com", "password123!"));
+        AuthUserResponse response = service.login(loginRequest("test@wallo.com", "password123!"));
+
+        assertFalse(response.isFirstLogin());
     }
 
     @Test
@@ -175,6 +188,15 @@ class AuthServiceImplTest {
             user.setPoint(0);
             savedUser = user;
             users.put(user.getId(), user);
+            return 1;
+        }
+
+        @Override
+        public int markFirstLoginComplete(Long id) {
+            if (savedUser == null || !savedUser.getId().equals(id) || savedUser.isHasLoggedIn()) {
+                return 0;
+            }
+            savedUser.setHasLoggedIn(true);
             return 1;
         }
     }

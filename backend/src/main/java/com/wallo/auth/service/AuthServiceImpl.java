@@ -67,7 +67,8 @@ public class AuthServiceImpl implements AuthService {
             throw new AuthException(AuthErrorCode.LOGIN_FAILED);
         }
 
-        return AuthUserResponse.from(user);
+        boolean firstLogin = authMapper.markFirstLoginComplete(user.getId()) == 1;
+        return AuthUserResponse.from(user, firstLogin);
     }
 
     @Override
