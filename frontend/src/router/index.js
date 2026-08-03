@@ -17,7 +17,7 @@ import ReportListView from "@/views/report/ReportListView.vue"
 import SettingsView from "@/views/user/SettingsView.vue"
 import ConnectionManagementView from "@/views/user/ConnectionManagementView.vue"
 import { useUserStore } from "@/stores/userStore"
-import ChatView from "@/views/ChatView.vue"
+import ChatView from "@/views/chat/ChatView.vue"
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
