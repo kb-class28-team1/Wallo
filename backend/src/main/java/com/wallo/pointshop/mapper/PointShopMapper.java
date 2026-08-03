@@ -23,8 +23,14 @@ public interface PointShopMapper {
     int insertPointHistory(
             @Param("userId") Long userId,
             @Param("amount") Integer amount,
+            @Param("type") String type,
             @Param("referenceKey") String referenceKey,
             @Param("description") String description);
+
+    /** 즉시 지급에 당첨된 포인트를 사용자 잔액에 더함. */
+    int addPoints(
+            @Param("userId") Long userId,
+            @Param("amount") Integer amount);
 
     /** 당첨 상품을 사용자 보관함에 저장하고 생성된 ID를 채움. */
     int insertInventoryReward(PointShopReward reward);

@@ -59,13 +59,41 @@ public class PointShopServiceImpl implements PointShopService {
         pointShopMapper.insertPointHistory(
                 userId,
                 -BASIC_BOX_PRICE,
+                "BOX_OPEN",
                 "BOX-" + requestKey,
                 "기본 절약 상자 개봉");
 
-        PointShopReward reward = drawReward(userId, requestKey);
-        pointShopMapper.insertInventoryReward(reward);
+        int drawNumber = ThreadLocalRandom.current().nextInt(100);
+        PointShopReward reward = drawReward(userId, requestKey, drawNumber);
+        int rewardPoint = drawRewardPoint(drawNumber);
+
+        if (reward != null) {
+            pointShopMapper.insertInventoryReward(reward);
+        }
+        if (rewardPoint > 0) {
+            pointShopMapper.addPoints(userId, rewardPoint);
+            pointShopMapper.insertPointHistory(
+                    userId,
+                    rewardPoint,
+                    "BOX_REWARD",
+                    "BOX-REWARD-" + requestKey,
+                    "랜덤박스 " + rewardPoint + "P 즉시 지급");
+        }
 
         Integer remainingPoint = pointShopMapper.findPointBalance(userId);
+        if (rewardPoint > 0) {
+            return OpenBoxResponse.point(
+                    boxId,
+                    BASIC_BOX_PRICE,
+                    remainingPoint,
+                    rewardPoint);
+        }
+        if (reward == null) {
+            return OpenBoxResponse.lose(
+                    boxId,
+                    BASIC_BOX_PRICE,
+                    remainingPoint);
+        }
         return OpenBoxResponse.win(
                 boxId,
                 BASIC_BOX_PRICE,
@@ -73,17 +101,32 @@ public class PointShopServiceImpl implements PointShopService {
                 reward);
     }
 
-    /** 화면에 안내한 60%, 30%, 10% 확률로 당첨 상품을 결정함. */
-    private PointShopReward drawReward(Long userId, String requestKey) {
-        int drawNumber = ThreadLocalRandom.current().nextInt(100);
-
-        if (drawNumber < 60) {
+    /** 상품 당첨 구간이면 보관함 상품을 만들고 나머지 구간이면 null을 반환함. */
+    private PointShopReward drawReward(
+            Long userId,
+            String requestKey,
+            int drawNumber) {
+        if (drawNumber < 10) {
             return reward(userId, "편의점 1,000원 금액권", "NORMAL", requestKey);
         }
-        if (drawNumber < 90) {
+        if (drawNumber < 18) {
             return reward(userId, "아메리카노 기프티콘", "NORMAL", requestKey);
         }
-        return reward(userId, "편의점 5,000원 금액권", "RARE", requestKey);
+        if (drawNumber < 23) {
+            return reward(userId, "편의점 5,000원 금액권", "RARE", requestKey);
+        }
+        return null;
+    }
+
+    /** 40% 꽝 이후 구간을 250P 25%, 500P 12% 즉시 지급으로 구분함. */
+    private int drawRewardPoint(int drawNumber) {
+        if (drawNumber >= 63 && drawNumber < 88) {
+            return 250;
+        }
+        if (drawNumber >= 88) {
+            return 500;
+        }
+        return 0;
     }
 
     private PointShopReward reward(

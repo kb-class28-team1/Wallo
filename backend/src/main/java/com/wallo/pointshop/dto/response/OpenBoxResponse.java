@@ -10,17 +10,21 @@ public class OpenBoxResponse {
     private final Integer remainingPoint;
     private final String result;
     private final Reward reward;
+    private final Integer rewardPoint;
 
     private OpenBoxResponse(
             Long boxId,
             Integer usedPoint,
             Integer remainingPoint,
-            PointShopReward reward) {
+            String result,
+            PointShopReward reward,
+            Integer rewardPoint) {
         this.boxId = boxId;
         this.usedPoint = usedPoint;
         this.remainingPoint = remainingPoint;
-        this.result = "WIN";
-        this.reward = Reward.from(reward);
+        this.result = result;
+        this.reward = reward == null ? null : Reward.from(reward);
+        this.rewardPoint = rewardPoint;
     }
 
     public static OpenBoxResponse win(
@@ -28,7 +32,28 @@ public class OpenBoxResponse {
             Integer usedPoint,
             Integer remainingPoint,
             PointShopReward reward) {
-        return new OpenBoxResponse(boxId, usedPoint, remainingPoint, reward);
+        return new OpenBoxResponse(boxId, usedPoint, remainingPoint, "WIN", reward, null);
+    }
+
+    public static OpenBoxResponse lose(
+            Long boxId,
+            Integer usedPoint,
+            Integer remainingPoint) {
+        return new OpenBoxResponse(boxId, usedPoint, remainingPoint, "LOSE", null, null);
+    }
+
+    public static OpenBoxResponse point(
+            Long boxId,
+            Integer usedPoint,
+            Integer remainingPoint,
+            Integer rewardPoint) {
+        return new OpenBoxResponse(
+                boxId,
+                usedPoint,
+                remainingPoint,
+                "POINT",
+                null,
+                rewardPoint);
     }
 
     public Long getBoxId() {
@@ -49,6 +74,10 @@ public class OpenBoxResponse {
 
     public Reward getReward() {
         return reward;
+    }
+
+    public Integer getRewardPoint() {
+        return rewardPoint;
     }
 
     /** 당첨되어 보관함에 추가된 상품 정보임. */

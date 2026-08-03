@@ -20,9 +20,12 @@ const randomBoxes = ref([
     price: 500,
     colorClass: "box-basic",
     probabilities: [
-      { label: "편의점 1,000원 금액권", rate: 60 },
-      { label: "아메리카노 기프티콘", rate: 30 },
-      { label: "편의점 5,000원 금액권", rate: 10 },
+      { label: "편의점 1,000원 금액권", rate: 10 },
+      { label: "아메리카노 기프티콘", rate: 8 },
+      { label: "편의점 5,000원 금액권", rate: 5 },
+      { label: "꽝", rate: 40 },
+      { label: "250P 즉시 지급", rate: 25 },
+      { label: "500P 즉시 지급", rate: 12 },
     ],
   },
 ])
@@ -111,7 +114,13 @@ const handleOpenBox = async (box) => {
     const response = await openRandomBox(box.id)
     const result = response?.data || response
     shopPointBalance.value = result?.remainingPoint ?? shopPointBalance.value
-    alert(`${result?.reward?.itemName || "상품"}에 당첨되었습니다!`)
+    if (result?.result === "LOSE") {
+      alert("아쉽게도 당첨되지 않았습니다.")
+    } else if (result?.result === "POINT") {
+      alert(`${Number(result?.rewardPoint || 0).toLocaleString("ko-KR")}P가 즉시 지급되었습니다!`)
+    } else {
+      alert(`${result?.reward?.itemName || "상품"}에 당첨되었습니다!`)
+    }
     await loadPointShop()
   } catch (error) {
     alert(error.message || "랜덤박스를 열지 못했습니다.")
