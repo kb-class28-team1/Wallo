@@ -20,32 +20,6 @@ const randomBoxes = [
       { label: "편의점 5,000원 금액권", rate: 10 },
     ],
   },
-  {
-    id: "premium",
-    icon: "🎁",
-    name: "프리미엄 상자",
-    description: "평균 확률이 높고 상품이 자주 나와요",
-    price: 1500,
-    colorClass: "box-premium",
-    probabilities: [
-      { label: "편의점 5,000원 금액권", rate: 50 },
-      { label: "배달 앱 쿠폰", rate: 35 },
-      { label: "온라인 상품권", rate: 15 },
-    ],
-  },
-  {
-    id: "legendary",
-    icon: "🏆",
-    name: "전설의 황금 상자",
-    description: "평균 없음! 최소 아메리카노 이상 확정",
-    price: 3000,
-    colorClass: "box-legendary",
-    probabilities: [
-      { label: "편의점 5,000원 금액권", rate: 45 },
-      { label: "치킨 상품권", rate: 35 },
-      { label: "대형 상품권", rate: 20 },
-    ],
-  },
 ]
 
 // 실제 보관함 API를 연결하기 전 화면 확인용 획득 아이템 데이터임
@@ -221,8 +195,9 @@ const removeUsedItem = (itemId) => {
 
 .box-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(280px, 380px);
   gap: 14px;
+  justify-content: center;
 }
 
 .random-box-card {
@@ -233,14 +208,6 @@ const removeUsedItem = (itemId) => {
   border-radius: 18px;
   background: #fff;
   text-align: center;
-}
-
-.box-premium {
-  border-color: #b3a5ff;
-}
-
-.box-legendary {
-  border-color: #f0b528;
 }
 
 .box-icon {
