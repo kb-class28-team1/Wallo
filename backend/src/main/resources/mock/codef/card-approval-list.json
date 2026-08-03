@@ -6,6 +6,7 @@
   },
   "data": [
     {
+      "resCardNo": "4321-0000-0000-8765",
       "resUsedDate": "20260629",
       "resUsedTime": "081500",
       "resApprovalNo": "60492173",
@@ -15,6 +16,7 @@
       "resCardType": "1"
     },
     {
+      "resCardNo": "9876-0000-0000-4321",
       "resUsedDate": "20260722",
       "resUsedTime": "081500",
       "resApprovalNo": "12345678",
@@ -24,6 +26,7 @@
       "resCardType": "1"
     },
     {
+      "resCardNo": "9876-0000-0000-4321",
       "resUsedDate": "20260726",
       "resUsedTime": "193000",
       "resApprovalNo": "87654321",
@@ -33,6 +36,7 @@
       "resCardType": "1"
     },
     {
+      "resCardNo": "4321-0000-0000-8765",
       "resUsedDate": "20260729",
       "resUsedTime": "121000",
       "resApprovalNo": "47291035",
@@ -42,6 +46,7 @@
       "resCardType": "1"
     },
     {
+      "resCardNo": "4321-0000-0000-8765",
       "resUsedDate": "20260801",
       "resUsedTime": "204500",
       "resApprovalNo": "39182640",

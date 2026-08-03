@@ -16,4 +16,6 @@ public interface AssetSyncMapper {
     int updateTransactionByApproval(@Param("transaction") AssetSyncDto.Transaction transaction);
 
     int insertTransaction(@Param("transaction") AssetSyncDto.Transaction transaction);
+
+    int upsertTransaction(@Param("transaction") AssetSyncDto.Transaction transaction);
 }

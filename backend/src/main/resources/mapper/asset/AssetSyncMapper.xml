@@ -64,4 +64,37 @@
             #{transaction.approvalNo}, #{transaction.date}, #{transaction.time}
         )
     </insert>
+
+    <insert id="upsertTransaction">
+        INSERT INTO TRANSACTIONS (
+            user_id, card_id, account_id, type, category, amount, merchant_name,
+            original_merchant_name, original_sector, external_approval_no,
+            category_source, category_confidence, classifier_version,
+            source_type, source_organization_code, source_transaction_id, source_dedup_key,
+            transaction_date, transaction_time
+        ) VALUES (
+            #{transaction.userId}, #{transaction.cardId}, #{transaction.accountId},
+            #{transaction.type}, #{transaction.category}, #{transaction.amount}, #{transaction.merchantName},
+            #{transaction.originalMerchantName}, #{transaction.originalSector}, #{transaction.approvalNo},
+            #{transaction.categorySource}, #{transaction.categoryConfidence}, #{transaction.classifierVersion},
+            #{transaction.sourceType}, #{transaction.sourceOrganizationCode},
+            #{transaction.sourceTransactionId}, #{transaction.sourceDedupKey},
+            #{transaction.date}, #{transaction.time}
+        )
+        ON DUPLICATE KEY UPDATE
+            card_id = VALUES(card_id),
+            account_id = VALUES(account_id),
+            type = VALUES(type),
+            category = VALUES(category),
+            amount = VALUES(amount),
+            merchant_name = VALUES(merchant_name),
+            original_merchant_name = VALUES(original_merchant_name),
+            original_sector = VALUES(original_sector),
+            external_approval_no = VALUES(external_approval_no),
+            category_source = VALUES(category_source),
+            category_confidence = VALUES(category_confidence),
+            classifier_version = VALUES(classifier_version),
+            transaction_date = VALUES(transaction_date),
+            transaction_time = VALUES(transaction_time)
+    </insert>
 </mapper>

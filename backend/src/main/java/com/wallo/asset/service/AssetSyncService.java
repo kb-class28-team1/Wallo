@@ -16,10 +16,16 @@ public class AssetSyncService {
 
     private final AssetSyncMapper assetSyncMapper;
     private final ObjectMapper objectMapper;
+    private final CardApprovalCollectionService cardApprovalCollectionService;
 
-    public AssetSyncService(AssetSyncMapper assetSyncMapper, ObjectMapper objectMapper) {
+    public AssetSyncService(
+            AssetSyncMapper assetSyncMapper,
+            ObjectMapper objectMapper,
+            CardApprovalCollectionService cardApprovalCollectionService
+    ) {
         this.assetSyncMapper = assetSyncMapper;
         this.objectMapper = objectMapper;
+        this.cardApprovalCollectionService = cardApprovalCollectionService;
     }
 
     public void sync(long userId, long connectionId, Institution institution, CodefDto.Response response) {
@@ -43,8 +49,12 @@ public class AssetSyncService {
                     card.getResCardNo(), card.getResCardName(), defaultValue(card.getResCardType(), "CREDIT"),
                     status(card.getResCardState()), card.getResValidPeriod()));
         }
-        for (CodefDto.Transaction source : values(data.getTransactions())) {
-            syncTransaction(userId, connectionId, source);
+        if ("CARD".equals(institution.getInstitutionType())) {
+            cardApprovalCollectionService.collectInitial(userId, connectionId, institution);
+        } else {
+            for (CodefDto.Transaction source : values(data.getTransactions())) {
+                syncTransaction(userId, connectionId, source);
+            }
         }
     }
 

@@ -134,6 +134,7 @@ public final class CodefDto {
     @NoArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class CardApproval {
+        private String resCardNo;
         private String resUsedDate;
         private String resUsedTime;
         private String resApprovalNo;

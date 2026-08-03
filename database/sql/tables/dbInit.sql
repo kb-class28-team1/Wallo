@@ -146,15 +146,28 @@ CREATE TABLE TRANSACTIONS (
     account_id BIGINT NULL,
     type VARCHAR(20) NOT NULL,
     category VARCHAR(50) NOT NULL,
+    category_source VARCHAR(30) NOT NULL DEFAULT 'LEGACY',
+    category_confidence DECIMAL(5,4) NULL,
+    classifier_version VARCHAR(30) NULL,
     amount BIGINT NOT NULL,
     merchant_name VARCHAR(100) NOT NULL,
     original_merchant_name VARCHAR(100) NULL,
     original_sector VARCHAR(100) NULL,
     external_approval_no VARCHAR(50) NULL,
+    source_type VARCHAR(30) NULL,
+    source_organization_code VARCHAR(20) NULL,
+    source_transaction_id VARCHAR(100) NULL,
+    source_dedup_key CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NULL,
     transaction_date DATE NOT NULL,
     transaction_time TIME NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uk_card_approval (card_id, external_approval_no),
+    UNIQUE KEY uk_transactions_source (
+        user_id,
+        source_type,
+        source_organization_code,
+        source_dedup_key
+    ),
     INDEX idx_transactions_user_date (user_id, transaction_date),
     INDEX idx_transactions_user_type_date (user_id, type, transaction_date)
 ) ENGINE=InnoDB
