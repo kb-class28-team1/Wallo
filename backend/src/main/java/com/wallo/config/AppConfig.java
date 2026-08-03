@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
+import org.springframework.context.support.PropertySourcesPlaceholderConfigurer;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
@@ -23,6 +24,16 @@ import org.springframework.web.client.RestTemplate;
 )
 @PropertySource("classpath:application.properties")
 public class AppConfig {
+
+    /**
+     * @Value("${...}") 형식의 설정값을 application.properties에서 치환한다.
+     *
+     * Spring Boot를 사용하지 않는 Legacy Spring에서는 이 빈을 직접 등록해야 한다.
+     */
+    @Bean
+    public static PropertySourcesPlaceholderConfigurer propertySourcesPlaceholderConfigurer() {
+        return new PropertySourcesPlaceholderConfigurer();
+    }
 
     @Bean
     public RestTemplate restTemplate() {
@@ -41,4 +52,3 @@ public class AppConfig {
         return new BCryptPasswordEncoder();
     }
 }
-
