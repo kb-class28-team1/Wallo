@@ -6,7 +6,7 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wallo.asset.domain.Institution;
-import com.wallo.asset.dto.InstitutionDto;
+import com.wallo.asset.dto.ConnectionDto;
 import com.wallo.asset.mapper.InstitutionMapper;
 import java.util.Arrays;
 import org.junit.Test;
@@ -24,7 +24,7 @@ public class InstitutionServiceTest {
         Institution stock = institution(3L, "0264", "Stock", "STOCK", "[\"Stock\"]");
         when(institutionMapper.findActiveInstitutions()).thenReturn(Arrays.asList(bank, card, stock));
 
-        InstitutionDto.Response response = institutionService.getInstitutions();
+        ConnectionDto.InstitutionResponse response = institutionService.getInstitutions();
 
         assertEquals(1, response.getBanks().size());
         assertEquals(1L, response.getBanks().get(0).getInstitutionId().longValue());

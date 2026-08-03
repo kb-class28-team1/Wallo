@@ -1,7 +1,7 @@
 package com.wallo.asset.controller;
 
 import com.wallo.common.response.CommonResponse;
-import com.wallo.asset.dto.InstitutionDto;
+import com.wallo.asset.dto.ConnectionDto;
 import com.wallo.asset.service.InstitutionService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,7 +18,7 @@ public class InstitutionController {
     }
 
     @GetMapping
-    public CommonResponse<InstitutionDto.Response> getInstitutions() {
+    public CommonResponse<ConnectionDto.InstitutionResponse> getInstitutions() {
         return CommonResponse.success(institutionService.getInstitutions());
     }
 }
