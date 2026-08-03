@@ -21,7 +21,7 @@ class CodefMockCardApprovalClientTest {
             new CodefAuthorizedRequestFactory(() -> "mock-codef-token");
     private final CodefMockCardApprovalClient client = new CodefMockCardApprovalClient(
             restTemplate,
-            "http://localhost:8080",
+            new CodefMockApiUrlProvider("http://localhost:8080"),
             requestFactory
     );
 

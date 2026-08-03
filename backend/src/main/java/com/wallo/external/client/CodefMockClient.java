@@ -2,7 +2,6 @@ package com.wallo.external.client;
 
 import com.wallo.external.auth.CodefAuthorizedRequestFactory;
 import com.wallo.external.dto.CodefDto;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClientException;
@@ -16,16 +15,16 @@ public class CodefMockClient implements CodefClient {
     private static final String STOCK = "STOCK";
 
     private final RestTemplate restTemplate;
-    private final String baseUrl;
+    private final CodefMockApiUrlProvider urlProvider;
     private final CodefAuthorizedRequestFactory requestFactory;
 
     public CodefMockClient(
             RestTemplate restTemplate,
-            @Value("${codef.mock-api.base-url}") String baseUrl,
+            CodefMockApiUrlProvider urlProvider,
             CodefAuthorizedRequestFactory requestFactory
     ) {
         this.restTemplate = restTemplate;
-        this.baseUrl = baseUrl;
+        this.urlProvider = urlProvider;
         this.requestFactory = requestFactory;
     }
 
@@ -33,7 +32,7 @@ public class CodefMockClient implements CodefClient {
     public CodefDto.Response connectInstitution(CodefDto.Request request) {
         try {
             return restTemplate.exchange(
-                    baseUrl + resolvePath(request.getInstitutionType()),
+                    urlProvider.resolve(resolvePath(request.getInstitutionType())),
                     HttpMethod.POST,
                     requestFactory.create(request),
                     CodefDto.Response.class

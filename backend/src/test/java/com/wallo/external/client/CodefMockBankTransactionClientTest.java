@@ -23,7 +23,7 @@ class CodefMockBankTransactionClientTest {
             new CodefAuthorizedRequestFactory(() -> "mock-codef-token");
     private final CodefMockBankTransactionClient client = new CodefMockBankTransactionClient(
             restTemplate,
-            "http://localhost:8080",
+            new CodefMockApiUrlProvider("http://localhost:8080"),
             requestFactory
     );
 

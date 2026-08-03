@@ -2,7 +2,6 @@ package com.wallo.external.client;
 
 import com.wallo.external.auth.CodefAuthorizedRequestFactory;
 import com.wallo.external.dto.CodefDto;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClientException;
@@ -15,16 +14,16 @@ public class CodefMockBankTransactionClient implements BankTransactionClient {
             "/mock/v1/kr/bank/p/account/transaction-list";
 
     private final RestTemplate restTemplate;
-    private final String baseUrl;
+    private final CodefMockApiUrlProvider urlProvider;
     private final CodefAuthorizedRequestFactory requestFactory;
 
     public CodefMockBankTransactionClient(
             RestTemplate restTemplate,
-            @Value("${codef.mock-api.base-url}") String baseUrl,
+            CodefMockApiUrlProvider urlProvider,
             CodefAuthorizedRequestFactory requestFactory
     ) {
         this.restTemplate = restTemplate;
-        this.baseUrl = baseUrl;
+        this.urlProvider = urlProvider;
         this.requestFactory = requestFactory;
     }
 
@@ -32,7 +31,7 @@ public class CodefMockBankTransactionClient implements BankTransactionClient {
     public CodefDto.Response getTransactions(CodefDto.BankTransactionRequest request) {
         try {
             return restTemplate.exchange(
-                    baseUrl + BANK_TRANSACTION_PATH,
+                    urlProvider.resolve(BANK_TRANSACTION_PATH),
                     HttpMethod.POST,
                     requestFactory.create(request),
                     CodefDto.Response.class

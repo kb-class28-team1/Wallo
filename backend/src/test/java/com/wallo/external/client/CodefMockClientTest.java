@@ -23,7 +23,7 @@ class CodefMockClientTest {
             new CodefAuthorizedRequestFactory(() -> "mock-codef-token");
     private final CodefMockClient client = new CodefMockClient(
             restTemplate,
-            "http://localhost:8080",
+            new CodefMockApiUrlProvider("http://localhost:8080"),
             requestFactory
     );
 
