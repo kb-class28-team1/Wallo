@@ -52,22 +52,24 @@ class ExpenseMapperIntegrationTest {
                 "2026-07-01", "2026-07-02", 0, 2, 0
         );
 
-        assertEquals(300L, expenseMapper.selectTotalExpense(7L, condition));
+        assertEquals(410L, expenseMapper.selectTotalExpense(7L, condition));
         assertEquals(1_000L, expenseMapper.selectTotalIncome(7L, condition));
 
         List<ExpenseDto.CategoryBreakdown> categories =
                 expenseMapper.selectExpenseCategoryBreakdown(7L, condition);
-        assertEquals(2, categories.size());
+        assertEquals(3, categories.size());
         assertEquals("DELIVERY", categories.get(0).getCategory());
         assertEquals(200L, categories.get(0).getAmount());
-        assertEquals("FOOD", categories.get(1).getCategory());
-        assertEquals(100L, categories.get(1).getAmount());
+        assertEquals("ETC", categories.get(1).getCategory());
+        assertEquals(110L, categories.get(1).getAmount());
+        assertEquals("FOOD", categories.get(2).getCategory());
+        assertEquals(100L, categories.get(2).getAmount());
 
         List<ExpenseDto.DailyBreakdown> dailyBreakdown =
                 expenseMapper.selectDailyBreakdown(7L, condition);
         assertEquals(2, dailyBreakdown.size());
         assertEquals("2026-07-01", dailyBreakdown.get(0).getDate());
-        assertEquals(300L, dailyBreakdown.get(0).getTotalExpense());
+        assertEquals(410L, dailyBreakdown.get(0).getTotalExpense());
         assertEquals(0L, dailyBreakdown.get(0).getTotalIncome());
         assertEquals("2026-07-02", dailyBreakdown.get(1).getDate());
         assertEquals(0L, dailyBreakdown.get(1).getTotalExpense());
@@ -76,7 +78,18 @@ class ExpenseMapperIntegrationTest {
         List<ExpenseDto.Transaction> transactions =
                 expenseMapper.selectTransactions(7L, condition);
         assertEquals(2, transactions.size());
-        assertEquals(4L, expenseMapper.countTransactions(7L, condition));
+        assertEquals(6L, expenseMapper.countTransactions(7L, condition));
+
+        ExpenseDto.SearchCondition unpagedCondition = new ExpenseDto.SearchCondition(
+                "2026-07-01", "2026-07-02", 0, 20, 0
+        );
+        ExpenseDto.Transaction normalizedOther = expenseMapper
+                .selectTransactions(7L, unpagedCondition)
+                .stream()
+                .filter(transaction -> "기타 상점".equals(transaction.getMerchantName()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals("ETC", normalizedOther.getCategory());
     }
 
     private void createTransactions(DataSource dataSource) throws Exception {
@@ -105,7 +118,9 @@ class ExpenseMapperIntegrationTest {
                         (4, 7, 'TRANSFER', 'SEND', 500, '김철수', '2026-07-02', '13:00:00'),
                         (5, 7, 'TRANSFER', 'CARD_WITHDRAWAL', 300, '체크가맹', '2026-07-02', '14:00:00'),
                         (6, 7, 'EXPENSE', 'FOOD', 50, '카페', '2026-07-03', '10:00:00'),
-                        (7, 8, 'EXPENSE', 'SHOPPING', 900, '쇼핑몰', '2026-07-01', '10:00:00')
+                        (7, 8, 'EXPENSE', 'SHOPPING', 900, '쇼핑몰', '2026-07-01', '10:00:00'),
+                        (8, 7, 'EXPENSE', 'OTHER', 70, '기타 상점', '2026-07-01', '15:00:00'),
+                        (9, 7, 'EXPENSE', 'ETC', 40, '동네 상점', '2026-07-01', '16:00:00')
                     """);
         }
     }

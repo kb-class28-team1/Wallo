@@ -22,13 +22,13 @@
 
     <select id="selectExpenseCategoryBreakdown" resultType="com.wallo.asset.dto.ExpenseDto$CategoryBreakdown">
         SELECT
-            category AS category,
+            CASE WHEN category = 'OTHER' THEN 'ETC' ELSE category END AS category,
             COALESCE(SUM(amount), 0) AS amount
         FROM TRANSACTIONS
         WHERE user_id = #{userId}
           AND type = 'EXPENSE'
           AND transaction_date BETWEEN #{condition.startDate} AND #{condition.endDate}
-        GROUP BY category
+        GROUP BY CASE WHEN category = 'OTHER' THEN 'ETC' ELSE category END
         ORDER BY amount DESC, category ASC
     </select>
 
@@ -50,7 +50,7 @@
         SELECT
             transaction_date AS date,
             type AS type,
-            category AS category,
+            CASE WHEN category = 'OTHER' THEN 'ETC' ELSE category END AS category,
             amount AS amount,
             merchant_name AS merchantName
         FROM TRANSACTIONS

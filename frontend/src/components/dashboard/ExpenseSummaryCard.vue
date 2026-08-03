@@ -50,6 +50,7 @@ const expenseCategoryLabel = (category) => ({
   HEALTH: "건강",
   EDUCATION: "교육",
   LOAN_REPAYMENT: "대출 상환",
+  OTHER: "기타",
   ETC: "기타",
 }[category] ?? category);
 
