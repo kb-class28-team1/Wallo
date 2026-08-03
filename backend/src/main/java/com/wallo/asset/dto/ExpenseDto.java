@@ -48,13 +48,33 @@ public final class ExpenseDto {
     @Setter
     @NoArgsConstructor
     @AllArgsConstructor
+    public static class DailyBreakdown {
+        private String date;
+        private long totalExpense;
+        private long totalIncome;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Pagination {
+        private int currentPage;
+        private int totalPages;
+        private long totalElements;
+        private boolean hasNext;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class Summary {
         private long totalExpense;
         private long totalIncome;
         private List<CategoryBreakdown> expenseCategoryBreakdown;
+        private List<DailyBreakdown> dailyBreakdown;
         private List<Transaction> transactions;
-        private long totalCount;
-        private int page;
-        private int size;
+        private Pagination pagination;
     }
 }
