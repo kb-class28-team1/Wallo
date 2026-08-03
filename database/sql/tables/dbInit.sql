@@ -347,7 +347,7 @@ CREATE TABLE MESSAGE (
   COLLATE=utf8mb4_unicode_ci
   COMMENT='챌린지 채팅 메시지';
 
-CREATE VIEW V_WEEKLY_RANKING AS
+CREATE OR REPLACE VIEW V_WEEKLY_RANKING AS
 SELECT
     ranked.challenge_id,
     ranked.user_id,
