@@ -22,6 +22,7 @@ import java.util.List;
         "com.wallo.auth.exception",
         "com.wallo.external.controller",
         "com.wallo.challenge.controller",
+        "com.wallo.chat.controller",
         "com.wallo.challenge.exception",
         "com.wallo.feed.controller",
         "com.wallo.common.exception"

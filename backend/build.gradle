@@ -92,6 +92,8 @@ dependencies {
     testImplementation "org.mockito:mockito-core:5.13.0"
     testImplementation "com.jayway.jsonpath:json-path:2.9.0"
     testImplementation "javax.servlet:javax.servlet-api:${servletApiVersion}"
+    // develop 병합으로 들어온 Mapper 통합 테스트(ReportMapperIntegrationTest 등)가 인메모리 DB로 사용
+    testImplementation "com.h2database:h2:2.2.224"
 
     testRuntimeOnly "org.junit.vintage:junit-vintage-engine"
     testRuntimeOnly "org.junit.platform:junit-platform-launcher"

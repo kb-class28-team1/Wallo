@@ -4,6 +4,11 @@ import org.springframework.http.HttpStatus;
 
 public enum ErrorCode {
 
+    AUTH_REQUIRED(
+            HttpStatus.UNAUTHORIZED,
+            "AUTH_001",
+            "로그인이 필요합니다."
+    ),
     CONNECTION_CONSENT_REQUIRED(
             HttpStatus.BAD_REQUEST,
             "CONNECTION_001",
@@ -48,6 +53,29 @@ public enum ErrorCode {
             HttpStatus.INTERNAL_SERVER_ERROR,
             "REPORT_005",
             "금융 리포트 저장에 실패했습니다."
+    ),
+    INVALID_ANNUAL_SALARY(
+            HttpStatus.BAD_REQUEST,
+            "PROFILE_001",
+            "연봉은 0원보다 큰 금액으로 입력해주세요."
+    ),
+    USER_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "PROFILE_002",
+            "사용자 정보를 찾을 수 없습니다."
+    ),
+    // 연말정산 리포트(자산) 기능의 코드였던 REPORT_001/REPORT_002가 금융 리포트(뉴스) 기능의
+    // 코드와 우연히 겹쳐 있었다(develop 병합 중 발견) — 같은 "REPORT" 접두어를 서로 다른 두 기능이
+    // 독립적으로 사용해서 생긴 충돌이다. 이미 있는 PROFILE_00X 네임스페이스로 옮겨 재번호했다.
+    INVALID_REPORT_YEAR(
+            HttpStatus.BAD_REQUEST,
+            "PROFILE_003",
+            "조회 연도가 올바르지 않습니다."
+    ),
+    ANNUAL_SALARY_REQUIRED(
+            HttpStatus.BAD_REQUEST,
+            "PROFILE_004",
+            "연말정산 계산을 위해 연봉을 먼저 입력해주세요."
     ),
     METHOD_NOT_ALLOWED(
             HttpStatus.METHOD_NOT_ALLOWED,

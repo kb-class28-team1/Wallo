@@ -16,6 +16,10 @@ public class CodefMockResponseLoaderTest {
         CodefDto.Response response = loader.load("bank-accounts.json");
 
         assertSuccessResponse(response);
+        CodefDto.AssetData data = new ObjectMapper().convertValue(response.getData(), CodefDto.AssetData.class);
+        assertEquals(2, data.getAccounts().size());
+        assertEquals(1, data.getLoans().size());
+        assertEquals(3, data.getTransactions().size());
     }
 
     @Test
@@ -23,6 +27,9 @@ public class CodefMockResponseLoaderTest {
         CodefDto.Response response = loader.load("card-list.json");
 
         assertSuccessResponse(response);
+        CodefDto.AssetData data = new ObjectMapper().convertValue(response.getData(), CodefDto.AssetData.class);
+        assertEquals(2, data.getCards().size());
+        assertEquals(4, data.getTransactions().size());
     }
 
     @Test

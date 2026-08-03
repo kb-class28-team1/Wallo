@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wallo.asset.mapper.AssetSyncMapper">
+    <insert id="upsertAccount">
+        INSERT INTO ACCOUNTS (
+            connection_id, account_number, account_display_number, account_name,
+            account_type, account_subtype, balance, eval_amount, currency, status
+        ) VALUES (
+            #{connectionId}, #{account.number}, #{account.displayNumber}, #{account.name},
+            #{account.type}, #{account.subtype}, #{account.balance}, #{account.evaluationAmount},
+            #{account.currency}, #{account.status}
+        )
+        ON DUPLICATE KEY UPDATE
+            account_display_number = VALUES(account_display_number),
+            account_name = VALUES(account_name),
+            account_type = VALUES(account_type),
+            account_subtype = VALUES(account_subtype),
+            balance = VALUES(balance),
+            eval_amount = VALUES(eval_amount),
+            currency = VALUES(currency),
+            status = VALUES(status),
+            updated_at = CURRENT_TIMESTAMP
+    </insert>
+
+    <select id="findAccountId" resultType="java.lang.Long">
+        SELECT account_id FROM ACCOUNTS
+        WHERE connection_id = #{connectionId} AND account_number = #{accountNumber}
+    </select>
+
+    <insert id="upsertCard">
+        INSERT INTO CARDS (connection_id, card_number, card_name, card_type, status, valid_period)
+        VALUES (#{connectionId}, #{card.number}, #{card.name}, #{card.type}, #{card.status}, #{card.validPeriod})
+        ON DUPLICATE KEY UPDATE
+            card_name = VALUES(card_name),
+            card_type = VALUES(card_type),
+            status = VALUES(status),
+            valid_period = VALUES(valid_period),
+            updated_at = CURRENT_TIMESTAMP
+    </insert>
+
+    <select id="findCardId" resultType="java.lang.Long">
+        SELECT card_id FROM CARDS
+        WHERE connection_id = #{connectionId} AND card_number = #{cardNumber}
+    </select>
+
+    <update id="updateTransactionByApproval">
+        UPDATE TRANSACTIONS
+        SET card_id = #{transaction.cardId}, account_id = #{transaction.accountId},
+            type = #{transaction.type}, category = #{transaction.category}, amount = #{transaction.amount},
+            merchant_name = #{transaction.merchantName}, transaction_date = #{transaction.date},
+            transaction_time = #{transaction.time}
+        WHERE user_id = #{transaction.userId} AND external_approval_no = #{transaction.approvalNo}
+    </update>
+
+    <insert id="insertTransaction">
+        INSERT INTO TRANSACTIONS (
+            user_id, card_id, account_id, type, category, amount, merchant_name,
+            external_approval_no, transaction_date, transaction_time
+        ) VALUES (
+            #{transaction.userId}, #{transaction.cardId}, #{transaction.accountId},
+            #{transaction.type}, #{transaction.category}, #{transaction.amount}, #{transaction.merchantName},
+            #{transaction.approvalNo}, #{transaction.date}, #{transaction.time}
+        )
+    </insert>
+</mapper>

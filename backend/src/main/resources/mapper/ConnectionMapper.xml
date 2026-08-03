@@ -4,7 +4,7 @@
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.wallo.asset.mapper.ConnectionMapper">
     <insert id="insertConnections" parameterType="java.util.List">
-        INSERT IGNORE INTO CONNECTIONS (
+        INSERT INTO CONNECTIONS (
             USER_ID,
             INSTITUTION_ID,
             LOGIN_TYPE,
@@ -21,10 +21,29 @@
                 #{loginType},
                 #{loginId},
                 #{loginPassword},
-                #{connection.status},
+                <choose>
+                    <when test="connection.status.name() == 'SUCCESS'">'ACTIVE'</when>
+                    <otherwise>'FAILED'</otherwise>
+                </choose>,
                 NOW()
             )
         </foreach>
+        ON DUPLICATE KEY UPDATE
+            login_type = VALUES(login_type),
+            login_id = VALUES(login_id),
+            login_password = VALUES(login_password),
+            status = VALUES(status),
+            last_sync_at = CURRENT_TIMESTAMP,
+            connected_at = CURRENT_TIMESTAMP,
+            deleted_at = NULL
     </insert>
+
+    <select id="findActiveConnectionId" resultType="java.lang.Long">
+        SELECT connection_id
+        FROM CONNECTIONS
+        WHERE user_id = #{userId}
+          AND institution_id = #{institutionId}
+          AND deleted_at IS NULL
+    </select>
 </mapper>
 
