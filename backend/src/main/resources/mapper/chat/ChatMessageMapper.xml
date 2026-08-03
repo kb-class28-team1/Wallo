@@ -24,6 +24,12 @@
         ORDER BY message_id ASC
     </select>
 
+    <select id="countByConversationId" resultType="int">
+        SELECT COUNT(*)
+        FROM CHAT_MESSAGES
+        WHERE conversation_id = #{conversationId}
+    </select>
+
     <insert id="insert"
             parameterType="com.wallo.chat.domain.ChatMessage"
             useGeneratedKeys="true"
