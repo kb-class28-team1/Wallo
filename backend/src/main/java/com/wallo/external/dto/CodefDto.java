@@ -149,6 +149,8 @@ public final class CodefDto {
     @NoArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class BankTransaction {
+        private String resAccount;
+        private String resTrNo;
         private String resTrDate;
         private String resTrTime;
         private String resAccountIn;

@@ -24,6 +24,24 @@ public class TransactionSourceKeyGenerator {
         return sha256(canonicalValue);
     }
 
+    public String forBankTransaction(
+            String organizationCode,
+            Long accountId,
+            String transactionId
+    ) {
+        if (accountId == null) {
+            throw new IllegalArgumentException("계좌 ID 값이 필요합니다.");
+        }
+        String canonicalValue = String.join(
+                "|",
+                "BANK_TRANSACTION",
+                required(organizationCode, "기관 코드"),
+                String.valueOf(accountId),
+                required(transactionId, "은행 거래번호")
+        );
+        return sha256(canonicalValue);
+    }
+
     private String sha256(String value) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");

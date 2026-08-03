@@ -6,6 +6,8 @@
   },
   "data": [
     {
+      "resAccount": "123456-01-789012",
+      "resTrNo": "BANK-202606-0001",
       "resTrDate": "20260630",
       "resTrTime": "090000",
       "resAccountIn": "100000",
@@ -13,6 +15,8 @@
       "resAccountDesc": "용돈_6월"
     },
     {
+      "resAccount": "123456-01-789012",
+      "resTrNo": "BANK-202607-0001",
       "resTrDate": "20260725",
       "resTrTime": "100000",
       "resAccountIn": "3000000",
@@ -20,6 +24,8 @@
       "resAccountDesc": "월급_7월"
     },
     {
+      "resAccount": "123456-01-789012",
+      "resTrNo": "BANK-202607-0002",
       "resTrDate": "20260726",
       "resTrTime": "193000",
       "resAccountIn": "0",
@@ -27,6 +33,8 @@
       "resAccountDesc": "체크가맹_배달의민족"
     },
     {
+      "resAccount": "123456-01-789012",
+      "resTrNo": "BANK-202607-0003",
       "resTrDate": "20260728",
       "resTrTime": "142000",
       "resAccountIn": "0",
@@ -34,6 +42,8 @@
       "resAccountDesc": "김철수"
     },
     {
+      "resAccount": "123456-01-789012",
+      "resTrNo": "BANK-202608-0001",
       "resTrDate": "20260801",
       "resTrTime": "120000",
       "resAccountIn": "0",

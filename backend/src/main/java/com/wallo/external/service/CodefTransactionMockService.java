@@ -8,6 +8,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -15,7 +16,10 @@ public class CodefTransactionMockService {
 
     private static final String CARD_ORGANIZATION = "0311";
     private static final String BANK_ORGANIZATION = "0004";
-    private static final String MOCK_BANK_ACCOUNT = "123456-01-789012";
+    private static final Set<String> MOCK_BANK_ACCOUNTS = Set.of(
+            "123456-01-789012",
+            "987654-01-321098"
+    );
     private static final DateTimeFormatter REQUEST_DATE_FORMATTER = DateTimeFormatter.BASIC_ISO_DATE;
 
     private final CodefMockResponseLoader responseLoader;
@@ -95,7 +99,7 @@ public class CodefTransactionMockService {
         if (!BANK_ORGANIZATION.equals(request.getOrganization())) {
             return unsupportedOrganization(request.getOrganization());
         }
-        if (!MOCK_BANK_ACCOUNT.equals(request.getAccount())) {
+        if (!MOCK_BANK_ACCOUNTS.contains(request.getAccount())) {
             return CodefDto.Response.failure(
                     "CF-40401",
                     "계좌를 찾을 수 없습니다.",
@@ -118,6 +122,7 @@ public class CodefTransactionMockService {
                 new TypeReference<List<CodefDto.BankTransaction>>() { }
         );
         List<CodefDto.BankTransaction> filteredTransactions = safeList(transactions).stream()
+                .filter(transaction -> request.getAccount().equals(transaction.getResAccount()))
                 .filter(transaction -> range.contains(transaction.getResTrDate()))
                 .toList();
 

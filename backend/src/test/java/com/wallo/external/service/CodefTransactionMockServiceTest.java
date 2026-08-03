@@ -48,8 +48,27 @@ public class CodefTransactionMockServiceTest {
                 new TypeReference<List<CodefDto.BankTransaction>>() { }
         );
         assertEquals(2, transactions.size());
+        assertEquals("BANK-202607-0002", transactions.get(0).getResTrNo());
         assertEquals("체크가맹_배달의민족", transactions.get(0).getResAccountDesc());
         assertEquals("김철수", transactions.get(1).getResAccountDesc());
+    }
+
+    @Test
+    public void savingsAccountWithoutTransactionsReturnsEmptySuccessData() {
+        CodefDto.BankTransactionRequest request = bankRequest("20260701", "20260731");
+        request.setAccount("987654-01-321098");
+
+        CodefDto.Response response = service.getBankTransactions(
+                request,
+                "Bearer mock-codef-token"
+        );
+
+        assertSuccess(response);
+        List<CodefDto.BankTransaction> transactions = objectMapper.convertValue(
+                response.getData(),
+                new TypeReference<List<CodefDto.BankTransaction>>() { }
+        );
+        assertEquals(0, transactions.size());
     }
 
     @Test
