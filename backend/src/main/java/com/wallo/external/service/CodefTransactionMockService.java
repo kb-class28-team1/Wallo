@@ -70,18 +70,7 @@ public class CodefTransactionMockService {
         return CodefDto.Response.success(filteredApprovals);
     }
 
-    public CodefDto.Response getBankTransactions(
-            CodefDto.BankTransactionRequest request,
-            String authorizationHeader
-    ) {
-        if (!hasBearerToken(authorizationHeader)) {
-            return CodefDto.Response.failure(
-                    "CF-40100",
-                    "인증 정보가 올바르지 않습니다.",
-                    "Authorization 헤더에 Bearer 토큰이 필요합니다."
-            );
-        }
-
+    public CodefDto.Response getBankTransactions(CodefDto.BankTransactionRequest request) {
         String requiredField = firstMissingCommonField(
                 request == null ? null : request.getOrganization(),
                 request == null ? null : request.getLoginType(),
@@ -171,12 +160,6 @@ public class CodefTransactionMockService {
         return response != null
                 && response.getResult() != null
                 && "CF-00000".equals(response.getResult().getCode());
-    }
-
-    private boolean hasBearerToken(String authorizationHeader) {
-        return authorizationHeader != null
-                && authorizationHeader.startsWith("Bearer ")
-                && !authorizationHeader.substring("Bearer ".length()).isBlank();
     }
 
     private CodefDto.Response invalidRequest(String extraMessage) {

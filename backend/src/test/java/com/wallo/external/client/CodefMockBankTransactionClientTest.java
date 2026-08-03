@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.wallo.external.dto.CodefDto;
+import com.wallo.external.auth.CodefAuthorizedRequestFactory;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.http.HttpEntity;
@@ -18,10 +19,12 @@ import org.springframework.web.client.RestTemplate;
 class CodefMockBankTransactionClientTest {
 
     private final RestTemplate restTemplate = mock(RestTemplate.class);
+    private final CodefAuthorizedRequestFactory requestFactory =
+            new CodefAuthorizedRequestFactory(() -> "mock-codef-token");
     private final CodefMockBankTransactionClient client = new CodefMockBankTransactionClient(
             restTemplate,
             "http://localhost:8080",
-            "mock-codef-token"
+            requestFactory
     );
 
     @Test

@@ -5,10 +5,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.wallo.external.auth.CodefAccessTokenProvider;
 import com.wallo.external.dto.CodefDto;
 import com.wallo.external.service.CodefMockResponseLoader;
 import com.wallo.external.service.CodefTransactionMockService;
@@ -22,12 +22,14 @@ public class CodefMockControllerTest {
 
     private final CodefMockResponseLoader responseLoader = mock(CodefMockResponseLoader.class);
     private final CodefTransactionMockService transactionMockService = mock(CodefTransactionMockService.class);
+    private final CodefAccessTokenProvider accessTokenProvider = mock(CodefAccessTokenProvider.class);
     private MockMvc mockMvc;
 
     @Before
     public void setUp() {
+        when(accessTokenProvider.getAccessToken()).thenReturn("mock-codef-token");
         mockMvc = MockMvcBuilders.standaloneSetup(
-                new CodefMockController(responseLoader, transactionMockService)
+                new CodefMockController(responseLoader, transactionMockService, accessTokenProvider)
         ).build();
     }
 
@@ -52,6 +54,7 @@ public class CodefMockControllerTest {
                 .thenReturn(CodefDto.Response.success("approvals"));
 
         String responseBody = mockMvc.perform(post("/mock/v1/kr/card/p/approval-list")
+                        .header("Authorization", "Bearer mock-codef-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(cardApprovalRequestJson()))
                 .andExpect(status().isOk())
@@ -65,11 +68,11 @@ public class CodefMockControllerTest {
 
     @Test
     public void bankTransactionEndpointAcceptsDocumentedPathAndBearerToken() throws Exception {
-        when(transactionMockService.getBankTransactions(any(), eq("Bearer mock-token")))
+        when(transactionMockService.getBankTransactions(any()))
                 .thenReturn(CodefDto.Response.success("transactions"));
 
         String responseBody = mockMvc.perform(post("/v1/kr/bank/p/account/transaction-list")
-                        .header("Authorization", "Bearer mock-token")
+                        .header("Authorization", "Bearer mock-codef-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(bankTransactionRequestJson()))
                 .andExpect(status().isOk())
@@ -78,13 +81,52 @@ public class CodefMockControllerTest {
                 .getContentAsString();
 
         assertTrue(responseBody.contains("CF-00000"));
-        verify(transactionMockService).getBankTransactions(any(), eq("Bearer mock-token"));
+        verify(transactionMockService).getBankTransactions(any());
+    }
+
+    @Test
+    public void allMockEndpointsRejectMissingBearerToken() throws Exception {
+        String[] paths = {
+                "/mock/v1/kr/bank/p/account/account-list",
+                "/mock/v1/kr/card/p/account/card-list",
+                "/mock/v1/kr/stock/p/account/account-list",
+                "/mock/v1/kr/card/p/approval-list",
+                "/mock/v1/kr/bank/p/account/transaction-list",
+                "/v1/kr/bank/p/account/transaction-list"
+        };
+
+        for (String path : paths) {
+            String responseBody = mockMvc.perform(post(path)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(requestJsonFor(path)))
+                    .andExpect(status().isOk())
+                    .andReturn()
+                    .getResponse()
+                    .getContentAsString();
+
+            assertTrue(responseBody.contains("CF-40100"));
+        }
+    }
+
+    @Test
+    public void mockEndpointRejectsIncorrectBearerToken() throws Exception {
+        String responseBody = mockMvc.perform(post("/mock/v1/kr/card/p/approval-list")
+                        .header("Authorization", "Bearer wrong-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(cardApprovalRequestJson()))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        assertTrue(responseBody.contains("CF-40100"));
     }
 
     private void assertFixtureIsReturned(String path, String fixtureName) throws Exception {
         when(responseLoader.load(fixtureName)).thenReturn(CodefDto.Response.success("fixture"));
 
         String responseBody = mockMvc.perform(post(path)
+                        .header("Authorization", "Bearer mock-codef-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isOk())
@@ -94,6 +136,16 @@ public class CodefMockControllerTest {
 
         assertTrue(responseBody.contains("CF-00000"));
         verify(responseLoader).load(fixtureName);
+    }
+
+    private String requestJsonFor(String path) {
+        if (path.contains("approval-list")) {
+            return cardApprovalRequestJson();
+        }
+        if (path.contains("transaction-list")) {
+            return bankTransactionRequestJson();
+        }
+        return "{}";
     }
 
     private String cardApprovalRequestJson() {

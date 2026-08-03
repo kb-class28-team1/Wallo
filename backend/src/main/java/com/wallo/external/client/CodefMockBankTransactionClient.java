@@ -1,11 +1,9 @@
 package com.wallo.external.client;
 
+import com.wallo.external.auth.CodefAuthorizedRequestFactory;
 import com.wallo.external.dto.CodefDto;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
@@ -18,29 +16,25 @@ public class CodefMockBankTransactionClient implements BankTransactionClient {
 
     private final RestTemplate restTemplate;
     private final String baseUrl;
-    private final String accessToken;
+    private final CodefAuthorizedRequestFactory requestFactory;
 
     public CodefMockBankTransactionClient(
             RestTemplate restTemplate,
             @Value("${codef.mock-api.base-url}") String baseUrl,
-            @Value("${codef.mock-api.access-token}") String accessToken
+            CodefAuthorizedRequestFactory requestFactory
     ) {
         this.restTemplate = restTemplate;
         this.baseUrl = baseUrl;
-        this.accessToken = accessToken;
+        this.requestFactory = requestFactory;
     }
 
     @Override
     public CodefDto.Response getTransactions(CodefDto.BankTransactionRequest request) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(accessToken);
-
         try {
             return restTemplate.exchange(
                     baseUrl + BANK_TRANSACTION_PATH,
                     HttpMethod.POST,
-                    new HttpEntity<>(request, headers),
+                    requestFactory.create(request),
                     CodefDto.Response.class
             ).getBody();
         } catch (RestClientException exception) {

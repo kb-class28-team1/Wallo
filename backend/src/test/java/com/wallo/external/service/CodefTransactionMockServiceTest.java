@@ -38,8 +38,7 @@ public class CodefTransactionMockServiceTest {
     @Test
     public void bankTransactionsAreFilteredByInclusiveDateRange() {
         CodefDto.Response response = service.getBankTransactions(
-                bankRequest("20260726", "20260728"),
-                "Bearer mock-codef-token"
+                bankRequest("20260726", "20260728")
         );
 
         assertSuccess(response);
@@ -59,8 +58,7 @@ public class CodefTransactionMockServiceTest {
         request.setAccount("987654-01-321098");
 
         CodefDto.Response response = service.getBankTransactions(
-                request,
-                "Bearer mock-codef-token"
+                request
         );
 
         assertSuccess(response);
@@ -88,22 +86,11 @@ public class CodefTransactionMockServiceTest {
     }
 
     @Test
-    public void missingBankBearerTokenReturnsAuthenticationFailure() {
-        CodefDto.Response response = service.getBankTransactions(
-                bankRequest("20260701", "20260731"),
-                null
-        );
-
-        assertEquals("CF-40100", response.getResult().getCode());
-        assertEquals(null, response.getData());
-    }
-
-    @Test
     public void unknownBankAccountReturnsNotFoundFailure() {
         CodefDto.BankTransactionRequest request = bankRequest("20260701", "20260731");
         request.setAccount("000000-00-000000");
 
-        CodefDto.Response response = service.getBankTransactions(request, "Bearer mock-codef-token");
+        CodefDto.Response response = service.getBankTransactions(request);
 
         assertEquals("CF-40401", response.getResult().getCode());
         assertEquals(null, response.getData());
