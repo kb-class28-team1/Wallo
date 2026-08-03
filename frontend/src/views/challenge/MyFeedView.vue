@@ -27,23 +27,38 @@ const sortOptions = [
 const categoryOptions = [
   { value: "ALL", label: "전체" },
   { value: "CAFE", label: "카페" },
+  { value: "COFFEE", label: "커피" },
   { value: "DELIVERY", label: "배달" },
   { value: "SHOPPING", label: "쇼핑" },
   { value: "TRANSPORT", label: "교통" },
+  { value: "FOOD", label: "식비" },
+  { value: "GROCERY", label: "장보기" },
+  { value: "DINING", label: "외식" },
+  { value: "CUSTOM", label: "직접 입력" },
 ]
 
 const categoryLabels = {
   CAFE: "카페",
+  COFFEE: "커피",
   DELIVERY: "배달",
   SHOPPING: "쇼핑",
   TRANSPORT: "교통",
+  FOOD: "식비",
+  GROCERY: "장보기",
+  DINING: "외식",
+  CUSTOM: "직접 입력",
 }
 
 const categoryIcons = {
   CAFE: "☕",
+  COFFEE: "☕",
   DELIVERY: "🍱",
   SHOPPING: "🛍️",
   TRANSPORT: "🚌",
+  FOOD: "🍚",
+  GROCERY: "🛒",
+  DINING: "🍽️",
+  CUSTOM: "💡",
 }
 
 // 내 챌린지 요약 응답에서 화면 상단에 필요한 네 가지 통계를 구성함.
