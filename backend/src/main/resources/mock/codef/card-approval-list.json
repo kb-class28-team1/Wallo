@@ -74,6 +74,16 @@
       "resUsedAmount": "24000",
       "resMemberSector": "요식/음료",
       "resCardType": "1"
+    },
+    {
+      "resCardNo": "4321-0000-0000-8765",
+      "resUsedDate": "20260804",
+      "resUsedTime": "143000",
+      "resApprovalNo": "92000001",
+      "resMemberName": "우리동네 세탁소",
+      "resUsedAmount": "18000",
+      "resMemberSector": "기타",
+      "resCardType": "1"
     }
   ]
 }
