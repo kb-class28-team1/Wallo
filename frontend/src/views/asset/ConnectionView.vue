@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import { connectAllAssets } from "@/api/assetApi";
 import { useAssetStore } from "@/stores/assetStore";
 import { useUserStore } from "@/stores/userStore";
+import { getApiErrorMessage } from "@/utils/apiError";
 
 const router = useRouter();
 const assetStore = useAssetStore();
@@ -102,10 +103,8 @@ const notifyConnectionResult = (results = []) => {
 
 const handleConnectionError = async (error) => {
   const status = error.response?.status;
-  const serverMessage = error.response?.data?.error?.message;
-
   if (status === 400) {
-    alert(serverMessage || "개인신용정보 수집·이용 동의가 필요합니다.");
+    alert(getApiErrorMessage(error, "개인신용정보 수집·이용 동의가 필요합니다."));
     return;
   }
 
@@ -115,7 +114,7 @@ const handleConnectionError = async (error) => {
     return;
   }
 
-  alert(serverMessage || "일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+  alert(getApiErrorMessage(error, "일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."));
 };
 
 const handleSubmit = async () => {

@@ -1,5 +1,4 @@
 import { createRouter, createWebHistory } from "vue-router"
-import DefaultLayout from "@/layouts/DefaultLayout.vue"
 import { useUserStore } from "@/stores/userStore"
 
 const LandingView = () => import("@/views/auth/LandingView.vue")
@@ -20,6 +19,15 @@ const ReportListView = () => import("@/views/report/ReportListView.vue")
 const SettingsView = () => import("@/views/user/SettingsView.vue")
 const ConnectionManagementView = () => import("@/views/user/ConnectionManagementView.vue")
 const ChatView = () => import("@/views/ChatView.vue")
+
+const withAppShell = (route) => ({
+  ...route,
+  meta: {
+    ...route.meta,
+    requiresAuth: true,
+    appShell: true,
+  },
+})
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -52,11 +60,7 @@ const router = createRouter({
        meta: { requiresAuth: true },
     },
     // 로그인 이후 사이드바와 상단바를 공통으로 사용하는 페이지 그룹임
-    {
-      path: "/app",
-      component: DefaultLayout,
-      meta: { requiresAuth: true },
-      children: [
+    ...[
 
         // 대시보드 페이지로 이동하는 주소임
         {
@@ -139,8 +143,7 @@ const router = createRouter({
           name: "connection-management",
           component: ConnectionManagementView,
         },
-      ],
-    },
+    ].map(withAppShell),
   ],
 })
 

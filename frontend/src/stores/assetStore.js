@@ -1,10 +1,6 @@
 import { defineStore } from "pinia";
 import { connectAllAssets, getAssets } from "@/api/assetApi";
-
-const getErrorMessage = (error, fallbackMessage) =>
-  error.response?.data?.error?.message ||
-  error.response?.data?.message ||
-  fallbackMessage;
+import { getApiErrorMessage } from "@/utils/apiError";
 
 export const useAssetStore = defineStore("asset", {
   state: () => ({
@@ -27,7 +23,7 @@ export const useAssetStore = defineStore("asset", {
         return this.assets;
       } catch (error) {
         const isUnauthorized = error.response?.status === 401;
-        const errorMessage = getErrorMessage(
+        const errorMessage = getApiErrorMessage(
           error,
           isUnauthorized
             ? "로그인이 만료되었습니다. 다시 로그인해 주세요."
@@ -57,20 +53,18 @@ export const useAssetStore = defineStore("asset", {
         return response;
       } catch (error) {
         this.connectionResults = [];
-        this.error = getErrorMessage(
+        this.error = getApiErrorMessage(
           error,
           "자산 연동 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
         );
 
         const status = error.response?.status;
-        const errorMessage = error.response?.data?.error?.message;
-
         if (status === 400) {
-          alert(errorMessage || "필수 약관에 동의해야 자산 연동을 진행할 수 있습니다.");
+          alert(getApiErrorMessage(error, "필수 약관에 동의해야 자산 연동을 진행할 수 있습니다."));
         } else if (status === 401) {
-          alert(errorMessage || "로그인이 만료되었습니다. 다시 로그인해 주세요.");
+          alert(getApiErrorMessage(error, "로그인이 만료되었습니다. 다시 로그인해 주세요."));
         } else {
-          alert(errorMessage || "자산 연동 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+          alert(getApiErrorMessage(error, "자산 연동 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."));
         }
 
         throw error;

@@ -4,6 +4,7 @@ import { storeToRefs } from "pinia";
 import AssetSummaryCard from "@/components/dashboard/AssetSummaryCard.vue";
 import BudgetSummaryCard from "@/components/dashboard/BudgetSummaryCard.vue";
 import ExpenseSummaryCard from "@/components/dashboard/ExpenseSummaryCard.vue";
+import { useDashboardCharts } from "@/features/financial/useDashboardCharts";
 import { useDashboardStore } from "@/stores/useDashboardStore";
 
 const dashboardStore = useDashboardStore();
@@ -13,9 +14,8 @@ const {
   budget,
   expenses,
   error,
-  assetTrendChartData,
-  expenseChartData,
 } = storeToRefs(dashboardStore);
+const { assetTrendChartData, expenseChartData } = useDashboardCharts(assets, expenses);
 
 const hasDashboardData = computed(() => Boolean(
   assets.value || budget.value || expenses.value,

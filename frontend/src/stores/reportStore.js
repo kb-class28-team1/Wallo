@@ -4,18 +4,7 @@ import {
   getTaxSettlement,
   updateAnnualSalary,
 } from "@/api/assetApi";
-
-const getErrorMessage = (error, fallbackMessage) =>
-  error.response?.data?.error?.message ||
-  error.response?.data?.message ||
-  (error.response?.status === 401
-    ? "로그인이 만료되었습니다. 다시 로그인해 주세요."
-    : fallbackMessage);
-
-const getErrorCode = (error) =>
-  error.response?.data?.error?.code ||
-  error.response?.data?.code ||
-  null;
+import { getApiErrorCode, getApiErrorMessage } from "@/utils/apiError";
 
 export const useReportStore = defineStore("report", {
   state: () => ({
@@ -41,7 +30,7 @@ export const useReportStore = defineStore("report", {
 
         return this.insight;
       } catch (error) {
-        const errorMessage = getErrorMessage(
+        const errorMessage = getApiErrorMessage(
           error,
           "소비 리포트를 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
         );
@@ -73,10 +62,10 @@ export const useReportStore = defineStore("report", {
       } catch (error) {
         this.taxSettlement = null;
 
-        if (getErrorCode(error) === "REPORT_002") {
+        if (getApiErrorCode(error) === "REPORT_002") {
           this.isAnnualSalaryRequired = true;
         } else {
-          this.taxSettlementError = getErrorMessage(
+          this.taxSettlementError = getApiErrorMessage(
             error,
             "소득공제 달성률을 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
           );
@@ -108,7 +97,7 @@ export const useReportStore = defineStore("report", {
 
         return response?.data ?? null;
       } catch (error) {
-        this.annualSalaryError = getErrorMessage(
+        this.annualSalaryError = getApiErrorMessage(
           error,
           "연봉을 저장하는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
         );

@@ -1,4 +1,5 @@
 import httpClient from "./httpClient"
+import { getApiErrorMessage } from "@/utils/apiError"
 
 export async function requestChat(message) {
   try {
@@ -15,8 +16,6 @@ export async function requestChat(message) {
       throw error
     }
 
-    const message =
-      error.response?.data?.message || "AI 답변을 불러오지 못했습니다."
-    throw new Error(message)
+    throw new Error(getApiErrorMessage(error, "AI 답변을 불러오지 못했습니다."))
   }
 }

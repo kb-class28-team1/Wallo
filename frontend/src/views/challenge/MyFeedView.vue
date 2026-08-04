@@ -3,6 +3,7 @@ import { computed, onMounted } from "vue"
 import { storeToRefs } from "pinia"
 import { useRouter } from "vue-router"
 import { useMyFeedStore } from "@/stores/myFeedStore"
+import { formatNumber, formatWon } from "@/utils/formatters"
 
 const router = useRouter()
 const myFeedStore = useMyFeedStore()
@@ -80,7 +81,7 @@ const summaryCards = computed(() => [
   },
   {
     label: "총 절약 금액",
-    value: formatCurrency(summary.value?.totalSavingAmount),
+    value: formatWon(summary.value?.totalSavingAmount),
     className: "summary-saving",
   },
 ])
@@ -91,8 +92,6 @@ const selectedSortLabel = computed(
   () => sortOptions.find((option) => option.value === sort.value)?.label || "좋아요 많은순",
 )
 
-const formatNumber = (value) => Number(value || 0).toLocaleString("ko-KR")
-const formatCurrency = (value) => `${formatNumber(value)}원`
 const formatDate = (value) => {
   const date = String(value || "").slice(0, 10)
   return date ? date.replaceAll("-", ".") : ""
@@ -242,7 +241,7 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
           <div class="feed-result">
             <span class="like-count">♥ {{ formatNumber(feed.likeCount) }}</span>
             <span class="comment-count">💬 {{ formatNumber(feed.commentCount) }}</span>
-            <strong>{{ formatCurrency(feed.savingAmount) }}</strong>
+            <strong>{{ formatWon(feed.savingAmount) }}</strong>
           </div>
         </article>
       </div>

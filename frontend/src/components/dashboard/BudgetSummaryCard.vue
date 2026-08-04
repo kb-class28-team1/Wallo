@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref } from "vue";
+import { formatNumber, formatWon } from "@/utils/formatters";
 
 const props = defineProps({
   budget: {
@@ -26,9 +27,6 @@ const budgetUsageRate = computed(() => {
 const budgetRemaining = computed(() => (
   Number(props.budget?.totalAmount ?? 0) - Number(props.budget?.spentAmount ?? 0)
 ));
-
-const formatWon = (amount = 0) => `${new Intl.NumberFormat("ko-KR").format(amount)}원`;
-const formatNumber = (amount = 0) => new Intl.NumberFormat("ko-KR").format(amount);
 
 const openBudgetModal = () => {
   budgetAmountInput.value = formatNumber(props.budget?.totalAmount ?? 0);

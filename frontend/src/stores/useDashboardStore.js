@@ -1,58 +1,8 @@
 import { computed, ref } from "vue";
 import { defineStore } from "pinia";
 import { getBudgets, getExpenses, putBudget } from "@/api/assetApi";
-import { getExpenseCategoryLabel } from "@/constants/financialCategories";
 import { useAssetStore } from "@/stores/assetStore";
-
-const CHART_COLORS = [
-  "#0D6EFD",
-  "#20C997",
-  "#FFC107",
-  "#DC3545",
-  "#6F42C1",
-  "#0DCAF0",
-  "#FD7E14",
-  "#6C757D",
-];
-
-const createDoughnutChartData = (breakdown = [], labelResolver = (value) => value) => ({
-  labels: breakdown.map((item) => labelResolver(item.category)),
-  datasets: [
-    {
-      data: breakdown.map((item) => item.amount),
-      backgroundColor: breakdown.map(
-        (_, index) => CHART_COLORS[index % CHART_COLORS.length],
-      ),
-      borderColor: "#FFFFFF",
-      borderWidth: 2,
-    },
-  ],
-});
-
-const createAssetTrendChartData = (assetTrend = []) => ({
-  labels: assetTrend.map((item) => item.month),
-  datasets: [
-    {
-      label: "총 자산",
-      data: assetTrend.map((item) => item.amount),
-      borderColor: "#8170FF",
-      backgroundColor: "rgba(129, 112, 255, 0.14)",
-      pointBackgroundColor: "#8170FF",
-      pointBorderColor: "#FFFFFF",
-      pointBorderWidth: 2,
-      pointRadius: 4,
-      pointHoverRadius: 6,
-      borderWidth: 3,
-      tension: 0.35,
-      fill: true,
-    },
-  ],
-});
-
-const getErrorMessage = (caughtError) =>
-  caughtError.response?.data?.error?.message ??
-  caughtError.message ??
-  "대시보드 데이터를 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
+import { getApiErrorMessage } from "@/utils/apiError";
 
 export const useDashboardStore = defineStore("dashboard", () => {
   const assetStore = useAssetStore();
@@ -61,19 +11,6 @@ export const useDashboardStore = defineStore("dashboard", () => {
   const budget = ref(null);
   const expenses = ref(null);
   const error = ref(null);
-
-  const assetChartData = computed(() =>
-    createDoughnutChartData(assets.value?.assetCategoryBreakdown ?? []),
-  );
-  const expenseChartData = computed(() =>
-    createDoughnutChartData(
-      expenses.value?.expenseCategoryBreakdown ?? [],
-      getExpenseCategoryLabel,
-    ),
-  );
-  const assetTrendChartData = computed(() =>
-    createAssetTrendChartData(assets.value?.assetTrend ?? []),
-  );
 
   const fetchDashboardSummary = async () => {
     isLoading.value = true;
@@ -89,7 +26,10 @@ export const useDashboardStore = defineStore("dashboard", () => {
       budget.value = budgetResponse.data;
       expenses.value = expensesResponse.data;
     } catch (caughtError) {
-      const errorMessage = getErrorMessage(caughtError);
+      const errorMessage = getApiErrorMessage(
+        caughtError,
+        "대시보드 데이터를 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
+      );
 
       error.value = errorMessage;
       alert(errorMessage);
@@ -106,7 +46,10 @@ export const useDashboardStore = defineStore("dashboard", () => {
 
       budget.value = response.data;
     } catch (caughtError) {
-      const errorMessage = getErrorMessage(caughtError);
+      const errorMessage = getApiErrorMessage(
+        caughtError,
+        "예산을 저장하는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
+      );
 
       error.value = errorMessage;
       alert(errorMessage);
@@ -120,9 +63,6 @@ export const useDashboardStore = defineStore("dashboard", () => {
     budget,
     expenses,
     error,
-    assetChartData,
-    expenseChartData,
-    assetTrendChartData,
     fetchDashboardSummary,
     updateBudgetTotal,
   };

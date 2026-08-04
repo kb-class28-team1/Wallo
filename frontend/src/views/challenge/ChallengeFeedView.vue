@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue"
 import { useRoute } from "vue-router"
 import { useUserStore } from "@/stores/userStore"
+import { formatWon } from "@/utils/formatters"
 import {
   analyzeFeed, createFeed, getFeeds, getRoomMessages, sendRoomMessage,
 } from "@/api/feedApi"
@@ -55,7 +56,6 @@ const categoryLabel = (value, custom) =>
   custom || categories.find((item) => item.value === value)?.label.replace(/^.. /, "") || value
 const spendingLabel = (value) =>
   spendingTypes.find((item) => item.value === value)?.label || value
-const formatWon = (value) => `${Number(value || 0).toLocaleString("ko-KR")}원`
 const isVideoFile = computed(() => form.file?.type?.startsWith("video/"))
 const roomTitle = computed(() => `${challengeName.value} 채팅방`)
 

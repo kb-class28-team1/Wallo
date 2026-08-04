@@ -1,5 +1,6 @@
 <script setup>
-import { getExpenseCategoryMeta } from "@/constants/financialCategories";
+import { getExpenseCategoryMeta } from "@/features/financial/financialCategories";
+import { formatNumber } from "@/utils/formatters";
 
 defineProps({
   transactions: {
@@ -32,7 +33,7 @@ const formatDate = (date) => {
 };
 
 const formatAmount = (transaction) => {
-  const amount = new Intl.NumberFormat("ko-KR").format(Number(transaction.amount) || 0);
+  const amount = formatNumber(transaction.amount);
   if (transaction.type === "INCOME") return `+${amount}원`;
   if (transaction.type === "EXPENSE" || transaction.type === "TRANSFER") return `-${amount}원`;
   return `${amount}원`;

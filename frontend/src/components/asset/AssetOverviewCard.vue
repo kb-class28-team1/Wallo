@@ -5,7 +5,8 @@ import { ArcElement, Chart as ChartJS, Tooltip } from "chart.js";
 import {
   ASSET_FALLBACK_COLORS,
   getAssetCategoryMeta,
-} from "@/constants/financialCategories";
+} from "@/features/financial/financialCategories";
+import { formatWon } from "@/utils/formatters";
 
 ChartJS.register(ArcElement, Tooltip);
 
@@ -15,9 +16,6 @@ const props = defineProps({
     required: true,
   },
 });
-
-const formatWon = (amount = 0) =>
-  `${new Intl.NumberFormat("ko-KR").format(Number(amount) || 0)}원`;
 
 const totalAssets = computed(() => Number(props.assets.totalAssets) || 0);
 const loanBalance = computed(() =>

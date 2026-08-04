@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from "vue";
 import { storeToRefs } from "pinia";
 import { useReportStore } from "@/stores/reportStore";
+import { formatNumber } from "@/utils/formatters";
 
 const reportStore = useReportStore();
 const {
@@ -13,8 +14,6 @@ const {
 } = storeToRefs(reportStore);
 const salaryModalVisible = ref(false);
 const annualSalaryInput = ref("");
-
-const formatNumber = (amount = 0) => new Intl.NumberFormat("ko-KR").format(amount);
 
 const achievementRate = computed(() => {
   const spentAmount = Number(taxSettlement.value?.cardSpentYtd ?? 0);

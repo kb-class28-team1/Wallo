@@ -1,13 +1,9 @@
 import httpClient from "./httpClient"
-
-const getErrorMessage = (error, fallbackMessage) =>
-  error.response?.data?.error?.message ||
-  error.response?.data?.message ||
-  fallbackMessage
+import { getApiErrorCode, getApiErrorMessage } from "@/utils/apiError"
 
 const createAuthError = (error, fallbackMessage) => {
-  const authError = new Error(getErrorMessage(error, fallbackMessage))
-  authError.code = error.response?.data?.code
+  const authError = new Error(getApiErrorMessage(error, fallbackMessage))
+  authError.code = getApiErrorCode(error)
   authError.status = error.response?.status
   return authError
 }
@@ -35,7 +31,7 @@ export const getCurrentUser = async () => {
     const response = await httpClient.get("/api/auth/me")
     return response.data
   } catch (error) {
-    const authError = new Error(getErrorMessage(error, "로그인 정보를 확인하지 못했습니다."))
+    const authError = new Error(getApiErrorMessage(error, "로그인 정보를 확인하지 못했습니다."))
     authError.status = error.response?.status
     throw authError
   }
@@ -46,6 +42,6 @@ export const logout = async () => {
     const response = await httpClient.post("/api/auth/logout")
     return response.data
   } catch (error) {
-    throw new Error(getErrorMessage(error, "로그아웃에 실패했습니다."))
+    throw new Error(getApiErrorMessage(error, "로그아웃에 실패했습니다."))
   }
 }
