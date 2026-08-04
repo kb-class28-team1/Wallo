@@ -11,6 +11,7 @@
         <result property="nickname" column="nickname" />
         <result property="name" column="name" />
         <result property="annualSalary" column="annual_salary" />
+        <result property="point" column="point" />
         <result property="hasLoggedIn" column="has_logged_in" />
     </resultMap>
 
@@ -21,6 +22,7 @@
         nickname,
         name,
         annual_salary,
+        point,
         has_logged_in
     </sql>
 
