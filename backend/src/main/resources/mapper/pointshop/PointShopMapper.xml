@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wallo.pointshop.mapper.PointShopMapper">
+
+    <!-- USERS 테이블의 포인트 잔액을 조회함. -->
+    <select id="findPointBalance" resultType="java.lang.Integer">
+        SELECT point
+        FROM USERS
+        WHERE id = #{userId}
+    </select>
+
+    <!-- 삭제되지 않은 보관함 상품만 최근 획득 순으로 조회함. -->
+    <resultMap id="pointShopInventoryItemResultMap"
+               type="com.wallo.pointshop.domain.PointShopInventoryItem">
+        <id property="inventoryId" column="inventory_id" />
+        <result property="itemName" column="item_name" />
+        <result property="status" column="status" />
+        <result property="acquiredAt" column="acquired_at" />
+    </resultMap>
+
+    <select id="findInventoryItems" resultMap="pointShopInventoryItemResultMap">
+        SELECT
+            id AS inventory_id,
+            item_name,
+            status,
+            acquired_at
+        FROM USER_INVENTORY
+        WHERE user_id = #{userId}
+          AND deleted_at IS NULL
+        ORDER BY acquired_at DESC, id DESC
+    </select>
+
+    <!-- 잔액이 충분한 경우에만 포인트를 차감하여 음수 잔액을 방지함. -->
+    <update id="deductPoints">
+        UPDATE USERS
+        SET point = point - #{price}
+        WHERE id = #{userId}
+          AND point &gt;= #{price}
+    </update>
+
+    <!-- 랜덤박스에 사용한 포인트를 음수 금액으로 기록함. -->
+    <insert id="insertPointHistory">
+        INSERT INTO POINT_HISTORY (
+            user_id,
+            amount,
+            type,
+            reference_key,
+            description
+        ) VALUES (
+            #{userId},
+            #{amount},
+            #{type},
+            #{referenceKey},
+            #{description}
+        )
+    </insert>
+
+    <!-- 랜덤박스 즉시 지급 포인트를 사용자 잔액에 반영함. -->
+    <update id="addPoints">
+        UPDATE USERS
+        SET point = point + #{amount}
+        WHERE id = #{userId}
+    </update>
+
+    <!-- 로그인 사용자의 사용 완료 상품만 소프트 삭제함. -->
+    <update id="softDeleteUsedInventoryItem">
+        UPDATE USER_INVENTORY
+        SET deleted_at = CURRENT_TIMESTAMP
+        WHERE id = #{inventoryId}
+          AND user_id = #{userId}
+          AND status = 'USED'
+          AND deleted_at IS NULL
+    </update>
+
+    <!-- 당첨된 상품을 사용 가능한 상태로 보관함에 추가함. -->
+    <insert id="insertInventoryReward"
+            parameterType="com.wallo.pointshop.domain.PointShopReward"
+            useGeneratedKeys="true"
+            keyProperty="inventoryId">
+        INSERT INTO USER_INVENTORY (
+            user_id,
+            item_name,
+            coupon_code,
+            grade,
+            status
+        ) VALUES (
+            #{userId},
+            #{itemName},
+            #{couponCode},
+            #{grade},
+            'AVAILABLE'
+        )
+    </insert>
+</mapper>

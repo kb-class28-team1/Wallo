@@ -21,6 +21,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
         "com.wallo.external.controller",
         "com.wallo.challenge.controller",
         "com.wallo.chat.controller",
+        "com.wallo.pointshop.controller",
         "com.wallo.challenge.exception",
         "com.wallo.feed.controller",
         "com.wallo.common.exception"
