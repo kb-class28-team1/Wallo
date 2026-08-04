@@ -18,98 +18,66 @@ const getCurrentMonthDateRange = () => {
 };
 
 export const getAssets = async () => {
-  try {
-    const response = await httpClient.get("/api/assets");
+  const response = await httpClient.get("/api/assets");
 
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+  return response.data;
 };
 
 export const connectAllAssets = async (consentAgreed) => {
-  try {
-    const response = await httpClient.post("/api/connections", {
-      consentAgreed,
-    });
+  const response = await httpClient.post("/api/connections", {
+    consentAgreed,
+  });
 
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+  return response.data;
 };
 
 export const getExpenses = async (params = {}) => {
-  try {
-    const response = await httpClient.get("/api/assets/expense", {
-      params: {
-        ...getCurrentMonthDateRange(),
-        page: 0,
-        size: 20,
-        ...params,
-      },
-    });
+  const response = await httpClient.get("/api/assets/expense", {
+    params: {
+      ...getCurrentMonthDateRange(),
+      page: 0,
+      size: 20,
+      ...params,
+    },
+  });
 
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+  return response.data;
 };
 
 export const getBudgets = async () => {
-  try {
-    const response = await httpClient.get("/api/budgets");
+  const response = await httpClient.get("/api/budgets");
 
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+  return response.data;
 };
 
 export const putBudget = async (targetMonth, totalAmount) => {
-  try {
-    const response = await httpClient.put("/api/budgets", {
-      targetMonth,
-      totalAmount,
-    });
+  const response = await httpClient.put("/api/budgets", {
+    targetMonth,
+    totalAmount,
+  });
 
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+  return response.data;
 };
 
 export const getInsight = async () => {
-  try {
-    const response = await httpClient.get("/api/reports/insights");
+  const response = await httpClient.get("/api/reports/insights");
 
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+  return response.data;
 };
 
 export const getTaxSettlement = async (year) => {
-  try {
-    const response = await httpClient.get("/api/reports/tax-settlement", {
-      params: year ? { year } : {},
-    });
+  const response = await httpClient.get("/api/reports/tax-settlement", {
+    params: year ? { year } : {},
+  });
 
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+  return response.data;
 };
 
 export const updateAnnualSalary = async (annualSalary) => {
-  try {
-    const response = await httpClient.patch("/api/users/profile", {
-      annualSalary,
-    });
+  const response = await httpClient.patch("/api/users/profile", {
+    annualSalary,
+  });
 
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+  return response.data;
 };
 
