@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, ref } from "vue";
 import { useRouter } from "vue-router";
 import { connectAllAssets } from "@/api/assetApi";
-import { getLocalInstitutionLogo } from "@/constants/institutionLogos";
+import { getLocalInstitutionLogo } from "@/features/asset/institutionLogos";
 import { useUserStore } from "@/stores/userStore";
 import { getApiErrorMessage } from "@/utils/apiError";
 
