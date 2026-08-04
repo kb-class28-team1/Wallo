@@ -1,4 +1,19 @@
 fastapi
-openai
+groq
+python-dotenv
 uvicorn[standard]
+
+# 금융감독원 금융용어사전 크롤러(ai/scripts/crawl_fss_terms.py) 전용
+requests
+beautifulsoup4
+
+# 재정경제부 시사경제용어사전 Excel 변환기(ai/scripts/extract_moef_terms.py) 전용
+pandas
+openpyxl
+
+# 한국은행 경제금융용어 800선 PDF 변환기(ai/scripts/extract_bok_terms.py) 전용
+pymupdf
+
+# 테스트 전용 (단위 테스트에서만 필요, 실제 OpenAI를 호출하지 않음)
+pytest
 

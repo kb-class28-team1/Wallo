@@ -21,6 +21,11 @@ public class ChatMessagePersistenceService {
         return chatMessageMapper.findAllByConversationId(conversationId);
     }
 
+    @Transactional(readOnly = true)
+    public boolean hasNoMessages(Long conversationId) {
+        return chatMessageMapper.countByConversationId(conversationId) == 0;
+    }
+
     @Transactional
     public ChatMessage saveMessage(
             Long conversationId,

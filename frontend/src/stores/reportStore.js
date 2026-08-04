@@ -73,7 +73,7 @@ export const useReportStore = defineStore("report", {
       } catch (error) {
         this.taxSettlement = null;
 
-        if (getErrorCode(error) === "REPORT_002") {
+        if (getErrorCode(error) === "PROFILE_004") {
           this.isAnnualSalaryRequired = true;
         } else {
           this.taxSettlementError = getErrorMessage(
