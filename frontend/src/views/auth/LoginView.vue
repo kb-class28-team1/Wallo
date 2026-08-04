@@ -1,56 +1,55 @@
 <script setup>
-import { computed, reactive, ref } from "vue"
-import { RouterLink, useRoute, useRouter } from "vue-router"
-import { useUserStore } from "@/stores/userStore"
+import { computed, reactive, ref } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { useUserStore } from '@/stores/userStore'
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 
-const email = ref("")
-const password = ref("")
-const errors = reactive({ email: "", password: "" })
+const email = ref('')
+const password = ref('')
+const errors = reactive({ email: '', password: '' })
 
 const sessionMessage = computed(() =>
-  route.query.reason === "expired" ? "로그인이 필요하거나 세션이 만료되었습니다." : "",
+  route.query.reason === 'expired' ? '로그인이 필요하거나 세션이 만료되었습니다.' : '',
 )
 
 const handleLogin = async () => {
-  errors.email = ""
-  errors.password = ""
+  errors.email = ''
+  errors.password = ''
 
-  if (!email.value.trim()) errors.email = "이메일을 입력해 주세요."
+  if (!email.value.trim()) errors.email = '이메일을 입력해 주세요.'
   else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim()))
-    errors.email = "올바른 이메일 형식을 입력해 주세요."
-  if (!password.value) errors.password = "비밀번호를 입력해 주세요."
+    errors.email = '올바른 이메일 형식을 입력해 주세요.'
+  if (!password.value) errors.password = '비밀번호를 입력해 주세요.'
   if (errors.email || errors.password) return
 
   try {
-    await userStore.login({
+    const authenticatedUser = await userStore.login({
       email: email.value.trim(),
       password: password.value,
     })
 
-    const redirectPath =
-      typeof route.query.redirect === "string" && route.query.redirect.startsWith("/")
+    const redirectPath = !authenticatedUser.connectionCompleted
+      ? '/connections/mydata'
+      : typeof route.query.redirect === 'string' && route.query.redirect.startsWith('/')
         ? route.query.redirect
-        : "/dashboard"
+        : '/dashboard'
     await router.replace(redirectPath)
   } catch (error) {
-    const message = error.message || "로그인에 실패했습니다."
-    errors.email = message
-    errors.password = message
+    if (error.code === 'AUTH_LOGIN_EMAIL_NOT_FOUND') {
+      errors.email = error.message || '아이디가 틀렸습니다.'
+    } else if (error.code === 'AUTH_LOGIN_PASSWORD_MISMATCH') {
+      errors.password = error.message || '비밀번호가 틀렸습니다.'
+    } else {
+      errors.email = error.message || '로그인에 실패했습니다.'
+    }
   }
 }
 
 const clearError = (field) => {
-  errors[field] = ""
-  if (field === "email" || field === "password") {
-    const otherField = field === "email" ? "password" : "email"
-    if (errors[otherField] === "이메일 또는 비밀번호가 올바르지 않습니다.") {
-      errors[otherField] = ""
-    }
-  }
+  errors[field] = ''
 }
 </script>
 
@@ -75,9 +74,12 @@ const clearError = (field) => {
               :class="['form-control', { 'is-invalid field-shake': errors.email }]"
               autocomplete="email"
               placeholder="test@wallo.com"
+              :aria-describedby="errors.email ? 'login-email-error' : undefined"
               @input="clearError('email')"
             />
-            <small v-if="errors.email" class="field-error">{{ errors.email }}</small>
+            <small v-if="errors.email" id="login-email-error" class="field-error">
+              {{ errors.email }}
+            </small>
           </div>
 
           <div class="mb-4">
@@ -89,9 +91,12 @@ const clearError = (field) => {
               :class="['form-control', { 'is-invalid field-shake': errors.password }]"
               autocomplete="current-password"
               placeholder="비밀번호를 입력하세요"
+              :aria-describedby="errors.password ? 'login-password-error' : undefined"
               @input="clearError('password')"
             />
-            <small v-if="errors.password" class="field-error">{{ errors.password }}</small>
+            <small v-if="errors.password" id="login-password-error" class="field-error">
+              {{ errors.password }}
+            </small>
           </div>
 
           <button class="btn btn-primary w-100" type="submit" :disabled="userStore.isLoading">
@@ -100,7 +105,7 @@ const clearError = (field) => {
               class="spinner-border spinner-border-sm me-2"
               aria-hidden="true"
             />
-            {{ userStore.isLoading ? "로그인 중..." : "로그인" }}
+            {{ userStore.isLoading ? '로그인 중...' : '로그인' }}
           </button>
         </form>
 
@@ -135,13 +140,24 @@ const clearError = (field) => {
 }
 
 @keyframes field-shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-6px); }
-  50% { transform: translateX(6px); }
-  75% { transform: translateX(-3px); }
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-6px);
+  }
+  50% {
+    transform: translateX(6px);
+  }
+  75% {
+    transform: translateX(-3px);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .field-shake { animation: none; }
+  .field-shake {
+    animation: none;
+  }
 }
 </style>

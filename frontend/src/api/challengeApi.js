@@ -28,6 +28,18 @@ export const getWeeklyRanking = async () => {
   }
 }
 
+// 현재 주 랭킹 보상을 즉시 지급하는 개발용 테스트 API임
+export const grantWeeklyRankingRewardsForTest = async () => {
+  try {
+    const response = await httpClient.post("/api/challenges/rankings/weekly/reward/test")
+    return response.data
+  } catch (error) {
+    const message =
+      error.response?.data?.message || "주간 랭킹 보상을 지급하지 못했습니다."
+    throw new Error(message)
+  }
+}
+
 // 로그인 사용자의 프로필, 절약 통계, 선택 기간 추이와 인기 피드를 조회함
 export const getMyChallengeDashboard = async (period = "6M") => {
   try {
@@ -61,6 +73,32 @@ export const joinChallenge = async (inviteCode) => {
     return response.data
   } catch (error) {
     const message = error.response?.data?.message || "챌린지에 참여하지 못했습니다."
+    throw new Error(message)
+  }
+}
+
+// 로그인 사용자가 작성한 게시물을 정렬, 카테고리, 페이지 조건에 맞춰 조회함.
+export const getMyFeeds = async ({
+  sort = "LIKE_DESC",
+  category = "ALL",
+  page = 0,
+  size = 10,
+} = {}) => {
+  try {
+    const response = await httpClient.get("/api/users/me/feeds", {
+      params: {
+        sort,
+        category,
+        page,
+        size,
+      },
+    })
+
+    return response.data
+  } catch (error) {
+    // 백엔드 메시지를 우선 사용하고, 없으면 화면에서 표시할 기본 메시지를 전달함.
+    const message =
+      error.response?.data?.message || "내 게시물 목록을 불러오지 못했습니다."
     throw new Error(message)
   }
 }

@@ -11,6 +11,8 @@
         <result property="nickname" column="nickname" />
         <result property="name" column="name" />
         <result property="annualSalary" column="annual_salary" />
+        <result property="point" column="point" />
+        <result property="hasLoggedIn" column="has_logged_in" />
     </resultMap>
 
     <sql id="userColumns">
@@ -19,7 +21,9 @@
         password_hash,
         nickname,
         name,
-        annual_salary
+        annual_salary,
+        point,
+        has_logged_in
     </sql>
 
     <select id="findByEmail" resultMap="userResultMap">
@@ -62,4 +66,19 @@
             #{name}
         )
     </insert>
+
+    <update id="markFirstLoginComplete">
+        UPDATE users
+        SET has_logged_in = TRUE
+        WHERE id = #{id}
+          AND has_logged_in = FALSE
+    </update>
+
+    <select id="countActiveConnections" resultType="int">
+        SELECT COUNT(*)
+        FROM connections
+        WHERE user_id = #{userId}
+          AND status = 'ACTIVE'
+          AND deleted_at IS NULL
+    </select>
 </mapper>

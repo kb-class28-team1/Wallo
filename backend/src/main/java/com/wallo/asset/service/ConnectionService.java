@@ -18,17 +18,20 @@ public class ConnectionService {
     private final InstitutionService institutionService;
     private final ConnectionMapper connectionMapper;
     private final AssetSyncService assetSyncService;
+    private final CardWithdrawalReconciliationService cardWithdrawalReconciliationService;
 
     public ConnectionService(
             CodefClient codefClient,
             InstitutionService institutionService,
             ConnectionMapper connectionMapper,
-            AssetSyncService assetSyncService
+            AssetSyncService assetSyncService,
+            CardWithdrawalReconciliationService cardWithdrawalReconciliationService
     ) {
         this.codefClient = codefClient;
         this.institutionService = institutionService;
         this.connectionMapper = connectionMapper;
         this.assetSyncService = assetSyncService;
+        this.cardWithdrawalReconciliationService = cardWithdrawalReconciliationService;
     }
 
     @Transactional
@@ -44,6 +47,7 @@ public class ConnectionService {
         List<ConnectionDto.Result> results = attempts.stream().map(ConnectionAttempt::result).toList();
         saveConnections(userId, results);
         syncAssets(userId, attempts);
+        cardWithdrawalReconciliationService.reconcile(userId);
         return new ConnectionDto.Response(results);
     }
 
@@ -81,7 +85,7 @@ public class ConnectionService {
 
     private CodefDto.Request createCodefRequest(Institution institution) {
         return new CodefDto.Request(
-                institution.getInstitutionId(),
+                institution.getCodefOrganizationCode(),
                 institution.getInstitutionType(),
                 ConnectionDto.MOCK_LOGIN_TYPE,
                 ConnectionDto.MOCK_ID,

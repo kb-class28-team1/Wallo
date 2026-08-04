@@ -34,6 +34,30 @@ export const createFeed = async (challengeId, formData) => {
   }
 }
 
+export const addFeedLike = async (challengeId, feedId) => {
+  try {
+    return (await httpClient.post(`/api/challenges/${challengeId}/feeds/${feedId}/like`)).data
+  } catch (error) {
+    throw new Error(message(error, "좋아요 처리에 실패했습니다."))
+  }
+}
+
+export const updateFeed = async (challengeId, feedId, payload) => {
+  try {
+    await httpClient.patch(`/api/challenges/${challengeId}/feeds/${feedId}`, payload)
+  } catch (error) {
+    throw new Error(message(error, "피드를 수정하지 못했습니다."))
+  }
+}
+
+export const deleteFeed = async (challengeId, feedId) => {
+  try {
+    await httpClient.delete(`/api/challenges/${challengeId}/feeds/${feedId}`)
+  } catch (error) {
+    throw new Error(message(error, "피드를 삭제하지 못했습니다."))
+  }
+}
+
 export const getRoomMessages = async (challengeId) => {
   try {
     return (await httpClient.get(`/api/challenges/${challengeId}/messages`)).data

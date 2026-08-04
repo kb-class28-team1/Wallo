@@ -11,8 +11,10 @@ import ChallengeEntryView from "@/views/challenge/ChallengeEntryView.vue"
 import ChallengeFeedView from "@/views/challenge/ChallengeFeedView.vue"
 import ChallengeRankingView from "@/views/challenge/ChallengeRankingView.vue"
 import MyChallengeView from "@/views/challenge/MyChallengeView.vue"
+import MyFeedView from "@/views/challenge/MyFeedView.vue"
 import DashboardView from "@/views/dashboard/DashboardView.vue"
 import PointShopView from "@/views/product/PointShopView.vue"
+import PointHistoryView from "@/views/product/PointHistoryView.vue"
 import ReportListView from "@/views/report/ReportListView.vue"
 import SettingsView from "@/views/user/SettingsView.vue"
 import ConnectionManagementView from "@/views/user/ConnectionManagementView.vue"
@@ -108,11 +110,23 @@ const router = createRouter({
           name: "my-challenge",
           component: MyChallengeView,
         },
+        // 현재 사용자가 작성한 게시물 목록 페이지로 이동하는 주소임.
+        {
+          path: "/my-feeds",
+          name: "my-feeds",
+          component: MyFeedView,
+        },
         // 포인트 샵 페이지로 이동하는 주소임
         {
           path: "/point-shop",
           name: "point-shop",
           component: PointShopView,
+        },
+        // 포인트 내역 페이지로 이동하는 주소임
+        {
+          path: "/point-history",
+          name: "point-history",
+          component: PointHistoryView,
         },
         // 금융 리포트 페이지로 이동하는 주소임
         {
@@ -159,8 +173,20 @@ router.beforeEach(async (to) => {
     }
   }
 
+  if (
+    to.meta.requiresAuth &&
+    userStore.isAuthenticated &&
+    !userStore.user?.connectionCompleted &&
+    to.name !== "connection"
+  ) {
+    return { name: "connection", replace: true }
+  }
+
   if (to.meta.guestOnly && userStore.isAuthenticated) {
-    return { name: "dashboard" }
+    return {
+      name: userStore.user?.connectionCompleted ? "dashboard" : "connection",
+      replace: true,
+    }
   }
 
   return true

@@ -5,8 +5,10 @@ import com.wallo.asset.domain.Institution;
 import com.wallo.asset.dto.AssetSyncDto;
 import com.wallo.asset.mapper.AssetSyncMapper;
 import com.wallo.external.dto.CodefDto;
+import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.YearMonth;
 import java.util.Collections;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -16,14 +18,29 @@ public class AssetSyncService {
 
     private final AssetSyncMapper assetSyncMapper;
     private final ObjectMapper objectMapper;
+    private final CardApprovalCollectionService cardApprovalCollectionService;
+    private final BankTransactionCollectionService bankTransactionCollectionService;
 
-    public AssetSyncService(AssetSyncMapper assetSyncMapper, ObjectMapper objectMapper) {
+    public AssetSyncService(
+            AssetSyncMapper assetSyncMapper,
+            ObjectMapper objectMapper,
+            CardApprovalCollectionService cardApprovalCollectionService,
+            BankTransactionCollectionService bankTransactionCollectionService
+    ) {
         this.assetSyncMapper = assetSyncMapper;
         this.objectMapper = objectMapper;
+        this.cardApprovalCollectionService = cardApprovalCollectionService;
+        this.bankTransactionCollectionService = bankTransactionCollectionService;
     }
 
     public void sync(long userId, long connectionId, Institution institution, CodefDto.Response response) {
         CodefDto.AssetData data = objectMapper.convertValue(response.getData(), CodefDto.AssetData.class);
+
+        for (CodefDto.AssetSnapshot snapshot : values(data.getAssetSnapshots())) {
+            assetSyncMapper.upsertAssetSnapshot(userId, new AssetSyncDto.AssetSnapshot(
+                    snapshotMonth(snapshot.getSnapshotMonth()), amount(snapshot.getTotalAssets())
+            ));
+        }
 
         for (CodefDto.Account account : values(data.getAccounts())) {
             assetSyncMapper.upsertAccount(connectionId, new AssetSyncDto.Account(
@@ -43,8 +60,38 @@ public class AssetSyncService {
                     card.getResCardNo(), card.getResCardName(), defaultValue(card.getResCardType(), "CREDIT"),
                     status(card.getResCardState()), card.getResValidPeriod()));
         }
-        for (CodefDto.Transaction source : values(data.getTransactions())) {
-            syncTransaction(userId, connectionId, source);
+        if ("CARD".equals(institution.getInstitutionType())) {
+            cardApprovalCollectionService.collectInitial(userId, connectionId, institution);
+        } else if ("BANK".equals(institution.getInstitutionType())) {
+            collectBankTransactions(userId, connectionId, institution, data.getAccounts());
+            for (CodefDto.Transaction source : values(data.getTransactions())) {
+                if (!blank(source.getResLoanAccount())) {
+                    syncTransaction(userId, connectionId, source);
+                }
+            }
+        } else {
+            for (CodefDto.Transaction source : values(data.getTransactions())) {
+                syncTransaction(userId, connectionId, source);
+            }
+        }
+    }
+
+    private void collectBankTransactions(
+            long userId,
+            long connectionId,
+            Institution institution,
+            List<CodefDto.Account> accounts
+    ) {
+        for (CodefDto.Account account : values(accounts)) {
+            Long accountId = required(
+                    assetSyncMapper.findAccountId(connectionId, account.getResAccount())
+            );
+            bankTransactionCollectionService.collectInitial(
+                    userId,
+                    accountId,
+                    account.getResAccount(),
+                    institution
+            );
         }
     }
 
@@ -88,6 +135,14 @@ public class AssetSyncService {
     private long amount(String value) {
         try { return Long.parseLong(value); }
         catch (NumberFormatException exception) { throw new IllegalArgumentException("연동 금액 형식이 올바르지 않습니다.", exception); }
+    }
+
+    private String snapshotMonth(String value) {
+        try {
+            return YearMonth.parse(value).toString();
+        } catch (DateTimeException exception) {
+            throw new IllegalArgumentException("Invalid asset snapshot month: " + value, exception);
+        }
     }
 
     private String status(String value) {

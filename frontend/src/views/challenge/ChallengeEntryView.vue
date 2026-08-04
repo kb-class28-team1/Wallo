@@ -1,30 +1,26 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from "vue"
-import { useRouter } from "vue-router"
-import {
-  createChallenge,
-  getCurrentChallenge,
-  joinChallenge,
-} from "@/api/challengeApi"
+import { computed, onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { createChallenge, getCurrentChallenge, joinChallenge } from '@/api/challengeApi'
 
 const router = useRouter()
 
 const isLoading = ref(true)
 const isSubmitting = ref(false)
-const errorMessage = ref("")
+const errorMessage = ref('')
 const currentChallenge = ref(null)
-const activeForm = ref("create")
+const activeForm = ref('create')
 
 const createForm = reactive({
-  name: "",
+  name: '',
 })
-const inviteCode = ref("")
+const inviteCode = ref('')
 
 const hasChallenge = computed(() => currentChallenge.value?.joined === true)
 
 const loadCurrentChallenge = async () => {
   isLoading.value = true
-  errorMessage.value = ""
+  errorMessage.value = ''
 
   try {
     currentChallenge.value = await getCurrentChallenge()
@@ -38,17 +34,20 @@ const loadCurrentChallenge = async () => {
 const submitCreate = async () => {
   const name = createForm.name.trim()
   if (!name) {
-    alert("챌린지 이름을 입력해 주세요.")
+    alert('챌린지 이름을 입력해 주세요.')
     return
   }
 
   isSubmitting.value = true
   try {
-    await createChallenge({
+    const createdChallenge = await createChallenge({
       name,
     })
-    alert("챌린지가 만들어졌습니다.")
-    await loadCurrentChallenge()
+    alert('챌린지가 만들어졌습니다.')
+    await router.push({
+      name: 'challenge-feed',
+      params: { challengeId: createdChallenge.id },
+    })
   } catch (error) {
     alert(error.message)
   } finally {
@@ -59,15 +58,18 @@ const submitCreate = async () => {
 const submitJoin = async () => {
   const code = inviteCode.value.trim()
   if (!code) {
-    alert("초대 코드를 입력해 주세요.")
+    alert('초대 코드를 입력해 주세요.')
     return
   }
 
   isSubmitting.value = true
   try {
-    await joinChallenge(code)
-    alert("챌린지에 참여했습니다.")
-    await loadCurrentChallenge()
+    const joinedChallenge = await joinChallenge(code)
+    alert('챌린지에 참여했습니다.')
+    await router.push({
+      name: 'challenge-feed',
+      params: { challengeId: joinedChallenge.id },
+    })
   } catch (error) {
     alert(error.message)
   } finally {
@@ -78,7 +80,7 @@ const submitJoin = async () => {
 const copyInviteCode = async () => {
   try {
     await navigator.clipboard.writeText(currentChallenge.value.inviteCode)
-    alert("초대 코드가 복사되었습니다.")
+    alert('초대 코드가 복사되었습니다.')
   } catch {
     alert(`초대 코드: ${currentChallenge.value.inviteCode}`)
   }
@@ -488,7 +490,9 @@ onMounted(loadCurrentChallenge)
   background: #fff;
   border: 1px solid #eceef5;
   border-radius: 20px;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .action-card:hover {

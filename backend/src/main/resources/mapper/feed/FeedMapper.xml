@@ -16,6 +16,7 @@
         <result property="category" column="category"/>
         <result property="customCategory" column="custom_category"/>
         <result property="caption" column="caption"/>
+        <result property="analysisSummary" column="analysis_summary"/>
         <result property="likeCount" column="like_count"/>
         <result property="createdAt" column="created_at"/>
     </resultMap>
@@ -40,9 +41,14 @@
     <select id="findChallengeName" resultType="string">
         SELECT name FROM CHALLENGE WHERE id = #{challengeId}
     </select>
+    <select id="findChallengeInviteCode" resultType="string">
+        SELECT invite_code FROM CHALLENGE WHERE id = #{challengeId}
+    </select>
     <select id="findFeeds" resultMap="feedMap">
-        SELECT f.*, u.nickname, u.profile_image_url
-        FROM FEED f JOIN USERS u ON u.id = f.user_id
+        SELECT f.*, fa.analysis_summary, u.nickname, u.profile_image_url
+        FROM FEED f
+        JOIN USERS u ON u.id = f.user_id
+        LEFT JOIN FEED_ANALYSIS fa ON fa.feed_id = f.id
         WHERE f.challenge_id = #{challengeId} AND f.status = 'ACTIVE'
         <if test="mineOnly">AND f.user_id = #{userId}</if>
         ORDER BY f.created_at DESC
@@ -66,6 +72,45 @@
         INSERT INTO MESSAGE (challenge_id, user_id, message_type, reference_feed_id, content)
         VALUES (#{challengeId}, #{userId}, 'FEED_SHARE', #{feedId}, '새 절약 피드를 공유했어요.')
     </insert>
+    <update id="incrementLikeCount">
+        UPDATE FEED SET like_count = like_count + 1
+        WHERE id = #{feedId} AND status = 'ACTIVE'
+    </update>
+    <select id="findLikeCount" resultType="int">
+        SELECT like_count FROM FEED
+        WHERE id = #{feedId} AND challenge_id = #{challengeId} AND status = 'ACTIVE'
+    </select>
+    <select id="countActiveFeed" resultType="int">
+        SELECT COUNT(*) FROM FEED
+        WHERE id = #{feedId} AND challenge_id = #{challengeId} AND status = 'ACTIVE'
+    </select>
+    <update id="updateFeed">
+        UPDATE FEED
+        SET spending_type = #{spendingType},
+            category = #{category},
+            custom_category = NULL,
+            caption = #{caption},
+            saving_amount = #{savingAmount}
+        WHERE id = #{feedId}
+          AND user_id = #{userId}
+          AND challenge_id = #{challengeId}
+          AND status = 'ACTIVE'
+    </update>
+    <update id="updateFeedAnalysis">
+        UPDATE FEED_ANALYSIS
+        SET recommended_spending_type = #{spendingType},
+            recommended_category = #{category},
+            estimated_saving_amount = #{savingAmount}
+        WHERE feed_id = #{feedId}
+    </update>
+    <update id="softDeleteFeed">
+        UPDATE FEED
+        SET status = 'DELETED', file_deleted_at = CURRENT_TIMESTAMP
+        WHERE id = #{feedId}
+          AND user_id = #{userId}
+          AND challenge_id = #{challengeId}
+          AND status = 'ACTIVE'
+    </update>
     <insert id="insertMessage">
         INSERT INTO MESSAGE (challenge_id, user_id, message_type, reference_feed_id, content)
         VALUES (#{challengeId}, #{userId}, #{type}, #{feedId}, #{content})
@@ -76,8 +121,9 @@
                f.media_url, f.thumbnail_url, f.media_type
         FROM MESSAGE m
         JOIN USERS u ON u.id = m.user_id
-        LEFT JOIN FEED f ON f.id = m.reference_feed_id
+        LEFT JOIN FEED f ON f.id = m.reference_feed_id AND f.status = 'ACTIVE'
         WHERE m.challenge_id = #{challengeId}
+          AND (m.reference_feed_id IS NULL OR f.id IS NOT NULL)
         ORDER BY m.created_at
     </select>
     <select id="sumSavingAmount" resultType="long">

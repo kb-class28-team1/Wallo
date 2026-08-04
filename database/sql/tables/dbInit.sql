@@ -39,6 +39,7 @@ CREATE TABLE USERS (
         DEFAULT '/images/profiles/default-profile.svg',
     role VARCHAR(20) NOT NULL DEFAULT 'USER',
     point INT UNSIGNED NOT NULL DEFAULT 0,
+    has_logged_in TINYINT(1) NOT NULL DEFAULT 0,
     current_challenge_id BIGINT NULL,
     total_attendance_days INT UNSIGNED NOT NULL DEFAULT 0,
     streak_days INT UNSIGNED NOT NULL DEFAULT 0,
@@ -54,25 +55,36 @@ CREATE TABLE USERS (
   COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE INSTITUTIONS (
-    institution_id VARCHAR(20) PRIMARY KEY,
+    institution_id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    codef_organization_code VARCHAR(20) NOT NULL,
     type VARCHAR(20) NOT NULL,
     name VARCHAR(100) NOT NULL,
     logo_url VARCHAR(1000) NULL,
-    services JSON NULL
+    services JSON NULL,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    display_order INT NOT NULL DEFAULT 0,
+    UNIQUE KEY uk_institutions_codef_type (codef_organization_code, type)
 ) ENGINE=InnoDB
   DEFAULT CHARSET=utf8mb4
   COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO INSTITUTIONS (institution_id, type, name, logo_url, services)
+INSERT INTO INSTITUTIONS (
+    codef_organization_code,
+    type,
+    name,
+    logo_url,
+    services,
+    display_order
+)
 VALUES
-    ('0004', 'BANK', '국민은행', 'https://www.kbstar.com/favicon.ico', JSON_ARRAY('입출금', '적금', '대출')),
-    ('0311', 'CARD', '하나카드', 'https://www.hanacard.co.kr/favicon.ico', JSON_ARRAY('신용카드', '체크카드')),
-    ('0264', 'STOCK', '키움증권', 'https://www.kiwoom.com/favicon.ico', JSON_ARRAY('주식', 'CMA'));
+    ('0004', 'BANK', '국민은행', 'https://www.kbstar.com/favicon.ico', JSON_ARRAY('입출금', '적금', '대출'), 10),
+    ('0311', 'CARD', '하나카드', 'https://www.hanacard.co.kr/favicon.ico', JSON_ARRAY('신용카드', '체크카드'), 20),
+    ('0264', 'STOCK', '키움증권', 'https://www.kiwoom.com/favicon.ico', JSON_ARRAY('주식', 'CMA'), 30);
 
 CREATE TABLE CONNECTIONS (
     connection_id BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT NOT NULL,
-    institution_id VARCHAR(20) NOT NULL,
+    institution_id BIGINT NOT NULL,
     login_type VARCHAR(10) NOT NULL,
     login_id VARCHAR(255) NOT NULL,
     login_password VARCHAR(255) NOT NULL,
@@ -134,15 +146,28 @@ CREATE TABLE TRANSACTIONS (
     account_id BIGINT NULL,
     type VARCHAR(20) NOT NULL,
     category VARCHAR(50) NOT NULL,
+    category_source VARCHAR(30) NOT NULL DEFAULT 'LEGACY',
+    category_confidence DECIMAL(5,4) NULL,
+    classifier_version VARCHAR(30) NULL,
     amount BIGINT NOT NULL,
     merchant_name VARCHAR(100) NOT NULL,
     original_merchant_name VARCHAR(100) NULL,
     original_sector VARCHAR(100) NULL,
     external_approval_no VARCHAR(50) NULL,
+    source_type VARCHAR(30) NULL,
+    source_organization_code VARCHAR(20) NULL,
+    source_transaction_id VARCHAR(100) NULL,
+    source_dedup_key CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NULL,
     transaction_date DATE NOT NULL,
     transaction_time TIME NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uk_card_approval (card_id, external_approval_no),
+    UNIQUE KEY uk_transactions_source (
+        user_id,
+        source_type,
+        source_organization_code,
+        source_dedup_key
+    ),
     INDEX idx_transactions_user_date (user_id, transaction_date),
     INDEX idx_transactions_user_type_date (user_id, type, transaction_date)
 ) ENGINE=InnoDB

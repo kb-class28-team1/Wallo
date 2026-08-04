@@ -40,27 +40,14 @@
         "resLoanCurrency": "KRW"
       }
     ],
+    "assetSnapshots": [
+      { "snapshotMonth": "2026-04", "totalAssets": "34200000" },
+      { "snapshotMonth": "2026-05", "totalAssets": "35150000" },
+      { "snapshotMonth": "2026-06", "totalAssets": "36400000" },
+      { "snapshotMonth": "2026-07", "totalAssets": "38400000" },
+      { "snapshotMonth": "2026-08", "totalAssets": "40100000" }
+    ],
     "transactions": [
-      {
-        "resAccount": "123456-01-789012",
-        "resAccountTrNo": "BANK-202607-0001",
-        "resAccountTrDate": "2026-07-25",
-        "resAccountTrTime": "09:10:00",
-        "resAccountTrType": "INCOME",
-        "resAccountTrAmount": "3200000",
-        "resAccountTrDesc": "급여",
-        "resAccountTrCategory": "INCOME"
-      },
-      {
-        "resAccount": "123456-01-789012",
-        "resAccountTrNo": "BANK-202607-0002",
-        "resAccountTrDate": "2026-07-28",
-        "resAccountTrTime": "18:42:00",
-        "resAccountTrType": "EXPENSE",
-        "resAccountTrAmount": "55000",
-        "resAccountTrDesc": "관리비",
-        "resAccountTrCategory": "LIVING"
-      },
       {
         "resLoanAccount": "STUDENT-LOAN-2021-001",
         "resLoanPaymentNo": "LOAN-202607-0001",

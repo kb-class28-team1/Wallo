@@ -78,10 +78,35 @@ class AuthServiceImplTest {
 
         assertEquals(10L, response.getId());
         assertEquals("test@wallo.com", response.getEmail());
+        assertTrue(response.isFirstLogin());
     }
 
     @Test
-    void rejectsWrongPasswordWithoutRevealingWhetherUserExists() {
+    void doesNotTreatSubsequentLoginsAsFirstLogin() {
+        FakeAuthMapper mapper = new FakeAuthMapper();
+        mapper.savedUser = user(10L, "test@wallo.com", passwordEncoder.encode("password123!"));
+        AuthService service = new AuthServiceImpl(mapper, passwordEncoder);
+
+        service.login(loginRequest("test@wallo.com", "password123!"));
+        AuthUserResponse response = service.login(loginRequest("test@wallo.com", "password123!"));
+
+        assertFalse(response.isFirstLogin());
+    }
+
+    @Test
+    void includesConnectionCompletionInLoginResponse() {
+        FakeAuthMapper mapper = new FakeAuthMapper();
+        mapper.savedUser = user(10L, "test@wallo.com", passwordEncoder.encode("password123!"));
+        mapper.activeConnectionCount = 1;
+        AuthService service = new AuthServiceImpl(mapper, passwordEncoder);
+
+        AuthUserResponse response = service.login(loginRequest("test@wallo.com", "password123!"));
+
+        assertTrue(response.isConnectionCompleted());
+    }
+
+    @Test
+    void rejectsWrongPasswordWithPasswordSpecificMessage() {
         FakeAuthMapper mapper = new FakeAuthMapper();
         mapper.savedUser = user(10L, "test@wallo.com", passwordEncoder.encode("password123!"));
         AuthService service = new AuthServiceImpl(mapper, passwordEncoder);
@@ -90,8 +115,34 @@ class AuthServiceImplTest {
                 AuthException.class,
                 () -> service.login(loginRequest("test@wallo.com", "wrong-password")));
 
-        assertEquals(AuthErrorCode.LOGIN_FAILED, exception.getErrorCode());
-        assertEquals("이메일 또는 비밀번호가 올바르지 않습니다.", exception.getMessage());
+        assertEquals(AuthErrorCode.LOGIN_PASSWORD_MISMATCH, exception.getErrorCode());
+        assertEquals("비밀번호가 틀렸습니다.", exception.getMessage());
+    }
+
+    @Test
+    void rejectsUnknownEmailWithEmailSpecificMessage() {
+        FakeAuthMapper mapper = new FakeAuthMapper();
+        AuthService service = new AuthServiceImpl(mapper, passwordEncoder);
+
+        AuthException exception = assertThrows(
+                AuthException.class,
+                () -> service.login(loginRequest("unknown@wallo.com", "password123!")));
+
+        assertEquals(AuthErrorCode.LOGIN_EMAIL_NOT_FOUND, exception.getErrorCode());
+        assertEquals("아이디가 틀렸습니다.", exception.getMessage());
+    }
+
+    @Test
+    void rejectsInvalidStoredPasswordHashAsLoginFailure() {
+        FakeAuthMapper mapper = new FakeAuthMapper();
+        mapper.savedUser = user(10L, "test@wallo.com", null);
+        AuthService service = new AuthServiceImpl(mapper, passwordEncoder);
+
+        AuthException exception = assertThrows(
+                AuthException.class,
+                () -> service.login(loginRequest("test@wallo.com", "wrong-password")));
+
+        assertEquals(AuthErrorCode.LOGIN_PASSWORD_MISMATCH, exception.getErrorCode());
     }
 
     @Test
@@ -140,6 +191,7 @@ class AuthServiceImplTest {
         private int nicknameCount;
         private boolean insertCalled;
         private User savedUser;
+        private int activeConnectionCount;
 
         @Override
         public User findByEmail(String email) {
@@ -176,6 +228,20 @@ class AuthServiceImplTest {
             savedUser = user;
             users.put(user.getId(), user);
             return 1;
+        }
+
+        @Override
+        public int markFirstLoginComplete(Long id) {
+            if (savedUser == null || !savedUser.getId().equals(id) || savedUser.isHasLoggedIn()) {
+                return 0;
+            }
+            savedUser.setHasLoggedIn(true);
+            return 1;
+        }
+
+        @Override
+        public int countActiveConnections(Long userId) {
+            return activeConnectionCount;
         }
     }
 }
