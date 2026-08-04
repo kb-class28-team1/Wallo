@@ -109,12 +109,16 @@ INSERT INTO INSTITUTIONS (
     name,
     logo_url,
     services,
+    is_active,
     display_order
 )
 VALUES
-    ('0004', 'BANK', '국민은행', 'https://www.kbstar.com/favicon.ico', JSON_ARRAY('입출금', '적금', '대출'), 10),
-    ('0311', 'CARD', '하나카드', 'https://www.hanacard.co.kr/favicon.ico', JSON_ARRAY('신용카드', '체크카드'), 20),
-    ('0264', 'STOCK', '키움증권', 'https://www.kiwoom.com/favicon.ico', JSON_ARRAY('주식', 'CMA'), 30);
+    ('0004', 'BANK', '국민은행', 'https://www.kbstar.com/favicon.ico', JSON_ARRAY('입출금', '적금', '대출'), 1, 10),
+    ('0088', 'BANK', '신한은행', NULL, JSON_ARRAY('입출금', '적금', '대출'), 1, 20),
+    ('0081', 'BANK', '하나은행', NULL, JSON_ARRAY('입출금', '적금', '대출'), 1, 30),
+    ('0311', 'CARD', '하나카드', 'https://www.hanacard.co.kr/favicon.ico', JSON_ARRAY('신용카드', '체크카드'), 1, 40),
+    ('0301', 'CARD', '국민카드', NULL, JSON_ARRAY('신용카드', '체크카드'), 1, 50),
+    ('0264', 'STOCK', '키움증권', 'https://www.kiwoom.com/favicon.ico', JSON_ARRAY('주식', 'CMA'), 1, 60);
 
 CREATE TABLE CONNECTIONS (
     connection_id BIGINT AUTO_INCREMENT PRIMARY KEY,

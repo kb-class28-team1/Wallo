@@ -17,8 +17,6 @@ import org.springframework.stereotype.Service;
 @Service
 public class CodefMockService {
 
-    private static final String CARD_ORGANIZATION = "0311";
-    private static final String BANK_ORGANIZATION = "0004";
     private static final Set<String> MOCK_BANK_ACCOUNTS = Set.of(
             "123456-01-789012",
             "987654-01-321098"
@@ -52,10 +50,6 @@ public class CodefMockService {
         if (requiredField != null) {
             return invalidRequest(requiredField + " 값이 필요합니다.");
         }
-        if (!CARD_ORGANIZATION.equals(request.getOrganization())) {
-            return unsupportedOrganization(request.getOrganization());
-        }
-
         DateRange range = parseDateRange(request.getStartDate(), request.getEndDate());
         if (range == null) {
             return invalidRequest("startDate와 endDate는 유효한 YYYYMMDD 형식이어야 합니다.");
@@ -91,9 +85,6 @@ public class CodefMockService {
         }
         if (isBlank(request.getAccount())) {
             return invalidRequest("account 값이 필요합니다.");
-        }
-        if (!BANK_ORGANIZATION.equals(request.getOrganization())) {
-            return unsupportedOrganization(request.getOrganization());
         }
         if (!MOCK_BANK_ACCOUNTS.contains(request.getAccount())) {
             return CodefDto.Response.failure(
@@ -184,14 +175,6 @@ public class CodefMockService {
 
     private CodefDto.Response invalidRequest(String extraMessage) {
         return CodefDto.Response.failure("CF-40000", "요청값이 올바르지 않습니다.", extraMessage);
-    }
-
-    private CodefDto.Response unsupportedOrganization(String organization) {
-        return CodefDto.Response.failure(
-                "CF-40400",
-                "지원하지 않는 기관입니다.",
-                organization
-        );
     }
 
     private boolean isBlank(String value) {

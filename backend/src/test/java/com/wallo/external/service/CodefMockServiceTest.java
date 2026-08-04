@@ -118,6 +118,22 @@ public class CodefMockServiceTest {
     }
 
     @Test
+    public void additionalActiveBankUsesBankTransactionFixture() {
+        CodefDto.BankTransactionRequest request = bankRequest("20260726", "20260728");
+        request.setOrganization("0088");
+
+        assertSuccess(service.getBankTransactions(request));
+    }
+
+    @Test
+    public void additionalActiveCardUsesCardApprovalFixture() {
+        CodefDto.CardApprovalRequest request = cardRequest("20260722", "20260726");
+        request.setOrganization("0301");
+
+        assertSuccess(service.getCardApprovals(request));
+    }
+
+    @Test
     public void savingsAccountWithoutTransactionsReturnsEmptySuccessData() {
         CodefDto.BankTransactionRequest request = bankRequest("20260701", "20260731");
         request.setAccount("987654-01-321098");
