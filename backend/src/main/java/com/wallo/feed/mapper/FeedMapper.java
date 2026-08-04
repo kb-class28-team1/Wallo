@@ -8,6 +8,7 @@ import org.apache.ibatis.annotations.Param;
 public interface FeedMapper {
     int isChallengeMember(@Param("userId") Long userId, @Param("challengeId") Long challengeId);
     String findChallengeName(@Param("challengeId") Long challengeId);
+    String findChallengeInviteCode(@Param("challengeId") Long challengeId);
     List<Feed> findFeeds(@Param("challengeId") Long challengeId, @Param("userId") Long userId,
                          @Param("mineOnly") boolean mineOnly);
     int insertFeed(Feed feed);
@@ -16,6 +17,17 @@ public interface FeedMapper {
                        @Param("summary") String summary, @Param("confidence") double confidence);
     int insertFeedShareMessage(@Param("challengeId") Long challengeId,
                                @Param("userId") Long userId, @Param("feedId") Long feedId);
+    int incrementLikeCount(@Param("feedId") Long feedId);
+    Integer findLikeCount(@Param("feedId") Long feedId, @Param("challengeId") Long challengeId);
+    int countActiveFeed(@Param("feedId") Long feedId, @Param("challengeId") Long challengeId);
+    int updateFeed(@Param("feedId") Long feedId, @Param("userId") Long userId,
+                   @Param("challengeId") Long challengeId, @Param("category") String category,
+                   @Param("spendingType") String spendingType, @Param("caption") String caption,
+                   @Param("savingAmount") int savingAmount);
+    int updateFeedAnalysis(@Param("feedId") Long feedId, @Param("spendingType") String spendingType,
+                           @Param("category") String category, @Param("savingAmount") int savingAmount);
+    int softDeleteFeed(@Param("feedId") Long feedId, @Param("userId") Long userId,
+                       @Param("challengeId") Long challengeId);
     int insertMessage(@Param("challengeId") Long challengeId, @Param("userId") Long userId,
                       @Param("content") String content, @Param("feedId") Long feedId,
                       @Param("type") String type);

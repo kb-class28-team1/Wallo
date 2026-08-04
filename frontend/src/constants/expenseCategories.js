@@ -18,6 +18,20 @@ export const EXPENSE_CATEGORY_META = Object.freeze({
   ETC: category("기타", "#a0a6b5", "bi-receipt", "gray"),
 });
 
+// 인증 글에서 사용할 지출 카테고리임. 교육·대출상환·수입·보낸 돈은 제외함.
+export const FEED_CATEGORY_CODES = Object.freeze([
+  "FOOD",
+  "CAFE",
+  "TRANSPORT",
+  "SHOPPING",
+  "DELIVERY",
+  "HOUSING",
+  "LIVING",
+  "CULTURE",
+  "HEALTH",
+  "ETC",
+]);
+
 export const normalizeExpenseCategory = (value) => {
   const normalized = String(value || "ETC").trim().toUpperCase();
   const categoryCode = normalized === "OTHER" ? "ETC" : normalized;
