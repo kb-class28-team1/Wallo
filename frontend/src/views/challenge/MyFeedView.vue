@@ -3,7 +3,7 @@ import { computed, onMounted } from "vue"
 import { storeToRefs } from "pinia"
 import { useRouter } from "vue-router"
 import { useMyFeedStore } from "@/stores/myFeedStore"
-import { formatNumber, formatWon } from "@/utils/formatters"
+import { formatNumber, formatWon } from "@/commonUtils/formatters"
 import { EXPENSE_CATEGORY_META, FEED_CATEGORY_CODES } from "@/features/financial/financialCategories"
 
 const router = useRouter()

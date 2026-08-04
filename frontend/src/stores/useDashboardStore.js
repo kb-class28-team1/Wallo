@@ -2,7 +2,7 @@ import { computed, ref } from "vue";
 import { defineStore } from "pinia";
 import { getBudgets, getExpenses, putBudget } from "@/api/assetApi";
 import { useAssetStore } from "@/stores/assetStore";
-import { getApiErrorMessage } from "@/utils/apiError";
+import { getApiErrorMessage } from "@/commonUtils/apiError";
 
 export const useDashboardStore = defineStore("dashboard", () => {
   const assetStore = useAssetStore();

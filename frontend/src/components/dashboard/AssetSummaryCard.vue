@@ -10,7 +10,7 @@ import {
   PointElement,
   Tooltip,
 } from "chart.js";
-import { formatWon } from "@/utils/formatters";
+import { formatWon } from "@/commonUtils/formatters";
 
 ChartJS.register(
   CategoryScale,

@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { getAssets } from "@/api/assetApi";
-import { getApiErrorMessage } from "@/utils/apiError";
+import { getApiErrorMessage } from "@/commonUtils/apiError";
 
 export const useAssetStore = defineStore("asset", {
   state: () => ({

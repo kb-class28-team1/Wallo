@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from "vue"
 import { storeToRefs } from "pinia"
 import { grantWeeklyRankingRewardsForTest } from "@/api/challengeApi"
 import { useChallengeStore } from "@/stores/challengeStore"
-import { formatNumber, formatWon } from "@/utils/formatters"
+import { formatNumber, formatWon } from "@/commonUtils/formatters"
 import { useUserStore } from "@/stores/userStore"
 
 const DEFAULT_PROFILE_IMAGE = "/images/profiles/default-profile.svg"

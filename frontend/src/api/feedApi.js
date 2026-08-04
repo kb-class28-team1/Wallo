@@ -1,5 +1,5 @@
 import httpClient from "@/api/httpClient"
-import { getApiErrorMessage } from "@/utils/apiError"
+import { getApiErrorMessage } from "@/commonUtils/apiError"
 
 export const getFeeds = async (challengeId, mineOnly = false) => {
   try {

@@ -12,7 +12,7 @@ import {
   Tooltip,
 } from "chart.js"
 import { getMyChallengeDashboard } from "@/api/challengeApi"
-import { formatNumber, formatWon } from "@/utils/formatters"
+import { formatNumber, formatWon } from "@/commonUtils/formatters"
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler)
 

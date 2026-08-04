@@ -1,5 +1,5 @@
 import httpClient from "./httpClient"
-import { getApiErrorMessage } from "@/utils/apiError"
+import { getApiErrorMessage } from "@/commonUtils/apiError"
 
 export async function requestChat(message) {
   try {

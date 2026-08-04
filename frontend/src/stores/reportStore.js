@@ -4,7 +4,7 @@ import {
   getTaxSettlement,
   updateAnnualSalary,
 } from "@/api/assetApi";
-import { getApiErrorCode, getApiErrorMessage } from "@/utils/apiError";
+import { getApiErrorCode, getApiErrorMessage } from "@/commonUtils/apiError";
 
 export const useReportStore = defineStore("report", {
   state: () => ({

@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from "vue";
 import { storeToRefs } from "pinia";
 import { useReportStore } from "@/stores/reportStore";
-import { formatNumber } from "@/utils/formatters";
+import { formatNumber } from "@/commonUtils/formatters";
 
 const reportStore = useReportStore();
 const {

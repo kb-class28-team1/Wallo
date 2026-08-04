@@ -4,7 +4,7 @@ import { useRouter } from "vue-router";
 import { connectAllAssets } from "@/api/assetApi";
 import { getLocalInstitutionLogo } from "@/features/asset/institutionLogos";
 import { useUserStore } from "@/stores/userStore";
-import { getApiErrorMessage } from "@/utils/apiError";
+import { getApiErrorMessage } from "@/commonUtils/apiError";
 
 const router = useRouter();
 const userStore = useUserStore();

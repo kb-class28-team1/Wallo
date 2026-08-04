@@ -4,8 +4,8 @@ import ExpenseCalendar from "@/components/asset/ExpenseCalendar.vue";
 import ExpenseCategoryBreakdown from "@/components/asset/ExpenseCategoryBreakdown.vue";
 import ExpenseTransactionList from "@/components/asset/ExpenseTransactionList.vue";
 import { getExpenses } from "@/api/assetApi";
-import { getApiErrorMessage } from "@/utils/apiError";
-import { formatWon } from "@/utils/formatters";
+import { getApiErrorMessage } from "@/commonUtils/apiError";
+import { formatWon } from "@/commonUtils/formatters";
 
 const PAGE_SIZE = 20;
 

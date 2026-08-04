@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from "vue";
-import { formatNumber, formatWon } from "@/utils/formatters";
+import { formatNumber, formatWon } from "@/commonUtils/formatters";
 
 const props = defineProps({
   budget: {

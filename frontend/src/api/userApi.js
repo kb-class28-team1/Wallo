@@ -1,5 +1,5 @@
 import httpClient from "./httpClient"
-import { getApiErrorMessage } from "@/utils/apiError"
+import { getApiErrorMessage } from "@/commonUtils/apiError"
 
 // 상단바에 표시할 로그인 사용자 프로필과 포인트를 조회함
 export const getUserProfile = async () => {

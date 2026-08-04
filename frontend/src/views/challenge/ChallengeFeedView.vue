@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue"
 import { useRoute } from "vue-router"
 import { useUserStore } from "@/stores/userStore"
-import { formatWon } from "@/utils/formatters"
+import { formatWon } from "@/commonUtils/formatters"
 import {
   analyzeFeed,
   createFeed,

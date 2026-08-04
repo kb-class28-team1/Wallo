@@ -4,7 +4,7 @@ import { storeToRefs } from "pinia"
 import { RouterLink, useRouter } from "vue-router"
 import { getTodayMissions } from "@/api/missionApi"
 import { useUserStore } from "@/stores/userStore"
-import { formatNumber } from "@/utils/formatters"
+import { formatNumber } from "@/commonUtils/formatters"
 
 // public 폴더의 이미지는 루트 절대 경로로 참조함.
 const pointWCoin = "/images/profiles/point-w-coin.svg"
