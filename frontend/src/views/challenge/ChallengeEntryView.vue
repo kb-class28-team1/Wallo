@@ -1,30 +1,26 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from "vue"
-import { useRouter } from "vue-router"
-import {
-  createChallenge,
-  getCurrentChallenge,
-  joinChallenge,
-} from "@/api/challengeApi"
+import { computed, onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { createChallenge, getCurrentChallenge, joinChallenge } from '@/api/challengeApi'
 
 const router = useRouter()
 
 const isLoading = ref(true)
 const isSubmitting = ref(false)
-const errorMessage = ref("")
+const errorMessage = ref('')
 const currentChallenge = ref(null)
-const activeForm = ref("create")
+const activeForm = ref('create')
 
 const createForm = reactive({
-  name: "",
+  name: '',
 })
-const inviteCode = ref("")
+const inviteCode = ref('')
 
 const hasChallenge = computed(() => currentChallenge.value?.joined === true)
 
 const loadCurrentChallenge = async () => {
   isLoading.value = true
-  errorMessage.value = ""
+  errorMessage.value = ''
 
   try {
     currentChallenge.value = await getCurrentChallenge()
@@ -38,7 +34,7 @@ const loadCurrentChallenge = async () => {
 const submitCreate = async () => {
   const name = createForm.name.trim()
   if (!name) {
-    alert("챌린지 이름을 입력해 주세요.")
+    alert('챌린지 이름을 입력해 주세요.')
     return
   }
 
@@ -47,7 +43,7 @@ const submitCreate = async () => {
     await createChallenge({
       name,
     })
-    alert("챌린지가 만들어졌습니다.")
+    alert('챌린지가 만들어졌습니다.')
     await loadCurrentChallenge()
   } catch (error) {
     alert(error.message)
@@ -59,14 +55,14 @@ const submitCreate = async () => {
 const submitJoin = async () => {
   const code = inviteCode.value.trim()
   if (!code) {
-    alert("초대 코드를 입력해 주세요.")
+    alert('초대 코드를 입력해 주세요.')
     return
   }
 
   isSubmitting.value = true
   try {
     await joinChallenge(code)
-    alert("챌린지에 참여했습니다.")
+    alert('챌린지에 참여했습니다.')
     await loadCurrentChallenge()
   } catch (error) {
     alert(error.message)
@@ -78,7 +74,7 @@ const submitJoin = async () => {
 const copyInviteCode = async () => {
   try {
     await navigator.clipboard.writeText(currentChallenge.value.inviteCode)
-    alert("초대 코드가 복사되었습니다.")
+    alert('초대 코드가 복사되었습니다.')
   } catch {
     alert(`초대 코드: ${currentChallenge.value.inviteCode}`)
   }
@@ -160,7 +156,7 @@ onMounted(loadCurrentChallenge)
         <button
           type="button"
           class="action-card"
-          @click="router.push(&quot;/challenges/rankings/weekly&quot;)"
+          @click="router.push('/challenges/rankings/weekly')"
         >
           <span class="action-icon"><i class="bi bi-trophy"></i></span>
           <span>
@@ -172,7 +168,7 @@ onMounted(loadCurrentChallenge)
         <button
           type="button"
           class="action-card"
-          @click="router.push(&quot;/users/me/challenge-dashboard&quot;)"
+          @click="router.push('/users/me/challenge-dashboard')"
         >
           <span class="action-icon"><i class="bi bi-graph-up-arrow"></i></span>
           <span>
@@ -199,28 +195,24 @@ onMounted(loadCurrentChallenge)
           <button
             type="button"
             role="tab"
-            :aria-selected="activeForm === &quot;create&quot;"
-            :class="{ active: activeForm === &quot;create&quot; }"
-            @click="activeForm = &quot;create&quot;"
+            :aria-selected="activeForm === 'create'"
+            :class="{ active: activeForm === 'create' }"
+            @click="activeForm = 'create'"
           >
             챌린지 만들기
           </button>
           <button
             type="button"
             role="tab"
-            :aria-selected="activeForm === &quot;join&quot;"
-            :class="{ active: activeForm === &quot;join&quot; }"
-            @click="activeForm = &quot;join&quot;"
+            :aria-selected="activeForm === 'join'"
+            :class="{ active: activeForm === 'join' }"
+            @click="activeForm = 'join'"
           >
             초대 코드로 참여
           </button>
         </div>
 
-        <form
-          v-if="activeForm === &quot;create&quot;"
-          class="challenge-form"
-          @submit.prevent="submitCreate"
-        >
+        <form v-if="activeForm === 'create'" class="challenge-form" @submit.prevent="submitCreate">
           <div class="form-copy">
             <span class="form-step">01</span>
             <div>
@@ -492,7 +484,9 @@ onMounted(loadCurrentChallenge)
   background: #fff;
   border: 1px solid #eceef5;
   border-radius: 20px;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .action-card:hover {
