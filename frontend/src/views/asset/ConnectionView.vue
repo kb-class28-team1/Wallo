@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref } from "vue";
 import { useRouter } from "vue-router";
 import { connectAllAssets } from "@/api/assetApi";
+import { getLocalInstitutionLogo } from "@/constants/institutionLogos";
 import { useUserStore } from "@/stores/userStore";
 import { getApiErrorMessage } from "@/utils/apiError";
 
@@ -16,13 +17,24 @@ const isSuccessModalVisible = ref(false);
 const progress = ref(0);
 const loadingMessage = ref("");
 const successMessage = ref("");
-const connectedAssets = ref([]);
+const connectedGroups = ref([]);
 const timers = [];
+
+const INSTITUTION_TYPE_LABELS = {
+  BANK: "은행",
+  CARD: "카드",
+  STOCK: "증권",
+};
 
 const isFormValid = computed(() => Boolean(
   name.value.trim() && phoneNumber.value.trim() && consentAgreed.value,
 ));
 const isFormDisabled = computed(() => isLoading.value);
+const connectionResultTitle = computed(() => (
+  connectedGroups.value.some((group) => group.status !== "SUCCESS")
+    ? "연결 결과"
+    : "연결 완료"
+));
 
 const clearTimers = () => {
   timers.forEach((timerId) => clearTimeout(timerId));
@@ -52,27 +64,104 @@ const getLogoText = (institutionName) => {
   return institutionName.replace(/\s/g, "").slice(0, 2);
 };
 
-const isSuccessResult = (result) => String(result.status || "").toUpperCase() === "SUCCESS";
+const isSuccessResult = (result) => {
+  if (typeof result.connected === "boolean") {
+    return result.connected;
+  }
+
+  if (typeof result.success === "boolean") {
+    return result.success;
+  }
+
+  return String(result.status || "").toUpperCase() === "SUCCESS";
+};
 
 const handleLogoError = (event) => {
+  const fallbackSrc = event.target.dataset.fallbackSrc;
+  const currentSrc = event.target.getAttribute("src");
+
+  if (fallbackSrc && currentSrc !== fallbackSrc) {
+    event.target.src = fallbackSrc;
+    return;
+  }
+
   event.target.classList.add("d-none");
   event.target.nextElementSibling?.classList.remove("d-none");
 };
 
 const getLogoFallbackClass = (logoUrl) => (logoUrl ? "d-none" : "");
 
-const getFailedInstitutions = (results = []) => results.filter((result) => {
-  if (typeof result.connected === "boolean") {
-    return !result.connected;
-  }
+const getFailedInstitutions = (results = []) => (
+  results.filter((result) => !isSuccessResult(result))
+);
 
-  if (typeof result.success === "boolean") {
-    return !result.success;
-  }
+const getInstitutionTypeLabel = (institutionType) => (
+  INSTITUTION_TYPE_LABELS[String(institutionType || "").toUpperCase()]
+  || institutionType
+  || "기타"
+);
 
-  const status = String(result.status || "").toUpperCase();
-  return status === "FAILED" || status === "FAIL";
-});
+const groupConnectionResults = (results = []) => {
+  const groups = new Map();
+
+  results.forEach((result, index) => {
+    const institutionName = getInstitutionName(result);
+    const groupCode = result.financialGroupCode
+      || `INSTITUTION_${result.institutionId || `${institutionName}_${index}`}`;
+
+    if (!groups.has(groupCode)) {
+      const groupName = result.financialGroupName || institutionName;
+      groups.set(groupCode, {
+        id: groupCode,
+        name: groupName,
+        logoText: getLogoText(groupName),
+        logoUrl: "",
+        localLogoUrl: getLocalInstitutionLogo(groupCode, groupName),
+        members: [],
+      });
+    }
+
+    const group = groups.get(groupCode);
+    if (!group.logoUrl && result.logoUrl) {
+      group.logoUrl = result.logoUrl;
+    }
+    group.members.push({
+      name: institutionName,
+      typeLabel: getInstitutionTypeLabel(result.institutionType),
+      isSuccess: isSuccessResult(result),
+    });
+  });
+
+  return Array.from(groups.values()).map((group) => {
+    const successCount = group.members.filter((member) => member.isSuccess).length;
+    const status = successCount === group.members.length
+      ? "SUCCESS"
+      : successCount > 0
+        ? "PARTIAL"
+        : "FAILED";
+    const failedNames = group.members
+      .filter((member) => !member.isSuccess)
+      .map((member) => member.name);
+
+    return {
+      ...group,
+      typeLabels: [...new Set(group.members.map((member) => member.typeLabel))],
+      status,
+      message: status === "SUCCESS"
+        ? "연동 완료"
+        : status === "PARTIAL"
+          ? "일부 연동 실패"
+          : "연동 실패",
+      failedMessage: failedNames.length > 0 ? `${failedNames.join(", ")} 실패` : "",
+    };
+  });
+};
+
+const getResultTextClass = (status) => ({
+  SUCCESS: "text-success",
+  PARTIAL: "text-warning",
+  FAILED: "text-danger",
+}[status] || "text-secondary");
 
 const notifyConnectionResult = (results = []) => {
   const failedInstitutions = getFailedInstitutions(results);
@@ -83,19 +172,12 @@ const notifyConnectionResult = (results = []) => {
     alert(`일부 기관 연동에 실패했습니다. 실패 기관: ${failedNames}`);
   }
 
-  const successCount = results.filter(isSuccessResult).length;
-  successMessage.value = `총 ${successCount}개 기관의 자산 연결이 완료되었습니다!`;
-  connectedAssets.value = results.map((result, index) => {
-    const institutionName = getInstitutionName(result);
-
-    return {
-      id: result.institutionId || `${institutionName}-${index}`,
-      logoText: getLogoText(institutionName),
-      logoUrl: result.logoUrl || "",
-      name: institutionName,
-      message: result.message || (isSuccessResult(result) ? "연결 완료" : "연결 실패"),
-    };
-  });
+  connectedGroups.value = groupConnectionResults(results);
+  successMessage.value = results.length === 0
+    ? "연동된 금융기관이 없습니다."
+    : failedInstitutions.length === 0
+      ? `총 ${connectedGroups.value.length}개 금융그룹의 자산 연결이 완료되었습니다!`
+      : `총 ${connectedGroups.value.length}개 금융그룹의 연동 결과를 확인해 주세요.`;
   isSuccessModalVisible.value = true;
 };
 
@@ -123,7 +205,7 @@ const handleSubmit = async () => {
   isLoading.value = true;
   isSuccessModalVisible.value = false;
   successMessage.value = "";
-  connectedAssets.value = [];
+  connectedGroups.value = [];
   progress.value = 30;
   loadingMessage.value = "금융 기관 보안 연결 중...";
 
@@ -311,34 +393,53 @@ onBeforeUnmount(() => {
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content app-modal">
           <div class="modal-header">
-            <h2 id="connectionSuccessTitle" class="modal-title h5">연결 완료</h2>
+            <h2 id="connectionSuccessTitle" class="modal-title h5">
+              {{ connectionResultTitle }}
+            </h2>
           </div>
           <div class="modal-body">
             <p class="modal-message mb-3">{{ successMessage }}</p>
             <div class="asset-summary-list">
               <article
-                v-for="asset in connectedAssets"
-                :key="asset.id"
+                v-for="group in connectedGroups"
+                :key="group.id"
                 class="asset-summary-item"
               >
                 <div class="asset-summary-left">
                   <div class="asset-logo">
                     <img
-                      v-if="asset.logoUrl"
-                      :src="asset.logoUrl"
-                      :alt="`${asset.name} 로고`"
+                      v-if="group.logoUrl || group.localLogoUrl"
+                      :src="group.logoUrl || group.localLogoUrl"
+                      :alt="`${group.name} 로고`"
+                      :data-fallback-src="group.localLogoUrl"
                       class="asset-logo-image"
                       @error="handleLogoError"
                     />
-                    <span :class="getLogoFallbackClass(asset.logoUrl)">
-                      {{ asset.logoText }}
+                    <span :class="getLogoFallbackClass(group.logoUrl || group.localLogoUrl)">
+                      {{ group.logoText }}
                     </span>
                   </div>
-                  <div>
-                    <strong class="asset-name">{{ asset.name }}</strong>
+                  <div class="asset-group-info">
+                    <strong class="asset-name">{{ group.name }}</strong>
+                    <div class="d-flex flex-wrap gap-1 mt-1">
+                      <span
+                        v-for="typeLabel in group.typeLabels"
+                        :key="typeLabel"
+                        class="badge rounded-pill text-bg-light border"
+                      >
+                        {{ typeLabel }}
+                      </span>
+                    </div>
                   </div>
                 </div>
-                <p class="asset-detail mb-0">{{ asset.message }}</p>
+                <div class="asset-result-copy">
+                  <p :class="['asset-detail mb-0', getResultTextClass(group.status)]">
+                    {{ group.message }}
+                  </p>
+                  <small v-if="group.failedMessage" class="text-secondary">
+                    {{ group.failedMessage }}
+                  </small>
+                </div>
               </article>
             </div>
           </div>
@@ -358,5 +459,25 @@ onBeforeUnmount(() => {
   margin: 0;
   padding: 0;
   border: 0;
+}
+
+.asset-group-info {
+  min-width: 0;
+}
+
+.asset-result-copy {
+  flex: 0 0 auto;
+  text-align: right;
+}
+
+.asset-result-copy small {
+  display: block;
+  margin-top: 2px;
+}
+
+@media (max-width: 576px) {
+  .asset-summary-item {
+    align-items: flex-start;
+  }
 }
 </style>

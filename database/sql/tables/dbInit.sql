@@ -94,6 +94,8 @@ CREATE TABLE INSTITUTIONS (
     codef_organization_code VARCHAR(20) NOT NULL,
     type VARCHAR(20) NOT NULL,
     name VARCHAR(100) NOT NULL,
+    financial_group_code VARCHAR(30) NOT NULL,
+    financial_group_name VARCHAR(100) NOT NULL,
     logo_url VARCHAR(1000) NULL,
     services JSON NULL,
     is_active TINYINT(1) NOT NULL DEFAULT 1,
@@ -107,18 +109,20 @@ INSERT INTO INSTITUTIONS (
     codef_organization_code,
     type,
     name,
+    financial_group_code,
+    financial_group_name,
     logo_url,
     services,
     is_active,
     display_order
 )
 VALUES
-    ('0004', 'BANK', '국민은행', 'https://www.kbstar.com/favicon.ico', JSON_ARRAY('입출금', '적금', '대출'), 1, 10),
-    ('0088', 'BANK', '신한은행', NULL, JSON_ARRAY('입출금', '적금', '대출'), 1, 20),
-    ('0081', 'BANK', '하나은행', NULL, JSON_ARRAY('입출금', '적금', '대출'), 1, 30),
-    ('0311', 'CARD', '하나카드', 'https://www.hanacard.co.kr/favicon.ico', JSON_ARRAY('신용카드', '체크카드'), 1, 40),
-    ('0301', 'CARD', '국민카드', NULL, JSON_ARRAY('신용카드', '체크카드'), 1, 50),
-    ('0264', 'STOCK', '키움증권', 'https://www.kiwoom.com/favicon.ico', JSON_ARRAY('주식', 'CMA'), 1, 60);
+    ('0004', 'BANK', '국민은행', 'KB', '국민금융', 'https://www.kbstar.com/favicon.ico', JSON_ARRAY('입출금', '적금', '대출'), 1, 10),
+    ('0088', 'BANK', '신한은행', 'SHINHAN', '신한금융', NULL, JSON_ARRAY('입출금', '적금', '대출'), 1, 20),
+    ('0081', 'BANK', '하나은행', 'HANA', '하나금융', NULL, JSON_ARRAY('입출금', '적금', '대출'), 1, 30),
+    ('0311', 'CARD', '하나카드', 'HANA', '하나금융', 'https://www.hanacard.co.kr/favicon.ico', JSON_ARRAY('신용카드', '체크카드'), 1, 40),
+    ('0301', 'CARD', '국민카드', 'KB', '국민금융', NULL, JSON_ARRAY('신용카드', '체크카드'), 1, 50),
+    ('0264', 'STOCK', '키움증권', 'KIWOOM', '키움증권', 'https://www.kiwoom.com/favicon.ico', JSON_ARRAY('주식', 'CMA'), 1, 60);
 
 CREATE TABLE CONNECTIONS (
     connection_id BIGINT AUTO_INCREMENT PRIMARY KEY,

@@ -120,6 +120,8 @@ public class ConnectionService {
         return new ConnectionDto.Result(
                 institution.getInstitutionId(),
                 institution.getName(),
+                institution.getFinancialGroupCode(),
+                institution.getFinancialGroupName(),
                 institution.getInstitutionType(),
                 institution.getLogoUrl(),
                 status,

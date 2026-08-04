@@ -43,6 +43,8 @@ public final class ConnectionDto {
     public static class Result {
         private Long institutionId;
         private String institutionName;
+        private String financialGroupCode;
+        private String financialGroupName;
         private String institutionType;
         private String logoUrl;
         private Status status;
@@ -69,6 +71,8 @@ public final class ConnectionDto {
         private Long institutionId;
         private String codefOrganizationCode;
         private String name;
+        private String financialGroupCode;
+        private String financialGroupName;
         private String logoUrl;
         private List<String> services;
     }

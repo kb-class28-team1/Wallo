@@ -50,6 +50,8 @@ public class InstitutionService {
                 institution.getInstitutionId(),
                 institution.getCodefOrganizationCode(),
                 institution.getName(),
+                institution.getFinancialGroupCode(),
+                institution.getFinancialGroupName(),
                 institution.getLogoUrl(),
                 parseServices(institution.getServices())
         );
