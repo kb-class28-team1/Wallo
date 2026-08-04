@@ -11,6 +11,9 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wallo.asset.classification.ExpenseCategoryClassifier;
+import com.wallo.asset.classification.AiCategoryRule;
+import com.wallo.asset.classification.CategoryClassificationClient;
+import com.wallo.asset.classification.CategoryClassificationDto;
 import com.wallo.asset.classification.MerchantKeywordCategoryRule;
 import com.wallo.asset.classification.MerchantSectorCategoryRule;
 import com.wallo.asset.domain.Institution;
@@ -22,6 +25,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,6 +35,8 @@ class CardApprovalCollectionServiceTest {
 
     private final CardApprovalClient cardApprovalClient = mock(CardApprovalClient.class);
     private final AssetSyncMapper assetSyncMapper = mock(AssetSyncMapper.class);
+    private final CategoryClassificationClient categoryClassificationClient =
+            mock(CategoryClassificationClient.class);
     private CardApprovalCollectionService service;
     private Institution institution;
 
@@ -38,8 +44,12 @@ class CardApprovalCollectionServiceTest {
     void setUp() {
         ExpenseCategoryClassifier classifier = new ExpenseCategoryClassifier(List.of(
                 new MerchantSectorCategoryRule(),
-                new MerchantKeywordCategoryRule()
+                new MerchantKeywordCategoryRule(),
+                new AiCategoryRule(categoryClassificationClient)
         ));
+        when(categoryClassificationClient.classify(any())).thenReturn(
+                new CategoryClassificationDto.Response("LIVING", new BigDecimal("0.8600"))
+        );
         Clock clock = Clock.fixed(
                 Instant.parse("2026-08-03T00:00:00Z"),
                 ZoneId.of("Asia/Seoul")
@@ -90,10 +100,16 @@ class CardApprovalCollectionServiceTest {
         assertEquals("DELIVERY", transactions.get(0).getCategory());
         assertEquals("MERCHANT_KEYWORD", transactions.get(0).getCategorySource());
         assertEquals("TRANSPORT", transactions.get(1).getCategory());
-        assertEquals("ETC", transactions.get(2).getCategory());
+        assertEquals("LIVING", transactions.get(2).getCategory());
+        assertEquals("AI", transactions.get(2).getCategorySource());
         assertEquals("CARD_APPROVAL", transactions.get(0).getSourceType());
         assertEquals(64, transactions.get(0).getSourceDedupKey().length());
         assertEquals(38_000L, transactions.get(0).getAmount());
+
+        org.mockito.ArgumentCaptor<CategoryClassificationDto.Request> categoryRequestCaptor =
+                org.mockito.ArgumentCaptor.forClass(CategoryClassificationDto.Request.class);
+        verify(categoryClassificationClient).classify(categoryRequestCaptor.capture());
+        assertEquals(12_000L, categoryRequestCaptor.getValue().amount());
     }
 
     @Test

@@ -117,7 +117,8 @@ public class CardApprovalCollectionService {
         ExpenseCategoryClassifier.Result classification = categoryClassifier.classify(
                 new ExpenseCategoryClassifier.Context(
                         merchantName,
-                        approval.getResMemberSector()
+                        approval.getResMemberSector(),
+                        amount
                 )
         );
         String sourceDedupKey = sourceKeyGenerator.forCardApproval(
