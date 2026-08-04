@@ -1,22 +1,22 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { getCurrentChallenge } from '@/api/challengeApi'
-import brandPenguin from '@/assets/penguin-coins.svg'
-import thinkingPenguin from '@/assets/thinking-penguin.svg'
+import { computed, ref, watch } from "vue"
+import { RouterLink, useRoute, useRouter } from "vue-router"
+import { getCurrentChallenge } from "@/api/challengeApi"
+import brandPenguin from "@/assets/penguin-coins.svg"
+import thinkingPenguin from "@/assets/thinking-penguin.svg"
 
 const brandLogoSource = ref(brandPenguin)
 
 const primaryMenus = [
-  { icon: '🏠', label: '대시보드', to: '/dashboard' },
-  { icon: '💳', label: '자산', to: '/assets' },
-  { icon: '🤖', label: 'AI 컨설팅', to: '/ai-consulting' },
+  { icon: "🏠", label: "대시보드", to: "/dashboard" },
+  { icon: "💳", label: "자산", to: "/assets" },
+  { icon: "🤖", label: "AI 컨설팅", to: "/ai-consulting" },
 ]
 
 const utilityMenus = [
-  { icon: '🛍️', label: '포인트 샵', to: '/point-shop' },
-  { icon: '📇', label: '금융 리포트', to: '/reports' },
-  { icon: '⚙️', label: '설정', to: '/users/profile' },
+  { icon: "🛍️", label: "포인트 샵", to: "/point-shop" },
+  { icon: "📇", label: "금융 리포트", to: "/reports" },
+  { icon: "⚙️", label: "설정", to: "/users/profile" },
 ]
 
 const route = useRoute()
@@ -28,24 +28,24 @@ const isChallengeChecking = ref(false)
 // 챌린지 관련 페이지에 접속 중인지 현재 URL로 판단함
 const isChallengeRoute = computed(
   () =>
-    route.path === '/challenges/current' ||
-    route.path.startsWith('/challenges/') ||
-    route.path === '/users/me/challenge-dashboard',
+    route.path === "/challenges/current" ||
+    route.path.startsWith("/challenges/") ||
+    route.path === "/users/me/challenge-dashboard",
 )
 const challengeGroupClass = computed(() => ({
-  'challenge-group-active': isChallengeRoute.value,
+  "challenge-group-active": isChallengeRoute.value,
 }))
 const collapseMarkClass = computed(() => ({
-  'collapse-mark-open': isChallengeOpen.value,
+  "collapse-mark-open": isChallengeOpen.value,
 }))
 const weeklyRankingClass = computed(() => ({
-  'submenu-link-active': route.path === '/challenges/rankings/weekly',
+  "submenu-link-active": route.path === "/challenges/rankings/weekly",
 }))
 const challengeFeedClass = computed(() => ({
-  'submenu-link-active': route.name === 'challenge-feed' || route.path === '/challenges/current',
+  "submenu-link-active": route.name === "challenge-feed" || route.path === "/challenges/current",
 }))
 const myChallengeClass = computed(() => ({
-  'submenu-link-active': route.path === '/users/me/challenge-dashboard',
+  "submenu-link-active": route.path === "/users/me/challenge-dashboard",
 }))
 
 // 챌린지 관련 페이지에서는 새로고침 후에도 하위 메뉴가 펼쳐짐
@@ -80,20 +80,20 @@ const moveToChallengeMemberPage = async (targetPath) => {
     const response = await getCurrentChallenge()
 
     if (!response?.joined) {
-      alert('챌린지 참여가 확인되지 않습니다.')
+      alert("챌린지 참여가 확인되지 않습니다.")
       return
     }
 
     await router.push(targetPath)
   } catch (error) {
-    alert('챌린지 참여가 확인되지 않습니다.')
+    alert("챌린지 참여가 확인되지 않습니다.")
   } finally {
     isChallengeChecking.value = false
   }
 }
 
 const moveToWeeklyRanking = () => {
-  moveToChallengeMemberPage('/challenges/rankings/weekly')
+  moveToChallengeMemberPage("/challenges/rankings/weekly")
 }
 
 const moveToChallengeFeed = async () => {
@@ -105,19 +105,19 @@ const moveToChallengeFeed = async () => {
   try {
     const challenge = await getCurrentChallenge()
     if (!challenge?.joined || !challenge.id) {
-      await router.push('/challenges/current')
+      await router.push("/challenges/current")
       return
     }
     await router.push(`/challenges/${challenge.id}/feeds`)
   } catch (error) {
-    alert(error.message || '챌린지 정보를 확인하지 못했습니다.')
+    alert(error.message || "챌린지 정보를 확인하지 못했습니다.")
   } finally {
     isChallengeChecking.value = false
   }
 }
 
 const moveToMyChallenge = () => {
-  moveToChallengeMemberPage('/users/me/challenge-dashboard')
+  moveToChallengeMemberPage("/users/me/challenge-dashboard")
 }
 </script>
 
