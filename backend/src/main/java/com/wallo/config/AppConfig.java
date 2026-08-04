@@ -2,6 +2,7 @@ package com.wallo.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Clock;
+import java.time.ZoneId;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
@@ -25,6 +26,8 @@ import org.springframework.web.client.RestTemplate;
 @PropertySource("classpath:application.properties")
 public class AppConfig {
 
+    private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Seoul");
+
     @Bean
     public RestTemplate restTemplate() {
         return new RestTemplate();
@@ -37,7 +40,8 @@ public class AppConfig {
 
     @Bean
     public Clock clock() {
-        return Clock.systemDefaultZone();
+        // 서비스 운영 지역이 한국이므로 공용 시간 기준도 한국 시간으로 고정함.
+        return Clock.system(BUSINESS_ZONE);
     }
 
     @Bean

@@ -22,3 +22,14 @@ export const openRandomBox = async (boxId) => {
     throw new Error(message)
   }
 }
+
+// 로그인 사용자의 사용 완료 보관함 아이템을 서버에서 삭제함.
+export const deleteUsedInventoryItem = async (inventoryId) => {
+  try {
+    await httpClient.delete(`/api/users/me/inventory/${inventoryId}`)
+  } catch (error) {
+    const message =
+      error.response?.data?.message || "사용 완료 아이템을 삭제하지 못했습니다."
+    throw new Error(message)
+  }
+}

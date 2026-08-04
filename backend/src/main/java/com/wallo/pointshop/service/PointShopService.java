@@ -16,6 +16,6 @@ public interface PointShopService {
     /** 기본 랜덤박스 가격을 차감하고 추첨 결과를 반환함. */
     OpenBoxResponse openBox(Long userId, Long boxId);
 
-    /** 로그인 사용자의 사용 완료 상품을 보관함에서 소프트 삭제함. */
+    /** 로그인 사용자의 사용 완료 상품을 보관함에서 실제로 삭제함. */
     void deleteUsedInventoryItem(Long userId, Long inventoryId);
 }

@@ -115,8 +115,8 @@ public class PointShopServiceImpl implements PointShopService {
             throw new IllegalArgumentException("보관함 상품 ID가 올바르지 않습니다.");
         }
 
-        int updatedRows = pointShopMapper.softDeleteUsedInventoryItem(userId, inventoryId);
-        if (updatedRows == 0) {
+        int deletedRows = pointShopMapper.deleteUsedInventoryItem(userId, inventoryId);
+        if (deletedRows == 0) {
             throw new IllegalArgumentException("삭제할 수 있는 사용 완료 상품을 찾지 못했습니다.");
         }
     }

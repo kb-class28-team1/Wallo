@@ -1,6 +1,10 @@
 <script setup>
 import { computed, onMounted, ref } from "vue"
-import { getPointShop, openRandomBox } from "@/api/pointShopApi"
+import {
+  deleteUsedInventoryItem,
+  getPointShop,
+  openRandomBox,
+} from "@/api/pointShopApi"
 import { useUserStore } from "@/stores/userStore"
 
 const userStore = useUserStore()
@@ -20,12 +24,12 @@ const randomBoxes = ref([
     price: 500,
     colorClass: "box-basic",
     probabilities: [
-      { label: "편의점 1,000원 금액권", rate: 10 },
-      { label: "아메리카노 기프티콘", rate: 8 },
-      { label: "편의점 5,000원 금액권", rate: 5 },
-      { label: "꽝", rate: 40 },
-      { label: "250P 즉시 지급", rate: 25 },
-      { label: "500P 즉시 지급", rate: 12 },
+      { label: "꽝", rate: 71 },
+      { label: "250P 즉시 지급", rate: 12 },
+      { label: "500P 즉시 지급", rate: 8 },
+      { label: "편의점 1,000원 금액권", rate: 5 },
+      { label: "아메리카노 기프티콘", rate: 3 },
+      { label: "편의점 5,000원 금액권", rate: 1 },
     ],
   },
 ])
@@ -93,9 +97,14 @@ const loadPointShop = async () => {
   }
 }
 
-const toggleProbability = (boxId) => {
-  activeProbabilityBox.value =
-    activeProbabilityBox.value === boxId ? null : boxId
+const showProbability = (boxId) => {
+  activeProbabilityBox.value = boxId
+}
+
+const hideProbability = (boxId) => {
+  if (activeProbabilityBox.value === boxId) {
+    activeProbabilityBox.value = null
+  }
 }
 
 const handleOpenBox = async (box) => {
@@ -131,11 +140,23 @@ const handleOpenBox = async (box) => {
   }
 }
 
-// 사용 처리된 아이템만 화면 목록에서 삭제함
-const removeUsedItem = (itemId) => {
-  inventoryItems.value = inventoryItems.value.filter(
-    (item) => item.id !== itemId || !item.used,
-  )
+// 사용 완료 아이템만 서버에서 삭제한 뒤 목록을 다시 조회함.
+const removeUsedItem = async (itemId) => {
+  const item = inventoryItems.value.find((inventoryItem) => inventoryItem.id === itemId)
+  if (!item?.used) {
+    return
+  }
+
+  if (!window.confirm("사용 완료 아이템을 삭제할까요?")) {
+    return
+  }
+
+  try {
+    await deleteUsedInventoryItem(itemId)
+    await loadPointShop()
+  } catch (error) {
+    alert(error.message || "아이템을 삭제하지 못했습니다.")
+  }
 }
 
 // 페이지에 들어오면 로그인 사용자의 포인트와 보관함을 조회함
@@ -200,19 +221,24 @@ onMounted(loadPointShop)
         >
           {{ isOpeningBox ? "상자를 여는 중임..." : "상자 열기" }}
         </button>
-        <button
-          type="button"
-          class="probability-button"
-          :aria-expanded="activeProbabilityBox === box.id"
-          @click="toggleProbability(box.id)"
+        <div
+          class="probability-control"
+          @mouseenter="showProbability(box.id)"
+          @mouseleave="hideProbability(box.id)"
         >
-          ▸ 확률 보기
-        </button>
-        <div v-if="activeProbabilityBox === box.id" class="probability-popover">
-          <strong>상품별 확률</strong>
-          <div v-for="item in box.probabilities" :key="item.label" class="probability-row">
-            <span>{{ item.label }}</span>
-            <b>{{ item.rate }}%</b>
+          <button
+            type="button"
+            class="probability-button"
+            :aria-expanded="activeProbabilityBox === box.id"
+          >
+            ▸ 확률 보기
+          </button>
+          <div v-if="activeProbabilityBox === box.id" class="probability-popover">
+            <strong>상품별 확률</strong>
+            <div v-for="item in box.probabilities" :key="item.label" class="probability-row">
+              <span>{{ item.label }}</span>
+              <b>{{ item.rate }}%</b>
+            </div>
           </div>
         </div>
       </article>
@@ -440,11 +466,15 @@ onMounted(loadPointShop)
   cursor: pointer;
 }
 
+.probability-control {
+  position: relative;
+}
+
 .probability-popover {
   position: absolute;
   z-index: 2;
   right: 18px;
-  bottom: 42px;
+  bottom: calc(100% - 1px);
   left: 18px;
   padding: 14px;
   border: 1px solid #e4e7f2;

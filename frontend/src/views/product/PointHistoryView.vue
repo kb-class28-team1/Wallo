@@ -488,16 +488,24 @@ onMounted(loadHistory)
 
 .history-main span,
 .history-date {
+  overflow: hidden;
   color: #9aa2bc;
   font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .history-category,
 .history-status {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   justify-self: start;
   padding: 5px 8px;
   border-radius: 999px;
   font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .history-category {
