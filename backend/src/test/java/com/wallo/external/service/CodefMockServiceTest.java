@@ -39,6 +39,19 @@ public class CodefMockServiceTest {
     }
 
     @Test
+    public void bankAssetEndpointUsesOrganizationSpecificFixture() {
+        CodefDto.Response response = service.getAssetResponse(
+                "/mock/v1/kr/bank/p/account/account-list",
+                "0088"
+        );
+
+        assertSuccess(response);
+        CodefDto.AssetData data = objectMapper.convertValue(response.getData(), CodefDto.AssetData.class);
+        assertEquals(1, data.getAccounts().size());
+        assertEquals("223344-01-556677", data.getAccounts().get(0).getResAccount());
+    }
+
+    @Test
     public void cardAssetEndpointLoadsCardFixture() {
         CodefDto.Response response = service.getAssetResponse(
                 "/mock/v1/kr/card/p/account/card-list"
@@ -121,8 +134,56 @@ public class CodefMockServiceTest {
     public void additionalActiveBankUsesBankTransactionFixture() {
         CodefDto.BankTransactionRequest request = bankRequest("20260726", "20260728");
         request.setOrganization("0088");
+        request.setAccount("223344-01-556677");
 
-        assertSuccess(service.getBankTransactions(request));
+        CodefDto.Response response = service.getBankTransactions(request);
+
+        assertSuccess(response);
+        List<CodefDto.BankTransaction> transactions = objectMapper.convertValue(
+                response.getData(),
+                new TypeReference<List<CodefDto.BankTransaction>>() { }
+        );
+        assertEquals(0, transactions.size());
+    }
+
+    @Test
+    public void bankTransactionsUseOrganizationSpecificFixtures() {
+        CodefDto.BankTransactionRequest shinhanRequest = bankRequest("20260801", "20260804");
+        shinhanRequest.setOrganization("0088");
+        shinhanRequest.setAccount("223344-01-556677");
+        CodefDto.BankTransactionRequest hanaRequest = bankRequest("20260801", "20260804");
+        hanaRequest.setOrganization("0081");
+        hanaRequest.setAccount("334455-01-667788");
+
+        CodefDto.Response shinhanResponse = service.getBankTransactions(shinhanRequest);
+        CodefDto.Response hanaResponse = service.getBankTransactions(hanaRequest);
+
+        assertSuccess(shinhanResponse);
+        assertSuccess(hanaResponse);
+        List<CodefDto.BankTransaction> shinhanTransactions = objectMapper.convertValue(
+                shinhanResponse.getData(),
+                new TypeReference<List<CodefDto.BankTransaction>>() { }
+        );
+        List<CodefDto.BankTransaction> hanaTransactions = objectMapper.convertValue(
+                hanaResponse.getData(),
+                new TypeReference<List<CodefDto.BankTransaction>>() { }
+        );
+
+        assertEquals(2, shinhanTransactions.size());
+        assertEquals("SHINHAN-202608-0001", shinhanTransactions.get(0).getResTrNo());
+        assertEquals(2, hanaTransactions.size());
+        assertEquals("HANA-202608-0001", hanaTransactions.get(0).getResTrNo());
+    }
+
+    @Test
+    public void unsupportedBankOrganizationReturnsNotFoundFailure() {
+        CodefDto.Response response = service.getAssetResponse(
+                "/mock/v1/kr/bank/p/account/account-list",
+                "0999"
+        );
+
+        assertEquals("CF-40400", response.getResult().getCode());
+        assertNull(response.getData());
     }
 
     @Test
@@ -130,7 +191,52 @@ public class CodefMockServiceTest {
         CodefDto.CardApprovalRequest request = cardRequest("20260722", "20260726");
         request.setOrganization("0301");
 
-        assertSuccess(service.getCardApprovals(request));
+        CodefDto.Response response = service.getCardApprovals(request);
+
+        assertSuccess(response);
+        List<CodefDto.CardApproval> approvals = objectMapper.convertValue(
+                response.getData(),
+                new TypeReference<List<CodefDto.CardApproval>>() { }
+        );
+        assertEquals(1, approvals.size());
+        assertEquals("93000001", approvals.get(0).getResApprovalNo());
+    }
+
+    @Test
+    public void cardApprovalsUseOrganizationSpecificFixtures() {
+        CodefDto.Response hanaResponse = service.getCardApprovals(
+                cardRequest("20260804", "20260804")
+        );
+        CodefDto.CardApprovalRequest kbRequest = cardRequest("20260804", "20260804");
+        kbRequest.setOrganization("0301");
+        CodefDto.Response kbResponse = service.getCardApprovals(kbRequest);
+
+        assertSuccess(hanaResponse);
+        assertSuccess(kbResponse);
+        List<CodefDto.CardApproval> hanaApprovals = objectMapper.convertValue(
+                hanaResponse.getData(),
+                new TypeReference<List<CodefDto.CardApproval>>() { }
+        );
+        List<CodefDto.CardApproval> kbApprovals = objectMapper.convertValue(
+                kbResponse.getData(),
+                new TypeReference<List<CodefDto.CardApproval>>() { }
+        );
+
+        assertEquals(1, hanaApprovals.size());
+        assertEquals("92000001", hanaApprovals.get(0).getResApprovalNo());
+        assertEquals(1, kbApprovals.size());
+        assertEquals("93000003", kbApprovals.get(0).getResApprovalNo());
+    }
+
+    @Test
+    public void unsupportedCardOrganizationReturnsNotFoundFailure() {
+        CodefDto.CardApprovalRequest request = cardRequest("20260801", "20260804");
+        request.setOrganization("0999");
+
+        CodefDto.Response response = service.getCardApprovals(request);
+
+        assertEquals("CF-40400", response.getResult().getCode());
+        assertNull(response.getData());
     }
 
     @Test

@@ -1,0 +1,27 @@
+{
+  "result": {
+    "code": "CF-00000",
+    "message": "성공",
+    "extraMessage": ""
+  },
+  "data": [
+    {
+      "resAccount": "334455-01-667788",
+      "resTrNo": "HANA-202608-0001",
+      "resTrDate": "20260801",
+      "resTrTime": "090000",
+      "resAccountIn": "0",
+      "resAccountOut": "30000",
+      "resAccountDesc": "하나 교통카드"
+    },
+    {
+      "resAccount": "334455-01-667788",
+      "resTrNo": "HANA-202608-0002",
+      "resTrDate": "20260804",
+      "resTrTime": "150000",
+      "resAccountIn": "0",
+      "resAccountOut": "45000",
+      "resAccountDesc": "하나 생활비"
+    }
+  ]
+}

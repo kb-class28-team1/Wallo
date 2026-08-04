@@ -17,14 +17,31 @@ import org.springframework.stereotype.Service;
 @Service
 public class CodefMockService {
 
-    private static final Set<String> MOCK_BANK_ACCOUNTS = Set.of(
-            "123456-01-789012",
-            "987654-01-321098"
-    );
+    private static final String BANK_ACCOUNT_LIST_PATH =
+            "/mock/v1/kr/bank/p/account/account-list";
+    private static final String DEFAULT_BANK_ORGANIZATION = "0004";
     private static final Map<String, String> FIXTURE_BY_PATH = Map.of(
-            "/mock/v1/kr/bank/p/account/account-list", "bank-accounts.json",
             "/mock/v1/kr/card/p/account/card-list", "card-list.json",
             "/mock/v1/kr/stock/p/account/account-list", "stock-accounts.json"
+    );
+    private static final Map<String, String> BANK_ACCOUNT_FIXTURE_BY_ORGANIZATION = Map.of(
+            "0004", "bank-accounts-0004.json",
+            "0088", "bank-accounts-0088.json",
+            "0081", "bank-accounts-0081.json"
+    );
+    private static final Map<String, Set<String>> MOCK_BANK_ACCOUNTS_BY_ORGANIZATION = Map.of(
+            "0004", Set.of("123456-01-789012", "987654-01-321098"),
+            "0088", Set.of("223344-01-556677"),
+            "0081", Set.of("334455-01-667788")
+    );
+    private static final Map<String, String> BANK_TRANSACTION_FIXTURE_BY_ORGANIZATION = Map.of(
+            "0004", "bank-transaction-list-0004.json",
+            "0088", "bank-transaction-list-0088.json",
+            "0081", "bank-transaction-list-0081.json"
+    );
+    private static final Map<String, String> CARD_APPROVAL_FIXTURE_BY_ORGANIZATION = Map.of(
+            "0311", "card-approval-list-0311.json",
+            "0301", "card-approval-list-0301.json"
     );
     private static final DateTimeFormatter REQUEST_DATE_FORMATTER = DateTimeFormatter.BASIC_ISO_DATE;
 
@@ -35,7 +52,21 @@ public class CodefMockService {
     }
 
     public CodefDto.Response getAssetResponse(String requestPath) {
-        return load(FIXTURE_BY_PATH.get(requestPath));
+        return getAssetResponse(requestPath, DEFAULT_BANK_ORGANIZATION);
+    }
+
+    public CodefDto.Response getAssetResponse(String requestPath, String organization) {
+        String fixtureFileName = BANK_ACCOUNT_LIST_PATH.equals(requestPath)
+                ? BANK_ACCOUNT_FIXTURE_BY_ORGANIZATION.get(organization)
+                : FIXTURE_BY_PATH.get(requestPath);
+        if (BANK_ACCOUNT_LIST_PATH.equals(requestPath) && fixtureFileName == null) {
+            return CodefDto.Response.failure(
+                    "CF-40400",
+                    "지원하지 않는 은행 기관입니다.",
+                    organization
+            );
+        }
+        return load(fixtureFileName);
     }
 
     public CodefDto.Response getCardApprovals(CodefDto.CardApprovalRequest request) {
@@ -55,7 +86,16 @@ public class CodefMockService {
             return invalidRequest("startDate와 endDate는 유효한 YYYYMMDD 형식이어야 합니다.");
         }
 
-        CodefDto.Response fixture = load("card-approval-list.json");
+        String fixtureFileName = CARD_APPROVAL_FIXTURE_BY_ORGANIZATION.get(request.getOrganization());
+        if (fixtureFileName == null) {
+            return CodefDto.Response.failure(
+                    "CF-40400",
+                    "지원하지 않는 카드 기관입니다.",
+                    request.getOrganization()
+            );
+        }
+
+        CodefDto.Response fixture = load(fixtureFileName);
         if (!isSuccess(fixture)) {
             return fixture;
         }
@@ -86,7 +126,15 @@ public class CodefMockService {
         if (isBlank(request.getAccount())) {
             return invalidRequest("account 값이 필요합니다.");
         }
-        if (!MOCK_BANK_ACCOUNTS.contains(request.getAccount())) {
+        Set<String> availableAccounts = MOCK_BANK_ACCOUNTS_BY_ORGANIZATION.get(request.getOrganization());
+        if (availableAccounts == null) {
+            return CodefDto.Response.failure(
+                    "CF-40400",
+                    "지원하지 않는 은행 기관입니다.",
+                    request.getOrganization()
+            );
+        }
+        if (!availableAccounts.contains(request.getAccount())) {
             return CodefDto.Response.failure(
                     "CF-40401",
                     "계좌를 찾을 수 없습니다.",
@@ -99,7 +147,9 @@ public class CodefMockService {
             return invalidRequest("startDate와 endDate는 유효한 YYYYMMDD 형식이어야 합니다.");
         }
 
-        CodefDto.Response fixture = load("bank-transaction-list.json");
+        CodefDto.Response fixture = load(
+                BANK_TRANSACTION_FIXTURE_BY_ORGANIZATION.get(request.getOrganization())
+        );
         if (!isSuccess(fixture)) {
             return fixture;
         }

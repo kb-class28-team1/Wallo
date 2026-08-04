@@ -30,16 +30,16 @@ public class CodefMockController {
             "/mock/v1/kr/stock/p/account/account-list"
     })
     public CodefDto.Response getMockResponse(
-            @RequestBody CodefDto.Request ignoredRequest,
+            @RequestBody CodefDto.Request codefRequest,
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorizationHeader,
-            HttpServletRequest request
+            HttpServletRequest httpRequest
     ) {
         CodefDto.Response authenticationFailure = authenticate(authorizationHeader);
         if (authenticationFailure != null) {
             return authenticationFailure;
         }
-        String requestPath = request.getRequestURI().substring(request.getContextPath().length());
-        return codefMockService.getAssetResponse(requestPath);
+        String requestPath = httpRequest.getRequestURI().substring(httpRequest.getContextPath().length());
+        return codefMockService.getAssetResponse(requestPath, codefRequest.getOrganization());
     }
 
     @PostMapping("/mock/v1/kr/card/p/approval-list")

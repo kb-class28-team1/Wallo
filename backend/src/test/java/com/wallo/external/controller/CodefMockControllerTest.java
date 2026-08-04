@@ -5,6 +5,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -121,19 +122,20 @@ public class CodefMockControllerTest {
     }
 
     private void assertFixtureIsReturned(String path) throws Exception {
-        when(codefMockService.getAssetResponse(path)).thenReturn(CodefDto.Response.success("fixture"));
+        when(codefMockService.getAssetResponse(eq(path), eq("0004")))
+                .thenReturn(CodefDto.Response.success("fixture"));
 
         String responseBody = mockMvc.perform(post(path)
                         .header("Authorization", "Bearer mock-codef-token")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{}"))
+                        .content(assetRequestJson()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
 
         assertTrue(responseBody.contains("CF-00000"));
-        verify(codefMockService).getAssetResponse(path);
+        verify(codefMockService).getAssetResponse(path, "0004");
     }
 
     private String requestJsonFor(String path) {
@@ -166,6 +168,16 @@ public class CodefMockControllerTest {
                 + "\"account\":\"123456-01-789012\","
                 + "\"startDate\":\"20260701\","
                 + "\"endDate\":\"20260731\""
+                + "}";
+    }
+
+    private String assetRequestJson() {
+        return "{"
+                + "\"organization\":\"0004\","
+                + "\"institutionType\":\"BANK\","
+                + "\"loginType\":\"1\","
+                + "\"id\":\"mock_id\","
+                + "\"password\":\"mock_password\""
                 + "}";
     }
 }
