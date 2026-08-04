@@ -1,5 +1,6 @@
 fastapi
-openai
+groq
+python-dotenv
 uvicorn[standard]
 
 # 금융감독원 금융용어사전 크롤러(ai/scripts/crawl_fss_terms.py) 전용
