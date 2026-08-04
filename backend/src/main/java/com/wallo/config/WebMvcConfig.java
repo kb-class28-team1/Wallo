@@ -18,6 +18,7 @@ import java.util.List;
 @EnableWebMvc
 @ComponentScan(basePackages = {
         "com.wallo.controller",
+        "com.wallo.report.controller",
         "com.wallo.asset.controller",
         "com.wallo.auth.controller",
         "com.wallo.auth.exception",

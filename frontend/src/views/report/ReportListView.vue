@@ -2,7 +2,7 @@
 import { onMounted, ref } from "vue"
 import { getReports } from "@/api/reportApi"
 import ReportListCard from "@/components/report/ReportListCard.vue"
-import { getReadReportIds } from "@/utils/reportReadState"
+import { getReadReportIds } from "@/utils/report/reportReadState"
 
 const reports = ref([])
 const isLoading = ref(true)

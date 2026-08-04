@@ -4,8 +4,8 @@ import { RouterLink, useRoute } from "vue-router"
 import { getReportDetail } from "@/api/reportApi"
 import ReportSection from "@/components/report/ReportSection.vue"
 import TermInfoPanel from "@/components/report/TermInfoPanel.vue"
-import { markReportAsRead } from "@/utils/reportReadState"
-import { buildTermSegments } from "@/utils/termHighlight"
+import { markReportAsRead } from "@/utils/report/reportReadState"
+import { buildTermSegments } from "@/utils/report/termHighlight"
 
 const route = useRoute()
 const newsId = computed(() => route.params.newsId)

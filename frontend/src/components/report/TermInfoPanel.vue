@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from "vue"
-import { getDisplayDefinition, hasDisplayableTerm } from "@/utils/termDefinition"
+import { getDisplayDefinition, hasDisplayableTerm } from "@/utils/report/termDefinition"
 
 const props = defineProps({
   term: {
