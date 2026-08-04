@@ -15,7 +15,7 @@ import org.springframework.web.context.support.AnnotationConfigWebApplicationCon
  *
  * <p>financial-report.scheduler.enabled=false(로컬 기본값)면 리포트 생성 단계는 시도되지 않고
  * 로그로만 안내되니(뉴스는 정상 저장됨), 리포트까지 실제로 생성해서 확인하려면
- * application-local.properties에서 이 값을 true로 바꾸고 AI 서버(OPENAI_API_KEY 또는 로컬 AI 서버)가
+ * application-local.properties에서 이 값을 true로 바꾸고 AI 서버(GROQ_API_KEY 또는 로컬 AI 서버)가
  * 떠 있는지 먼저 확인할 것.
  *
  * <p>JUnit 테스트(@Test)가 아니라 main()이라 ./gradlew test로는 실행되지 않으며, IDE에서 이 클래스를

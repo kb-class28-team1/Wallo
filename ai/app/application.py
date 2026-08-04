@@ -39,7 +39,6 @@ class ChatRequest(BaseModel):
     message: str = Field(min_length=1)
     generate_title: bool = Field(default=False, alias="generateTitle")
 
-from app.chat import router as chat_router
 from app.financial_report import router as financial_report_router
 
 logger = logging.getLogger("wallo_ai")
@@ -450,7 +449,6 @@ def generate_conversation_title(
 
 app = FastAPI(title="Wallo AI Server")
 
-app.include_router(chat_router)
 app.include_router(financial_report_router)
 
 

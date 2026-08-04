@@ -44,13 +44,13 @@ python -m venv .venv          # 최초 1회
 .venv\Scripts\activate        # Windows
 pip install -r requirements.txt
 
-cp .env.example .env          # 최초 1회, OPENAI_API_KEY 채우기
+cp .env.example .env          # 최초 1회, GROQ_API_KEY 채우기
 uvicorn app.application:app --reload --port 8000
 ```
 
 - 헬스체크: `curl http://127.0.0.1:8000/api/health` → `{"status":"ok"}`
 - API 문서: `http://127.0.0.1:8000/docs`
-- `.env`의 `AI_REPORT_MOCK_ENABLED=true`면 `/api/reports/generate`가 실제 OpenAI 대신 `[MOCK]` 더미 응답을 반환합니다(OpenAI 키 없이 흐름만 확인할 때 유용). 기본값은 `false`(실제 OpenAI 호출).
+- `.env`의 `AI_REPORT_MOCK_ENABLED=true`면 `/api/reports/generate`가 실제 Groq 대신 `[MOCK]` 더미 응답을 반환합니다(Groq 키 없이 흐름만 확인할 때 유용). 기본값은 `false`(실제 Groq 호출).
 - 백엔드는 기본적으로 `http://127.0.0.1:8000`을 바라봅니다(`AI_SERVER_URL` 환경변수로 변경 가능, [PythonNewsReportAiClient.java](backend/src/main/java/com/wallo/client/PythonNewsReportAiClient.java)).
 
 ## 3. Tomcat(백엔드) 실행 방법
@@ -76,7 +76,7 @@ pnpm run dev
 
 [FinancialReportGenerationScheduler.java](backend/src/main/java/com/wallo/scheduler/FinancialReportGenerationScheduler.java)가 news_report 없는 뉴스를 찾아 AI 리포트를 생성하는 배치를 실제로 동작시킬지 결정하는 스위치입니다.
 
-- **기본값 `false`**: OPENAI_API_KEY 없는 로컬 환경에서 의도치 않게 AI가 호출되는 것을 막기 위한 안전장치입니다. `false`면 크롤링 스케줄러가 끝난 뒤 리포트 생성을 "시도"는 하지만, 대상 조회조차 없이 즉시 스킵되고 로그로만 안내됩니다.
+- **기본값 `false`**: GROQ_API_KEY 없는 로컬 환경에서 의도치 않게 AI가 호출되는 것을 막기 위한 안전장치입니다. `false`면 크롤링 스케줄러가 끝난 뒤 리포트 생성을 "시도"는 하지만, 대상 조회조차 없이 즉시 스킵되고 로그로만 안내됩니다.
 - **`true`로 켜면**: (1) 하루 4회(06/12/15/18시) 크롤링 직후 자동으로 신규 뉴스의 리포트를 생성하고, (2) 그와 별개로 30분 뒤(06:30/12:30/15:30/18:30) 안전망 배치가 한 번 더 돌며 백로그(`batch-size`개 한도)를 처리합니다.
 - 로컬에서 리포트 생성까지 실제로 확인하려면: `application-local.properties`에서 `true`로 바꾸고, AI 서버가 떠 있는지 확인한 뒤 Tomcat을 재시작하거나(자동 스케줄 대기) 아래 6번의 수동 Runner를 사용하세요. **확인이 끝나면 다시 `false`로 되돌리는 것을 권장합니다** (커밋 대상은 아니지만, 로컬에서 실수로 반복 AI 호출되는 것을 막기 위함).
 

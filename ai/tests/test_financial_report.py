@@ -1,8 +1,10 @@
-"""financial_report.py 단위/엔드포인트 테스트. 실제 OpenAI API를 호출하지 않는다."""
+"""financial_report.py 단위/엔드포인트 테스트. 실제 Groq API를 호출하지 않는다."""
+
+import json
 
 import pytest
 from fastapi import HTTPException
-from openai import APIConnectionError
+from groq import GroqError
 from pydantic import ValidationError
 
 from app.financial_report import (
@@ -38,44 +40,42 @@ def _valid_report() -> NewsReportGenerateResponse:
     )
 
 
-class FakeResponse:
-    """client.responses.parse(...)가 반환하는 openai ParsedResponse를 흉내낸다."""
-
-    def __init__(self, output_parsed):
-        self.output_parsed = output_parsed
-
-
-class FakeResponsesResource:
-    def __init__(self, output_parsed=None, exception=None):
-        self._output_parsed = output_parsed
+class FakeChatCompletions:
+    def __init__(self, content=None, exception=None):
+        self._content = content
         self._exception = exception
         self.calls = []
 
-    def parse(self, **kwargs):
+    def create(self, **kwargs):
         self.calls.append(kwargs)
         if self._exception is not None:
             raise self._exception
-        return FakeResponse(self._output_parsed)
+        return type(
+            "FakeResponse",
+            (),
+            {"choices": [type("Choice", (), {"message": type("Message", (), {"content": self._content})()})()]},
+        )()
 
 
-class FakeOpenAiClient:
-    """openai.OpenAI 대신 주입하는 테스트 전용 Fake. responses.parse(...)만 흉내낸다."""
+class FakeGroqClient:
+    """Groq 대신 주입하는 테스트 전용 Fake. chat.completions.create(...)만 흉내낸다."""
 
-    def __init__(self, output_parsed=None, exception=None):
-        self.responses = FakeResponsesResource(output_parsed, exception)
+    def __init__(self, content=None, exception=None):
+        self.chat = type("Chat", (), {})()
+        self.chat.completions = FakeChatCompletions(content, exception)
 
 
 # 1. 정상 구조화 응답
 def test_generates_valid_structured_report():
-    client = FakeOpenAiClient(output_parsed=_valid_report())
+    client = FakeGroqClient(content=_valid_report().model_dump_json())
 
-    result = generate_financial_report(client, _sample_request(), "gpt-4o-mini")
+    result = generate_financial_report(client, _sample_request(), "llama-3.3-70b-versatile")
 
     assert result.summary == ["요약 문장 1입니다.", "요약 문장 2입니다."]
     assert result.eventDescription == "사건 설명 내용입니다."
     assert result.responseStrategy == "대응 방안 내용입니다."
-    assert client.responses.calls[0]["model"] == "gpt-4o-mini"
-    assert client.responses.calls[0]["text_format"] is NewsReportGenerateResponse
+    assert client.chat.completions.calls[0]["model"] == "llama-3.3-70b-versatile"
+    assert client.chat.completions.calls[0]["response_format"] == {"type": "json_object"}
 
 
 # 2. summary 누락
@@ -142,29 +142,29 @@ def test_blank_event_description_raises_validation_error():
         )
 
 
-# 4. 응답 JSON 구조 오류 (OpenAI가 스키마에 안 맞는 응답을 줘서 SDK가 파싱하지 못한 상황)
+# 4. 응답 JSON 구조 오류
 def test_malformed_ai_response_raises_bad_gateway():
-    client = FakeOpenAiClient(output_parsed=None)
+    client = FakeGroqClient(content=json.dumps({"summary": []}))
 
     with pytest.raises(HTTPException) as exc_info:
-        generate_financial_report(client, _sample_request(), "gpt-4o-mini")
+        generate_financial_report(client, _sample_request(), "llama-3.3-70b-versatile")
 
     assert exc_info.value.status_code == 502
 
 
-# 5. OpenAI 호출 예외 (연결 실패)
-def test_openai_call_exception_raises_bad_gateway():
-    client = FakeOpenAiClient(exception=APIConnectionError(message="connection failed", request=None))
+# 5. Groq 호출 예외
+def test_groq_call_exception_raises_bad_gateway():
+    client = FakeGroqClient(exception=GroqError("connection failed"))
 
     with pytest.raises(HTTPException) as exc_info:
-        generate_financial_report(client, _sample_request(), "gpt-4o-mini")
+        generate_financial_report(client, _sample_request(), "llama-3.3-70b-versatile")
 
     assert exc_info.value.status_code == 502
 
 
 # 6. API 키 없음 (엔드포인트 함수를 직접 호출)
 def test_generate_report_raises_service_unavailable_when_api_key_missing(monkeypatch):
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
     monkeypatch.delenv("AI_REPORT_MOCK_ENABLED", raising=False)
 
     with pytest.raises(HTTPException) as exc_info:
@@ -176,7 +176,7 @@ def test_generate_report_raises_service_unavailable_when_api_key_missing(monkeyp
 # 7. mock 모드 true
 def test_generate_report_returns_mock_response_when_mock_mode_enabled(monkeypatch):
     monkeypatch.setenv("AI_REPORT_MOCK_ENABLED", "true")
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)  # 키가 없어도 mock 모드면 호출조차 안 한다
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)  # 키가 없어도 mock 모드면 호출조차 안 한다
 
     result = generate_report(_sample_request())
 
