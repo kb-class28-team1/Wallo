@@ -32,6 +32,41 @@ const formatDate = (date) => {
   return month && day ? `${Number(month)}월 ${Number(day)}일` : date;
 };
 
+const transactionInstitutionPrefixes = [
+  "KB국민카드",
+  "국민카드",
+  "신한카드",
+  "하나카드",
+  "우리카드",
+  "삼성카드",
+  "현대카드",
+  "롯데카드",
+  "NH농협카드",
+  "농협카드",
+  "KB국민은행",
+  "국민은행",
+  "신한은행",
+  "하나은행",
+  "우리은행",
+  "농협은행",
+  "기업은행",
+  "국민",
+  "신한",
+  "하나",
+  "우리",
+  "농협",
+  "기업",
+];
+
+const displayMerchantName = (merchantName) => {
+  const normalizedName = String(merchantName || "").trim();
+  const prefix = transactionInstitutionPrefixes.find(
+    (candidate) => normalizedName.startsWith(`${candidate} `),
+  );
+
+  return prefix ? normalizedName.slice(prefix.length).trim() : normalizedName;
+};
+
 const formatAmount = (transaction) => {
   const amount = formatNumber(transaction.amount);
   if (transaction.type === "INCOME") return `+${amount}원`;
@@ -54,7 +89,7 @@ const typeLabel = (type) => ({
           <i :class="['bi', getExpenseCategoryMeta(transaction.category).icon]" aria-hidden="true"></i>
         </span>
         <span class="transaction-info">
-          <strong>{{ transaction.merchantName }}</strong>
+          <strong>{{ displayMerchantName(transaction.merchantName) }}</strong>
           <small>
             {{ formatDate(transaction.date) }} · {{ getExpenseCategoryMeta(transaction.category).label }} ·
             {{ typeLabel(transaction.type) }}
