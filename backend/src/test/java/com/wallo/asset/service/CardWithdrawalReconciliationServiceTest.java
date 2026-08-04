@@ -78,6 +78,21 @@ class CardWithdrawalReconciliationServiceTest {
         );
     }
 
+    @Test
+    void keepsClassifiedBankExpenseWhenNoCardApprovalMatches() {
+        when(assetSyncMapper.selectBankWithdrawalCandidates(7L)).thenReturn(List.of(
+                candidate(5L, 12_000L, "2026-08-03", "13:00:00", "LIVING")
+        ));
+        when(assetSyncMapper.selectCheckCardApprovalCandidates(7L)).thenReturn(List.of());
+
+        int updatedCount = service.reconcile(7L);
+
+        assertEquals(0, updatedCount);
+        verify(assetSyncMapper, never()).updateBankWithdrawalCategory(
+                7L, 5L, CardWithdrawalReconciliationService.SEND
+        );
+    }
+
     private AssetSyncDto.ReconciliationCandidate candidate(
             long transactionId,
             long amount,

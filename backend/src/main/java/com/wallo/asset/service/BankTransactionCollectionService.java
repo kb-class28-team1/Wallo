@@ -2,6 +2,7 @@ package com.wallo.asset.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.wallo.asset.classification.ExpenseCategoryClassifier;
 import com.wallo.asset.domain.Institution;
 import com.wallo.asset.dto.AssetSyncDto;
 import com.wallo.asset.dto.ConnectionDto;
@@ -18,6 +19,7 @@ import java.time.format.DateTimeFormatterBuilder;
 import java.time.temporal.ChronoField;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,7 +29,11 @@ public class BankTransactionCollectionService {
 
     private static final String BANK_INSTITUTION_TYPE = "BANK";
     private static final String SOURCE_TYPE = "BANK_TRANSACTION";
-    private static final String CLASSIFIER_VERSION = "bank-direction-v1";
+    private static final String INCOME = "INCOME";
+    private static final String TRANSFER = "TRANSFER";
+    private static final String CARD_PAYMENT = "CARD_PAYMENT";
+    private static final String BANK_DIRECTION_SOURCE = "BANK_DIRECTION";
+    private static final String BANK_DIRECTION_CLASSIFIER_VERSION = "bank-direction-v1";
     private static final DateTimeFormatter REQUEST_DATE_FORMATTER = DateTimeFormatter.BASIC_ISO_DATE;
     private static final DateTimeFormatter RESPONSE_TIME_FORMATTER = new DateTimeFormatterBuilder()
             .appendValue(ChronoField.HOUR_OF_DAY, 2)
@@ -37,6 +43,7 @@ public class BankTransactionCollectionService {
 
     private final BankTransactionClient bankTransactionClient;
     private final ObjectMapper objectMapper;
+    private final ExpenseCategoryClassifier categoryClassifier;
     private final TransactionSourceKeyGenerator sourceKeyGenerator;
     private final AssetSyncMapper assetSyncMapper;
     private final Clock clock;
@@ -44,12 +51,14 @@ public class BankTransactionCollectionService {
     public BankTransactionCollectionService(
             BankTransactionClient bankTransactionClient,
             ObjectMapper objectMapper,
+            ExpenseCategoryClassifier categoryClassifier,
             TransactionSourceKeyGenerator sourceKeyGenerator,
             AssetSyncMapper assetSyncMapper,
             Clock clock
     ) {
         this.bankTransactionClient = bankTransactionClient;
         this.objectMapper = objectMapper;
+        this.categoryClassifier = categoryClassifier;
         this.sourceKeyGenerator = sourceKeyGenerator;
         this.assetSyncMapper = assetSyncMapper;
         this.clock = clock;
@@ -128,9 +137,14 @@ public class BankTransactionCollectionService {
 
         long accountIn = parseNonNegativeAmount(source.getResAccountIn());
         long accountOut = parseNonNegativeAmount(source.getResAccountOut());
-        DirectionClassification classification = classifyDirection(accountIn, accountOut);
         String transactionId = required(source.getResTrNo(), "은행 거래번호");
         String description = defaultValue(source.getResAccountDesc(), "계좌 거래");
+        TransactionClassification classification = classifyTransaction(
+                source.getTransactionKind(),
+                accountIn,
+                accountOut,
+                description
+        );
         String sourceDedupKey = sourceKeyGenerator.forBankTransaction(
                 institution.getCodefOrganizationCode(),
                 accountId,
@@ -150,9 +164,9 @@ public class BankTransactionCollectionService {
                 null,
                 parseDate(source.getResTrDate()),
                 parseTime(source.getResTrTime()),
-                "BANK_DIRECTION",
-                BigDecimal.ONE,
-                CLASSIFIER_VERSION,
+                classification.categorySource(),
+                classification.confidence(),
+                classification.classifierVersion(),
                 SOURCE_TYPE,
                 institution.getCodefOrganizationCode(),
                 transactionId,
@@ -160,14 +174,95 @@ public class BankTransactionCollectionService {
         );
     }
 
-    private DirectionClassification classifyDirection(long accountIn, long accountOut) {
+    private TransactionClassification classifyTransaction(
+            String transactionKind,
+            long accountIn,
+            long accountOut,
+            String description
+    ) {
+        String normalizedKind = transactionKind == null
+                ? ""
+                : transactionKind.trim().toUpperCase(Locale.ROOT);
+        if (normalizedKind.isBlank()) {
+            return classifyByDirection(accountIn, accountOut);
+        }
+
+        return switch (normalizedKind) {
+            case INCOME -> classifyIncome(accountIn, accountOut);
+            case TRANSFER -> classifyTransfer(accountIn, accountOut);
+            case CARD_PAYMENT -> classifyCardPayment(accountIn, accountOut, description);
+            default -> throw new IllegalArgumentException(
+                    "지원하지 않는 은행 거래 유형입니다: " + transactionKind
+            );
+        };
+    }
+
+    private TransactionClassification classifyByDirection(long accountIn, long accountOut) {
         if (accountIn > 0 && accountOut == 0) {
-            return new DirectionClassification("INCOME", "INCOME", accountIn);
+            return incomeClassification(accountIn);
         }
         if (accountOut > 0 && accountIn == 0) {
-            return new DirectionClassification("TRANSFER", "SEND", accountOut);
+            return transferClassification(accountOut);
         }
         throw new IllegalArgumentException("입금액과 출금액 중 하나만 양수여야 합니다.");
+    }
+
+    private TransactionClassification classifyIncome(long accountIn, long accountOut) {
+        if (accountIn <= 0 || accountOut != 0) {
+            throw new IllegalArgumentException("입금 거래의 금액 방향이 올바르지 않습니다.");
+        }
+        return incomeClassification(accountIn);
+    }
+
+    private TransactionClassification classifyTransfer(long accountIn, long accountOut) {
+        if (accountOut <= 0 || accountIn != 0) {
+            throw new IllegalArgumentException("이체 거래의 금액 방향이 올바르지 않습니다.");
+        }
+        return transferClassification(accountOut);
+    }
+
+    private TransactionClassification classifyCardPayment(
+            long accountIn,
+            long accountOut,
+            String description
+    ) {
+        if (accountOut <= 0 || accountIn != 0) {
+            throw new IllegalArgumentException("카드 결제 거래의 금액 방향이 올바르지 않습니다.");
+        }
+
+        ExpenseCategoryClassifier.Result category = categoryClassifier.classify(
+                new ExpenseCategoryClassifier.Context(description, null, accountOut)
+        );
+        return new TransactionClassification(
+                "EXPENSE",
+                category.category(),
+                accountOut,
+                category.source(),
+                category.confidence(),
+                category.classifierVersion()
+        );
+    }
+
+    private TransactionClassification incomeClassification(long amount) {
+        return new TransactionClassification(
+                INCOME,
+                INCOME,
+                amount,
+                BANK_DIRECTION_SOURCE,
+                BigDecimal.ONE,
+                BANK_DIRECTION_CLASSIFIER_VERSION
+        );
+    }
+
+    private TransactionClassification transferClassification(long amount) {
+        return new TransactionClassification(
+                TRANSFER,
+                "SEND",
+                amount,
+                BANK_DIRECTION_SOURCE,
+                BigDecimal.ONE,
+                BANK_DIRECTION_CLASSIFIER_VERSION
+        );
     }
 
     private void validateCollectionRequest(
@@ -241,6 +336,13 @@ public class BankTransactionCollectionService {
         return values == null ? Collections.emptyList() : values;
     }
 
-    private record DirectionClassification(String type, String category, long amount) {
+    private record TransactionClassification(
+            String type,
+            String category,
+            long amount,
+            String categorySource,
+            BigDecimal confidence,
+            String classifierVersion
+    ) {
     }
 }

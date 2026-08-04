@@ -12,7 +12,8 @@
       "resTrTime": "101500",
       "resAccountIn": "4500000",
       "resAccountOut": "0",
-      "resAccountDesc": "신한 월급"
+      "resAccountDesc": "신한 월급",
+      "transactionKind": "INCOME"
     },
     {
       "resAccount": "223344-01-556677",
@@ -21,7 +22,8 @@
       "resTrTime": "130000",
       "resAccountIn": "0",
       "resAccountOut": "12000",
-      "resAccountDesc": "신한 편의점"
+      "resAccountDesc": "신한 편의점",
+      "transactionKind": "CARD_PAYMENT"
     }
   ]
 }

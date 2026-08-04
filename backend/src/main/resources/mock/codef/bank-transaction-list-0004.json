@@ -12,7 +12,8 @@
       "resTrTime": "090000",
       "resAccountIn": "100000",
       "resAccountOut": "0",
-      "resAccountDesc": "용돈_6월"
+      "resAccountDesc": "용돈_6월",
+      "transactionKind": "INCOME"
     },
     {
       "resAccount": "123456-01-789012",
@@ -21,7 +22,8 @@
       "resTrTime": "100000",
       "resAccountIn": "3000000",
       "resAccountOut": "0",
-      "resAccountDesc": "월급_7월"
+      "resAccountDesc": "월급_7월",
+      "transactionKind": "INCOME"
     },
     {
       "resAccount": "123456-01-789012",
@@ -30,7 +32,8 @@
       "resTrTime": "193000",
       "resAccountIn": "0",
       "resAccountOut": "38000",
-      "resAccountDesc": "체크가맹_배달의민족"
+      "resAccountDesc": "체크가맹_배달의민족",
+      "transactionKind": "CARD_PAYMENT"
     },
     {
       "resAccount": "123456-01-789012",
@@ -39,7 +42,8 @@
       "resTrTime": "142000",
       "resAccountIn": "0",
       "resAccountOut": "50000",
-      "resAccountDesc": "김철수"
+      "resAccountDesc": "김철수",
+      "transactionKind": "TRANSFER"
     },
     {
       "resAccount": "123456-01-789012",
@@ -48,7 +52,8 @@
       "resTrTime": "120000",
       "resAccountIn": "0",
       "resAccountOut": "120000",
-      "resAccountDesc": "8월 생활비 송금"
+      "resAccountDesc": "8월 생활비 송금",
+      "transactionKind": "TRANSFER"
     }
   ]
 }

@@ -12,7 +12,8 @@
       "resTrTime": "090000",
       "resAccountIn": "0",
       "resAccountOut": "30000",
-      "resAccountDesc": "하나 교통카드"
+      "resAccountDesc": "하나 교통카드",
+      "transactionKind": "CARD_PAYMENT"
     },
     {
       "resAccount": "334455-01-667788",
@@ -21,7 +22,8 @@
       "resTrTime": "150000",
       "resAccountIn": "0",
       "resAccountOut": "45000",
-      "resAccountDesc": "하나 생활비"
+      "resAccountDesc": "하나 생활비",
+      "transactionKind": "TRANSFER"
     }
   ]
 }

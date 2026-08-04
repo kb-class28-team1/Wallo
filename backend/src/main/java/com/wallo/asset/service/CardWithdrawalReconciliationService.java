@@ -51,7 +51,9 @@ public class CardWithdrawalReconciliationService {
                             .thenComparingLong(AssetSyncDto.ReconciliationCandidate::getTransactionId))
                     .orElse(null);
 
-            String expectedCategory = matchedApproval == null ? SEND : CARD_WITHDRAWAL;
+            String expectedCategory = matchedApproval != null
+                    ? CARD_WITHDRAWAL
+                    : restoreUnmatchedCategory(bankWithdrawal);
             if (matchedApproval != null) {
                 matchedCardApprovalIds.add(matchedApproval.getTransactionId());
             }
@@ -64,6 +66,12 @@ public class CardWithdrawalReconciliationService {
             }
         }
         return updatedCount;
+    }
+
+    private String restoreUnmatchedCategory(AssetSyncDto.ReconciliationCandidate bankWithdrawal) {
+        return CARD_WITHDRAWAL.equals(bankWithdrawal.getCategory())
+                ? SEND
+                : bankWithdrawal.getCategory();
     }
 
     private boolean isWithinDateRange(

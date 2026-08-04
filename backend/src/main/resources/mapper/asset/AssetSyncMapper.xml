@@ -133,15 +133,23 @@
         FROM TRANSACTIONS
         WHERE user_id = #{userId}
           AND source_type = 'BANK_TRANSACTION'
-          AND type = 'TRANSFER'
-          AND category IN ('SEND', 'CARD_WITHDRAWAL')
           AND (
-              merchant_name LIKE '%체크%'
-              OR merchant_name LIKE '%카드%'
-              OR merchant_name LIKE '%가맹%'
-              OR original_merchant_name LIKE '%체크%'
-              OR original_merchant_name LIKE '%카드%'
-              OR original_merchant_name LIKE '%가맹%'
+              (
+                  type = 'TRANSFER'
+                  AND category IN ('SEND', 'CARD_WITHDRAWAL')
+                  AND (
+                      merchant_name LIKE '%체크%'
+                      OR merchant_name LIKE '%카드%'
+                      OR merchant_name LIKE '%가맹%'
+                      OR original_merchant_name LIKE '%체크%'
+                      OR original_merchant_name LIKE '%카드%'
+                      OR original_merchant_name LIKE '%가맹%'
+                  )
+              )
+              OR (
+                  type = 'EXPENSE'
+                  AND category &lt;&gt; 'CARD_WITHDRAWAL'
+              )
           )
         ORDER BY transaction_date, transaction_time, transaction_id
     </select>
@@ -180,6 +188,6 @@
         WHERE transaction_id = #{transactionId}
           AND user_id = #{userId}
           AND source_type = 'BANK_TRANSACTION'
-          AND type = 'TRANSFER'
+          AND type IN ('TRANSFER', 'EXPENSE')
     </update>
 </mapper>
