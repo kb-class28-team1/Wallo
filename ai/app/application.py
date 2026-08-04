@@ -2,6 +2,8 @@ import json
 import logging
 import os
 from collections.abc import Callable
+from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
@@ -37,6 +39,205 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     answer: str
     title: str | None = None
+
+
+class DemoAssetAnalysisRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    profile_id: int = Field(gt=0, alias="profileId")
+    question: str = Field(
+        default="현재 자산 상태를 분석하고 우선 실행할 행동을 알려줘.",
+        min_length=1,
+    )
+
+
+class DemoProfileSummary(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    profile_id: int = Field(alias="profileId")
+    title: str
+    total_assets_krw: int | None = Field(alias="totalAssetsKrw")
+    monthly_net_income_krw: int | None = Field(alias="monthlyNetIncomeKrw")
+
+
+class DemoAssetAnalysisResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    profile_id: int = Field(alias="profileId")
+    title: str
+    answer: str
+
+
+DATA_FILE = (
+        Path(__file__).resolve().parents[1]
+        / "data"
+        / "processed"
+        / "money_log_agent_inputs.json"
+)
+
+
+@lru_cache(maxsize=1)
+def load_demo_profiles() -> dict[int, dict[str, Any]]:
+    """정제된 머니로그 사례를 가상 사용자 프로필로 읽는다."""
+    try:
+        rows = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        logger.exception("Failed to load demo asset profiles")
+        raise RuntimeError("가상 사용자 데이터를 읽지 못했습니다.") from error
+
+    profiles: dict[int, dict[str, Any]] = {}
+    for row in rows:
+        profile = row.get("asset_analysis_input")
+        if isinstance(profile, dict) and isinstance(profile.get("profile_id"), int):
+            profiles[profile["profile_id"]] = profile
+    return profiles
+
+
+def list_demo_profiles() -> list[DemoProfileSummary]:
+    summaries = []
+    for profile_id, profile in sorted(load_demo_profiles().items()):
+        source = profile.get("source") or {}
+        assets = profile.get("assets") or {}
+        income = profile.get("income") or {}
+        summaries.append(
+            DemoProfileSummary(
+                profileId=profile_id,
+                title=source.get("title") or f"가상 사용자 {profile_id}",
+                totalAssetsKrw=assets.get("total_assets_krw"),
+                monthlyNetIncomeKrw=income.get("monthly_net_income_krw"),
+            )
+        )
+    return summaries
+
+
+def build_demo_asset_facts(profile: dict[str, Any]) -> dict[str, Any]:
+    """LLM의 산술 오류를 줄이기 위해 확정 가능한 지표를 코드로 계산한다."""
+    income = profile.get("income") or {}
+    assets = profile.get("assets") or {}
+    cashflow = profile.get("cashflow") or {}
+    debts = profile.get("debts") or []
+
+    monthly_income = income.get("monthly_net_income_krw")
+    monthly_saving = cashflow.get("monthly_saving_total_krw")
+    monthly_expense = cashflow.get("monthly_total_expense_krw")
+    total_assets = assets.get("total_assets_krw")
+    asset_item_sum = sum(
+        item.get("amount_krw") or 0
+        for item in assets.get("items") or []
+        if isinstance(item, dict)
+    )
+    total_debt = sum(
+        debt.get("amount_krw") or 0
+        for debt in debts
+        if isinstance(debt, dict)
+    )
+
+    return {
+        "monthly_net_income_krw": monthly_income,
+        "monthly_saving_krw": monthly_saving,
+        "monthly_expense_krw": monthly_expense,
+        "annual_saving_krw": monthly_saving * 12 if monthly_saving is not None else None,
+        "saving_rate_percent": (
+            round(monthly_saving / monthly_income * 100, 1)
+            if monthly_saving is not None and monthly_income
+            else None
+        ),
+        "total_assets_krw": total_assets,
+        "listed_asset_items_sum_krw": asset_item_sum,
+        "asset_detail_unexplained_gap_krw": (
+            total_assets - asset_item_sum if total_assets is not None else None
+        ),
+        "total_debt_krw": total_debt,
+    }
+
+
+def compact_demo_profile(profile: dict[str, Any]) -> dict[str, Any]:
+    """LLM 입력에서 중복 원문·추출 근거를 제거해 출력 토큰을 확보한다."""
+    excluded_keys = {"raw_user_content", "source"}
+
+    def compact(value: Any) -> Any:
+        if isinstance(value, dict):
+            return {
+                key: compact(item)
+                for key, item in value.items()
+                if key not in excluded_keys
+                and not key.endswith("_raw")
+                and not key.endswith("_evidence")
+                and key != "raw_text"
+            }
+        if isinstance(value, list):
+            return [compact(item) for item in value]
+        return value
+
+    return compact(profile)
+
+
+def format_demo_asset_facts(facts: dict[str, Any]) -> str:
+    def won(value: int | None) -> str:
+        return "정보 없음" if value is None else f"{value:,}원"
+
+    saving_rate = facts.get("saving_rate_percent")
+    rate_text = "정보 없음" if saving_rate is None else f"{saving_rate}%"
+    return "\n".join(
+        [
+            "## 코드로 계산한 핵심 수치",
+            f"- 월 순소득: {won(facts.get('monthly_net_income_krw'))}",
+            f"- 월 저축액: {won(facts.get('monthly_saving_krw'))}",
+            f"- 월 지출액: {won(facts.get('monthly_expense_krw'))}",
+            f"- 연 저축액: {won(facts.get('annual_saving_krw'))}",
+            f"- 저축률: {rate_text}",
+            f"- 총자산: {won(facts.get('total_assets_krw'))}",
+            f"- 세부 자산 항목 합계: {won(facts.get('listed_asset_items_sum_krw'))}",
+            "- 총자산과 세부 항목의 미기재 차액: "
+            + won(facts.get("asset_detail_unexplained_gap_krw")),
+            f"- 총부채: {won(facts.get('total_debt_krw'))}",
+        ]
+    )
+
+
+def generate_demo_asset_analysis(
+    client: Groq,
+    profile: dict[str, Any],
+    question: str,
+) -> str:
+    """전문가 답안을 제외한 가상 사용자 정보만으로 자산 분석을 생성한다."""
+    calculated_facts = build_demo_asset_facts(profile)
+    compact_profile = compact_demo_profile(profile)
+    completion = client.chat.completions.create(
+        model=MODEL,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "당신은 한국어 개인재무 자산분석가입니다. 제공된 가상 사용자의 수치만 "
+                    "근거로 분석하고, 없는 정보는 추측하지 마세요. 산술 계산은 직접 다시 하지 "
+                    "말고 '코드로 계산한 핵심 지표'를 그대로 사용하세요. 핵심 수치는 시스템이 "
+                    "별도로 출력하므로 답변 본문에는 금액이나 비율 숫자를 다시 쓰지 마세요. "
+                    "asset_detail_unexplained_gap_krw는 총자산과 "
+                    "세부 항목 합계의 차이일 뿐이므로 자산 종류를 추정하거나 분류하지 마세요. 금액 간 "
+                    "불일치가 있으면 명시하고 원문보다 구조화된 값을 우선 사용하세요. "
+                    "답변은 반드시 ① 한줄 진단 ② 강점 ③ 위험 신호 ④ 우선 행동 3가지 "
+                    "⑤ 추가로 필요한 정보 순서로 작성하세요. 투자 수익을 보장하거나 특정 "
+                    "금융상품의 매수를 단정하지 마세요."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"질문: {question}\n\n"
+                    "코드로 계산한 핵심 지표:\n"
+                    + json.dumps(calculated_facts, ensure_ascii=False, indent=2)
+                    + "\n\n"
+                    "가상 사용자 금융 데이터:\n"
+                    + json.dumps(compact_profile, ensure_ascii=False, indent=2)
+                ),
+            },
+        ],
+        reasoning_effort="low",
+        max_completion_tokens=4000,
+    )
+    analysis = completion.choices[0].message.content or "자산 분석 결과를 생성하지 못했습니다."
+    return format_demo_asset_facts(calculated_facts) + "\n\n" + analysis
 
 
 def _tool(name: str, description: str) -> dict[str, Any]:
@@ -245,6 +446,57 @@ app = FastAPI(title="Wallo AI Server")
 @app.get("/api/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get(
+    "/api/demo/asset-profiles",
+    response_model=list[DemoProfileSummary],
+)
+def demo_asset_profiles() -> list[DemoProfileSummary]:
+    try:
+        return list_demo_profiles()
+    except RuntimeError as error:
+        raise HTTPException(status_code=500, detail=str(error)) from error
+
+
+@app.post(
+    "/api/demo/asset-analysis",
+    response_model=DemoAssetAnalysisResponse,
+)
+def demo_asset_analysis(
+    request: DemoAssetAnalysisRequest,
+) -> DemoAssetAnalysisResponse:
+    try:
+        profile = load_demo_profiles().get(request.profile_id)
+        if profile is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"가상 사용자 프로필을 찾을 수 없습니다: {request.profile_id}",
+            )
+
+        api_key = os.getenv("GROQ_API_KEY")
+        if not api_key:
+            raise HTTPException(status_code=503, detail="GROQ_API_KEY가 설정되지 않았습니다.")
+
+        answer = generate_demo_asset_analysis(
+            Groq(api_key=api_key),
+            profile,
+            request.question,
+        )
+        source = profile.get("source") or {}
+        return DemoAssetAnalysisResponse(
+            profileId=request.profile_id,
+            title=source.get("title") or f"가상 사용자 {request.profile_id}",
+            answer=answer,
+        )
+    except GroqError as error:
+        logger.exception("Groq demo asset analysis failed")
+        raise HTTPException(
+            status_code=502,
+            detail="Groq AI 자산분석 결과를 생성하지 못했습니다.",
+        ) from error
+    except RuntimeError as error:
+        raise HTTPException(status_code=500, detail=str(error)) from error
 
 
 @app.post("/api/chat", response_model=ChatResponse)

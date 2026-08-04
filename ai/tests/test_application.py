@@ -3,7 +3,15 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-from app.application import generate_answer, generate_conversation_title
+from app.application import (
+    build_demo_asset_facts,
+    compact_demo_profile,
+    generate_answer,
+    generate_conversation_title,
+    generate_demo_asset_analysis,
+    list_demo_profiles,
+    load_demo_profiles,
+)
 
 
 def _completion(message):
@@ -87,6 +95,54 @@ class GenerateAnswerTest(unittest.TestCase):
             "generate_conversation_title",
             call_arguments["tools"][0]["function"]["name"],
         )
+
+
+class DemoAssetAnalysisTest(unittest.TestCase):
+    def test_loads_demo_profiles_from_money_log_data(self):
+        profiles = load_demo_profiles()
+
+        self.assertGreater(len(profiles), 0)
+        self.assertIn(3, profiles)
+        self.assertEqual(106010000, profiles[3]["assets"]["total_assets_krw"])
+
+    def test_lists_profiles_with_financial_summary(self):
+        summaries = list_demo_profiles()
+        profile = next(item for item in summaries if item.profile_id == 3)
+
+        self.assertEqual(106010000, profile.total_assets_krw)
+        self.assertEqual(5500000, profile.monthly_net_income_krw)
+        self.assertTrue(profile.title)
+
+    def test_generates_analysis_from_profile_without_expert_answer(self):
+        client = Mock()
+        client.chat.completions.create.return_value = _completion(
+            SimpleNamespace(content="가상 사용자 자산분석 결과", tool_calls=None)
+        )
+        profile = load_demo_profiles()[3]
+
+        answer = generate_demo_asset_analysis(client, profile, "자산을 분석해줘")
+
+        self.assertIn("- 총자산: 106,010,000원", answer)
+        self.assertTrue(answer.endswith("가상 사용자 자산분석 결과"))
+        messages = client.chat.completions.create.call_args.kwargs["messages"]
+        self.assertIn("106010000", messages[1]["content"])
+        self.assertIn('"saving_rate_percent": 54.5', messages[1]["content"])
+        self.assertNotIn("source_expert_content", messages[1]["content"])
+
+    def test_calculates_financial_facts_before_llm_request(self):
+        facts = build_demo_asset_facts(load_demo_profiles()[3])
+
+        self.assertEqual(36000000, facts["annual_saving_krw"])
+        self.assertEqual(54.5, facts["saving_rate_percent"])
+        self.assertEqual(43780000, facts["listed_asset_items_sum_krw"])
+        self.assertEqual(62230000, facts["asset_detail_unexplained_gap_krw"])
+
+    def test_compacts_duplicate_raw_content_for_llm(self):
+        compacted = compact_demo_profile(load_demo_profiles()[3])
+
+        self.assertNotIn("raw_user_content", compacted)
+        self.assertNotIn("total_assets_evidence", compacted["assets"])
+        self.assertEqual(106010000, compacted["assets"]["total_assets_krw"])
 
 
 if __name__ == "__main__":
