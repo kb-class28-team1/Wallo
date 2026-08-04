@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wallo.pointshop.mapper.PointHistoryMapper">
+
+    <resultMap id="pointHistoryItemMap"
+               type="com.wallo.pointshop.dto.response.PointHistoryItemResponse">
+        <id property="id" column="id" />
+        <result property="title" column="title" />
+        <result property="description" column="description" />
+        <result property="type" column="history_type" />
+        <result property="category" column="category" />
+        <result property="amount" column="amount" />
+        <result property="createdAt" column="created_at" />
+        <result property="status" column="status" />
+    </resultMap>
+
+    <resultMap id="pointHistorySummaryMap"
+               type="com.wallo.pointshop.dto.response.PointHistorySummaryResponse">
+        <result property="totalEarned" column="total_earned" />
+        <result property="totalUsed" column="total_used" />
+        <result property="balance" column="balance" />
+        <result property="monthlyChange" column="monthly_change" />
+    </resultMap>
+
+    <!-- USERS.point는 현재 잔액, POINT_HISTORY는 적립·사용 합계에 사용함. -->
+    <select id="findSummary" resultMap="pointHistorySummaryMap">
+        SELECT
+            COALESCE(SUM(CASE WHEN history.amount &gt; 0 THEN history.amount ELSE 0 END), 0) AS total_earned,
+            COALESCE(SUM(CASE WHEN history.amount &lt; 0 THEN -history.amount ELSE 0 END), 0) AS total_used,
+            COALESCE(user_info.point, 0) AS balance,
+            COALESCE(SUM(
+                CASE
+                    WHEN history.created_at &gt;= DATE_FORMAT(CURRENT_DATE, '%Y-%m-01')
+                    THEN history.amount
+                    ELSE 0
+                END
+            ), 0) AS monthly_change
+        FROM USERS user_info
+        LEFT JOIN POINT_HISTORY history ON history.user_id = user_info.id
+        WHERE user_info.id = #{userId}
+    </select>
+
+    <sql id="historyConditions">
+        history.user_id = #{userId}
+        <if test="type == 'EARN'">
+            AND history.amount &gt; 0
+        </if>
+        <if test="type == 'USE'">
+            AND history.amount &lt; 0
+        </if>
+        <if test="startDate != null and startDate != ''">
+            AND history.created_at &gt;= #{startDate}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (
+                history.description LIKE CONCAT('%', #{keyword}, '%')
+                OR history.type LIKE CONCAT('%', #{keyword}, '%')
+                OR history.reference_key LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+    </sql>
+
+    <select id="findItems" resultMap="pointHistoryItemMap">
+        SELECT
+            history.id,
+            CASE history.type
+                WHEN 'REWARD' THEN '주간 랭킹 보상'
+                WHEN 'BOX_REWARD' THEN '랜덤박스 즉시 보상'
+                WHEN 'INSTANT_REWARD' THEN '랜덤박스 즉시 보상'
+                WHEN 'BOX_OPEN' THEN '랜덤박스 오픈'
+                ELSE COALESCE(history.description, '포인트 변동')
+            END AS title,
+            history.description,
+            CASE WHEN history.amount &gt;= 0 THEN 'EARN' ELSE 'USE' END AS history_type,
+            CASE
+                WHEN history.type IN ('REWARD') THEN '랭킹'
+                WHEN history.type IN ('BOX_REWARD', 'INSTANT_REWARD', 'BOX_OPEN') THEN '랜덤박스'
+                ELSE history.type
+            END AS category,
+            history.amount,
+            history.created_at,
+            CASE WHEN history.amount &gt;= 0 THEN '적립' ELSE '사용' END AS status
+        FROM POINT_HISTORY history
+        WHERE <include refid="historyConditions" />
+        ORDER BY
+        <choose>
+            <when test="sort == 'OLDEST'">
+                history.created_at ASC, history.id ASC
+            </when>
+            <otherwise>
+                history.created_at DESC, history.id DESC
+            </otherwise>
+        </choose>
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countItems" resultType="long">
+        SELECT COUNT(*)
+        FROM POINT_HISTORY history
+        WHERE <include refid="historyConditions" />
+    </select>
+</mapper>

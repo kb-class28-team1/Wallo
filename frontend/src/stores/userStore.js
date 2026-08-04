@@ -25,6 +25,18 @@ export const useUserStore = defineStore("user", () => {
     hasCheckedAuth.value = true
   }
 
+  // 포인트를 사용하거나 보상받은 직후 공용 상단바도 같은 잔액을 표시하도록 갱신함.
+  const updatePointBalance = (point) => {
+    if (!user.value) {
+      return
+    }
+
+    user.value = {
+      ...user.value,
+      point: Number(point) || 0,
+    }
+  }
+
   const clearAuth = () => {
     user.value = null
     hasCheckedAuth.value = true
@@ -97,6 +109,7 @@ export const useUserStore = defineStore("user", () => {
     logout,
     restoreSession,
     clearAuth,
+    updatePointBalance,
     fetchUserProfile,
     useDefaultProfileImage,
   }
