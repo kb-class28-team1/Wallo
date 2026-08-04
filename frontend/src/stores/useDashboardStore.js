@@ -1,7 +1,7 @@
 import { computed, ref } from "vue";
 import { defineStore } from "pinia";
 import { getAssets, getBudgets, getExpenses, putBudget } from "@/api/assetApi";
-import { getExpenseCategoryLabel } from "@/constants/expenseCategories";
+import { getExpenseCategoryLabel } from "@/constants/financialCategories";
 
 const CHART_COLORS = [
   "#0D6EFD",

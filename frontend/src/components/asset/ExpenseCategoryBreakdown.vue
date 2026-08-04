@@ -6,7 +6,7 @@ import {
   EXPENSE_CATEGORY_META,
   getExpenseCategoryMeta,
   normalizeExpenseCategory,
-} from "@/constants/expenseCategories";
+} from "@/constants/financialCategories";
 
 ChartJS.register(ArcElement, Tooltip);
 

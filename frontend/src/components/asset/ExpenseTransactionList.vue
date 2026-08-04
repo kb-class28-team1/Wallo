@@ -1,5 +1,5 @@
 <script setup>
-import { getExpenseCategoryMeta } from "@/constants/expenseCategories";
+import { getExpenseCategoryMeta } from "@/constants/financialCategories";
 
 defineProps({
   transactions: {

@@ -2,18 +2,12 @@
 import { computed, ref } from "vue";
 import { Doughnut } from "vue-chartjs";
 import { ArcElement, Chart as ChartJS, Tooltip } from "chart.js";
+import {
+  ASSET_FALLBACK_COLORS,
+  getAssetCategoryMeta,
+} from "@/constants/financialCategories";
 
 ChartJS.register(ArcElement, Tooltip);
-
-const CATEGORY_META = {
-  DEPOSIT: { label: "입출금", color: "#8170ff" },
-  SAVINGS: { label: "예·적금", color: "#55c2a3" },
-  STOCK: { label: "투자", color: "#ffb657" },
-  LOAN: { label: "대출", color: "#ff7b86" },
-  ETC: { label: "기타 자산", color: "#8d99ae" },
-};
-
-const FALLBACK_COLORS = ["#5f8cff", "#46b8d8", "#c47cff", "#f28c66", "#8d99ae"];
 
 const props = defineProps({
   assets: {
@@ -40,13 +34,13 @@ const categories = computed(() =>
     .map((item, index) => {
       const category = String(item.category || "ETC").toUpperCase();
       const amount = Number(item.amount) || 0;
-      const meta = CATEGORY_META[category];
+      const meta = getAssetCategoryMeta(category);
 
       return {
         category,
         label: meta?.label ?? item.category ?? "기타 자산",
         amount,
-        color: meta?.color ?? FALLBACK_COLORS[index % FALLBACK_COLORS.length],
+        color: meta?.color ?? ASSET_FALLBACK_COLORS[index % ASSET_FALLBACK_COLORS.length],
       };
     })
     .filter((item) => item.amount > 0)

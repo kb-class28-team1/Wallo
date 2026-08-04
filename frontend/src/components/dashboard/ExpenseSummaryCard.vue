@@ -2,7 +2,7 @@
 import { computed } from "vue";
 import { Doughnut } from "vue-chartjs";
 import { ArcElement, Chart as ChartJS, Legend, Tooltip } from "chart.js";
-import { getExpenseCategoryLabel } from "@/constants/expenseCategories";
+import { getExpenseCategoryLabel } from "@/constants/financialCategories";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
