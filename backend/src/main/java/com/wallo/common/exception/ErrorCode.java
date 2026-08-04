@@ -29,6 +29,31 @@ public enum ErrorCode {
             "DASHBOARD_001",
             "대시보드 요청 값이 올바르지 않습니다."
     ),
+    REPORT_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "REPORT_001",
+            "요청하신 금융 리포트를 찾을 수 없습니다."
+    ),
+    REPORT_CONTENT_EMPTY(
+            HttpStatus.BAD_REQUEST,
+            "REPORT_002",
+            "기사 본문이 비어 있어 금융 리포트를 생성할 수 없습니다."
+    ),
+    AI_REPORT_GENERATION_FAILED(
+            HttpStatus.BAD_GATEWAY,
+            "REPORT_003",
+            "AI 서버 호출에 실패했습니다."
+    ),
+    AI_REPORT_INVALID_RESPONSE(
+            HttpStatus.BAD_GATEWAY,
+            "REPORT_004",
+            "AI 서버 응답이 올바르지 않습니다."
+    ),
+    REPORT_SAVE_FAILED(
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            "REPORT_005",
+            "금융 리포트 저장에 실패했습니다."
+    ),
     INVALID_ANNUAL_SALARY(
             HttpStatus.BAD_REQUEST,
             "PROFILE_001",
@@ -39,14 +64,17 @@ public enum ErrorCode {
             "PROFILE_002",
             "사용자 정보를 찾을 수 없습니다."
     ),
+    // 연말정산 리포트(자산) 기능의 코드였던 REPORT_001/REPORT_002가 금융 리포트(뉴스) 기능의
+    // 코드와 우연히 겹쳐 있었다(develop 병합 중 발견) — 같은 "REPORT" 접두어를 서로 다른 두 기능이
+    // 독립적으로 사용해서 생긴 충돌이다. 이미 있는 PROFILE_00X 네임스페이스로 옮겨 재번호했다.
     INVALID_REPORT_YEAR(
             HttpStatus.BAD_REQUEST,
-            "REPORT_001",
+            "PROFILE_003",
             "조회 연도가 올바르지 않습니다."
     ),
     ANNUAL_SALARY_REQUIRED(
             HttpStatus.BAD_REQUEST,
-            "REPORT_002",
+            "PROFILE_004",
             "연말정산 계산을 위해 연봉을 먼저 입력해주세요."
     ),
     METHOD_NOT_ALLOWED(

@@ -1,13 +1,13 @@
 package com.wallo.config;
 
-import com.wallo.common.ApiExceptionHandler;
-import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Import;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.wallo.common.ApiExceptionHandler;
 import java.util.List;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.web.multipart.support.StandardServletMultipartResolver;
@@ -16,8 +16,9 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
 @EnableWebMvc
-@Import(ApiExceptionHandler.class)
+@Import({ApiExceptionHandler.class, SwaggerConfig.class})
 @ComponentScan(basePackages = {
+        "com.wallo.report.controller",
         "com.wallo.asset.controller",
         "com.wallo.auth.controller",
         "com.wallo.auth.exception",
@@ -29,12 +30,15 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
         "com.wallo.feed.controller",
         "com.wallo.common.exception"
 })
+// SwaggerConfig가 컨트롤러와 같은(서블릿) 컨텍스트에서 로딩되어야 실제 API를 문서화할 수 있어 여기서 가져온다.
 public class WebMvcConfig implements WebMvcConfigurer {
+
     @Bean
     public StandardServletMultipartResolver multipartResolver() {
         return new StandardServletMultipartResolver();
     }
 
+    // LocalDateTime 등을 [2026,7,30,...] 배열이 아니라 "2026-07-30T17:00:00" 형태의 문자열로 응답하도록 한다.
     @Override
     public void extendMessageConverters(List<HttpMessageConverter<?>> converters) {
         converters.stream()
