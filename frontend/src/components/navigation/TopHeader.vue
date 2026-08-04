@@ -3,9 +3,10 @@ import { computed, onMounted, ref } from "vue"
 import { storeToRefs } from "pinia"
 import { RouterLink, useRouter } from "vue-router"
 import { getTodayMissions } from "@/api/missionApi"
-import pointWCoin from "@/assets/point-w-coin.svg"
 import { useUserStore } from "@/stores/userStore"
 
+// public 폴더의 이미지는 루트 절대 경로로 참조함.
+const pointWCoin = "/images/profiles/point-w-coin.svg"
 const userStore = useUserStore()
 const router = useRouter()
 const { nickname, profileImageUrl, pointBalance, isLoading } = storeToRefs(userStore)
