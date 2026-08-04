@@ -22,44 +22,6 @@
         "resCardState": "1",
         "resValidPeriod": "08/27"
       }
-    ],
-    "transactions": [
-      {
-        "resCardNo": "4321-0000-0000-8765",
-        "resCardApprovalNo": "CARD-202606-0001",
-        "resUsedDate": "2026-06-29",
-        "resUsedTime": "08:15:00",
-        "resUsedAmount": "3000",
-        "resUsedMerchantName": "카페 월로",
-        "resUsedCategory": "CAFE"
-      },
-      {
-        "resCardNo": "4321-0000-0000-8765",
-        "resCardApprovalNo": "CARD-202607-0001",
-        "resUsedDate": "2026-07-27",
-        "resUsedTime": "12:25:00",
-        "resUsedAmount": "12800",
-        "resUsedMerchantName": "점심식당",
-        "resUsedCategory": "FOOD"
-      },
-      {
-        "resCardNo": "4321-0000-0000-8765",
-        "resCardApprovalNo": "CARD-202607-0002",
-        "resUsedDate": "2026-07-29",
-        "resUsedTime": "08:15:00",
-        "resUsedAmount": "5500",
-        "resUsedMerchantName": "카페 월로",
-        "resUsedCategory": "CAFE"
-      },
-      {
-        "resCardNo": "9876-0000-0000-4321",
-        "resCardApprovalNo": "CARD-202607-0003",
-        "resUsedDate": "2026-07-30",
-        "resUsedTime": "19:03:00",
-        "resUsedAmount": "38000",
-        "resUsedMerchantName": "마트",
-        "resUsedCategory": "SHOPPING"
-      }
     ]
   }
 }

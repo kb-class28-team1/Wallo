@@ -1,70 +1,66 @@
 package com.wallo.asset.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wallo.asset.domain.Institution;
 import com.wallo.asset.dto.InstitutionDto;
-import java.util.Arrays;
+import com.wallo.asset.mapper.InstitutionMapper;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
 @Service
 public class InstitutionService {
 
-    private static final String KB_LOGO_URL = "https://www.kbstar.com/favicon.ico";
-    private static final String HANA_CARD_LOGO_URL = "https://www.hanacard.co.kr/favicon.ico";
-    private static final String KIWOOM_LOGO_URL = "https://www.kiwoom.com/favicon.ico";
+    private final InstitutionMapper institutionMapper;
+    private final ObjectMapper objectMapper;
+
+    public InstitutionService(InstitutionMapper institutionMapper, ObjectMapper objectMapper) {
+        this.institutionMapper = institutionMapper;
+        this.objectMapper = objectMapper;
+    }
 
     public List<Institution> getConnectionTargetInstitutions() {
-        return Arrays.asList(
-                new Institution("0004", "KB국민은행", "BANK", KB_LOGO_URL),
-                new Institution("0311", "하나카드", "CARD", HANA_CARD_LOGO_URL),
-                new Institution("0264", "키움증권", "STOCK", KIWOOM_LOGO_URL)
-        );
+        return institutionMapper.findActiveInstitutions();
     }
 
     public InstitutionDto.Response getInstitutions() {
+        List<Institution> institutions = institutionMapper.findActiveInstitutions();
         return new InstitutionDto.Response(
-                Arrays.asList(
-                        new InstitutionDto.Item(
-                                "0004",
-                                "KB국민은행",
-                                KB_LOGO_URL,
-                                Arrays.asList("입출금", "예적금", "대출")
-                        ),
-                        new InstitutionDto.Item(
-                                "0088",
-                                "신한은행",
-                                "https://www.shinhan.com/favicon.ico",
-                                Arrays.asList("입출금", "예적금", "대출")
-                        )
-                ),
-                Arrays.asList(
-                        new InstitutionDto.Item(
-                                "0311",
-                                "하나카드",
-                                HANA_CARD_LOGO_URL,
-                                Arrays.asList("신용/체크카드 결제내역")
-                        ),
-                        new InstitutionDto.Item(
-                                "0071",
-                                "BC카드",
-                                "https://www.bccard.com/favicon.ico",
-                                Arrays.asList("신용/체크카드 결제내역")
-                        )
-                ),
-                Arrays.asList(
-                        new InstitutionDto.Item(
-                                "0264",
-                                "키움증권",
-                                KIWOOM_LOGO_URL,
-                                Arrays.asList("주식", "CMA", "연금저축")
-                        ),
-                        new InstitutionDto.Item(
-                                "0238",
-                                "미래에셋증권",
-                                "https://securities.miraeasset.com/favicon.ico",
-                                Arrays.asList("주식", "CMA", "연금저축")
-                        )
-                )
+                itemsOfType(institutions, "BANK"),
+                itemsOfType(institutions, "CARD"),
+                itemsOfType(institutions, "STOCK")
         );
+    }
+
+    private List<InstitutionDto.Item> itemsOfType(List<Institution> institutions, String type) {
+        return institutions.stream()
+                .filter(institution -> type.equals(institution.getInstitutionType()))
+                .map(this::toItem)
+                .collect(Collectors.toList());
+    }
+
+    private InstitutionDto.Item toItem(Institution institution) {
+        return new InstitutionDto.Item(
+                institution.getInstitutionId(),
+                institution.getCodefOrganizationCode(),
+                institution.getName(),
+                institution.getLogoUrl(),
+                parseServices(institution.getServices())
+        );
+    }
+
+    private List<String> parseServices(String services) {
+        if (services == null || services.isBlank()) {
+            return Collections.emptyList();
+        }
+
+        try {
+            return objectMapper.readValue(services, new TypeReference<List<String>>() { });
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("기관 서비스 정보를 읽을 수 없습니다.", exception);
+        }
     }
 }

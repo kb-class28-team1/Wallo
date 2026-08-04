@@ -41,7 +41,7 @@ public final class ConnectionDto {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class Result {
-        private String institutionId;
+        private Long institutionId;
         private String institutionName;
         private String institutionType;
         private String logoUrl;

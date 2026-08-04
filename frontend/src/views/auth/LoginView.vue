@@ -26,13 +26,14 @@ const handleLogin = async () => {
   if (errors.email || errors.password) return
 
   try {
-    await userStore.login({
+    const authenticatedUser = await userStore.login({
       email: email.value.trim(),
       password: password.value,
     })
 
-    const redirectPath =
-      typeof route.query.redirect === "string" && route.query.redirect.startsWith("/")
+    const redirectPath = !authenticatedUser.connectionCompleted
+      ? "/connections/mydata"
+      : typeof route.query.redirect === "string" && route.query.redirect.startsWith("/")
         ? route.query.redirect
         : "/dashboard"
     await router.replace(redirectPath)

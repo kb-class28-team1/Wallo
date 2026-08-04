@@ -16,7 +16,7 @@ public interface ConnectionMapper {
 
     Long findActiveConnectionId(
             @Param("userId") long userId,
-            @Param("institutionId") String institutionId
+            @Param("institutionId") Long institutionId
     );
 }
 
