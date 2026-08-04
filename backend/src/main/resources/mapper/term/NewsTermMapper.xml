@@ -23,6 +23,7 @@
         <id property="termId" column="term_id" />
         <result property="termName" column="term_name" />
         <result property="description" column="description" />
+        <result property="shortDefinition" column="short_definition" />
         <result property="source" column="source" />
     </resultMap>
 
@@ -32,6 +33,7 @@
             ft.term_id,
             ft.term_name,
             ft.description,
+            ft.short_definition,
             ft.source
         FROM news_term nt
         JOIN financial_term ft ON nt.term_id = ft.term_id

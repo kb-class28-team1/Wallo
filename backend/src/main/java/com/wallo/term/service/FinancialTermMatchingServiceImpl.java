@@ -217,6 +217,11 @@ public class FinancialTermMatchingServiceImpl implements FinancialTermMatchingSe
 
         if (isAsciiAlnum(coreCodePoints[0])) {
             pattern.append("(?<![A-Za-z0-9])");
+        } else if (isHangulSyllable(coreCodePoints[0])) {
+            // "칠리스"(외래어를 한글로 음역한 고유명사) 안에서 "리스"(리스 용어)가 우연히 매칭되는
+            // 것을 막는다. 한글로 시작하는 용어는 바로 앞에 다른 한글 음절이 오면 매칭하지 않는다.
+            // 뒤쪽은 그대로 허용한다 — "금리"가 "금리인상" 앞부분에서 매칭되는 기존 동작은 유지된다.
+            pattern.append("(?<![가-힣])");
         }
         for (int i = 0; i < coreCodePoints.length; i++) {
             if (i > 0) {
@@ -229,6 +234,10 @@ public class FinancialTermMatchingServiceImpl implements FinancialTermMatchingSe
         }
 
         return pattern.toString();
+    }
+
+    private boolean isHangulSyllable(int codePoint) {
+        return codePoint >= 0xAC00 && codePoint <= 0xD7A3;
     }
 
     private boolean isAsciiAlnum(int codePoint) {

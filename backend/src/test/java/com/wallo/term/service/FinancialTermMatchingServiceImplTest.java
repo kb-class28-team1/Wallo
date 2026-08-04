@@ -141,6 +141,32 @@ class FinancialTermMatchingServiceImplTest {
         assertTrue(newsTermMapper.lastInsertedTermIds.containsAll(List.of(1L, 2L)));
     }
 
+    // 실사례 회귀 테스트: 외래어를 한글로 음역한 고유명사("칠리스" = Chili's) 안에서 짧은 한글
+    // 용어("리스")가 우연히 매칭되던 실제 버그. 앞에 다른 한글 음절이 바로 붙어 있으면 매칭하지 않는다.
+    @Test
+    void doesNotMatchShortHangulTermEmbeddedInsideTransliteratedProperNoun() {
+        FakeFinancialTermMapper termMapper = new FakeFinancialTermMapper(List.of(term(1L, "리스")));
+        FakeNewsTermMapper newsTermMapper = new FakeNewsTermMapper();
+        FinancialTermMatchingServiceImpl service = new FinancialTermMatchingServiceImpl(termMapper, newsTermMapper);
+
+        service.matchAndSaveTerms(100L, null, "칠리스는 서빙 로봇을 매장에서 철수시켰다.");
+
+        assertEquals(0, newsTermMapper.batchInsertCallCount);
+    }
+
+    // 위 회귀 테스트와 짝을 이루는 대조군: 앞에 공백이 있어 독립된 단어로 등장하면 정상 매칭돼야 한다
+    // (음절이 바로 붙어 있을 때만 걸러내는 것이지, "리스" 자체를 막는 게 아님을 확인).
+    @Test
+    void stillMatchesShortHangulTermWhenPrecededBySpace() {
+        FakeFinancialTermMapper termMapper = new FakeFinancialTermMapper(List.of(term(1L, "리스")));
+        FakeNewsTermMapper newsTermMapper = new FakeNewsTermMapper();
+        FinancialTermMatchingServiceImpl service = new FinancialTermMatchingServiceImpl(termMapper, newsTermMapper);
+
+        service.matchAndSaveTerms(100L, null, "회사는 장비를 리스로 조달했다.");
+
+        assertEquals(List.of(1L), newsTermMapper.lastInsertedTermIds);
+    }
+
     // 9. 동일 용어가 본문에 여러 번 등장 (term_id는 한 번만 저장)
     @Test
     void deduplicatesSameTermAppearingMultipleTimes() {
