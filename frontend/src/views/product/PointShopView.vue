@@ -63,6 +63,7 @@ const loadPointShop = async () => {
     const pointShop = response?.data || response
 
     shopPointBalance.value = pointShop?.pointBalance ?? 0
+    userStore.updatePointBalance(shopPointBalance.value)
     if (Array.isArray(pointShop?.boxes) && pointShop.boxes.length) {
       const box = pointShop.boxes[0]
       randomBoxes.value = [
@@ -114,6 +115,7 @@ const handleOpenBox = async (box) => {
     const response = await openRandomBox(box.id)
     const result = response?.data || response
     shopPointBalance.value = result?.remainingPoint ?? shopPointBalance.value
+    userStore.updatePointBalance(shopPointBalance.value)
     if (result?.result === "LOSE") {
       alert("아쉽게도 당첨되지 않았습니다.")
     } else if (result?.result === "POINT") {
