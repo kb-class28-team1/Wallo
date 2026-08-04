@@ -11,8 +11,6 @@ import org.springframework.stereotype.Service;
 @Service
 public class ExpenseService {
 
-    private static final int DEFAULT_PAGE = 0;
-    private static final int DEFAULT_SIZE = 20;
     private static final int MAX_SIZE = 100;
 
     private final ExpenseMapper expenseMapper;
@@ -24,30 +22,32 @@ public class ExpenseService {
     public ExpenseDto.Summary getExpenseSummary(long userId, ExpenseDto.SearchCondition condition) {
         ExpenseDto.SearchCondition normalizedCondition = normalizeCondition(condition);
         List<ExpenseDto.Transaction> transactions = expenseMapper.selectTransactions(userId, normalizedCondition);
+        long totalElements = expenseMapper.countTransactions(userId, normalizedCondition);
+        int totalPages = calculateTotalPages(totalElements, normalizedCondition.getSize());
 
         return new ExpenseDto.Summary(
                 valueOrZero(expenseMapper.selectTotalExpense(userId, normalizedCondition)),
                 valueOrZero(expenseMapper.selectTotalIncome(userId, normalizedCondition)),
                 expenseMapper.selectExpenseCategoryBreakdown(userId, normalizedCondition),
+                expenseMapper.selectDailyBreakdown(userId, normalizedCondition),
                 transactions,
-                expenseMapper.countTransactions(userId, normalizedCondition),
-                normalizedCondition.getPage(),
-                normalizedCondition.getSize()
+                new ExpenseDto.Pagination(
+                        normalizedCondition.getPage(),
+                        totalPages,
+                        totalElements,
+                        normalizedCondition.getPage() + 1 < totalPages
+                )
         );
     }
 
     private ExpenseDto.SearchCondition normalizeCondition(ExpenseDto.SearchCondition condition) {
-        LocalDate today = LocalDate.now();
-        LocalDate startDate = parseOrDefault(
-                condition == null ? null : condition.getStartDate(),
-                today.withDayOfMonth(1)
-        );
-        LocalDate endDate = parseOrDefault(
-                condition == null ? null : condition.getEndDate(),
-                today
-        );
-        int page = condition == null ? DEFAULT_PAGE : condition.getPage();
-        int size = condition == null || condition.getSize() == 0 ? DEFAULT_SIZE : condition.getSize();
+        if (condition == null) {
+            throw new InvalidDashboardRequestException();
+        }
+        LocalDate startDate = parseRequired(condition.getStartDate());
+        LocalDate endDate = parseRequired(condition.getEndDate());
+        int page = condition.getPage();
+        int size = condition.getSize();
 
         if (startDate.isAfter(endDate) || page < 0 || size < 1 || size > MAX_SIZE) {
             throw new InvalidDashboardRequestException();
@@ -66,9 +66,9 @@ public class ExpenseService {
         }
     }
 
-    private LocalDate parseOrDefault(String value, LocalDate defaultValue) {
+    private LocalDate parseRequired(String value) {
         if (value == null || value.isBlank()) {
-            return defaultValue;
+            throw new InvalidDashboardRequestException();
         }
 
         try {
@@ -76,6 +76,17 @@ public class ExpenseService {
         } catch (DateTimeException exception) {
             throw new InvalidDashboardRequestException();
         }
+    }
+
+    private int calculateTotalPages(long totalElements, int size) {
+        if (totalElements == 0L) {
+            return 0;
+        }
+        long totalPages = ((totalElements - 1L) / size) + 1L;
+        if (totalPages > Integer.MAX_VALUE) {
+            throw new InvalidDashboardRequestException();
+        }
+        return (int) totalPages;
     }
 
     private long valueOrZero(Long amount) {

@@ -3,9 +3,11 @@ import { computed, onBeforeUnmount, ref } from "vue";
 import { useRouter } from "vue-router";
 import { connectAllAssets } from "@/api/assetApi";
 import { useAssetStore } from "@/stores/assetStore";
+import { useUserStore } from "@/stores/userStore";
 
 const router = useRouter();
 const assetStore = useAssetStore();
+const userStore = useUserStore();
 
 const name = ref("");
 const phoneNumber = ref("");
@@ -83,7 +85,7 @@ const notifyConnectionResult = (results = []) => {
   }
 
   const successCount = results.filter(isSuccessResult).length;
-  successMessage.value = `총 ${successCount}개 기관의 자산 연동이 완료되었습니다!`;
+  successMessage.value = `총 ${successCount}개 기관의 자산 연결이 완료되었습니다!`;
   connectedAssets.value = results.map((result, index) => {
     const institutionName = getInstitutionName(result);
 
@@ -92,7 +94,7 @@ const notifyConnectionResult = (results = []) => {
       logoText: getLogoText(institutionName),
       logoUrl: result.logoUrl || "",
       name: institutionName,
-      message: result.message || (isSuccessResult(result) ? "연동 완료" : "연동 실패"),
+      message: result.message || (isSuccessResult(result) ? "연결 완료" : "연결 실패"),
     };
   });
   isSuccessModalVisible.value = true;
@@ -155,7 +157,13 @@ const handleSubmit = async () => {
 
 const moveToDashboard = async () => {
   isSuccessModalVisible.value = false;
-  await router.push("/dashboard");
+  try {
+    await userStore.restoreSession(true);
+    await router.replace("/dashboard");
+  } catch (error) {
+    alert(error.message || "사용자 연동 상태를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+    isSuccessModalVisible.value = true;
+  }
 };
 
 onBeforeUnmount(() => {
@@ -172,7 +180,7 @@ onBeforeUnmount(() => {
           <span>한 번에 모아볼까요?</span>
         </h1>
         <p class="connection-hero-copy">
-          안전한 마이데이터 연동을 통해<br />
+          안전한 마이데이터 연결을 통해<br />
           모든 계좌와 카드 내역을 한곳에서 관리하세요.
         </p>
       </div>
@@ -193,8 +201,8 @@ onBeforeUnmount(() => {
     <section class="connection-form-panel">
       <div class="connection-form-inner">
         <div class="connection-form-header">
-          <h2>연동 시작하기</h2>
-          <p>서비스 이용을 위한 통합 동의 및 본인 확인 단계입니다.</p>
+          <h2>자산 연결</h2>
+          <p>은행·카드·증권 계정을 연결하여 자산과 거래 내역을 불러옵니다.</p>
         </div>
 
         <form class="connection-form" @submit.prevent="handleSubmit">
@@ -250,7 +258,7 @@ onBeforeUnmount(() => {
               class="spinner-border spinner-border-sm me-2"
               aria-hidden="true"
             ></span>
-            <span>{{ isLoading ? "연동 중..." : "동의하고 전체 연동하기" }}</span>
+            <span>{{ isLoading ? "연결 중..." : "동의하고 자산 연결하기" }}</span>
           </button>
         </form>
       </div>
@@ -268,7 +276,7 @@ onBeforeUnmount(() => {
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content app-modal">
           <div class="modal-header">
-            <h2 id="connectionProgressTitle" class="modal-title h5">자산 연동 진행 중</h2>
+            <h2 id="connectionProgressTitle" class="modal-title h5">자산 연결 진행 중</h2>
           </div>
           <div class="modal-body">
             <div class="d-flex align-items-center mb-3">
@@ -308,7 +316,7 @@ onBeforeUnmount(() => {
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content app-modal">
           <div class="modal-header">
-            <h2 id="connectionSuccessTitle" class="modal-title h5">연동 완료</h2>
+            <h2 id="connectionSuccessTitle" class="modal-title h5">연결 완료</h2>
           </div>
           <div class="modal-body">
             <p class="modal-message mb-3">{{ successMessage }}</p>

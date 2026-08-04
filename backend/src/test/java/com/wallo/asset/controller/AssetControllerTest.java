@@ -68,9 +68,8 @@ class AssetControllerTest {
                         3_000_000L,
                         Collections.emptyList(),
                         Collections.emptyList(),
-                        0L,
-                        0,
-                        20
+                        Collections.emptyList(),
+                        new ExpenseDto.Pagination(1, 3, 25L, true)
                 ));
 
         String responseBody = mockMvc.perform(get("/api/assets/expense")
@@ -85,6 +84,12 @@ class AssetControllerTest {
 
         assertTrue(responseBody.contains("\"success\":true"));
         assertTrue(responseBody.contains("\"totalExpense\":155000"));
+        assertTrue(responseBody.contains("\"dailyBreakdown\":[]"));
+        assertTrue(responseBody.contains("\"pagination\":{"));
+        assertTrue(responseBody.contains("\"currentPage\":1"));
+        assertTrue(responseBody.contains("\"totalPages\":3"));
+        assertTrue(responseBody.contains("\"totalElements\":25"));
+        assertTrue(responseBody.contains("\"hasNext\":true"));
 
         ArgumentCaptor<ExpenseDto.SearchCondition> captor = ArgumentCaptor.forClass(
                 ExpenseDto.SearchCondition.class
@@ -94,5 +99,14 @@ class AssetControllerTest {
         assertEquals("2026-07-31", captor.getValue().getEndDate());
         assertEquals(1, captor.getValue().getPage());
         assertEquals(10, captor.getValue().getSize());
+    }
+
+    @Test
+    void getExpensesReturnsBadRequestWhenAnyRequiredParameterIsMissing() throws Exception {
+        mockMvc.perform(get("/api/assets/expense")
+                        .param("startDate", "2026-07-01")
+                        .param("endDate", "2026-07-31")
+                        .param("page", "0"))
+                .andExpect(status().isBadRequest());
     }
 }

@@ -28,6 +28,33 @@ public final class CodefDto {
     @Setter
     @NoArgsConstructor
     @AllArgsConstructor
+    public static class CardApprovalRequest {
+        private String organization;
+        private String loginType;
+        private String id;
+        private String password;
+        private String startDate;
+        private String endDate;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class BankTransactionRequest {
+        private String organization;
+        private String loginType;
+        private String id;
+        private String password;
+        private String account;
+        private String startDate;
+        private String endDate;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class Response {
         private Result result;
         private Object data;
@@ -60,6 +87,16 @@ public final class CodefDto {
         private List<Loan> loans;
         private List<Card> cards;
         private List<Transaction> transactions;
+        private List<AssetSnapshot> assetSnapshots;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class AssetSnapshot {
+        private String snapshotMonth;
+        private String totalAssets;
     }
 
     @Getter
@@ -100,6 +137,35 @@ public final class CodefDto {
         private String resCardType;
         private String resCardState;
         private String resValidPeriod;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class CardApproval {
+        private String resCardNo;
+        private String resUsedDate;
+        private String resUsedTime;
+        private String resApprovalNo;
+        private String resMemberName;
+        private String resUsedAmount;
+        private String resMemberSector;
+        private String resCardType;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class BankTransaction {
+        private String resAccount;
+        private String resTrNo;
+        private String resTrDate;
+        private String resTrTime;
+        private String resAccountIn;
+        private String resAccountOut;
+        private String resAccountDesc;
     }
 
     @Getter

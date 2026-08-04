@@ -6,7 +6,7 @@ USE wallo;
 -- 1. Create dummy users.
 INSERT INTO USERS (
     email,
-    password,
+    password_hash,
     nickname,
     name,
     annual_salary,

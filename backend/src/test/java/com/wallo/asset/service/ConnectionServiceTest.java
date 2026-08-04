@@ -25,8 +25,15 @@ public class ConnectionServiceTest {
     private final InstitutionService institutionService = mock(InstitutionService.class);
     private final ConnectionMapper connectionMapper = mock(ConnectionMapper.class);
     private final AssetSyncService assetSyncService = mock(AssetSyncService.class);
+    private final CardWithdrawalReconciliationService cardWithdrawalReconciliationService =
+            mock(CardWithdrawalReconciliationService.class);
     private final ConnectionService connectionService = new ConnectionService(
-            codefClient, institutionService, connectionMapper, assetSyncService);
+            codefClient,
+            institutionService,
+            connectionMapper,
+            assetSyncService,
+            cardWithdrawalReconciliationService
+    );
 
     @Test
     public void connectAllAssetsThrowsConsentExceptionWhenConsentIsMissing() {
@@ -58,6 +65,7 @@ public class ConnectionServiceTest {
         assertEquals(ConnectionDto.Status.SUCCESS, response.getResults().get(2).getStatus());
         verify(codefClient, times(3)).connectInstitution(any(CodefDto.Request.class));
         verify(connectionMapper).insertConnections(any(), org.mockito.ArgumentMatchers.eq(7L), any(), any(), any());
+        verify(cardWithdrawalReconciliationService).reconcile(7L);
     }
 
     @Test
@@ -86,9 +94,9 @@ public class ConnectionServiceTest {
 
     private void givenConnectionTargets() {
         List<Institution> institutions = Arrays.asList(
-                new Institution("0004", "Bank", "BANK", "bank-logo"),
-                new Institution("0311", "Card", "CARD", "card-logo"),
-                new Institution("0264", "Stock", "STOCK", "stock-logo")
+                new Institution(1L, "0004", "Bank", "BANK", "bank-logo"),
+                new Institution(2L, "0311", "Card", "CARD", "card-logo"),
+                new Institution(3L, "0264", "Stock", "STOCK", "stock-logo")
         );
         when(institutionService.getConnectionTargetInstitutions()).thenReturn(institutions);
     }
