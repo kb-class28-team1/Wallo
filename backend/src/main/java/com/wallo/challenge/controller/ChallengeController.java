@@ -7,7 +7,10 @@ import com.wallo.challenge.dto.response.CreateChallengeResponse;
 import com.wallo.challenge.dto.response.CurrentChallengeResponse;
 import com.wallo.challenge.dto.response.JoinChallengeResponse;
 import com.wallo.challenge.dto.response.WeeklyRankingResponse;
+import com.wallo.challenge.dto.response.WeeklyRankingRewardResponse;
 import com.wallo.challenge.service.ChallengeService;
+import com.wallo.challenge.service.WeeklyRankingRewardService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,13 +25,24 @@ import org.springframework.web.bind.annotation.RestController;
 public class ChallengeController {
 
     private final ChallengeService challengeService;
+    private final WeeklyRankingRewardService weeklyRankingRewardService;
     private final CurrentUserProvider currentUserProvider;
 
+    @Autowired
+    public ChallengeController(
+            ChallengeService challengeService,
+            WeeklyRankingRewardService weeklyRankingRewardService,
+            CurrentUserProvider currentUserProvider) {
+        this.challengeService = challengeService;
+        this.weeklyRankingRewardService = weeklyRankingRewardService;
+        this.currentUserProvider = currentUserProvider;
+    }
+
+    /** 기존 컨트롤러 단위 테스트와의 호환을 위한 생성자임. */
     public ChallengeController(
             ChallengeService challengeService,
             CurrentUserProvider currentUserProvider) {
-        this.challengeService = challengeService;
-        this.currentUserProvider = currentUserProvider;
+        this(challengeService, null, currentUserProvider);
     }
 
     /**
@@ -70,5 +84,12 @@ public class ChallengeController {
         WeeklyRankingResponse response = challengeService.getWeeklyRanking(currentUserId);
 
         return ResponseEntity.ok(response);
+    }
+
+    /** 실제 월요일을 기다리지 않고 현재 주 랭킹 보상을 지급하는 개발용 API임. */
+    @PostMapping("/rankings/weekly/reward/test")
+    public ResponseEntity<WeeklyRankingRewardResponse> grantWeeklyRankingRewardForTest() {
+        currentUserProvider.getCurrentUserId();
+        return ResponseEntity.ok(weeklyRankingRewardService.grantCurrentWeekRewardsForTest());
     }
 }
