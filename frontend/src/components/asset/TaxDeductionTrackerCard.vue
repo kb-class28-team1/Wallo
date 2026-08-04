@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
 import { storeToRefs } from "pinia";
-import { useReportStore } from "@/stores/reportStore";
+import { useReportStore } from "@/stores/assetReportStore.js";
 import { formatNumber } from "@/commonUtils/formatters";
 
 const reportStore = useReportStore();

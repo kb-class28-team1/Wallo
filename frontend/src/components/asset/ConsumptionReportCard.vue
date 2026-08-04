@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted } from "vue";
 import { storeToRefs } from "pinia";
-import { useReportStore } from "@/stores/reportStore";
+import { useReportStore } from "@/stores/assetReportStore.js";
 
 const reportStore = useReportStore();
 const { insight, isInsightLoading, insightError } = storeToRefs(reportStore);
