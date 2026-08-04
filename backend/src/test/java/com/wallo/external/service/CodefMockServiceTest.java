@@ -2,6 +2,7 @@ package com.wallo.external.service;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -11,15 +12,57 @@ import java.util.List;
 import org.junit.Before;
 import org.junit.Test;
 
-public class CodefTransactionMockServiceTest {
+public class CodefMockServiceTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private CodefTransactionMockService service;
+    private CodefMockService service;
 
     @Before
     public void setUp() {
-        CodefMockResponseLoader responseLoader = new CodefMockResponseLoader(objectMapper);
-        service = new CodefTransactionMockService(responseLoader, objectMapper);
+        service = new CodefMockService(objectMapper);
+    }
+
+    @Test
+    public void bankAssetEndpointLoadsBankFixture() {
+        CodefDto.Response response = service.getAssetResponse(
+                "/mock/v1/kr/bank/p/account/account-list"
+        );
+
+        assertSuccess(response);
+        CodefDto.AssetData data = objectMapper.convertValue(response.getData(), CodefDto.AssetData.class);
+        assertEquals(2, data.getAccounts().size());
+        assertEquals(1, data.getLoans().size());
+        assertEquals(1, data.getTransactions().size());
+        assertEquals(5, data.getAssetSnapshots().size());
+        assertEquals("2026-08", data.getAssetSnapshots().get(4).getSnapshotMonth());
+        assertEquals("40100000", data.getAssetSnapshots().get(4).getTotalAssets());
+    }
+
+    @Test
+    public void cardAssetEndpointLoadsCardFixture() {
+        CodefDto.Response response = service.getAssetResponse(
+                "/mock/v1/kr/card/p/account/card-list"
+        );
+
+        assertSuccess(response);
+        CodefDto.AssetData data = objectMapper.convertValue(response.getData(), CodefDto.AssetData.class);
+        assertEquals(2, data.getCards().size());
+        assertNull(data.getTransactions());
+    }
+
+    @Test
+    public void stockAssetEndpointLoadsStockFixture() {
+        assertSuccess(service.getAssetResponse(
+                "/mock/v1/kr/stock/p/account/account-list"
+        ));
+    }
+
+    @Test
+    public void unknownAssetEndpointReturnsNotFoundResponse() {
+        CodefDto.Response response = service.getAssetResponse("/mock/v1/kr/unsupported");
+
+        assertEquals("CF-40400", response.getResult().getCode());
+        assertNull(response.getData());
     }
 
     @Test

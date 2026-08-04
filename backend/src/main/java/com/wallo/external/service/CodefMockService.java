@@ -3,16 +3,19 @@ package com.wallo.external.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wallo.external.dto.CodefDto;
+import java.io.IOException;
 import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
 @Service
-public class CodefTransactionMockService {
+public class CodefMockService {
 
     private static final String CARD_ORGANIZATION = "0311";
     private static final String BANK_ORGANIZATION = "0004";
@@ -20,17 +23,21 @@ public class CodefTransactionMockService {
             "123456-01-789012",
             "987654-01-321098"
     );
+    private static final Map<String, String> FIXTURE_BY_PATH = Map.of(
+            "/mock/v1/kr/bank/p/account/account-list", "bank-accounts.json",
+            "/mock/v1/kr/card/p/account/card-list", "card-list.json",
+            "/mock/v1/kr/stock/p/account/account-list", "stock-accounts.json"
+    );
     private static final DateTimeFormatter REQUEST_DATE_FORMATTER = DateTimeFormatter.BASIC_ISO_DATE;
 
-    private final CodefMockResponseLoader responseLoader;
     private final ObjectMapper objectMapper;
 
-    public CodefTransactionMockService(
-            CodefMockResponseLoader responseLoader,
-            ObjectMapper objectMapper
-    ) {
-        this.responseLoader = responseLoader;
+    public CodefMockService(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
+    }
+
+    public CodefDto.Response getAssetResponse(String requestPath) {
+        return load(FIXTURE_BY_PATH.get(requestPath));
     }
 
     public CodefDto.Response getCardApprovals(CodefDto.CardApprovalRequest request) {
@@ -54,7 +61,7 @@ public class CodefTransactionMockService {
             return invalidRequest("startDate와 endDate는 유효한 YYYYMMDD 형식이어야 합니다.");
         }
 
-        CodefDto.Response fixture = responseLoader.load("card-approval-list.json");
+        CodefDto.Response fixture = load("card-approval-list.json");
         if (!isSuccess(fixture)) {
             return fixture;
         }
@@ -101,7 +108,7 @@ public class CodefTransactionMockService {
             return invalidRequest("startDate와 endDate는 유효한 YYYYMMDD 형식이어야 합니다.");
         }
 
-        CodefDto.Response fixture = responseLoader.load("bank-transaction-list.json");
+        CodefDto.Response fixture = load("bank-transaction-list.json");
         if (!isSuccess(fixture)) {
             return fixture;
         }
@@ -133,6 +140,19 @@ public class CodefTransactionMockService {
         if (isBlank(startDate)) return "startDate";
         if (isBlank(endDate)) return "endDate";
         return null;
+    }
+
+    private CodefDto.Response load(String fileName) {
+        try {
+            ClassPathResource resource = new ClassPathResource("mock/codef/" + fileName);
+            return objectMapper.readValue(resource.getInputStream(), CodefDto.Response.class);
+        } catch (IOException exception) {
+            return CodefDto.Response.failure(
+                    "CF-40400",
+                    "Mock 응답 파일을 찾을 수 없습니다.",
+                    exception.getMessage()
+            );
+        }
     }
 
     private DateRange parseDateRange(String startDate, String endDate) {
