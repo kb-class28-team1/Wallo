@@ -1,24 +1,25 @@
 import { createRouter, createWebHistory } from "vue-router"
 import DefaultLayout from "@/layouts/DefaultLayout.vue"
-import LandingView from "@/views/auth/LandingView.vue"
-import LoginView from "@/views/auth/LoginView.vue"
-import SignupView from "@/views/auth/SignupView.vue"
-import AiAssistantView from "@/views/ai/AiAssistantView.vue"
-import AssetView from "@/views/asset/AssetView.vue"
-import ConnectionView from "@/views/asset/ConnectionView.vue"
-import ExpenseHistoryView from "@/views/asset/ExpenseHistoryView.vue"
-import ChallengeEntryView from "@/views/challenge/ChallengeEntryView.vue"
-import ChallengeFeedView from "@/views/challenge/ChallengeFeedView.vue"
-import ChallengeRankingView from "@/views/challenge/ChallengeRankingView.vue"
-import MyChallengeView from "@/views/challenge/MyChallengeView.vue"
-import MyFeedView from "@/views/challenge/MyFeedView.vue"
-import DashboardView from "@/views/dashboard/DashboardView.vue"
-import PointShopView from "@/views/product/PointShopView.vue"
-import ReportListView from "@/views/report/ReportListView.vue"
-import SettingsView from "@/views/user/SettingsView.vue"
-import ConnectionManagementView from "@/views/user/ConnectionManagementView.vue"
 import { useUserStore } from "@/stores/userStore"
-import ChatView from "@/views/ChatView.vue"
+
+const LandingView = () => import("@/views/auth/LandingView.vue")
+const LoginView = () => import("@/views/auth/LoginView.vue")
+const SignupView = () => import("@/views/auth/SignupView.vue")
+const AiAssistantView = () => import("@/views/ai/AiAssistantView.vue")
+const AssetView = () => import("@/views/asset/AssetView.vue")
+const ConnectionView = () => import("@/views/asset/ConnectionView.vue")
+const ExpenseHistoryView = () => import("@/views/asset/ExpenseHistoryView.vue")
+const ChallengeEntryView = () => import("@/views/challenge/ChallengeEntryView.vue")
+const ChallengeFeedView = () => import("@/views/challenge/ChallengeFeedView.vue")
+const ChallengeRankingView = () => import("@/views/challenge/ChallengeRankingView.vue")
+const MyChallengeView = () => import("@/views/challenge/MyChallengeView.vue")
+const MyFeedView = () => import("@/views/challenge/MyFeedView.vue")
+const DashboardView = () => import("@/views/dashboard/DashboardView.vue")
+const PointShopView = () => import("@/views/product/PointShopView.vue")
+const ReportListView = () => import("@/views/report/ReportListView.vue")
+const SettingsView = () => import("@/views/user/SettingsView.vue")
+const ConnectionManagementView = () => import("@/views/user/ConnectionManagementView.vue")
+const ChatView = () => import("@/views/ChatView.vue")
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
