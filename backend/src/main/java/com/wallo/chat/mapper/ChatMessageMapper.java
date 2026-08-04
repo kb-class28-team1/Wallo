@@ -10,5 +10,7 @@ public interface ChatMessageMapper {
             @Param("conversationId") Long conversationId
     );
 
+    int countByConversationId(@Param("conversationId") Long conversationId);
+
     int insert(ChatMessage message);
 }

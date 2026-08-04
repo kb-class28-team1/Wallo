@@ -50,6 +50,7 @@ public class ConversationMessageService {
                 conversationId,
                 request.getUserId()
         );
+        boolean isFirstMessage = persistenceService.hasNoMessages(conversationId);
 
         String content = request.getMessage().trim();
         ChatMessage userMessage = persistenceService.saveMessage(
@@ -57,15 +58,23 @@ public class ConversationMessageService {
                 USER_ROLE,
                 content
         );
-        conversationService.updateAfterUserMessage(conversationId, content);
-
-        ChatResponse aiResponse = chatService.chat(new ChatRequest(content));
+        ChatResponse aiResponse = chatService.chat(
+                new ChatRequest(content, isFirstMessage)
+        );
         ChatMessage assistantMessage = persistenceService.saveMessage(
                 conversationId,
                 ASSISTANT_ROLE,
                 aiResponse.answer()
         );
-        conversationService.touch(conversationId);
+        if (isFirstMessage) {
+            String title = aiResponse.title() == null
+                    || aiResponse.title().isBlank()
+                    ? content
+                    : aiResponse.title();
+            conversationService.updateAfterUserMessage(conversationId, title);
+        } else {
+            conversationService.touch(conversationId);
+        }
 
         return new SendConversationMessageResponse(
                 ChatMessageResponse.from(userMessage),
