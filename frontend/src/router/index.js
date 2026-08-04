@@ -15,6 +15,7 @@ const MyChallengeView = () => import("@/views/challenge/MyChallengeView.vue")
 const MyFeedView = () => import("@/views/challenge/MyFeedView.vue")
 const DashboardView = () => import("@/views/dashboard/DashboardView.vue")
 const PointShopView = () => import("@/views/product/PointShopView.vue")
+const PointHistoryView = () => import("@/views/product/PointHistoryView.vue")
 const ReportListView = () => import("@/views/report/ReportListView.vue")
 const SettingsView = () => import("@/views/user/SettingsView.vue")
 const ConnectionManagementView = () => import("@/views/user/ConnectionManagementView.vue")
@@ -125,6 +126,12 @@ const router = createRouter({
           path: "/point-shop",
           name: "point-shop",
           component: PointShopView,
+        },
+        // 포인트 내역 페이지로 이동하는 주소임
+        {
+          path: "/point-history",
+          name: "point-history",
+          component: PointHistoryView,
         },
         // 금융 리포트 페이지로 이동하는 주소임
         {

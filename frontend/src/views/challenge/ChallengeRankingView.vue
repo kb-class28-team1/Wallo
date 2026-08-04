@@ -1,11 +1,15 @@
 <script setup>
-import { computed, onMounted } from "vue"
+import { computed, onMounted, ref } from "vue"
 import { storeToRefs } from "pinia"
+import { grantWeeklyRankingRewardsForTest } from "@/api/challengeApi"
 import { useChallengeStore } from "@/stores/challengeStore"
 import { formatNumber, formatWon } from "@/utils/formatters"
+import { useUserStore } from "@/stores/userStore"
 
 const DEFAULT_PROFILE_IMAGE = "/images/profiles/default-profile.svg"
 const challengeStore = useChallengeStore()
+const userStore = useUserStore()
+const isRewarding = ref(false)
 
 // Pinia의 반응형 상태를 유지한 채 화면에서 사용할 값으로 분리함
 const { startDate, endDate, rankings, myRanking, isLoading, errorMessage } =
@@ -19,12 +23,12 @@ const topRankings = computed(() =>
 // 상위 3명을 제외한 4위 이후 DB 조회 결과를 숫자 순위로 모두 표시함
 const remainingRankings = computed(() => rankings.value.filter((ranking) => ranking.rank >= 4))
 
-// 보상 금액도 각 순위 응답의 rewardPoint를 사용하여 표시함
+// 화면의 랭킹 보상 안내에 표시할 포인트 기준임
 const rankingRewards = computed(() => [
-  { medal: "👑", label: "1등", point: findRewardPoint(1) },
-  { medal: "🥈", label: "2등", point: findRewardPoint(2) },
-  { medal: "🥉", label: "3등", point: findRewardPoint(3) },
-  { medal: "", label: "4~10등", point: findRewardPoint(4) },
+  { medal: "👑", label: "1등", point: 2000 },
+  { medal: "🥈", label: "2등", point: 1000 },
+  { medal: "🥉", label: "3등", point: 800 },
+  { medal: "", label: "4~10등", point: 500 },
 ])
 
 const rankingPeriod = computed(() => {
@@ -38,14 +42,30 @@ const rankingPeriod = computed(() => {
 const formatPoint = (point) => `${formatNumber(point)}P`
 const formatDate = (date) => date.replaceAll("-", ".")
 
-function findRewardPoint(rank) {
-  return rankings.value.find((ranking) => ranking.rank === rank)?.rewardPoint || 0
-}
-
 // DB 프로필 주소가 없거나 이미지 로드에 실패하면 기본 프로필을 표시함
 const profileImage = (url) => url || DEFAULT_PROFILE_IMAGE
 const handleImageError = (event) => {
   event.target.src = DEFAULT_PROFILE_IMAGE
+}
+
+// 테스트 버튼에서 현재 주 랭킹 보상 지급 API를 호출함
+const grantRewardsForTest = async () => {
+  if (isRewarding.value) {
+    return
+  }
+
+  isRewarding.value = true
+  try {
+    const response = await grantWeeklyRankingRewardsForTest()
+    alert(`${response?.rewardedCount || 0}명에게 주간 랭킹 보상을 지급했습니다.`)
+    // 지급 후 세션의 사용자 포인트를 강제로 다시 조회해 상단바를 갱신함.
+    await userStore.restoreSession(true)
+    await challengeStore.fetchWeeklyRanking()
+  } catch (error) {
+    alert(error.message || "주간 랭킹 보상을 지급하지 못했습니다.")
+  } finally {
+    isRewarding.value = false
+  }
 }
 
 // 페이지에 진입하면 API를 호출하여 V_WEEKLY_RANKING 조회 결과를 가져옴
@@ -57,7 +77,17 @@ onMounted(() => {
 <template>
   <section class="ranking-page">
     <header class="ranking-heading mb-3">
-      <h1 class="mb-2">주간 랭킹</h1>
+      <div class="ranking-heading-row">
+        <h1 class="mb-2">주간 랭킹</h1>
+        <button
+          type="button"
+          class="test-reward-button"
+          :disabled="isRewarding"
+          @click="grantRewardsForTest"
+        >
+          {{ isRewarding ? "지급 중..." : "테스트 보상 지급" }}
+        </button>
+      </div>
       <p class="mb-0">
         매주 <strong>월요일 00시</strong>에 랭킹이 초기화됨
         <template v-if="rankingPeriod"> · {{ rankingPeriod }}</template>
@@ -105,7 +135,6 @@ onMounted(() => {
             <span>절약 금액</span>
             <span>연속 인증</span>
             <span>좋아요</span>
-            <span aria-hidden="true"></span>
           </div>
 
           <div
@@ -125,7 +154,6 @@ onMounted(() => {
             <strong>{{ formatWon(ranking.savingAmount) }}</strong>
             <span>{{ ranking.streakDays }}일</span>
             <span>{{ ranking.likeCount }}</span>
-            <span class="heart" aria-label="좋아요">♡</span>
           </div>
         </div>
 
@@ -205,6 +233,28 @@ onMounted(() => {
 .ranking-heading h1 {
   font-size: 25px;
   font-weight: 750;
+}
+
+.ranking-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.test-reward-button {
+  border: 1px solid #c9c4ff;
+  border-radius: 9px;
+  padding: 8px 12px;
+  background: #f3f1ff;
+  color: #6357d9;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.test-reward-button:disabled {
+  cursor: wait;
+  opacity: 0.6;
 }
 
 .ranking-heading p {
@@ -347,7 +397,7 @@ onMounted(() => {
 
 .ranking-row {
   display: grid;
-  grid-template-columns: 46px minmax(160px, 1fr) 110px 80px 64px 24px;
+  grid-template-columns: 46px minmax(160px, 1fr) 110px 80px 64px;
   align-items: center;
   column-gap: 10px;
 }
@@ -386,11 +436,6 @@ onMounted(() => {
   padding: 5px;
   border-radius: 50%;
   background: #f0efff;
-}
-
-.heart {
-  color: #f39ab5;
-  font-size: 17px;
 }
 
 .ranking-notice {
@@ -499,6 +544,10 @@ onMounted(() => {
 }
 
 @media (max-width: 1100px) {
+  .ranking-heading-row {
+    align-items: flex-start;
+  }
+
   .ranking-layout {
     grid-template-columns: 1fr;
   }
@@ -509,6 +558,14 @@ onMounted(() => {
 }
 
 @media (max-width: 767.98px) {
+  .ranking-heading-row {
+    flex-direction: column;
+  }
+
+  .test-reward-button {
+    align-self: flex-start;
+  }
+
   .podium-grid,
   .ranking-sidebar {
     grid-template-columns: 1fr;

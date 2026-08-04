@@ -4,6 +4,7 @@ import { storeToRefs } from "pinia"
 import { useRouter } from "vue-router"
 import { useMyFeedStore } from "@/stores/myFeedStore"
 import { formatNumber, formatWon } from "@/utils/formatters"
+import { EXPENSE_CATEGORY_META, FEED_CATEGORY_CODES } from "@/features/financial/financialCategories"
 
 const router = useRouter()
 const myFeedStore = useMyFeedStore()
@@ -27,40 +28,11 @@ const sortOptions = [
 
 const categoryOptions = [
   { value: "ALL", label: "전체" },
-  { value: "CAFE", label: "카페" },
-  { value: "COFFEE", label: "커피" },
-  { value: "DELIVERY", label: "배달" },
-  { value: "SHOPPING", label: "쇼핑" },
-  { value: "TRANSPORT", label: "교통" },
-  { value: "FOOD", label: "식비" },
-  { value: "GROCERY", label: "장보기" },
-  { value: "DINING", label: "외식" },
-  { value: "CUSTOM", label: "직접 입력" },
+  ...FEED_CATEGORY_CODES.map((value) => ({
+    value,
+    label: EXPENSE_CATEGORY_META[value].label,
+  })),
 ]
-
-const categoryLabels = {
-  CAFE: "카페",
-  COFFEE: "커피",
-  DELIVERY: "배달",
-  SHOPPING: "쇼핑",
-  TRANSPORT: "교통",
-  FOOD: "식비",
-  GROCERY: "장보기",
-  DINING: "외식",
-  CUSTOM: "직접 입력",
-}
-
-const categoryIcons = {
-  CAFE: "☕",
-  COFFEE: "☕",
-  DELIVERY: "🍱",
-  SHOPPING: "🛍️",
-  TRANSPORT: "🚌",
-  FOOD: "🍚",
-  GROCERY: "🛒",
-  DINING: "🍽️",
-  CUSTOM: "💡",
-}
 
 // 내 챌린지 요약 응답에서 화면 상단에 필요한 네 가지 통계를 구성함.
 const summaryCards = computed(() => [
@@ -98,9 +70,9 @@ const formatDate = (value) => {
 }
 
 const getCategoryLabel = (feed) =>
-  feed.customCategory || categoryLabels[feed.category] || feed.category || "기타"
+  feed.customCategory || EXPENSE_CATEGORY_META[feed.category]?.label || feed.category || "기타"
 
-const getCategoryIcon = (feed) => categoryIcons[feed.category] || "💡"
+const getCategoryIcon = (feed) => EXPENSE_CATEGORY_META[feed.category]?.icon || "bi-receipt"
 const getFeedImage = (feed) => feed.thumbnailUrl || feed.mediaUrl || ""
 
 // 이미지가 만료되었거나 불러오기 실패하면 카테고리 아이콘을 대신 표시함.
@@ -220,7 +192,7 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
           <span class="feed-order">{{ page * size + index + 1 }}</span>
 
           <div class="feed-thumbnail">
-            <span aria-hidden="true">{{ getCategoryIcon(feed) }}</span>
+            <span aria-hidden="true"><i :class="['bi', getCategoryIcon(feed)]"></i></span>
             <img
               v-if="getFeedImage(feed)"
               :src="getFeedImage(feed)"

@@ -12,7 +12,13 @@ public final class FeedDtos {
             String summary, double confidenceScore) {}
 
     public record FeedListResponse(
-            String challengeName, long mySavingTotal, List<Feed> feeds) {}
+            String challengeName, String inviteCode, long mySavingTotal, List<Feed> feeds) {}
+
+    public record UpdateFeedRequest(
+            String spendingType, String category, String caption, Integer savingAmount) {}
+
+    public record LikeResponse(
+            Long feedId, int likeCount) {}
 
     public record MessageRequest(String content, Long referenceFeedId) {}
 

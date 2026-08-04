@@ -36,6 +36,20 @@ export const EXPENSE_CATEGORY_META = Object.freeze({
   ETC: expenseCategory("기타", "#a0a6b5", "bi-receipt", "gray"),
 });
 
+// 인증 글에서 사용할 지출 카테고리 코드
+export const FEED_CATEGORY_CODES = Object.freeze([
+  "FOOD",
+  "CAFE",
+  "TRANSPORT",
+  "SHOPPING",
+  "DELIVERY",
+  "HOUSING",
+  "LIVING",
+  "CULTURE",
+  "HEALTH",
+  "ETC",
+]);
+
 export const getAssetCategoryMeta = (value) => {
   const categoryCode = String(value || "ETC").trim().toUpperCase();
   return ASSET_CATEGORY_META[categoryCode];

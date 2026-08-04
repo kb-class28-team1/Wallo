@@ -215,7 +215,7 @@ const handleSubmit = async () => {
     loadingMessage.value = "계좌 및 카드 데이터를 안전하게 수집하는 중...";
 
     await wait(700);
-    const response = await connectAllAssets(true);
+    const response = await connectAllAssets(consentAgreed.value);
 
     progress.value = 100;
     loadingMessage.value = "연동 결과를 정리하는 중...";
