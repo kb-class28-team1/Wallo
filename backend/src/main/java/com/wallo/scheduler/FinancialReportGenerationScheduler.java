@@ -24,8 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * 주지 않도록 완전히 분리한다.
  *
  * <p>뉴스 크롤링({@link NewsCrawlingScheduler}, 06/12/15/18시 정각)이 끝나면 {@link #generateForCrawledNews}가
- * 곧바로 이어서 호출되고, 그와 별개로 이 클래스 자체의 주기 실행이 30분 뒤(06:30/12:30/15:30/18:30)에
- * 한 번 더 돌며 안전망 역할을 한다.
+ * 곧바로 이어서 호출된다. 별도의 30분 뒤 백업 스케줄은 두지 않고, 리포트 생성은 크롤링 직후에만 자동 실행한다.
  */
 @Component
 public class FinancialReportGenerationScheduler {
@@ -65,7 +64,6 @@ public class FinancialReportGenerationScheduler {
         this.batchSize = batchSize;
     }
 
-    @Scheduled(cron = "0 30 6,12,15,18 * * *", zone = "Asia/Seoul")
     public void generateMissingReports() {
         runGuarded(List.of());
     }

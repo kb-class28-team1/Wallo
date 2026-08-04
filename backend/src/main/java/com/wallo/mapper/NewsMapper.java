@@ -4,6 +4,7 @@ import com.wallo.domain.News;
 import com.wallo.domain.NewsReportListItem;
 import org.apache.ibatis.annotations.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -39,4 +40,10 @@ public interface NewsMapper {
      * 금융 리포트 자동 생성 스케줄러(FinancialReportGenerationScheduler)가 처리 대상을 고를 때 사용한다.
      */
     List<Long> findNewsIdsWithoutReport(@Param("limit") int limit);
+
+    int deleteNewsTermsBeforePublishedAt(@Param("cutoff") LocalDateTime cutoff);
+
+    int deleteNewsReportsBeforePublishedAt(@Param("cutoff") LocalDateTime cutoff);
+
+    int deleteNewsBeforePublishedAt(@Param("cutoff") LocalDateTime cutoff);
 }

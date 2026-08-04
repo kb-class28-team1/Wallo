@@ -339,6 +339,21 @@ class NewsServiceImplTest {
             throw new UnsupportedOperationException();
         }
 
+        @Override
+        public int deleteNewsTermsBeforePublishedAt(LocalDateTime cutoff) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public int deleteNewsReportsBeforePublishedAt(LocalDateTime cutoff) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public int deleteNewsBeforePublishedAt(LocalDateTime cutoff) {
+            throw new UnsupportedOperationException();
+        }
+
         private List<NewsReportListItem> listItems = new ArrayList<>();
     }
 

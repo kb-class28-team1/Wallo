@@ -34,7 +34,7 @@ public class NewsCrawler {
     private static final Logger log = LoggerFactory.getLogger(NewsCrawler.class);
 
     private static final int PAGE_LOAD_TIMEOUT_SECONDS = 30;
-    private static final int MAX_ARTICLES_PER_SECTION = 10;
+    private static final int MAX_ARTICLES_PER_SECTION = 3;
     private static final String SOURCE = "매일경제";
 
     /**

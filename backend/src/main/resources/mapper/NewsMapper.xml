@@ -107,6 +107,7 @@
             true AS analyzed
         FROM news n
         JOIN news_report nr ON n.news_id = nr.news_id
+        WHERE COALESCE(n.published_at, n.created_at) >= DATE_SUB(CURDATE(), INTERVAL 2 DAY)
         ORDER BY n.published_at IS NULL, n.published_at DESC, n.news_id DESC
     </select>
 
@@ -128,4 +129,23 @@
         ORDER BY n.published_at IS NULL, n.published_at DESC, n.news_id DESC
         LIMIT #{limit}
     </select>
+
+    <delete id="deleteNewsTermsBeforePublishedAt">
+        DELETE nt
+        FROM news_term nt
+        JOIN news n ON nt.news_id = n.news_id
+        WHERE COALESCE(n.published_at, n.created_at) &lt; #{cutoff}
+    </delete>
+
+    <delete id="deleteNewsReportsBeforePublishedAt">
+        DELETE nr
+        FROM news_report nr
+        JOIN news n ON nr.news_id = n.news_id
+        WHERE COALESCE(n.published_at, n.created_at) &lt; #{cutoff}
+    </delete>
+
+    <delete id="deleteNewsBeforePublishedAt">
+        DELETE FROM news
+        WHERE COALESCE(published_at, created_at) &lt; #{cutoff}
+    </delete>
 </mapper>

@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -227,7 +228,7 @@ class FinancialReportGenerationSchedulerTest {
         assertEquals(0, generationService.callCount());
     }
 
-    // 14. 크롤링 직후 호출(generateForCrawledNews)과 30분 백업 스케줄(generateMissingReports)이 겹쳐도
+    // 14. 크롤링 직후 호출(generateForCrawledNews)과 수동 누락 리포트 생성(generateMissingReports)이 겹쳐도
     //     isRunning 가드 때문에 재진입 호출은 대상 조회조차 없이 즉시 건너뛴다. 실제 스레드 동시 실행 대신,
     //     처리 도중(generateIfAbsent 안에서) 같은 스케줄러를 재호출하는 방식으로 결정적으로(non-flaky) 검증한다.
     @Test
@@ -293,6 +294,21 @@ class FinancialReportGenerationSchedulerTest {
             findNewsIdsWithoutReportCallCount++;
             lastRequestedLimit = limit;
             return new ArrayList<>(targetIds);
+        }
+
+        @Override
+        public int deleteNewsTermsBeforePublishedAt(LocalDateTime cutoff) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public int deleteNewsReportsBeforePublishedAt(LocalDateTime cutoff) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public int deleteNewsBeforePublishedAt(LocalDateTime cutoff) {
+            throw new UnsupportedOperationException();
         }
     }
 
