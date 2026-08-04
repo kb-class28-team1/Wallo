@@ -1,20 +1,13 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from "vue"
-import {
-  deleteUsedInventoryItem,
-  getPointShop,
-  getRandomBoxDetail,
-  openRandomBox,
-} from "@/api/pointShopApi"
+import { computed, onMounted, ref } from "vue"
+import { getPointShop, openRandomBox } from "@/api/pointShopApi"
 import { useUserStore } from "@/stores/userStore"
 
 const userStore = useUserStore()
 const activeProbabilityBox = ref(null)
-const pinnedProbabilityBox = ref(null)
 const shopPointBalance = ref(null)
 const isLoading = ref(false)
 const isOpeningBox = ref(false)
-const deletingItemId = ref(null)
 const errorMessage = ref("")
 
 // API에서 박스 정보를 받기 전에도 기본 상자 UI가 유지되도록 기본값을 둠
@@ -27,15 +20,13 @@ const randomBoxes = ref([
     price: 500,
     colorClass: "box-basic",
     probabilities: [
-      { label: "편의점 1,000원 금액권", rate: 5 },
-      { label: "아메리카노 기프티콘", rate: 3 },
-      { label: "편의점 5,000원 금액권", rate: 1 },
-      { label: "꽝", rate: 71 },
-      { label: "250P 즉시 지급", rate: 12 },
-      { label: "500P 즉시 지급", rate: 8 },
+      { label: "편의점 1,000원 금액권", rate: 10 },
+      { label: "아메리카노 기프티콘", rate: 8 },
+      { label: "편의점 5,000원 금액권", rate: 5 },
+      { label: "꽝", rate: 40 },
+      { label: "250P 즉시 지급", rate: 25 },
+      { label: "500P 즉시 지급", rate: 12 },
     ],
-    probabilitiesLoaded: false,
-    isProbabilityLoading: false,
   },
 ])
 
@@ -72,9 +63,6 @@ const loadPointShop = async () => {
     const pointShop = response?.data || response
 
     shopPointBalance.value = pointShop?.pointBalance ?? 0
-    if (userStore.user) {
-      userStore.user.point = shopPointBalance.value
-    }
     if (Array.isArray(pointShop?.boxes) && pointShop.boxes.length) {
       const box = pointShop.boxes[0]
       randomBoxes.value = [
@@ -105,58 +93,8 @@ const loadPointShop = async () => {
 }
 
 const toggleProbability = (boxId) => {
-  if (pinnedProbabilityBox.value === boxId) {
-    pinnedProbabilityBox.value = null
-    activeProbabilityBox.value = null
-    return
-  }
-
-  pinnedProbabilityBox.value = boxId
-  activeProbabilityBox.value = boxId
-}
-
-const loadBoxProbabilities = async (box) => {
-  if (box.probabilitiesLoaded || box.isProbabilityLoading) {
-    return
-  }
-
-  box.isProbabilityLoading = true
-  try {
-    const response = await getRandomBoxDetail(box.id)
-    const boxDetail = response?.data || response
-    if (Array.isArray(boxDetail?.probabilities)) {
-      box.probabilities = boxDetail.probabilities
-      box.probabilitiesLoaded = true
-    }
-  } catch (error) {
-    alert(error.message || "랜덤박스 확률을 불러오지 못했습니다.")
-  } finally {
-    box.isProbabilityLoading = false
-  }
-}
-
-const showProbability = (box) => {
-  activeProbabilityBox.value = box.id
-  loadBoxProbabilities(box)
-}
-
-const hideProbability = (boxId) => {
-  if (pinnedProbabilityBox.value !== boxId) {
-    activeProbabilityBox.value = null
-  }
-}
-
-const handleProbabilityFocusOut = (event, boxId) => {
-  if (!event.currentTarget.contains(event.relatedTarget)) {
-    hideProbability(boxId)
-  }
-}
-
-const handleDocumentClick = (event) => {
-  if (!event.target.closest("[data-probability-box]")) {
-    pinnedProbabilityBox.value = null
-    activeProbabilityBox.value = null
-  }
+  activeProbabilityBox.value =
+    activeProbabilityBox.value === boxId ? null : boxId
 }
 
 const handleOpenBox = async (box) => {
@@ -191,37 +129,15 @@ const handleOpenBox = async (box) => {
   }
 }
 
-// 사용 완료된 아이템만 확인 후 서버와 DB에서 소프트 삭제함
-const removeUsedItem = async (item) => {
-  if (!item.used || deletingItemId.value) {
-    return
-  }
-
-  if (!window.confirm(`${item.name}을(를) 보관함에서 삭제할까요?`)) {
-    return
-  }
-
-  deletingItemId.value = item.id
-  try {
-    await deleteUsedInventoryItem(item.id)
-    await loadPointShop()
-    alert("사용 완료 상품을 삭제했습니다.")
-  } catch (error) {
-    alert(error.message || "사용 완료 상품을 삭제하지 못했습니다.")
-  } finally {
-    deletingItemId.value = null
-  }
+// 사용 처리된 아이템만 화면 목록에서 삭제함
+const removeUsedItem = (itemId) => {
+  inventoryItems.value = inventoryItems.value.filter(
+    (item) => item.id !== itemId || !item.used,
+  )
 }
 
 // 페이지에 들어오면 로그인 사용자의 포인트와 보관함을 조회함
-onMounted(() => {
-  document.addEventListener("click", handleDocumentClick)
-  loadPointShop()
-})
-
-onBeforeUnmount(() => {
-  document.removeEventListener("click", handleDocumentClick)
-})
+onMounted(loadPointShop)
 </script>
 
 <template>
@@ -262,11 +178,6 @@ onBeforeUnmount(() => {
         :key="box.id"
         class="random-box-card"
         :class="box.colorClass"
-        data-probability-box
-        @mouseenter="showProbability(box)"
-        @mouseleave="hideProbability(box.id)"
-        @focusin="showProbability(box)"
-        @focusout="handleProbabilityFocusOut($event, box.id)"
       >
         <div class="box-icon">{{ box.icon }}</div>
         <h3>{{ box.name }}</h3>
@@ -284,15 +195,12 @@ onBeforeUnmount(() => {
           type="button"
           class="probability-button"
           :aria-expanded="activeProbabilityBox === box.id"
-          @click="toggleProbability(box.id); loadBoxProbabilities(box)"
+          @click="toggleProbability(box.id)"
         >
           ▸ 확률 보기
         </button>
         <div v-if="activeProbabilityBox === box.id" class="probability-popover">
           <strong>상품별 확률</strong>
-          <div v-if="box.isProbabilityLoading" class="probability-row">
-            <span>확률을 불러오는 중임...</span>
-          </div>
           <div v-for="item in box.probabilities" :key="item.label" class="probability-row">
             <span>{{ item.label }}</span>
             <b>{{ item.rate }}%</b>
@@ -324,10 +232,9 @@ onBeforeUnmount(() => {
           type="button"
           class="remove-button"
           aria-label="사용한 아이템 삭제"
-          :disabled="deletingItemId === item.id"
-          @click="removeUsedItem(item)"
+          @click="removeUsedItem(item.id)"
         >
-          {{ deletingItemId === item.id ? "…" : "×" }}
+          ×
         </button>
       </div>
     </article>
@@ -557,11 +464,8 @@ onBeforeUnmount(() => {
 }
 
 .inventory-item.used {
-  margin: 4px 0;
-  padding: 13px 10px;
-  border-radius: 10px;
-  background: #d2d4da;
-  color: #4e5159;
+  color: #737783;
+  opacity: 0.7;
 }
 
 .inventory-icon {
@@ -608,11 +512,6 @@ onBeforeUnmount(() => {
   color: #686b74;
   font-size: 22px;
   line-height: 1;
-}
-
-.remove-button:disabled {
-  cursor: wait;
-  opacity: 0.6;
 }
 
 .empty-inventory {
