@@ -18,11 +18,11 @@ import org.junit.jupiter.api.Test;
 import org.mybatis.spring.SqlSessionFactoryBean;
 import org.springframework.core.io.ClassPathResource;
 
-class TransactionReconciliationMapperIntegrationTest {
+class AssetSyncReconciliationMapperIntegrationTest {
 
     private DataSource dataSource;
     private SqlSession sqlSession;
-    private TransactionReconciliationMapper reconciliationMapper;
+    private AssetSyncMapper assetSyncMapper;
     private ExpenseMapper expenseMapper;
 
     @BeforeEach
@@ -40,11 +40,11 @@ class TransactionReconciliationMapperIntegrationTest {
         SqlSessionFactoryBean factoryBean = new SqlSessionFactoryBean();
         factoryBean.setDataSource(dataSource);
         factoryBean.setMapperLocations(
-                new ClassPathResource("mapper/asset/TransactionReconciliationMapper.xml"),
+                new ClassPathResource("mapper/asset/AssetSyncMapper.xml"),
                 new ClassPathResource("mapper/asset/ExpenseMapper.xml")
         );
         sqlSession = factoryBean.getObject().openSession(true);
-        reconciliationMapper = sqlSession.getMapper(TransactionReconciliationMapper.class);
+        assetSyncMapper = sqlSession.getMapper(AssetSyncMapper.class);
         expenseMapper = sqlSession.getMapper(ExpenseMapper.class);
     }
 
@@ -58,16 +58,16 @@ class TransactionReconciliationMapperIntegrationTest {
     @Test
     void findsCheckCardMatchAndFiltersClassifiedWithdrawalFromExpenseHistory() throws Exception {
         List<AssetSyncDto.ReconciliationCandidate> bankCandidates =
-                reconciliationMapper.selectBankWithdrawalCandidates(7L);
+                assetSyncMapper.selectBankWithdrawalCandidates(7L);
         List<AssetSyncDto.ReconciliationCandidate> cardCandidates =
-                reconciliationMapper.selectCheckCardApprovalCandidates(7L);
+                assetSyncMapper.selectCheckCardApprovalCandidates(7L);
 
         assertEquals(1, bankCandidates.size());
         assertEquals(1L, bankCandidates.get(0).getTransactionId());
         assertEquals(1, cardCandidates.size());
         assertEquals(3L, cardCandidates.get(0).getTransactionId());
 
-        assertEquals(1, reconciliationMapper.updateBankWithdrawalCategory(
+        assertEquals(1, assetSyncMapper.updateBankWithdrawalCategory(
                 7L, 1L, "CARD_WITHDRAWAL"
         ));
 

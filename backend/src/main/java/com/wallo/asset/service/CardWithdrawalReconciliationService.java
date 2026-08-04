@@ -1,7 +1,7 @@
 package com.wallo.asset.service;
 
 import com.wallo.asset.dto.AssetSyncDto;
-import com.wallo.asset.mapper.TransactionReconciliationMapper;
+import com.wallo.asset.mapper.AssetSyncMapper;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -21,20 +21,20 @@ public class CardWithdrawalReconciliationService {
     static final String SEND = "SEND";
     private static final long MAX_DATE_DIFFERENCE_DAYS = 2L;
 
-    private final TransactionReconciliationMapper reconciliationMapper;
+    private final AssetSyncMapper assetSyncMapper;
 
     public CardWithdrawalReconciliationService(
-            TransactionReconciliationMapper reconciliationMapper
+            AssetSyncMapper assetSyncMapper
     ) {
-        this.reconciliationMapper = reconciliationMapper;
+        this.assetSyncMapper = assetSyncMapper;
     }
 
     public int reconcile(long userId) {
         List<AssetSyncDto.ReconciliationCandidate> bankWithdrawals = sorted(
-                reconciliationMapper.selectBankWithdrawalCandidates(userId)
+                assetSyncMapper.selectBankWithdrawalCandidates(userId)
         );
         List<AssetSyncDto.ReconciliationCandidate> cardApprovals = sorted(
-                reconciliationMapper.selectCheckCardApprovalCandidates(userId)
+                assetSyncMapper.selectCheckCardApprovalCandidates(userId)
         );
         Set<Long> matchedCardApprovalIds = new HashSet<>();
 
@@ -56,7 +56,7 @@ public class CardWithdrawalReconciliationService {
                 matchedCardApprovalIds.add(matchedApproval.getTransactionId());
             }
             if (!expectedCategory.equals(bankWithdrawal.getCategory())) {
-                updatedCount += reconciliationMapper.updateBankWithdrawalCategory(
+                updatedCount += assetSyncMapper.updateBankWithdrawalCategory(
                         userId,
                         bankWithdrawal.getTransactionId(),
                         expectedCategory
