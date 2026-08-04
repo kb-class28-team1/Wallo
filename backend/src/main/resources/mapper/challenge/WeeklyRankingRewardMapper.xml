@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wallo.challenge.mapper.WeeklyRankingRewardMapper">
+
+    <resultMap id="weeklyRankingRewardResultMap"
+               type="com.wallo.challenge.domain.WeeklyRanking">
+        <id property="userId" column="user_id" />
+        <result property="challengeId" column="challenge_id" />
+        <result property="weekStartDate" column="week_start_date" />
+        <result property="rankPosition" column="rank_position" />
+        <result property="nickname" column="nickname" />
+        <result property="profileImageUrl" column="profile_image_url" />
+        <result property="savingAmount" column="saving_amount" />
+        <result property="streakDays" column="streak_days" />
+        <result property="likeCount" column="like_count" />
+        <result property="rewardPoint" column="reward_point" />
+    </resultMap>
+
+    <!-- 지정한 월요일부터 7일 동안의 절약 금액과 좋아요로 랭킹을 계산함. -->
+    <select id="findWeeklyRankingsForWeek" resultMap="weeklyRankingRewardResultMap">
+        SELECT
+            ranked.challenge_id,
+            ranked.user_id,
+            ranked.week_start_date,
+            ranked.rank_position,
+            ranked.nickname,
+            ranked.profile_image_url,
+            ranked.saving_amount,
+            ranked.streak_days,
+            ranked.like_count,
+            CASE
+                WHEN ranked.rank_position = 1 THEN 2000
+                WHEN ranked.rank_position = 2 THEN 1000
+                WHEN ranked.rank_position = 3 THEN 800
+                WHEN ranked.rank_position BETWEEN 4 AND 10 THEN 500
+                ELSE 0
+            END AS reward_point
+        FROM (
+            SELECT
+                summary.challenge_id,
+                summary.user_id,
+                summary.week_start_date,
+                RANK() OVER (
+                    PARTITION BY summary.challenge_id, summary.week_start_date
+                    ORDER BY summary.saving_amount DESC, summary.like_count DESC
+                ) AS rank_position,
+                summary.nickname,
+                summary.profile_image_url,
+                summary.saving_amount,
+                summary.streak_days,
+                summary.like_count
+            FROM (
+                SELECT
+                    challenge.id AS challenge_id,
+                    users.id AS user_id,
+                    #{weekStartDate} AS week_start_date,
+                    users.nickname,
+                    users.profile_image_url,
+                    COALESCE(SUM(feed.saving_amount), 0) AS saving_amount,
+                    users.streak_days,
+                    COALESCE(SUM(feed.like_count), 0) AS like_count
+                FROM CHALLENGE challenge
+                INNER JOIN USERS users
+                    ON users.current_challenge_id = challenge.id
+                LEFT JOIN FEED feed
+                    ON feed.challenge_id = challenge.id
+                   AND feed.user_id = users.id
+                   AND feed.status = 'ACTIVE'
+                   AND feed.file_deleted_at IS NULL
+                   AND feed.created_at &gt;= #{weekStartDate}
+                   AND feed.created_at &lt; DATE_ADD(#{weekStartDate}, INTERVAL 7 DAY)
+                WHERE challenge.challenge_type = 'GROUP'
+                  AND challenge.status = 'ACTIVE'
+                GROUP BY
+                    challenge.id,
+                    users.id,
+                    users.nickname,
+                    users.profile_image_url,
+                    users.streak_days
+            ) summary
+        ) ranked
+        ORDER BY ranked.rank_position, ranked.user_id
+    </select>
+</mapper>

@@ -27,6 +27,20 @@ public interface PointShopMapper {
             @Param("referenceKey") String referenceKey,
             @Param("description") String description);
 
+    /** 같은 주간 랭킹 보상이 이미 지급된 경우 중복 저장하지 않음. */
+    int insertWeeklyRankingRewardHistory(
+            @Param("userId") Long userId,
+            @Param("amount") Integer amount,
+            @Param("referenceKey") String referenceKey,
+            @Param("description") String description);
+
+    /** 테스트 버튼은 매번 지급되므로 중복 방지 없는 별도 이력으로 저장함. */
+    int insertWeeklyRankingTestRewardHistory(
+            @Param("userId") Long userId,
+            @Param("amount") Integer amount,
+            @Param("referenceKey") String referenceKey,
+            @Param("description") String description);
+
     /** 즉시 지급에 당첨된 포인트를 사용자 잔액에 더함. */
     int addPoints(
             @Param("userId") Long userId,
