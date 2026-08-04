@@ -40,11 +40,14 @@ const submitCreate = async () => {
 
   isSubmitting.value = true
   try {
-    await createChallenge({
+    const createdChallenge = await createChallenge({
       name,
     })
     alert('챌린지가 만들어졌습니다.')
-    await loadCurrentChallenge()
+    await router.push({
+      name: 'challenge-feed',
+      params: { challengeId: createdChallenge.id },
+    })
   } catch (error) {
     alert(error.message)
   } finally {
@@ -61,9 +64,12 @@ const submitJoin = async () => {
 
   isSubmitting.value = true
   try {
-    await joinChallenge(code)
+    const joinedChallenge = await joinChallenge(code)
     alert('챌린지에 참여했습니다.')
-    await loadCurrentChallenge()
+    await router.push({
+      name: 'challenge-feed',
+      params: { challengeId: joinedChallenge.id },
+    })
   } catch (error) {
     alert(error.message)
   } finally {

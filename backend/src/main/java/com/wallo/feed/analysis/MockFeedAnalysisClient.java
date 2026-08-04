@@ -8,8 +8,16 @@ import org.springframework.web.multipart.MultipartFile;
 @Component
 public class MockFeedAnalysisClient implements FeedAnalysisClient {
     private static final Map<String, Integer> CATEGORY_AMOUNTS = Map.of(
-            "COFFEE", 4500, "DELIVERY", 12000, "TRANSPORT", 1500,
-            "GROCERY", 8000, "DINING", 10000, "CUSTOM", 5000);
+            "FOOD", 10000,
+            "CAFE", 4500,
+            "TRANSPORT", 1500,
+            "SHOPPING", 15000,
+            "DELIVERY", 12000,
+            "HOUSING", 30000,
+            "LIVING", 8000,
+            "CULTURE", 12000,
+            "HEALTH", 10000,
+            "ETC", 5000);
 
     @Override
     public AnalysisResponse analyze(

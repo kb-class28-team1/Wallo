@@ -4,8 +4,10 @@ import com.wallo.feed.analysis.FeedAnalysisClient;
 import com.wallo.feed.domain.Feed;
 import com.wallo.feed.dto.FeedDtos.AnalysisResponse;
 import com.wallo.feed.dto.FeedDtos.FeedListResponse;
+import com.wallo.feed.dto.FeedDtos.LikeResponse;
 import com.wallo.feed.dto.FeedDtos.MessageRequest;
 import com.wallo.feed.dto.FeedDtos.RoomResponse;
+import com.wallo.feed.dto.FeedDtos.UpdateFeedRequest;
 import com.wallo.feed.mapper.FeedMapper;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -21,6 +23,9 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 public class FeedService {
     private static final Set<String> SPENDING_TYPES = Set.of("SPENT", "REDUCED", "SAVED");
+    private static final Set<String> FEED_CATEGORIES = Set.of(
+            "FOOD", "CAFE", "TRANSPORT", "SHOPPING", "DELIVERY",
+            "HOUSING", "LIVING", "CULTURE", "HEALTH", "ETC");
     private static final long MAX_FILE_SIZE = 50L * 1024 * 1024;
     private final FeedMapper feedMapper;
     private final FeedAnalysisClient analysisClient;
@@ -33,8 +38,11 @@ public class FeedService {
     public FeedListResponse getFeeds(Long userId, Long challengeId, boolean mineOnly) {
         requireMember(userId, challengeId);
         Long total = feedMapper.sumSavingAmount(challengeId, userId);
-        return new FeedListResponse(feedMapper.findChallengeName(challengeId),
-                total == null ? 0 : total, feedMapper.findFeeds(challengeId, userId, mineOnly));
+        return new FeedListResponse(
+                feedMapper.findChallengeName(challengeId),
+                feedMapper.findChallengeInviteCode(challengeId),
+                total == null ? 0 : total,
+                feedMapper.findFeeds(challengeId, userId, mineOnly));
     }
 
     public RoomResponse getMessages(Long userId, Long challengeId) {
@@ -46,17 +54,19 @@ public class FeedService {
     public AnalysisResponse analyze(Long userId, Long challengeId, MultipartFile media,
                                     String spendingType, String category) {
         requireMember(userId, challengeId);
-        validate(media, spendingType, category);
-        return analysisClient.analyze(media, spendingType, category);
+        String normalizedCategory = normalizeCategory(category);
+        validate(media, spendingType, normalizedCategory);
+        return analysisClient.analyze(media, spendingType, normalizedCategory);
     }
 
     @Transactional
     public Feed create(Long userId, Long challengeId, MultipartFile media,
                        String spendingType, String category, String customCategory,
                        String caption, int savingAmount, String analysisSummary,
-                       double confidenceScore) {
+        double confidenceScore) {
         requireMember(userId, challengeId);
-        validate(media, spendingType, category);
+        String normalizedCategory = normalizeCategory(category);
+        validate(media, spendingType, normalizedCategory);
         String mediaType = media.getContentType() != null
                 && media.getContentType().toLowerCase(Locale.ROOT).startsWith("video/")
                 ? "VIDEO" : "IMAGE";
@@ -70,24 +80,81 @@ public class FeedService {
         feed.setMediaType(mediaType);
         feed.setSpendingType(spendingType);
         feed.setSavingAmount(Math.max(0, savingAmount));
-        feed.setCategory(category);
-        feed.setCustomCategory(blankToNull(customCategory));
+        feed.setCategory(normalizedCategory);
+        // 새 인증 글은 공통 지출 카테고리만 사용하며 기존 custom_category 데이터는 유지함.
+        feed.setCustomCategory(null);
         feed.setCaption(blankToNull(caption));
+        feed.setAnalysisSummary(blankToNull(analysisSummary));
         feedMapper.insertFeed(feed);
-        feedMapper.insertAnalysis(feed.getId(), spendingType, category,
+        feedMapper.insertAnalysis(feed.getId(), spendingType, normalizedCategory,
                 feed.getSavingAmount(), analysisSummary, confidenceScore);
         feedMapper.insertFeedShareMessage(challengeId, userId, feed.getId());
         return feed;
     }
 
     @Transactional
+    public LikeResponse addLike(Long userId, Long challengeId, Long feedId) {
+        requireMember(userId, challengeId);
+        if (feedId == null || feedMapper.countActiveFeed(feedId, challengeId) != 1) {
+            throw new IllegalArgumentException("좋아요를 누를 피드를 찾을 수 없습니다.");
+        }
+
+        if (feedMapper.incrementLikeCount(feedId) != 1) {
+            throw new IllegalArgumentException("좋아요 처리에 실패했습니다.");
+        }
+
+        Integer likeCount = feedMapper.findLikeCount(feedId, challengeId);
+        return new LikeResponse(feedId, likeCount == null ? 0 : likeCount);
+    }
+
+    @Transactional
+    public void update(Long userId, Long challengeId, Long feedId, UpdateFeedRequest request) {
+        requireMember(userId, challengeId);
+        if (request == null) {
+            throw new IllegalArgumentException("수정할 내용을 입력해 주세요.");
+        }
+
+        if (request.spendingType() == null || !SPENDING_TYPES.contains(request.spendingType())) {
+            throw new IllegalArgumentException("소비 종류를 선택해 주세요.");
+        }
+        String category = normalizeCategory(request.category());
+        if (category.isBlank() || !FEED_CATEGORIES.contains(category)) {
+            throw new IllegalArgumentException("지원하지 않는 카테고리입니다.");
+        }
+        int savingAmount = request.savingAmount() == null
+                ? 0 : Math.max(0, request.savingAmount());
+        int updated = feedMapper.updateFeed(
+                feedId, userId, challengeId, category, request.spendingType(),
+                blankToNull(request.caption()), savingAmount);
+        if (updated != 1) {
+            throw new IllegalArgumentException("내 피드만 수정할 수 있습니다.");
+        }
+        feedMapper.updateFeedAnalysis(feedId, request.spendingType(), category, savingAmount);
+    }
+
+    @Transactional
+    public void delete(Long userId, Long challengeId, Long feedId) {
+        requireMember(userId, challengeId);
+        int deleted = feedMapper.softDeleteFeed(feedId, userId, challengeId);
+        if (deleted != 1) {
+            throw new IllegalArgumentException("내 피드만 삭제할 수 있습니다.");
+        }
+    }
+
+    @Transactional
     public void sendMessage(Long userId, Long challengeId, MessageRequest request) {
         requireMember(userId, challengeId);
         String content = request == null ? null : blankToNull(request.content());
-        if (content == null) throw new IllegalArgumentException("메시지를 입력해 주세요.");
-        String type = request.referenceFeedId() == null ? "TEXT" : "REPLY";
+        Long referenceFeedId = request == null ? null : request.referenceFeedId();
+        if (content == null && referenceFeedId == null) {
+            throw new IllegalArgumentException("메시지를 입력해 주세요.");
+        }
+        if (referenceFeedId != null && feedMapper.countActiveFeed(referenceFeedId, challengeId) != 1) {
+            throw new IllegalArgumentException("언급할 피드를 찾을 수 없습니다.");
+        }
+        String type = referenceFeedId == null ? "TEXT" : "REPLY";
         feedMapper.insertMessage(challengeId, userId, content,
-                request.referenceFeedId(), type);
+                referenceFeedId, type);
     }
 
     private void requireMember(Long userId, Long challengeId) {
@@ -105,6 +172,11 @@ public class FeedService {
         }
         if (!SPENDING_TYPES.contains(spendingType)) throw new IllegalArgumentException("소비 종류를 선택해 주세요.");
         if (category == null || category.isBlank()) throw new IllegalArgumentException("카테고리를 선택해 주세요.");
+        if (!FEED_CATEGORIES.contains(category)) throw new IllegalArgumentException("지원하지 않는 카테고리입니다.");
+    }
+
+    private String normalizeCategory(String category) {
+        return category == null ? "" : category.trim().toUpperCase(Locale.ROOT);
     }
 
     private String store(MultipartFile media) {
