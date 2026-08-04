@@ -57,6 +57,40 @@
         )
     </insert>
 
+    <!-- 주간 랭킹 보상은 reference_key 중복 시 0건 처리하여 재지급을 막음. -->
+    <insert id="insertWeeklyRankingRewardHistory">
+        INSERT IGNORE INTO POINT_HISTORY (
+            user_id,
+            amount,
+            type,
+            reference_key,
+            description
+        ) VALUES (
+            #{userId},
+            #{amount},
+            'WEEKLY_RANKING_REWARD',
+            #{referenceKey},
+            #{description}
+        )
+    </insert>
+
+    <!-- 테스트 버튼은 클릭할 때마다 새 이력으로 저장함. -->
+    <insert id="insertWeeklyRankingTestRewardHistory">
+        INSERT INTO POINT_HISTORY (
+            user_id,
+            amount,
+            type,
+            reference_key,
+            description
+        ) VALUES (
+            #{userId},
+            #{amount},
+            'WEEKLY_RANKING_TEST',
+            #{referenceKey},
+            #{description}
+        )
+    </insert>
+
     <!-- 랜덤박스 즉시 지급 포인트를 사용자 잔액에 반영함. -->
     <update id="addPoints">
         UPDATE USERS
