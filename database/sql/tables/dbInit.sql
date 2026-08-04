@@ -10,6 +10,8 @@ USE wallo;
 SET FOREIGN_KEY_CHECKS = 0;
 
 DROP VIEW IF EXISTS V_WEEKLY_RANKING;
+DROP TABLE IF EXISTS CHAT_MESSAGES;
+DROP TABLE IF EXISTS CONVERSATIONS;
 DROP TABLE IF EXISTS MESSAGE;
 DROP TABLE IF EXISTS FEED_ANALYSIS;
 DROP TABLE IF EXISTS FEED;
@@ -53,6 +55,39 @@ CREATE TABLE USERS (
 ) ENGINE=InnoDB
   DEFAULT CHARSET=utf8mb4
   COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE CONVERSATIONS (
+    conversation_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    title VARCHAR(100) NOT NULL DEFAULT '새 채팅',
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_conversations_user
+        FOREIGN KEY (user_id) REFERENCES USERS(id) ON DELETE CASCADE,
+    CONSTRAINT ck_conversations_status
+        CHECK (status IN ('ACTIVE', 'ARCHIVED')),
+    INDEX idx_conversations_user_status_updated (user_id, status, updated_at)
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_unicode_ci
+  COMMENT='AI 채팅방';
+
+CREATE TABLE CHAT_MESSAGES (
+    message_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    conversation_id BIGINT NOT NULL,
+    role VARCHAR(20) NOT NULL,
+    content TEXT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_chat_messages_conversation
+        FOREIGN KEY (conversation_id) REFERENCES CONVERSATIONS(conversation_id) ON DELETE CASCADE,
+    CONSTRAINT ck_chat_messages_role
+        CHECK (role IN ('USER', 'ASSISTANT')),
+    INDEX idx_chat_messages_conversation_message (conversation_id, message_id)
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_unicode_ci
+  COMMENT='AI 채팅 메시지';
 
 CREATE TABLE INSTITUTIONS (
     institution_id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -438,3 +473,230 @@ FROM (
             users.streak_days
     ) summary
 ) ranked;
+
+-- -----------------------------------------------------------------------------
+-- Local demo data
+-- All demo users can sign in with password 12341234.
+-- -----------------------------------------------------------------------------
+
+SET @demo_password_hash = '$2a$10$dJdOCr9Sm0qBbq3QJ7U4VOkGzVgvrlO5bLtM/oxqQEjt8umS78Coq';
+
+-- AI chat demo users and conversations.
+INSERT INTO USERS (
+    email,
+    password_hash,
+    nickname,
+    name,
+    annual_salary,
+    is_consent_agreed,
+    consent_agreed_at,
+    point
+) VALUES
+    (
+        'people1@wallo.local',
+        @demo_password_hash,
+        'people1',
+        '피플원',
+        50000000,
+        TRUE,
+        CURRENT_TIMESTAMP,
+        1000
+    ),
+    (
+        'people2@wallo.local',
+        @demo_password_hash,
+        'people2',
+        '피플투',
+        40000000,
+        TRUE,
+        CURRENT_TIMESTAMP,
+        500
+    );
+
+SET @people1_id = (
+    SELECT id FROM USERS WHERE email = 'people1@wallo.local'
+);
+SET @people2_id = (
+    SELECT id FROM USERS WHERE email = 'people2@wallo.local'
+);
+
+INSERT INTO CONVERSATIONS (user_id, title, status)
+VALUES
+    (@people1_id, 'people1의 저축 상담', 'ACTIVE'),
+    (@people2_id, 'people2의 소비 분석', 'ACTIVE');
+
+SET @people1_conversation_id = (
+    SELECT conversation_id
+    FROM CONVERSATIONS
+    WHERE user_id = @people1_id
+      AND title = 'people1의 저축 상담'
+    LIMIT 1
+);
+SET @people2_conversation_id = (
+    SELECT conversation_id
+    FROM CONVERSATIONS
+    WHERE user_id = @people2_id
+      AND title = 'people2의 소비 분석'
+    LIMIT 1
+);
+
+INSERT INTO CHAT_MESSAGES (conversation_id, role, content)
+VALUES
+    (
+        @people1_conversation_id,
+        'USER',
+        '월급의 몇 퍼센트를 저축하면 좋을까요?'
+    ),
+    (
+        @people1_conversation_id,
+        'ASSISTANT',
+        '먼저 월 소득과 고정 지출을 확인한 뒤 적절한 저축 비율을 계산해 보겠습니다.'
+    ),
+    (
+        @people2_conversation_id,
+        'USER',
+        '이번 달 소비를 분석해 주세요.'
+    ),
+    (
+        @people2_conversation_id,
+        'ASSISTANT',
+        '이번 달 소비 내역을 기준으로 고정 지출과 변동 지출을 나누어 분석해 보겠습니다.'
+    );
+
+-- Challenge, feed, ranking, and comment demo data.
+INSERT INTO USERS (
+    id,
+    email,
+    password_hash,
+    nickname,
+    name,
+    profile_image_url,
+    role,
+    point,
+    total_attendance_days,
+    streak_days,
+    last_attendance_date,
+    created_at
+) VALUES
+    (101, 'challenge1@wallo.test', @demo_password_hash, '알뜰한 펭귄', '김혜진', DEFAULT, 'USER', 12500, 48, 12, CURDATE(), DATE_SUB(NOW(), INTERVAL 18 MONTH)),
+    (102, 'challenge2@wallo.test', @demo_password_hash, '저축왕 물개', '박민수', DEFAULT, 'USER', 9800, 41, 9, CURDATE(), DATE_SUB(NOW(), INTERVAL 15 MONTH)),
+    (103, 'challenge3@wallo.test', @demo_password_hash, '절약 습관러', '이서연', DEFAULT, 'USER', 7600, 35, 7, CURDATE(), DATE_SUB(NOW(), INTERVAL 12 MONTH)),
+    (104, 'challenge4@wallo.test', @demo_password_hash, '소비 요정', '최지우', DEFAULT, 'USER', 5400, 29, 5, CURDATE(), DATE_SUB(NOW(), INTERVAL 10 MONTH)),
+    (105, 'challenge5@wallo.test', @demo_password_hash, '새싹 절약러', '정도윤', DEFAULT, 'USER', 3200, 18, 3, CURDATE(), DATE_SUB(NOW(), INTERVAL 8 MONTH));
+
+INSERT INTO CHALLENGE (
+    id,
+    owner_id,
+    name,
+    challenge_type,
+    invite_code,
+    status,
+    created_at
+) VALUES (
+    1101,
+    101,
+    '함께 만드는 절약 습관',
+    'GROUP',
+    'WALLO-DEMO-5',
+    'ACTIVE',
+    DATE_SUB(NOW(), INTERVAL 8 MONTH)
+);
+
+UPDATE USERS
+SET current_challenge_id = 1101
+WHERE id IN (101, 102, 103, 104, 105);
+
+-- Monthly challenge chart data for user 101.
+INSERT INTO FEED (
+    id,
+    user_id,
+    challenge_id,
+    media_url,
+    thumbnail_url,
+    media_type,
+    status,
+    spending_type,
+    saving_amount,
+    category,
+    custom_category,
+    caption,
+    like_count,
+    created_at
+) VALUES
+    (17101, 101, 1101, '/images/dummy/month-01.jpg', NULL, 'IMAGE', 'ACTIVE', 'SAVED', 42000, 'CAFE', NULL, '12개월 전 커피 절약', 8, DATE_SUB(NOW(), INTERVAL 12 MONTH)),
+    (17102, 101, 1101, '/images/dummy/month-02.jpg', NULL, 'IMAGE', 'ACTIVE', 'REDUCED', 58500, 'DELIVERY', NULL, '11개월 전 배달비 절약', 11, DATE_SUB(NOW(), INTERVAL 11 MONTH)),
+    (17103, 101, 1101, '/images/dummy/month-03.jpg', NULL, 'IMAGE', 'ACTIVE', 'SAVED', 73000, 'SHOPPING', NULL, '10개월 전 계획 소비', 15, DATE_SUB(NOW(), INTERVAL 10 MONTH)),
+    (17104, 101, 1101, '/images/dummy/month-04.jpg', NULL, 'IMAGE', 'ACTIVE', 'REDUCED', 66500, 'TRANSPORT', NULL, '9개월 전 교통비 절약', 13, DATE_SUB(NOW(), INTERVAL 9 MONTH)),
+    (17105, 101, 1101, '/images/dummy/month-05.jpg', NULL, 'IMAGE', 'ACTIVE', 'SAVED', 91000, 'CAFE', NULL, '8개월 전 카페비 절약', 20, DATE_SUB(NOW(), INTERVAL 8 MONTH)),
+    (17106, 101, 1101, '/images/dummy/month-06.jpg', NULL, 'IMAGE', 'ACTIVE', 'REDUCED', 108000, 'DELIVERY', NULL, '7개월 전 식비 절약', 23, DATE_SUB(NOW(), INTERVAL 7 MONTH)),
+    (17107, 101, 1101, '/images/dummy/month-07.jpg', NULL, 'IMAGE', 'ACTIVE', 'SAVED', 97500, 'SHOPPING', NULL, '6개월 전 쇼핑 절약', 18, DATE_SUB(NOW(), INTERVAL 6 MONTH)),
+    (17108, 101, 1101, '/images/dummy/month-08.jpg', NULL, 'IMAGE', 'ACTIVE', 'REDUCED', 126000, 'TRANSPORT', NULL, '5개월 전 교통비 절약', 27, DATE_SUB(NOW(), INTERVAL 5 MONTH)),
+    (17109, 101, 1101, '/images/dummy/month-09.jpg', NULL, 'IMAGE', 'ACTIVE', 'SAVED', 143500, 'CAFE', NULL, '4개월 전 커피 절약', 31, DATE_SUB(NOW(), INTERVAL 4 MONTH)),
+    (17110, 101, 1101, '/images/dummy/month-10.jpg', NULL, 'IMAGE', 'ACTIVE', 'REDUCED', 159000, 'DELIVERY', NULL, '3개월 전 배달비 절약', 36, DATE_SUB(NOW(), INTERVAL 3 MONTH)),
+    (17111, 101, 1101, '/images/dummy/month-11.jpg', NULL, 'IMAGE', 'ACTIVE', 'SAVED', 176500, 'SHOPPING', NULL, '2개월 전 계획 소비', 42, DATE_SUB(NOW(), INTERVAL 2 MONTH)),
+    (17112, 101, 1101, '/images/dummy/month-12.jpg', NULL, 'IMAGE', 'ACTIVE', 'REDUCED', 188000, 'TRANSPORT', NULL, '지난달 교통비 절약', 47, DATE_SUB(NOW(), INTERVAL 1 MONTH));
+
+-- Recent challenge activity for period filters.
+INSERT INTO FEED (
+    id,
+    user_id,
+    challenge_id,
+    media_url,
+    thumbnail_url,
+    media_type,
+    status,
+    spending_type,
+    saving_amount,
+    category,
+    custom_category,
+    caption,
+    like_count,
+    created_at
+) VALUES
+    (17201, 101, 1101, '/images/dummy/day-01.jpg', NULL, 'IMAGE', 'ACTIVE', 'SAVED', 9000, 'CAFE', NULL, '오늘 텀블러 사용', 32, NOW()),
+    (17202, 101, 1101, '/images/dummy/day-02.jpg', NULL, 'IMAGE', 'ACTIVE', 'REDUCED', 11500, 'DELIVERY', NULL, '어제 도시락 준비', 28, DATE_SUB(NOW(), INTERVAL 1 DAY)),
+    (17203, 101, 1101, '/images/dummy/day-03.jpg', NULL, 'IMAGE', 'ACTIVE', 'SAVED', 7200, 'TRANSPORT', NULL, '이틀 전 대중교통 이용', 21, DATE_SUB(NOW(), INTERVAL 2 DAY)),
+    (17204, 101, 1101, '/images/dummy/day-04.jpg', NULL, 'IMAGE', 'ACTIVE', 'REDUCED', 13800, 'SHOPPING', NULL, '사흘 전 무지출 성공', 54, DATE_SUB(NOW(), INTERVAL 3 DAY)),
+    (17205, 101, 1101, '/images/dummy/day-05.jpg', NULL, 'IMAGE', 'ACTIVE', 'SAVED', 6400, 'CAFE', NULL, '5일 전 홈카페 이용', 17, DATE_SUB(NOW(), INTERVAL 5 DAY)),
+    (17206, 101, 1101, '/images/dummy/day-06.jpg', NULL, 'IMAGE', 'ACTIVE', 'REDUCED', 17200, 'DELIVERY', NULL, '일주일 전 직접 요리', 39, DATE_SUB(NOW(), INTERVAL 7 DAY)),
+    (17207, 101, 1101, '/images/dummy/day-07.jpg', NULL, 'IMAGE', 'ACTIVE', 'SAVED', 8300, 'TRANSPORT', NULL, '10일 전 걷기 실천', 19, DATE_SUB(NOW(), INTERVAL 10 DAY)),
+    (17208, 101, 1101, '/images/dummy/day-08.jpg', NULL, 'IMAGE', 'ACTIVE', 'REDUCED', 14600, 'SHOPPING', NULL, '13일 전 장바구니 점검', 25, DATE_SUB(NOW(), INTERVAL 13 DAY)),
+    (17209, 101, 1101, '/images/dummy/day-09.jpg', NULL, 'IMAGE', 'ACTIVE', 'SAVED', 10800, 'CAFE', NULL, '18일 전 커피 절약', 22, DATE_SUB(NOW(), INTERVAL 18 DAY)),
+    (17210, 101, 1101, '/images/dummy/day-10.jpg', NULL, 'IMAGE', 'ACTIVE', 'REDUCED', 19300, 'DELIVERY', NULL, '22일 전 배달 대신 요리', 30, DATE_SUB(NOW(), INTERVAL 22 DAY)),
+    (17211, 101, 1101, '/images/dummy/day-11.jpg', NULL, 'IMAGE', 'ACTIVE', 'SAVED', 12500, 'TRANSPORT', NULL, '27일 전 교통비 절약', 24, DATE_SUB(NOW(), INTERVAL 27 DAY));
+
+-- Current weekly ranking data for the other challenge members.
+INSERT INTO FEED (
+    id,
+    user_id,
+    challenge_id,
+    media_url,
+    thumbnail_url,
+    media_type,
+    status,
+    spending_type,
+    saving_amount,
+    category,
+    custom_category,
+    caption,
+    like_count,
+    created_at
+) VALUES
+    (17302, 102, 1101, '/images/dummy/ranking-02.jpg', NULL, 'IMAGE', 'ACTIVE', 'SAVED', 82000, 'DELIVERY', NULL, '이번 주 배달비 절약', 61, NOW()),
+    (17303, 103, 1101, '/images/dummy/ranking-03.jpg', NULL, 'IMAGE', 'ACTIVE', 'REDUCED', 69000, 'SHOPPING', NULL, '이번 주 쇼핑 지출 절약', 73, NOW()),
+    (17304, 104, 1101, '/images/dummy/ranking-04.jpg', NULL, 'IMAGE', 'ACTIVE', 'SAVED', 55000, 'CAFE', NULL, '이번 주 카페비 절약', 44, NOW()),
+    (17305, 105, 1101, '/images/dummy/ranking-05.jpg', NULL, 'IMAGE', 'ACTIVE', 'REDUCED', 37000, 'TRANSPORT', NULL, '이번 주 교통비 절약', 29, NOW());
+
+INSERT INTO MESSAGE (
+    id,
+    challenge_id,
+    user_id,
+    message_type,
+    reference_feed_id,
+    reply_to_message_id,
+    content,
+    created_at
+) VALUES
+    (17401, 1101, 101, 'REPLY', 17201, NULL, '이번 주도 함께 절약해요', NOW()),
+    (17402, 1101, 101, 'REPLY', 17202, NULL, '좋아요, 계속 도전해요', DATE_SUB(NOW(), INTERVAL 1 DAY)),
+    (17403, 1101, 101, 'REPLY', 17204, NULL, '무지출 성공을 축하해요', DATE_SUB(NOW(), INTERVAL 2 DAY));
