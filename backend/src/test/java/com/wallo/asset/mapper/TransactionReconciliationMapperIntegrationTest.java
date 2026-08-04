@@ -2,8 +2,8 @@ package com.wallo.asset.mapper;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.wallo.asset.dto.AssetSyncDto;
 import com.wallo.asset.dto.ExpenseDto;
-import com.wallo.asset.dto.TransactionReconciliationDto;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.Statement;
@@ -57,9 +57,9 @@ class TransactionReconciliationMapperIntegrationTest {
 
     @Test
     void findsCheckCardMatchAndFiltersClassifiedWithdrawalFromExpenseHistory() throws Exception {
-        List<TransactionReconciliationDto.Candidate> bankCandidates =
+        List<AssetSyncDto.ReconciliationCandidate> bankCandidates =
                 reconciliationMapper.selectBankWithdrawalCandidates(7L);
-        List<TransactionReconciliationDto.Candidate> cardCandidates =
+        List<AssetSyncDto.ReconciliationCandidate> cardCandidates =
                 reconciliationMapper.selectCheckCardApprovalCandidates(7L);
 
         assertEquals(1, bankCandidates.size());

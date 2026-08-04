@@ -6,7 +6,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.wallo.asset.dto.TransactionReconciliationDto;
+import com.wallo.asset.dto.AssetSyncDto;
 import com.wallo.asset.mapper.TransactionReconciliationMapper;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -79,14 +79,14 @@ class CardWithdrawalReconciliationServiceTest {
         );
     }
 
-    private TransactionReconciliationDto.Candidate candidate(
+    private AssetSyncDto.ReconciliationCandidate candidate(
             long transactionId,
             long amount,
             String date,
             String time,
             String category
     ) {
-        return new TransactionReconciliationDto.Candidate(
+        return new AssetSyncDto.ReconciliationCandidate(
                 transactionId,
                 amount,
                 LocalDate.parse(date),

@@ -1,6 +1,6 @@
 package com.wallo.asset.service;
 
-import com.wallo.asset.dto.TransactionReconciliationDto;
+import com.wallo.asset.dto.AssetSyncDto;
 import com.wallo.asset.mapper.TransactionReconciliationMapper;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -30,25 +30,25 @@ public class CardWithdrawalReconciliationService {
     }
 
     public int reconcile(long userId) {
-        List<TransactionReconciliationDto.Candidate> bankWithdrawals = sorted(
+        List<AssetSyncDto.ReconciliationCandidate> bankWithdrawals = sorted(
                 reconciliationMapper.selectBankWithdrawalCandidates(userId)
         );
-        List<TransactionReconciliationDto.Candidate> cardApprovals = sorted(
+        List<AssetSyncDto.ReconciliationCandidate> cardApprovals = sorted(
                 reconciliationMapper.selectCheckCardApprovalCandidates(userId)
         );
         Set<Long> matchedCardApprovalIds = new HashSet<>();
 
         int updatedCount = 0;
-        for (TransactionReconciliationDto.Candidate bankWithdrawal : bankWithdrawals) {
-            TransactionReconciliationDto.Candidate matchedApproval = cardApprovals.stream()
+        for (AssetSyncDto.ReconciliationCandidate bankWithdrawal : bankWithdrawals) {
+            AssetSyncDto.ReconciliationCandidate matchedApproval = cardApprovals.stream()
                     .filter(approval -> !matchedCardApprovalIds.contains(approval.getTransactionId()))
                     .filter(approval -> approval.getAmount() == bankWithdrawal.getAmount())
                     .filter(approval -> isWithinDateRange(bankWithdrawal, approval))
                     .min(Comparator
-                            .comparingLong((TransactionReconciliationDto.Candidate approval) ->
+                            .comparingLong((AssetSyncDto.ReconciliationCandidate approval) ->
                                     dateDifference(bankWithdrawal, approval))
                             .thenComparingLong(approval -> timeDifference(bankWithdrawal, approval))
-                            .thenComparingLong(TransactionReconciliationDto.Candidate::getTransactionId))
+                            .thenComparingLong(AssetSyncDto.ReconciliationCandidate::getTransactionId))
                     .orElse(null);
 
             String expectedCategory = matchedApproval == null ? SEND : CARD_WITHDRAWAL;
@@ -67,8 +67,8 @@ public class CardWithdrawalReconciliationService {
     }
 
     private boolean isWithinDateRange(
-            TransactionReconciliationDto.Candidate bankWithdrawal,
-            TransactionReconciliationDto.Candidate cardApproval
+            AssetSyncDto.ReconciliationCandidate bankWithdrawal,
+            AssetSyncDto.ReconciliationCandidate cardApproval
     ) {
         return bankWithdrawal.getDate() != null
                 && cardApproval.getDate() != null
@@ -76,15 +76,15 @@ public class CardWithdrawalReconciliationService {
     }
 
     private long dateDifference(
-            TransactionReconciliationDto.Candidate left,
-            TransactionReconciliationDto.Candidate right
+            AssetSyncDto.ReconciliationCandidate left,
+            AssetSyncDto.ReconciliationCandidate right
     ) {
         return Math.abs(ChronoUnit.DAYS.between(left.getDate(), right.getDate()));
     }
 
     private long timeDifference(
-            TransactionReconciliationDto.Candidate left,
-            TransactionReconciliationDto.Candidate right
+            AssetSyncDto.ReconciliationCandidate left,
+            AssetSyncDto.ReconciliationCandidate right
     ) {
         if (left.getTime() == null || right.getTime() == null) {
             return Long.MAX_VALUE;
@@ -94,19 +94,19 @@ public class CardWithdrawalReconciliationService {
         return Math.abs(Duration.between(leftDateTime, rightDateTime).toSeconds());
     }
 
-    private List<TransactionReconciliationDto.Candidate> sorted(
-            List<TransactionReconciliationDto.Candidate> candidates
+    private List<AssetSyncDto.ReconciliationCandidate> sorted(
+            List<AssetSyncDto.ReconciliationCandidate> candidates
     ) {
         if (candidates == null) {
             return Collections.emptyList();
         }
         return candidates.stream()
                 .sorted(Comparator
-                        .comparing(TransactionReconciliationDto.Candidate::getDate,
+                        .comparing(AssetSyncDto.ReconciliationCandidate::getDate,
                                 Comparator.nullsLast(Comparator.naturalOrder()))
-                        .thenComparing(TransactionReconciliationDto.Candidate::getTime,
+                        .thenComparing(AssetSyncDto.ReconciliationCandidate::getTime,
                                 Comparator.nullsLast(Comparator.naturalOrder()))
-                        .thenComparingLong(TransactionReconciliationDto.Candidate::getTransactionId))
+                        .thenComparingLong(AssetSyncDto.ReconciliationCandidate::getTransactionId))
                 .toList();
     }
 }
