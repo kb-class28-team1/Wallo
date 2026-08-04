@@ -7,7 +7,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-import java.util.regex.Pattern;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,8 +26,9 @@ public class MyFeedServiceImpl implements MyFeedService {
             "LIKE_DESC",
             "SAVING_DESC");
 
-    // category 컬럼에 저장되는 영문 코드 형식만 허용하되 새로운 카테고리 추가는 막지 않음.
-    private static final Pattern CATEGORY_PATTERN = Pattern.compile("[A-Z][A-Z0-9_]{0,49}");
+    private static final Set<String> ALLOWED_CATEGORIES = Set.of(
+            "ALL", "FOOD", "CAFE", "TRANSPORT", "SHOPPING", "DELIVERY",
+            "HOUSING", "LIVING", "CULTURE", "HEALTH", "ETC");
 
     private final MyFeedMapper myFeedMapper;
 
@@ -89,8 +89,8 @@ public class MyFeedServiceImpl implements MyFeedService {
 
     private String normalizeCategory(String category) {
         String normalizedCategory = normalizeOrDefault(category, DEFAULT_CATEGORY);
-        if (!CATEGORY_PATTERN.matcher(normalizedCategory).matches()) {
-            throw new IllegalArgumentException("게시물 카테고리 형식이 올바르지 않습니다.");
+        if (!ALLOWED_CATEGORIES.contains(normalizedCategory)) {
+            throw new IllegalArgumentException("지원하지 않는 게시물 카테고리입니다.");
         }
         return normalizedCategory;
     }

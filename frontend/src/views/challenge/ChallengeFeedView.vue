@@ -2,7 +2,17 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/userStore'
-import { analyzeFeed, createFeed, getFeeds, getRoomMessages, sendRoomMessage } from '@/api/feedApi'
+import {
+  analyzeFeed,
+  createFeed,
+  deleteFeed,
+  getFeeds,
+  getRoomMessages,
+  sendRoomMessage,
+  addFeedLike,
+  updateFeed,
+} from '@/api/feedApi'
+import { EXPENSE_CATEGORY_META, FEED_CATEGORY_CODES } from '@/constants/expenseCategories'
 
 const route = useRoute()
 const userStore = useUserStore()
@@ -11,6 +21,7 @@ const focusedFeedId = computed(() => String(route.query.focusFeedId || ''))
 const feeds = ref([])
 const messages = ref([])
 const challengeName = ref('챌린지')
+const inviteCode = ref('')
 const mySavingTotal = ref(0)
 const activeTab = ref(String(route.query.scope || 'ALL').toUpperCase() === 'ME' ? 'mine' : 'all')
 const isLoading = ref(true)
@@ -18,22 +29,39 @@ const errorMessage = ref('')
 const modalOpen = ref(false)
 const isAnalyzing = ref(false)
 const isUploading = ref(false)
+const editModalOpen = ref(false)
+const isUpdating = ref(false)
+const likingFeedId = ref(null)
+const likeBursts = ref([])
+const deletingFeedId = ref(null)
 const chatInput = ref('')
 const mentionedFeed = ref(null)
 const fileInput = ref(null)
 const previewUrl = ref('')
 const focusedFeedElement = ref(null)
 let refreshTimer
+let likeBurstSequence = 0
+const likeBurstTimers = new Set()
 
 const form = reactive({
   file: null,
   spendingType: '',
   category: '',
-  customCategory: '',
   caption: '',
   savingAmount: 0,
   analysisSummary: '',
   confidenceScore: 0,
+})
+
+const editForm = reactive({
+  feedId: null,
+  mediaUrl: '',
+  mediaType: 'IMAGE',
+  spendingType: '',
+  category: '',
+  caption: '',
+  savingAmount: 0,
+  analysisSummary: '',
 })
 
 const spendingTypes = [
@@ -41,20 +69,18 @@ const spendingTypes = [
   { value: 'REDUCED', label: '✂️ 줄였다' },
   { value: 'SAVED', label: '🐷 모았다' },
 ]
-const categories = [
-  { value: 'COFFEE', label: '☕ 커피' },
-  { value: 'DELIVERY', label: '🛵 배달' },
-  { value: 'TRANSPORT', label: '🚌 교통' },
-  { value: 'GROCERY', label: '🛒 장보기' },
-  { value: 'DINING', label: '🍚 외식' },
-  { value: 'CUSTOM', label: '✏️ 직접 입력' },
-]
+const categories = FEED_CATEGORY_CODES.map((value) => ({
+  value,
+  ...EXPENSE_CATEGORY_META[value],
+}))
 const categoryLabel = (value, custom) =>
-  custom || categories.find((item) => item.value === value)?.label.replace(/^.. /, '') || value
+  custom || EXPENSE_CATEGORY_META[value]?.label || value || '기타'
 const spendingLabel = (value) => spendingTypes.find((item) => item.value === value)?.label || value
 const formatWon = (value) => `${Number(value || 0).toLocaleString('ko-KR')}원`
 const isVideoFile = computed(() => form.file?.type?.startsWith('video/'))
 const roomTitle = computed(() => `${challengeName.value} 채팅방`)
+
+const isMyFeed = (feed) => Number(feed.userId) === Number(userStore.user?.id)
 
 // 내 게시물에서 전달한 feedId와 현재 피드의 id가 같은지 확인함.
 const isFocusedFeed = (feed) => String(feed.id) === focusedFeedId.value
@@ -82,6 +108,7 @@ const loadFeeds = async () => {
   const data = await getFeeds(challengeId.value, activeTab.value === 'mine')
   feeds.value = data.feeds
   challengeName.value = data.challengeName
+  inviteCode.value = data.inviteCode || ''
   mySavingTotal.value = data.mySavingTotal
 }
 const loadMessages = async () => {
@@ -108,6 +135,15 @@ const changeTab = async (tab) => {
     errorMessage.value = error.message
   }
 }
+const copyInviteCode = async () => {
+  if (!inviteCode.value) return
+  try {
+    await navigator.clipboard.writeText(inviteCode.value)
+    alert('초대 코드가 복사되었습니다.')
+  } catch {
+    alert(`초대 코드: ${inviteCode.value}`)
+  }
+}
 const openModal = () => {
   modalOpen.value = true
 }
@@ -119,13 +155,95 @@ const closeModal = () => {
     file: null,
     spendingType: '',
     category: '',
-    customCategory: '',
     caption: '',
     savingAmount: 0,
     analysisSummary: '',
     confidenceScore: 0,
   })
   if (fileInput.value) fileInput.value.value = ''
+}
+const openEditModal = (feed) => {
+  if (!isMyFeed(feed)) return
+  Object.assign(editForm, {
+    feedId: feed.id,
+    mediaUrl: feed.mediaUrl || feed.thumbnailUrl || '',
+    mediaType: feed.mediaType || 'IMAGE',
+    spendingType: feed.spendingType || 'REDUCED',
+    category: FEED_CATEGORY_CODES.includes(feed.category) ? feed.category : 'ETC',
+    caption: feed.caption || '',
+    savingAmount: Number(feed.savingAmount || 0),
+    analysisSummary: feed.analysisSummary || '기존 AI 분석 결과를 불러왔어요.',
+  })
+  editModalOpen.value = true
+}
+const closeEditModal = () => {
+  editModalOpen.value = false
+  Object.assign(editForm, {
+    feedId: null,
+    mediaUrl: '',
+    mediaType: 'IMAGE',
+    spendingType: '',
+    category: '',
+    caption: '',
+    savingAmount: 0,
+    analysisSummary: '',
+  })
+}
+const saveFeedEdit = async () => {
+  if (!editForm.spendingType) return alert('소비 종류를 선택해 주세요.')
+  if (!editForm.category) return alert('세부 카테고리를 선택해 주세요.')
+  if (editForm.savingAmount < 0) return alert('절약 금액은 0원 이상 입력해 주세요.')
+  isUpdating.value = true
+  try {
+    await updateFeed(challengeId.value, editForm.feedId, {
+      spendingType: editForm.spendingType,
+      category: editForm.category,
+      caption: editForm.caption,
+      savingAmount: Number(editForm.savingAmount || 0),
+    })
+    closeEditModal()
+    await loadFeeds()
+  } catch (error) {
+    alert(error.message)
+  } finally {
+    isUpdating.value = false
+  }
+}
+const addLike = async (feed) => {
+  if (likingFeedId.value !== null) return
+  likingFeedId.value = feed.id
+  try {
+    const result = await addFeedLike(challengeId.value, feed.id)
+    feed.likeCount = result.likeCount
+    const id = ++likeBurstSequence
+    likeBursts.value.push({
+      id,
+      feedId: feed.id,
+      drift: ((id * 37) % 55) - 28,
+    })
+    const timer = window.setTimeout(() => {
+      likeBursts.value = likeBursts.value.filter((burst) => burst.id !== id)
+      likeBurstTimers.delete(timer)
+    }, 950)
+    likeBurstTimers.add(timer)
+  } catch (error) {
+    alert(error.message)
+  } finally {
+    likingFeedId.value = null
+  }
+}
+const removeFeed = async (feed) => {
+  if (!isMyFeed(feed) || deletingFeedId.value !== null) return
+  if (!window.confirm('이 피드를 삭제할까요?')) return
+  deletingFeedId.value = feed.id
+  try {
+    await deleteFeed(challengeId.value, feed.id)
+    await Promise.all([loadFeeds(), loadMessages()])
+  } catch (error) {
+    alert(error.message)
+  } finally {
+    deletingFeedId.value = null
+  }
 }
 const chooseFile = () => fileInput.value?.click()
 const handleFile = (event) => {
@@ -144,8 +262,6 @@ const validationMessage = () => {
   if (!form.file) return '사진이나 영상을 선택해 주세요.'
   if (!form.spendingType) return '소비 종류를 선택해 주세요.'
   if (!form.category) return '세부 카테고리를 선택해 주세요.'
-  if (form.category === 'CUSTOM' && !form.customCategory.trim())
-    return '직접 입력할 카테고리를 작성해 주세요.'
   return ''
 }
 const makeFormData = () => {
@@ -177,7 +293,6 @@ const uploadFeed = async () => {
   isUploading.value = true
   try {
     const data = makeFormData()
-    data.append('customCategory', form.customCategory)
     data.append('caption', form.caption)
     data.append('savingAmount', String(form.savingAmount))
     data.append('analysisSummary', form.analysisSummary)
@@ -191,19 +306,40 @@ const uploadFeed = async () => {
     isUploading.value = false
   }
 }
+const makeMentionedFeed = (feed) => ({
+  id: feed.id || feed.referenceFeedId,
+  mediaUrl: feed.thumbnailUrl || feed.mediaUrl,
+  mediaType: feed.mediaType,
+})
+const findFeedForMention = (feedId) => {
+  const feed = feeds.value.find((item) => Number(item.id) === Number(feedId))
+  if (feed) return feed
+  return messages.value.find((item) => Number(item.referenceFeedId) === Number(feedId))
+}
+const setMentionedFeed = (feedId) => {
+  const feed = findFeedForMention(feedId)
+  if (!feed) return false
+  mentionedFeed.value = makeMentionedFeed(feed)
+  return true
+}
+const handleChatInput = () => {
+  const mention = chatInput.value.match(/@(피드)?(\d+)/i)
+  if (!mention || !setMentionedFeed(mention[2])) return
+  chatInput.value = chatInput.value
+    .replace(mention[0], '')
+    .replace(/\s{2,}/g, ' ')
+    .trimStart()
+}
 const mentionFeed = (message) => {
-  mentionedFeed.value = {
-    id: message.referenceFeedId,
-    mediaUrl: message.thumbnailUrl || message.mediaUrl,
-    mediaType: message.mediaType,
-  }
-  chatInput.value = `@피드${message.referenceFeedId} `
+  setMentionedFeed(message.referenceFeedId)
+  chatInput.value = ''
 }
 const sendMessage = async () => {
-  if (!chatInput.value.trim()) return
+  const content = chatInput.value.trim()
+  if (!content && !mentionedFeed.value) return
   try {
     await sendRoomMessage(challengeId.value, {
-      content: chatInput.value.trim(),
+      content: content || null,
       referenceFeedId: mentionedFeed.value?.id || null,
     })
     chatInput.value = ''
@@ -222,6 +358,7 @@ onMounted(async () => {
 })
 onBeforeUnmount(() => {
   window.clearInterval(refreshTimer)
+  likeBurstTimers.forEach((timer) => window.clearTimeout(timer))
   if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
 })
 </script>
@@ -243,21 +380,29 @@ onBeforeUnmount(() => {
           <h1>{{ challengeName }}</h1>
           <p>함께 남긴 절약 기록을 확인하고 응원해 보세요.</p>
         </div>
-        <div class="saving-total">
-          <small>나의 누적 절약 금액</small><strong>{{ formatWon(mySavingTotal) }}</strong>
-        </div>
       </header>
 
       <div class="feed-layout">
         <main class="feed-column">
-          <nav class="feed-tabs">
-            <button :class="{ active: activeTab === 'all' }" @click="changeTab('all')">
-              전체 피드
-            </button>
-            <button :class="{ active: activeTab === 'mine' }" @click="changeTab('mine')">
-              내 피드
-            </button>
-          </nav>
+          <div class="feed-toolbar">
+            <nav class="feed-tabs">
+              <button :class="{ active: activeTab === 'all' }" @click="changeTab('all')">
+                전체 피드
+              </button>
+              <button :class="{ active: activeTab === 'mine' }" @click="changeTab('mine')">
+                내 피드
+              </button>
+            </nav>
+            <div v-if="inviteCode" class="feed-invite-panel">
+              <div>
+                <small>친구 초대 코드</small>
+                <strong>{{ inviteCode }}</strong>
+              </div>
+              <button type="button" aria-label="초대 코드 복사" @click="copyInviteCode">
+                <i class="bi bi-copy" aria-hidden="true"></i>
+              </button>
+            </div>
+          </div>
           <div v-if="!feeds.length" class="empty-feed">
             <span>📷</span><strong>아직 등록된 피드가 없어요</strong>
             <p>오른쪽 아래 + 버튼을 눌러 첫 절약 기록을 남겨보세요.</p>
@@ -282,60 +427,107 @@ onBeforeUnmount(() => {
               </div>
               <span class="saving-badge">+ {{ formatWon(feed.savingAmount) }}</span>
             </header>
-            <video
-              v-if="feed.mediaType === 'VIDEO'"
-              :src="feed.mediaUrl"
-              controls
-              preload="metadata"
-            ></video>
-            <img
-              v-else
-              class="feed-media"
-              :src="feed.mediaUrl"
-              :alt="feed.caption || '절약 인증 사진'"
-            />
+            <div class="feed-media-wrap">
+              <video
+                v-if="feed.mediaType === 'VIDEO'"
+                :src="feed.mediaUrl"
+                controls
+                preload="metadata"
+              ></video>
+              <img
+                v-else
+                class="feed-media"
+                :src="feed.mediaUrl"
+                :alt="feed.caption || '절약 인증 사진'"
+              />
+              <div class="like-burst-layer" aria-hidden="true">
+                <span
+                  v-for="burst in likeBursts.filter((item) => item.feedId === feed.id)"
+                  :key="burst.id"
+                  class="like-burst"
+                  :style="{ '--like-drift': `${burst.drift}px` }"
+                >
+                  ♥
+                </span>
+              </div>
+              <div class="feed-like-row">
+                <button
+                  type="button"
+                  class="like-button"
+                  :disabled="likingFeedId === feed.id"
+                  aria-label="좋아요 추가"
+                  @click.stop="addLike(feed)"
+                >
+                  <span aria-hidden="true">♥</span>
+                  <strong>{{ feed.likeCount || 0 }}</strong>
+                </button>
+              </div>
+            </div>
             <footer>
-              <p>{{ feed.caption || '오늘의 절약 기록을 공유했어요.' }}</p>
+              <div class="feed-caption-row">
+                <p>{{ feed.caption || '오늘의 절약 기록을 공유했어요.' }}</p>
+                <div v-if="isMyFeed(feed)" class="feed-owner-actions">
+                  <button type="button" @click.stop="openEditModal(feed)">수정</button>
+                  <button
+                    type="button"
+                    :disabled="deletingFeedId === feed.id"
+                    @click.stop="removeFeed(feed)"
+                  >
+                    {{ deletingFeedId === feed.id ? '삭제 중...' : '삭제' }}
+                  </button>
+                </div>
+              </div>
               <span>🤖 AI 분석 완료 · 절약 금액 {{ formatWon(feed.savingAmount) }}</span>
             </footer>
           </article>
         </main>
 
-        <aside class="chat-room">
-          <header>
-            <span class="online-dot"></span>
-            <div>
-              <h2>{{ roomTitle }}</h2>
-              <small>피드와 이야기를 함께 나눠요</small>
+        <aside class="feed-sidebar">
+          <div class="saving-total">
+            <small>나의 누적 절약 금액</small><strong>{{ formatWon(mySavingTotal) }}</strong>
+          </div>
+          <section class="chat-room">
+            <header>
+              <span class="online-dot"></span>
+              <div>
+                <h2>{{ roomTitle }}</h2>
+                <small>피드와 이야기를 함께 나눠요</small>
+              </div>
+            </header>
+            <div class="messages">
+              <div
+                v-for="item in messages"
+                :key="item.id"
+                class="message"
+                :class="{ mine: item.userId === userStore.user?.id }"
+              >
+                <strong>{{ item.nickname }}</strong>
+                <button v-if="item.referenceFeedId" class="shared-feed" @click="mentionFeed(item)">
+                  <video v-if="item.mediaType === 'VIDEO'" :src="item.mediaUrl" muted></video>
+                  <img v-else :src="item.thumbnailUrl || item.mediaUrl" alt="공유 피드 썸네일" />
+                  <span
+                    ><b>피드 #{{ item.referenceFeedId }}</b
+                    ><small>눌러서 언급하기</small></span
+                  >
+                </button>
+              <p v-if="item.content">{{ item.content }}</p>
+              </div>
             </div>
-          </header>
-          <div class="messages">
-            <div
-              v-for="item in messages"
-              :key="item.id"
-              class="message"
-              :class="{ mine: item.userId === userStore.user?.id }"
-            >
-              <strong>{{ item.nickname }}</strong>
-              <button v-if="item.referenceFeedId" class="shared-feed" @click="mentionFeed(item)">
-                <video v-if="item.mediaType === 'VIDEO'" :src="item.mediaUrl" muted></video>
-                <img v-else :src="item.thumbnailUrl || item.mediaUrl" alt="공유 피드 썸네일" />
-                <span
-                  ><b>피드 #{{ item.referenceFeedId }}</b
-                  ><small>눌러서 언급하기</small></span
-                >
+            <div v-if="mentionedFeed" class="mention-preview">
+              <span>피드 #{{ mentionedFeed.id }} 언급 중</span>
+              <button @click="mentionedFeed = null">×</button>
+            </div>
+            <form class="chat-form" @submit.prevent="sendMessage">
+              <input
+                v-model="chatInput"
+                placeholder="메시지 보내기..."
+                @input="handleChatInput"
+              />
+              <button type="submit" aria-label="메시지 전송">
+                <i class="bi bi-send" aria-hidden="true"></i>
               </button>
-              <p>{{ item.content }}</p>
-            </div>
-          </div>
-          <div v-if="mentionedFeed" class="mention-preview">
-            <span>피드 #{{ mentionedFeed.id }} 언급 중</span>
-            <button @click="mentionedFeed = null">×</button>
-          </div>
-          <form class="chat-form" @submit.prevent="sendMessage">
-            <input v-model="chatInput" placeholder="메시지 보내기..." />
-            <button aria-label="메시지 전송">↑</button>
-          </form>
+            </form>
+          </section>
         </aside>
       </div>
       <button class="floating-add" aria-label="절약 피드 추가" @click="openModal">+</button>
@@ -388,16 +580,10 @@ onBeforeUnmount(() => {
               :class="{ selected: form.category === item.value }"
               @click="form.category = item.value"
             >
+              <i :class="['bi', item.icon]" aria-hidden="true"></i>
               {{ item.label }}
             </button>
           </div>
-          <input
-            v-if="form.category === 'CUSTOM'"
-            v-model="form.customCategory"
-            class="custom-input"
-            maxlength="50"
-            placeholder="카테고리를 직접 입력해 주세요"
-          />
 
           <div class="analysis-box">
             <div>
@@ -432,6 +618,85 @@ onBeforeUnmount(() => {
           <button class="cancel" @click="closeModal">취소</button
           ><button class="submit" :disabled="isUploading" @click="uploadFeed">
             {{ isUploading ? '올리는 중...' : '피드 올리기' }}
+          </button>
+        </footer>
+      </section>
+    </div>
+
+    <div v-if="editModalOpen" class="modal-layer" @click.self="closeEditModal">
+      <section class="upload-modal edit-modal" role="dialog" aria-modal="true" aria-labelledby="edit-title">
+        <header>
+          <h2 id="edit-title">절약 피드 수정</h2>
+          <button type="button" aria-label="수정 창 닫기" @click="closeEditModal">×</button>
+        </header>
+        <div class="modal-body">
+          <label class="section-label">인증 자료</label>
+          <div class="upload-zone edit-media-preview">
+            <video
+              v-if="editForm.mediaType === 'VIDEO'"
+              :src="editForm.mediaUrl"
+              controls
+              preload="metadata"
+            ></video>
+            <img v-else :src="editForm.mediaUrl" alt="수정할 인증 사진" />
+          </div>
+
+          <label class="section-label">소비 종류</label>
+          <div class="chip-row">
+            <button
+              v-for="item in spendingTypes"
+              :key="item.value"
+              type="button"
+              :class="{ selected: editForm.spendingType === item.value }"
+              @click="editForm.spendingType = item.value"
+            >
+              {{ item.label }}
+            </button>
+          </div>
+
+          <label class="section-label">세부 카테고리</label>
+          <div class="chip-row">
+            <button
+              v-for="item in categories"
+              :key="item.value"
+              type="button"
+              :class="{ selected: editForm.category === item.value }"
+              @click="editForm.category = item.value"
+            >
+              <i :class="['bi', item.icon]" aria-hidden="true"></i>
+              {{ item.label }}
+            </button>
+          </div>
+
+          <div class="analysis-box edit-analysis-box">
+            <div>
+              <b>🤖 AI 분석</b><span>처음 저장한 분석 결과를 불러왔어요.</span>
+            </div>
+            <div class="result-box ready">
+              <span>🤖 AI 추정</span><small>{{ editForm.analysisSummary }}</small>
+              <div>
+                <input
+                  id="edit-saving-amount"
+                  v-model.number="editForm.savingAmount"
+                  type="number"
+                  min="0"
+                /><b>원</b>
+              </div>
+            </div>
+          </div>
+
+          <label class="section-label" for="edit-caption">문구</label>
+          <textarea
+            id="edit-caption"
+            v-model="editForm.caption"
+            maxlength="500"
+            placeholder="절약 기록 문구를 입력해 주세요."
+          ></textarea>
+        </div>
+        <footer>
+          <button class="cancel" type="button" @click="closeEditModal">취소</button>
+          <button class="submit" type="button" :disabled="isUpdating" @click="saveFeedEdit">
+            {{ isUpdating ? '저장 중...' : '수정 저장' }}
           </button>
         </footer>
       </section>
@@ -473,8 +738,9 @@ onBeforeUnmount(() => {
   color: #939bad;
 }
 .saving-total {
-  min-width: 210px;
-  padding: 15px 20px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 18px 22px;
   background: #f0edff;
   border-radius: 16px;
 }
@@ -499,10 +765,28 @@ onBeforeUnmount(() => {
 .feed-column {
   min-width: 0;
 }
+.feed-sidebar {
+  position: fixed;
+  top: 100px;
+  right: max(32px, calc((100vw - 1453px) / 2));
+  z-index: 15;
+  display: flex;
+  width: 330px;
+  height: calc(100vh - 124px);
+  min-width: 0;
+  flex-direction: column;
+  gap: 18px;
+}
+.feed-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
 .feed-tabs {
   display: flex;
   gap: 6px;
-  margin-bottom: 14px;
   padding: 5px;
   background: #f0eff7;
   border-radius: 13px;
@@ -519,6 +803,46 @@ onBeforeUnmount(() => {
 .feed-tabs button.active {
   color: #fff;
   background: #6f61dc;
+}
+.feed-invite-panel {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 190px;
+  padding: 8px 11px 8px 14px;
+  background: #fff;
+  border: 1px solid #e3e1f4;
+  border-radius: 13px;
+  box-shadow: 0 5px 15px #29315a0d;
+}
+.feed-invite-panel div {
+  min-width: 0;
+  flex: 1;
+}
+.feed-invite-panel small,
+.feed-invite-panel strong {
+  display: block;
+}
+.feed-invite-panel small {
+  margin-bottom: 2px;
+  color: #989db1;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+.feed-invite-panel strong {
+  color: #6658d4;
+  font-size: 0.92rem;
+  letter-spacing: 0.1em;
+}
+.feed-invite-panel button {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  color: #6f61dc;
+  background: #f0edff;
+  border: 0;
+  border-radius: 8px;
 }
 .empty-feed {
   display: grid;
@@ -604,33 +928,127 @@ onBeforeUnmount(() => {
   font-size: 0.82rem;
   font-weight: 800;
 }
+.feed-media-wrap {
+  position: relative;
+  background: #09122d;
+}
 .feed-media,
-.feed-card > video {
+.feed-media-wrap > video {
   display: block;
   width: 100%;
   max-height: 560px;
   object-fit: contain;
   background: #09122d;
 }
+.feed-like-row {
+  position: absolute;
+  left: 18px;
+  bottom: 14px;
+  z-index: 3;
+}
+.like-burst-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  pointer-events: none;
+}
+.like-burst {
+  position: absolute;
+  left: 24px;
+  bottom: 28px;
+  color: #ff6387;
+  font-size: 2rem;
+  line-height: 1;
+  opacity: 0;
+  text-shadow: 0 3px 12px #ff638766;
+  animation: like-heart-rise 950ms ease-out forwards;
+}
+.like-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  color: #ffe36e;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  font-weight: 800;
+}
+.like-button span {
+  color: #ff9eb5;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+.like-button strong {
+  color: #ffe36e;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+.like-button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+@keyframes like-heart-rise {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0) scale(0.45) rotate(-10deg);
+  }
+  16% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--like-drift), -150px, 0) scale(1.25) rotate(12deg);
+  }
+}
 .feed-card footer {
   padding: 15px 18px 18px;
   color: #fff;
 }
+.feed-caption-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
 .feed-card footer p {
+  min-width: 0;
+  flex: 1;
   margin: 0 0 8px;
   font-weight: 700;
+}
+.feed-owner-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 6px;
+}
+.feed-owner-actions button {
+  padding: 5px 8px;
+  color: #aeb8d4;
+  background: transparent;
+  border: 1px solid #ffffff25;
+  border-radius: 7px;
+  font-size: 0.75rem;
+}
+.feed-owner-actions button:last-child {
+  color: #ffb5c4;
+  border-color: #ff9fb544;
+}
+.feed-owner-actions button:disabled {
+  opacity: 0.5;
 }
 .feed-card footer span {
   color: #aeb8d4;
   font-size: 0.8rem;
 }
 .chat-room {
-  position: sticky;
-  top: 18px;
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 175px);
-  min-height: 560px;
+  flex: 1;
+  height: auto;
+  min-height: 0;
   overflow: hidden;
   color: #e7eaff;
   background: #111a36;
@@ -658,8 +1076,23 @@ onBeforeUnmount(() => {
 }
 .messages {
   flex: 1;
+  min-height: 0;
   overflow: auto;
   padding: 16px;
+  scrollbar-color: #4c587b transparent;
+  scrollbar-width: thin;
+}
+.messages::-webkit-scrollbar {
+  width: 8px;
+}
+.messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+.messages::-webkit-scrollbar-thumb {
+  background: #4c587b;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
 }
 .message {
   margin-bottom: 14px;
@@ -749,6 +1182,8 @@ onBeforeUnmount(() => {
 }
 .chat-form button {
   width: 40px;
+  height: 40px;
+  font-size: 1.05rem;
 }
 .floating-add {
   position: fixed;
@@ -918,6 +1353,51 @@ textarea {
   min-height: 84px;
   resize: vertical;
 }
+.edit-select,
+.edit-amount-row input {
+  width: 100%;
+  padding: 12px 13px;
+  border: 1px solid #dedfeb;
+  border-radius: 12px;
+  background: #fff;
+}
+.edit-media-preview {
+  cursor: default;
+}
+.edit-media-preview img,
+.edit-media-preview video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.edit-analysis-box > div:first-child {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.edit-analysis-box .result-box {
+  display: block;
+  margin: 0;
+  background: #f0fff7;
+}
+.edit-analysis-box .result-box > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  margin-bottom: 0;
+}
+.edit-amount-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.edit-amount-row input {
+  flex: 1;
+}
+.edit-modal textarea {
+  margin-top: 0;
+}
 .share-notice {
   padding: 10px;
   margin: 12px 0 0;
@@ -965,10 +1445,15 @@ textarea {
   .feed-layout {
     grid-template-columns: 1fr;
   }
+  .feed-sidebar {
+    position: static;
+    width: auto;
+    height: auto;
+  }
   .chat-room {
-    position: relative;
-    top: 0;
+    flex: none;
     height: 600px;
+    min-height: 600px;
   }
   .floating-add {
     right: 20px;
@@ -981,8 +1466,18 @@ textarea {
     flex-direction: column;
     gap: 15px;
   }
-  .saving-total {
+  .feed-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .feed-tabs {
     width: 100%;
+  }
+  .feed-tabs button {
+    flex: 1;
+  }
+  .feed-invite-panel {
+    align-self: flex-end;
   }
   .modal-layer {
     padding: 0;
@@ -991,6 +1486,13 @@ textarea {
     height: 100%;
     max-height: none;
     border-radius: 0;
+  }
+  .feed-caption-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .feed-owner-actions {
+    align-self: flex-end;
   }
 }
 </style>
