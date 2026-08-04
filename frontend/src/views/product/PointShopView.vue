@@ -154,6 +154,13 @@ onMounted(loadPointShop)
       <span>보유 포인트</span>
       <strong>{{ formattedPoint }}</strong>
       <p>오늘의 미션을 인증하고 포인트를 모아보세요 🪙</p>
+      <RouterLink
+        to="/point-history"
+        class="point-history-button"
+        aria-label="포인트 내역 페이지로 이동"
+      >
+        포인트 내역 보기
+      </RouterLink>
     </article>
 
     <div v-if="isLoading" class="loading-message" role="status">
@@ -268,7 +275,9 @@ onMounted(loadPointShop)
 }
 
 .point-summary-card {
+  position: relative;
   padding: 26px;
+  padding-right: 190px;
   border-radius: 20px;
   background: linear-gradient(110deg, #6857eb, #9178ff);
   color: #fff;
@@ -313,6 +322,28 @@ onMounted(loadPointShop)
   display: block;
   margin: 6px 0;
   font-size: 34px;
+}
+
+.point-history-button {
+  position: absolute;
+  top: 50%;
+  right: 24px;
+  padding: 10px 18px;
+  border: 1px solid #5548c7;
+  border-radius: 10px;
+  color: #302a76;
+  background: #fff6d8;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  transform: translateY(-50%);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.point-history-button:hover,
+.point-history-button:focus-visible {
+  color: #fff;
+  background: #5548c7;
 }
 
 .section-title {
@@ -538,6 +569,17 @@ onMounted(loadPointShop)
 }
 
 @media (max-width: 768px) {
+  .point-summary-card {
+    padding-right: 26px;
+  }
+
+  .point-history-button {
+    position: static;
+    display: inline-block;
+    margin-top: 14px;
+    transform: none;
+  }
+
   .box-grid {
     grid-template-columns: 1fr;
   }
