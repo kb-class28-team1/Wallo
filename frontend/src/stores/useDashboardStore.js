@@ -1,6 +1,6 @@
 import { computed, ref } from "vue";
 import { defineStore } from "pinia";
-import { getAssets, getBudgets, getExpenses, putBudget } from "@/api/dashboardApi";
+import { getAssets, getBudgets, getExpenses, putBudget } from "@/api/assetApi";
 import { getExpenseCategoryLabel } from "@/constants/expenseCategories";
 
 const CHART_COLORS = [
@@ -84,9 +84,9 @@ export const useDashboardStore = defineStore("dashboard", () => {
         getExpenses(),
       ]);
 
-      assets.value = assetsResponse.data.data;
-      budget.value = budgetResponse.data.data;
-      expenses.value = expensesResponse.data.data;
+      assets.value = assetsResponse.data;
+      budget.value = budgetResponse.data;
+      expenses.value = expensesResponse.data;
     } catch (caughtError) {
       const errorMessage = getErrorMessage(caughtError);
 
@@ -103,7 +103,7 @@ export const useDashboardStore = defineStore("dashboard", () => {
     try {
       const response = await putBudget(targetMonth, Number(totalAmount));
 
-      budget.value = response.data.data;
+      budget.value = response.data;
     } catch (caughtError) {
       const errorMessage = getErrorMessage(caughtError);
 

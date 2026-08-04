@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from "vue";
 import ExpenseCalendar from "@/components/asset/ExpenseCalendar.vue";
 import ExpenseCategoryBreakdown from "@/components/asset/ExpenseCategoryBreakdown.vue";
 import ExpenseTransactionList from "@/components/asset/ExpenseTransactionList.vue";
-import { getExpenseHistory } from "@/api/assetApi";
+import { getExpenses } from "@/api/assetApi";
 
 const PAGE_SIZE = 20;
 
@@ -112,7 +112,7 @@ const fetchExpensePage = async (page, append = false) => {
   }
 
   try {
-    const response = await getExpenseHistory({
+    const response = await getExpenses({
       ...dateRange.value,
       page,
       size: PAGE_SIZE,
@@ -187,7 +187,7 @@ const fetchDailyExpensePage = async (page, append = false) => {
   }
 
   try {
-    const response = await getExpenseHistory({
+    const response = await getExpenses({
       startDate: selectedDate.value,
       endDate: selectedDate.value,
       page,

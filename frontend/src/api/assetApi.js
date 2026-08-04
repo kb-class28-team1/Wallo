@@ -1,28 +1,76 @@
 import httpClient from "@/api/httpClient";
 
-export const getAssets = async () => {
-  const response = await httpClient.get("/api/assets");
+const formatDate = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
 
-  return response.data;
+  return `${year}-${month}-${day}`;
+};
+
+const getCurrentMonthDateRange = () => {
+  const today = new Date();
+
+  return {
+    startDate: formatDate(new Date(today.getFullYear(), today.getMonth(), 1)),
+    endDate: formatDate(new Date(today.getFullYear(), today.getMonth() + 1, 0)),
+  };
+};
+
+export const getAssets = async () => {
+  try {
+    const response = await httpClient.get("/api/assets");
+
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
 };
 
 export const connectAllAssets = async (consentAgreed) => {
-  const response = await httpClient.post("/api/connections", {
-    consentAgreed,
-  });
+  try {
+    const response = await httpClient.post("/api/connections", {
+      consentAgreed,
+    });
 
-  return response.data;
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
 };
 
-export const getExpenseHistory = async ({ startDate, endDate, page, size }) => {
+export const getExpenses = async (params = {}) => {
   try {
     const response = await httpClient.get("/api/assets/expense", {
       params: {
-        startDate,
-        endDate,
-        page,
-        size,
+        ...getCurrentMonthDateRange(),
+        page: 0,
+        size: 20,
+        ...params,
       },
+    });
+
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const getBudgets = async () => {
+  try {
+    const response = await httpClient.get("/api/budgets");
+
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const putBudget = async (targetMonth, totalAmount) => {
+  try {
+    const response = await httpClient.put("/api/budgets", {
+      targetMonth,
+      totalAmount,
     });
 
     return response.data;
