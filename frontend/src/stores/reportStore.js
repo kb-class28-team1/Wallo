@@ -14,7 +14,6 @@ export const useReportStore = defineStore("report", {
     taxSettlement: null,
     isTaxSettlementLoading: false,
     taxSettlementError: null,
-    isAnnualSalaryRequired: false,
     isAnnualSalarySaving: false,
     annualSalaryError: null,
   }),
@@ -45,14 +44,9 @@ export const useReportStore = defineStore("report", {
       }
     },
 
-    async retryInsight() {
-      return this.fetchInsight();
-    },
-
     async fetchTaxSettlement(year) {
       this.isTaxSettlementLoading = true;
       this.taxSettlementError = null;
-      this.isAnnualSalaryRequired = false;
 
       try {
         const response = await getTaxSettlement(year);
@@ -62,9 +56,7 @@ export const useReportStore = defineStore("report", {
       } catch (error) {
         this.taxSettlement = null;
 
-        if (getApiErrorCode(error) === "REPORT_002") {
-          this.isAnnualSalaryRequired = true;
-        } else {
+        if (getApiErrorCode(error) !== "REPORT_002") {
           this.taxSettlementError = getApiErrorMessage(
             error,
             "소득공제 달성률을 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
@@ -77,17 +69,12 @@ export const useReportStore = defineStore("report", {
       }
     },
 
-    async retryTaxSettlement() {
-      return this.fetchTaxSettlement();
-    },
-
     async saveAnnualSalary(annualSalary) {
       this.isAnnualSalarySaving = true;
       this.annualSalaryError = null;
 
       try {
         const response = await updateAnnualSalary(annualSalary);
-        this.isAnnualSalaryRequired = false;
 
         try {
           await this.fetchTaxSettlement();

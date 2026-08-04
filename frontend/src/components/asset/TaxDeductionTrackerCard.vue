@@ -56,7 +56,7 @@ const loadTaxSettlement = async () => {
 
 const retryTaxSettlement = async () => {
   try {
-    await reportStore.retryTaxSettlement();
+    await reportStore.fetchTaxSettlement();
   } catch {
     // 다시 시도 결과는 Pinia 상태를 통해 카드에 표시합니다.
   }

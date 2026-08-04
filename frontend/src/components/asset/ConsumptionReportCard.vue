@@ -30,7 +30,7 @@ const loadInsight = async () => {
 
 const retryInsight = async () => {
   try {
-    await reportStore.retryInsight();
+    await reportStore.fetchInsight();
   } catch {
     // 재시도 오류는 Pinia에서 상태와 사용자 안내를 갱신합니다.
   }

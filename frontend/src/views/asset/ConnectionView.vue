@@ -2,12 +2,10 @@
 import { computed, onBeforeUnmount, ref } from "vue";
 import { useRouter } from "vue-router";
 import { connectAllAssets } from "@/api/assetApi";
-import { useAssetStore } from "@/stores/assetStore";
 import { useUserStore } from "@/stores/userStore";
 import { getApiErrorMessage } from "@/utils/apiError";
 
 const router = useRouter();
-const assetStore = useAssetStore();
 const userStore = useUserStore();
 
 const name = ref("");
@@ -141,7 +139,6 @@ const handleSubmit = async () => {
     loadingMessage.value = "연동 결과를 정리하는 중...";
 
     const results = response?.data?.results || response?.results || [];
-    assetStore.connectionResults = results;
 
     await wait(300);
     notifyConnectionResult(results);
