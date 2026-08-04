@@ -331,10 +331,10 @@ onMounted(loadPointShop)
   top: 50%;
   right: 24px;
   padding: 10px 18px;
-  border: 1px solid #5548c7;
+  border: 1px solid #c8c2ff;
   border-radius: 10px;
-  color: #302a76;
-  background: #fff6d8;
+  color: #5648c4;
+  background: #eeecff;
   font-size: 14px;
   font-weight: 700;
   text-decoration: none;
@@ -345,7 +345,8 @@ onMounted(loadPointShop)
 .point-history-button:hover,
 .point-history-button:focus-visible {
   color: #fff;
-  background: #5548c7;
+  border-color: #7565ed;
+  background: #7565ed;
 }
 
 .section-title {
