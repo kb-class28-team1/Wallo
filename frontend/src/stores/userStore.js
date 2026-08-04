@@ -41,8 +41,8 @@ export const useUserStore = defineStore("user", () => {
     }
   }
 
-  const restoreSession = async () => {
-    if (hasCheckedAuth.value) {
+  const restoreSession = async (force = false) => {
+    if (hasCheckedAuth.value && !force) {
       return isAuthenticated.value
     }
 

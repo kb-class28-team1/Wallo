@@ -53,7 +53,7 @@ public class AuthServiceImpl implements AuthService {
             throw new IllegalStateException("사용자 저장에 실패했습니다.");
         }
 
-        return AuthUserResponse.from(authMapper.findById(user.getId()));
+        return AuthUserResponse.from(authMapper.findById(user.getId()), false, false);
     }
 
     @Override
@@ -67,7 +67,9 @@ public class AuthServiceImpl implements AuthService {
             throw new AuthException(AuthErrorCode.LOGIN_FAILED);
         }
 
-        return AuthUserResponse.from(user);
+        boolean firstLogin = authMapper.markFirstLoginComplete(user.getId()) == 1;
+        boolean connectionCompleted = authMapper.countActiveConnections(user.getId()) > 0;
+        return AuthUserResponse.from(user, firstLogin, connectionCompleted);
     }
 
     @Override
@@ -80,7 +82,8 @@ public class AuthServiceImpl implements AuthService {
         if (user == null) {
             throw new AuthException(AuthErrorCode.AUTH_REQUIRED);
         }
-        return AuthUserResponse.from(user);
+        boolean connectionCompleted = authMapper.countActiveConnections(user.getId()) > 0;
+        return AuthUserResponse.from(user, false, connectionCompleted);
     }
 
     private void validateSignupRequest(SignupRequest request) {

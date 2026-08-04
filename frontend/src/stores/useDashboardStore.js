@@ -1,6 +1,7 @@
 import { computed, ref } from "vue";
 import { defineStore } from "pinia";
 import { getAssets, getBudgets, getExpenses, putBudget } from "@/api/dashboardApi";
+import { getExpenseCategoryLabel } from "@/constants/expenseCategories";
 
 const CHART_COLORS = [
   "#0D6EFD",
@@ -13,8 +14,8 @@ const CHART_COLORS = [
   "#6C757D",
 ];
 
-const createDoughnutChartData = (breakdown = []) => ({
-  labels: breakdown.map((item) => item.category),
+const createDoughnutChartData = (breakdown = [], labelResolver = (value) => value) => ({
+  labels: breakdown.map((item) => labelResolver(item.category)),
   datasets: [
     {
       data: breakdown.map((item) => item.amount),
@@ -63,7 +64,10 @@ export const useDashboardStore = defineStore("dashboard", () => {
     createDoughnutChartData(assets.value?.assetCategoryBreakdown ?? []),
   );
   const expenseChartData = computed(() =>
-    createDoughnutChartData(expenses.value?.expenseCategoryBreakdown ?? []),
+    createDoughnutChartData(
+      expenses.value?.expenseCategoryBreakdown ?? [],
+      getExpenseCategoryLabel,
+    ),
   );
   const assetTrendChartData = computed(() =>
     createAssetTrendChartData(assets.value?.assetTrend ?? []),

@@ -13,6 +13,7 @@ public class User {
     private String role;
     private Integer point;
     private Long currentChallengeId;
+    private boolean hasLoggedIn;
 
     public Long getId() {
         return id;
@@ -92,5 +93,13 @@ public class User {
 
     public void setCurrentChallengeId(Long currentChallengeId) {
         this.currentChallengeId = currentChallengeId;
+    }
+
+    public boolean isHasLoggedIn() {
+        return hasLoggedIn;
+    }
+
+    public void setHasLoggedIn(boolean hasLoggedIn) {
+        this.hasLoggedIn = hasLoggedIn;
     }
 }

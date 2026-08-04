@@ -21,6 +21,11 @@ public interface ExpenseMapper {
             @Param("condition") ExpenseDto.SearchCondition condition
     );
 
+    List<ExpenseDto.DailyBreakdown> selectDailyBreakdown(
+            @Param("userId") long userId,
+            @Param("condition") ExpenseDto.SearchCondition condition
+    );
+
     List<ExpenseDto.Transaction> selectTransactions(
             @Param("userId") long userId,
             @Param("condition") ExpenseDto.SearchCondition condition
