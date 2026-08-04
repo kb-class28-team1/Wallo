@@ -93,15 +93,31 @@
             card_id = VALUES(card_id),
             account_id = VALUES(account_id),
             type = VALUES(type),
-            category = VALUES(category),
+            category = CASE
+                WHEN category_source = 'AI' AND #{transaction.categorySource} = 'FALLBACK'
+                    THEN category
+                ELSE #{transaction.category}
+            END,
             amount = VALUES(amount),
             merchant_name = VALUES(merchant_name),
             original_merchant_name = VALUES(original_merchant_name),
             original_sector = VALUES(original_sector),
             external_approval_no = VALUES(external_approval_no),
-            category_source = VALUES(category_source),
-            category_confidence = VALUES(category_confidence),
-            classifier_version = VALUES(classifier_version),
+            category_source = CASE
+                WHEN category_source = 'AI' AND #{transaction.categorySource} = 'FALLBACK'
+                    THEN category_source
+                ELSE #{transaction.categorySource}
+            END,
+            category_confidence = CASE
+                WHEN category_source = 'AI' AND #{transaction.categorySource} = 'FALLBACK'
+                    THEN category_confidence
+                ELSE #{transaction.categoryConfidence}
+            END,
+            classifier_version = CASE
+                WHEN category_source = 'AI' AND #{transaction.categorySource} = 'FALLBACK'
+                    THEN classifier_version
+                ELSE #{transaction.classifierVersion}
+            END,
             transaction_date = VALUES(transaction_date),
             transaction_time = VALUES(transaction_time)
     </insert>

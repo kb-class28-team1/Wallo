@@ -75,6 +75,41 @@ class AssetSyncMapperIntegrationTest {
     }
 
     @Test
+    void preservesExistingAiClassificationWhenFallbackIsUpserted() throws Exception {
+        AssetSyncDto.Transaction aiClassified = transaction(
+                38_000L,
+                "LIVING",
+                "AI",
+                new BigDecimal("0.8600"),
+                "ai-v1"
+        );
+        AssetSyncDto.Transaction fallback = transaction(
+                39_000L,
+                "ETC",
+                "FALLBACK",
+                BigDecimal.ZERO,
+                "fallback-v1"
+        );
+
+        assetSyncMapper.upsertTransaction(aiClassified);
+        assetSyncMapper.upsertTransaction(fallback);
+
+        try (Connection connection = dataSource.getConnection();
+             Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(
+                     "SELECT category, category_source, category_confidence, "
+                             + "classifier_version, amount FROM TRANSACTIONS"
+             )) {
+            resultSet.next();
+            assertEquals("LIVING", resultSet.getString("category"));
+            assertEquals("AI", resultSet.getString("category_source"));
+            assertEquals(new BigDecimal("0.8600"), resultSet.getBigDecimal("category_confidence"));
+            assertEquals("ai-v1", resultSet.getString("classifier_version"));
+            assertEquals(39_000L, resultSet.getLong("amount"));
+        }
+    }
+
+    @Test
     void snapshotMonthMakesRepeatedSnapshotAnUpdate() throws Exception {
         assetSyncMapper.upsertAssetSnapshot(7L, new AssetSyncDto.AssetSnapshot("2026-08", 39_000_000L));
         assetSyncMapper.upsertAssetSnapshot(7L, new AssetSyncDto.AssetSnapshot("2026-08", 40_100_000L));
@@ -91,6 +126,22 @@ class AssetSyncMapperIntegrationTest {
     }
 
     private AssetSyncDto.Transaction transaction(long amount, String category) {
+        return transaction(
+                amount,
+                category,
+                "MERCHANT_KEYWORD",
+                new BigDecimal("0.9800"),
+                "keyword-v1"
+        );
+    }
+
+    private AssetSyncDto.Transaction transaction(
+            long amount,
+            String category,
+            String categorySource,
+            BigDecimal categoryConfidence,
+            String classifierVersion
+    ) {
         return new AssetSyncDto.Transaction(
                 7L,
                 null,
@@ -104,9 +155,9 @@ class AssetSyncMapperIntegrationTest {
                 "87654321",
                 LocalDate.of(2026, 7, 26),
                 LocalTime.of(19, 30),
-                "MERCHANT_KEYWORD",
-                new BigDecimal("0.9800"),
-                "keyword-v1",
+                categorySource,
+                categoryConfidence,
+                classifierVersion,
                 "CARD_APPROVAL",
                 "0311",
                 "87654321",
