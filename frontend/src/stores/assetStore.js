@@ -16,7 +16,7 @@ export const useAssetStore = defineStore("asset", {
   }),
 
   actions: {
-    async fetchAssets() {
+    async fetchAssets({ notifyError = true } = {}) {
       this.isAssetLoading = true;
       this.error = null;
 
@@ -36,7 +36,9 @@ export const useAssetStore = defineStore("asset", {
 
         this.assets = null;
         this.error = errorMessage;
-        alert(errorMessage);
+        if (notifyError) {
+          alert(errorMessage);
+        }
 
         throw error;
       } finally {

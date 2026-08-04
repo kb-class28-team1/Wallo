@@ -1,7 +1,8 @@
 import { computed, ref } from "vue";
 import { defineStore } from "pinia";
-import { getAssets, getBudgets, getExpenses, putBudget } from "@/api/assetApi";
+import { getBudgets, getExpenses, putBudget } from "@/api/assetApi";
 import { getExpenseCategoryLabel } from "@/constants/financialCategories";
+import { useAssetStore } from "@/stores/assetStore";
 
 const CHART_COLORS = [
   "#0D6EFD",
@@ -54,8 +55,9 @@ const getErrorMessage = (caughtError) =>
   "대시보드 데이터를 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
 
 export const useDashboardStore = defineStore("dashboard", () => {
+  const assetStore = useAssetStore();
   const isLoading = ref(false);
-  const assets = ref(null);
+  const assets = computed(() => assetStore.assets);
   const budget = ref(null);
   const expenses = ref(null);
   const error = ref(null);
@@ -78,13 +80,12 @@ export const useDashboardStore = defineStore("dashboard", () => {
     error.value = null;
 
     try {
-      const [assetsResponse, budgetResponse, expensesResponse] = await Promise.all([
-        getAssets(),
+      const [, budgetResponse, expensesResponse] = await Promise.all([
+        assetStore.fetchAssets({ notifyError: false }),
         getBudgets(),
         getExpenses(),
       ]);
 
-      assets.value = assetsResponse.data;
       budget.value = budgetResponse.data;
       expenses.value = expensesResponse.data;
     } catch (caughtError) {
