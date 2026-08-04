@@ -2,6 +2,7 @@
 import { onMounted, ref } from "vue"
 import { getReports } from "@/api/reportApi"
 import ReportListCard from "@/components/report/ReportListCard.vue"
+import { getReadReportIds } from "@/utils/reportReadState"
 
 const reports = ref([])
 const isLoading = ref(true)
@@ -12,7 +13,11 @@ const loadReports = async () => {
   errorMessage.value = ""
 
   try {
-    reports.value = await getReports()
+    const readReportIds = getReadReportIds()
+    reports.value = (await getReports()).map((report) => ({
+      ...report,
+      read: readReportIds.has(String(report.id)),
+    }))
   } catch (error) {
     errorMessage.value = error.message
   } finally {

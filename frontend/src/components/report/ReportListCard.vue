@@ -18,6 +18,9 @@ const formattedDate = computed(() => {
 
   return date.toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" })
 })
+
+const readBadgeClass = computed(() => (props.report.read ? "text-bg-secondary" : "text-bg-primary"))
+const readBadgeText = computed(() => (props.report.read ? "읽음" : "안읽음"))
 </script>
 
 <template>
@@ -26,6 +29,7 @@ const formattedDate = computed(() => {
       <div class="card-body p-4">
         <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
           <span class="badge rounded-pill text-bg-light">{{ report.category }}</span>
+          <span class="badge rounded-pill" :class="readBadgeClass">{{ readBadgeText }}</span>
         </div>
 
         <h2 class="h5 fw-bold mb-2 report-title">{{ report.title }}</h2>
