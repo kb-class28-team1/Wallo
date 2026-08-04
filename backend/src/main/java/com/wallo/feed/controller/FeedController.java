@@ -6,6 +6,8 @@ import com.wallo.feed.dto.FeedDtos.AnalysisResponse;
 import com.wallo.feed.dto.FeedDtos.FeedListResponse;
 import com.wallo.feed.dto.FeedDtos.MessageRequest;
 import com.wallo.feed.dto.FeedDtos.RoomResponse;
+import com.wallo.feed.dto.FeedDtos.LikeResponse;
+import com.wallo.feed.dto.FeedDtos.UpdateFeedRequest;
 import com.wallo.feed.service.FeedService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -52,6 +54,28 @@ public class FeedController {
                 media, spendingType, category, customCategory, caption, savingAmount,
                 analysisSummary, confidenceScore);
         return ResponseEntity.status(HttpStatus.CREATED).body(feed);
+    }
+
+    @PostMapping("/feeds/{feedId}/like")
+    public LikeResponse addLike(@PathVariable Long challengeId, @PathVariable Long feedId) {
+        return feedService.addLike(currentUserProvider.getCurrentUserId(), challengeId, feedId);
+    }
+
+    @PatchMapping("/feeds/{feedId}")
+    public ResponseEntity<Void> update(
+            @PathVariable Long challengeId,
+            @PathVariable Long feedId,
+            @RequestBody UpdateFeedRequest request) {
+        feedService.update(currentUserProvider.getCurrentUserId(), challengeId, feedId, request);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/feeds/{feedId}")
+    public ResponseEntity<Void> delete(
+            @PathVariable Long challengeId,
+            @PathVariable Long feedId) {
+        feedService.delete(currentUserProvider.getCurrentUserId(), challengeId, feedId);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/messages")
