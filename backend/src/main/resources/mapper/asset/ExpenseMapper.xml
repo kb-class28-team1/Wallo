@@ -22,26 +22,41 @@
 
     <select id="selectExpenseCategoryBreakdown" resultType="com.wallo.asset.dto.ExpenseDto$CategoryBreakdown">
         SELECT
-            category AS category,
+            CASE WHEN category = 'OTHER' THEN 'ETC' ELSE category END AS category,
             COALESCE(SUM(amount), 0) AS amount
         FROM TRANSACTIONS
         WHERE user_id = #{userId}
           AND type = 'EXPENSE'
           AND transaction_date BETWEEN #{condition.startDate} AND #{condition.endDate}
-        GROUP BY category
+        GROUP BY CASE WHEN category = 'OTHER' THEN 'ETC' ELSE category END
         ORDER BY amount DESC, category ASC
+    </select>
+
+    <select id="selectDailyBreakdown" resultType="com.wallo.asset.dto.ExpenseDto$DailyBreakdown">
+        SELECT
+            transaction_date AS date,
+            COALESCE(SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END), 0) AS totalExpense,
+            COALESCE(SUM(CASE WHEN type = 'INCOME' THEN amount ELSE 0 END), 0) AS totalIncome
+        FROM TRANSACTIONS
+        WHERE user_id = #{userId}
+          AND type IN ('EXPENSE', 'INCOME')
+          AND transaction_date BETWEEN #{condition.startDate} AND #{condition.endDate}
+          AND category &lt;&gt; 'CARD_WITHDRAWAL'
+        GROUP BY transaction_date
+        ORDER BY transaction_date ASC
     </select>
 
     <select id="selectTransactions" resultType="com.wallo.asset.dto.ExpenseDto$Transaction">
         SELECT
-            DATE_FORMAT(transaction_date, '%Y-%m-%d') AS date,
+            transaction_date AS date,
             type AS type,
-            category AS category,
+            CASE WHEN category = 'OTHER' THEN 'ETC' ELSE category END AS category,
             amount AS amount,
             merchant_name AS merchantName
         FROM TRANSACTIONS
         WHERE user_id = #{userId}
           AND transaction_date BETWEEN #{condition.startDate} AND #{condition.endDate}
+          AND category &lt;&gt; 'CARD_WITHDRAWAL'
         ORDER BY transaction_date DESC, transaction_time DESC, transaction_id DESC
         LIMIT #{condition.size} OFFSET #{condition.offset}
     </select>
@@ -51,6 +66,7 @@
         FROM TRANSACTIONS
         WHERE user_id = #{userId}
           AND transaction_date BETWEEN #{condition.startDate} AND #{condition.endDate}
+          AND category &lt;&gt; 'CARD_WITHDRAWAL'
     </select>
 
 </mapper>

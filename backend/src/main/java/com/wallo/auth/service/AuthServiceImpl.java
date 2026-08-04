@@ -53,7 +53,7 @@ public class AuthServiceImpl implements AuthService {
             throw new IllegalStateException("사용자 저장에 실패했습니다.");
         }
 
-        return AuthUserResponse.from(authMapper.findById(user.getId()));
+        return AuthUserResponse.from(authMapper.findById(user.getId()), false, false);
     }
 
     @Override
@@ -63,11 +63,16 @@ public class AuthServiceImpl implements AuthService {
         }
 
         User user = authMapper.findByEmail(normalizeEmail(request.getEmail()));
-        if (user == null || !passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
-            throw new AuthException(AuthErrorCode.LOGIN_FAILED);
+        if (user == null) {
+            throw new AuthException(AuthErrorCode.LOGIN_EMAIL_NOT_FOUND);
+        }
+        if (!passwordMatches(request.getPassword(), user.getPasswordHash())) {
+            throw new AuthException(AuthErrorCode.LOGIN_PASSWORD_MISMATCH);
         }
 
-        return AuthUserResponse.from(user);
+        boolean firstLogin = authMapper.markFirstLoginComplete(user.getId()) == 1;
+        boolean connectionCompleted = authMapper.countActiveConnections(user.getId()) > 0;
+        return AuthUserResponse.from(user, firstLogin, connectionCompleted);
     }
 
     @Override
@@ -80,7 +85,8 @@ public class AuthServiceImpl implements AuthService {
         if (user == null) {
             throw new AuthException(AuthErrorCode.AUTH_REQUIRED);
         }
-        return AuthUserResponse.from(user);
+        boolean connectionCompleted = authMapper.countActiveConnections(user.getId()) > 0;
+        return AuthUserResponse.from(user, false, connectionCompleted);
     }
 
     private void validateSignupRequest(SignupRequest request) {
@@ -113,5 +119,21 @@ public class AuthServiceImpl implements AuthService {
 
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    /**
+     * 기존 더미 데이터처럼 BCrypt가 아닌 값이나 비어 있는 해시가 있어도
+     * 서버 오류로 노출하지 않고 일반 로그인 실패로 처리한다.
+     */
+    private boolean passwordMatches(String rawPassword, String passwordHash) {
+        if (isBlank(passwordHash)) {
+            return false;
+        }
+
+        try {
+            return passwordEncoder.matches(rawPassword, passwordHash);
+        } catch (IllegalArgumentException exception) {
+            return false;
+        }
     }
 }

@@ -150,7 +150,13 @@
             saving_amount,
             streak_days,
             like_count,
-            reward_point
+            CASE
+                WHEN rank_position = 1 THEN 2000
+                WHEN rank_position = 2 THEN 1000
+                WHEN rank_position = 3 THEN 800
+                WHEN rank_position BETWEEN 4 AND 10 THEN 500
+                ELSE 0
+            END AS reward_point
         FROM V_WEEKLY_RANKING
         WHERE challenge_id = #{challengeId}
         ORDER BY rank_position, user_id

@@ -22,17 +22,13 @@ onMounted(loadAssets);
 
 <template>
   <section class="asset-view container-fluid px-4 py-4">
-    <header class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
+    <header class="mb-4">
       <div>
         <h1 class="h3 fw-bold mb-1">자산관리</h1>
         <p class="text-secondary mb-0">
           연결된 계좌와 투자 자산을 한곳에서 확인하세요.
         </p>
       </div>
-      <RouterLink to="/assets/expenses" class="btn btn-outline-primary">
-        소비내역 보기
-        <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
-      </RouterLink>
     </header>
 
     <section class="asset-overview-section" aria-label="자산 현황">

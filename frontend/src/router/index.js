@@ -14,6 +14,7 @@ import MyChallengeView from "@/views/challenge/MyChallengeView.vue"
 import MyFeedView from "@/views/challenge/MyFeedView.vue"
 import DashboardView from "@/views/dashboard/DashboardView.vue"
 import PointShopView from "@/views/product/PointShopView.vue"
+import PointHistoryView from "@/views/product/PointHistoryView.vue"
 import ReportListView from "@/views/report/ReportListView.vue"
 import ReportDetailView from "@/views/report/ReportDetailView.vue"
 import SettingsView from "@/views/user/SettingsView.vue"
@@ -122,6 +123,12 @@ const router = createRouter({
           name: "point-shop",
           component: PointShopView,
         },
+        // 포인트 내역 페이지로 이동하는 주소임
+        {
+          path: "/point-history",
+          name: "point-history",
+          component: PointHistoryView,
+        },
         // 금융 리포트 페이지로 이동하는 주소임
         {
           path: "/reports",
@@ -173,8 +180,20 @@ router.beforeEach(async (to) => {
     }
   }
 
+  if (
+    to.meta.requiresAuth &&
+    userStore.isAuthenticated &&
+    !userStore.user?.connectionCompleted &&
+    to.name !== "connection"
+  ) {
+    return { name: "connection", replace: true }
+  }
+
   if (to.meta.guestOnly && userStore.isAuthenticated) {
-    return { name: "dashboard" }
+    return {
+      name: userStore.user?.connectionCompleted ? "dashboard" : "connection",
+      replace: true,
+    }
   }
 
   return true

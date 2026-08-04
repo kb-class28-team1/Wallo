@@ -18,10 +18,14 @@ public enum AuthErrorCode {
             HttpStatus.CONFLICT,
             "AUTH_NICKNAME_ALREADY_EXISTS",
             "이미 사용 중인 닉네임입니다."),
-    LOGIN_FAILED(
+    LOGIN_EMAIL_NOT_FOUND(
             HttpStatus.UNAUTHORIZED,
-            "AUTH_LOGIN_FAILED",
-            "이메일 또는 비밀번호가 올바르지 않습니다."),
+            "AUTH_LOGIN_EMAIL_NOT_FOUND",
+            "아이디가 틀렸습니다."),
+    LOGIN_PASSWORD_MISMATCH(
+            HttpStatus.UNAUTHORIZED,
+            "AUTH_LOGIN_PASSWORD_MISMATCH",
+            "비밀번호가 틀렸습니다."),
     AUTH_REQUIRED(HttpStatus.UNAUTHORIZED, "AUTH_REQUIRED", "로그인이 필요합니다.");
 
     private final HttpStatus status;
