@@ -77,6 +77,11 @@ public enum ErrorCode {
             "PROFILE_004",
             "연말정산 계산을 위해 연봉을 먼저 입력해주세요."
     ),
+    INVALID_SPENDING_ANALYSIS_REQUEST(
+            HttpStatus.BAD_REQUEST,
+            "SPENDING_001",
+            "소비분석 요청 값이 올바르지 않습니다."
+    ),
     METHOD_NOT_ALLOWED(
             HttpStatus.METHOD_NOT_ALLOWED,
             "COMMON_002",
