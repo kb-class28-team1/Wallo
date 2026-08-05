@@ -1,0 +1,99 @@
+package com.wallo.feed.service;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import com.wallo.feed.analysis.FeedAnalysisClient;
+import com.wallo.feed.dto.FeedDtos.AnalysisResponse;
+import com.wallo.feed.dto.FeedDtos.CategoryExpenseAverage;
+import com.wallo.feed.mapper.FeedMapper;
+import java.time.LocalDate;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.web.multipart.MultipartFile;
+
+class FeedServiceTest {
+
+    private final FeedMapper feedMapper = org.mockito.Mockito.mock(FeedMapper.class);
+    private final FeedAnalysisClient analysisClient = org.mockito.Mockito.mock(FeedAnalysisClient.class);
+    private FeedService feedService;
+
+    @BeforeEach
+    void setUp() {
+        feedService = new FeedService(feedMapper, analysisClient);
+        when(feedMapper.isChallengeMember(7L, 10L)).thenReturn(1);
+    }
+
+    @Test
+    void usesSixtyDayCategoryAverageWhenAiCannotEstimateAmount() {
+        when(analysisClient.analyze(any(), eq("REDUCED"), eq("CAFE")))
+                .thenReturn(new AnalysisResponse("REDUCED", "CAFE", 0, "금액을 확인하기 어렵습니다.", 0.2));
+        when(feedMapper.findCategoryExpenseAverage(
+                eq(7L), eq("CAFE"), any(LocalDate.class), any(LocalDate.class)))
+                .thenReturn(average(3, 4_500));
+
+        AnalysisResponse result = feedService.analyze(7L, 10L, media(), "REDUCED", "CAFE");
+
+        assertEquals(4_500, result.estimatedSavingAmount());
+        assertTrue(result.summary().contains("최근 60일"));
+        verify(feedMapper).findCategoryExpenseAverage(
+                eq(7L), eq("CAFE"), any(LocalDate.class), any(LocalDate.class));
+    }
+
+    @Test
+    void extendsHistoryToNinetyDaysWhenSixtyDaysHaveTooFewTransactions() {
+        when(analysisClient.analyze(any(), eq("SAVED"), eq("FOOD")))
+                .thenReturn(new AnalysisResponse("SAVED", "FOOD", 0, "금액을 확인하기 어렵습니다.", 0.1));
+        when(feedMapper.findCategoryExpenseAverage(
+                eq(7L), eq("FOOD"), any(LocalDate.class), any(LocalDate.class)))
+                .thenReturn(average(2, 10_000), average(3, 8_000));
+
+        AnalysisResponse result = feedService.analyze(7L, 10L, media(), "SAVED", "FOOD");
+
+        assertEquals(8_000, result.estimatedSavingAmount());
+        assertTrue(result.summary().contains("최근 90일"));
+        verify(feedMapper, org.mockito.Mockito.times(2)).findCategoryExpenseAverage(
+                eq(7L), eq("FOOD"), any(LocalDate.class), any(LocalDate.class));
+    }
+
+    @Test
+    void keepsAiAmountAndDoesNotApplyFallbackWhenAmountIsAlreadyKnown() {
+        AnalysisResponse analysis = new AnalysisResponse("SAVED", "CAFE", 2_000, "분석 완료", 0.9);
+        when(analysisClient.analyze(any(), eq("SAVED"), eq("CAFE"))).thenReturn(analysis);
+
+        AnalysisResponse result = feedService.analyze(7L, 10L, media(), "SAVED", "CAFE");
+
+        assertEquals(2_000, result.estimatedSavingAmount());
+        verify(feedMapper, never()).findCategoryExpenseAverage(
+                eq(7L), eq("CAFE"), any(LocalDate.class), any(LocalDate.class));
+    }
+
+    @Test
+    void doesNotApplyCategoryAverageToSpentType() {
+        when(analysisClient.analyze(any(), eq("SPENT"), eq("CAFE")))
+                .thenReturn(new AnalysisResponse("SPENT", "CAFE", 0, "소비 유형은 썼다입니다.", 0.9));
+
+        AnalysisResponse result = feedService.analyze(7L, 10L, media(), "SPENT", "CAFE");
+
+        assertEquals(0, result.estimatedSavingAmount());
+        verify(feedMapper, never()).findCategoryExpenseAverage(
+                eq(7L), eq("CAFE"), any(LocalDate.class), any(LocalDate.class));
+    }
+
+    private MultipartFile media() {
+        return new MockMultipartFile("media", "feed.jpg", "image/jpeg", new byte[]{1});
+    }
+
+    private CategoryExpenseAverage average(long count, long amount) {
+        CategoryExpenseAverage average = new CategoryExpenseAverage();
+        average.setTransactionCount(count);
+        average.setAverageAmount(amount);
+        return average;
+    }
+}
