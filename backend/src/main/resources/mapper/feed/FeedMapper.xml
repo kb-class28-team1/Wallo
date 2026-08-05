@@ -33,10 +33,30 @@
         <result property="mediaType" column="media_type"/>
         <result property="createdAt" column="created_at"/>
     </resultMap>
+    <resultMap id="categoryExpenseAverageMap"
+               type="com.wallo.feed.dto.FeedDtos$CategoryExpenseAverage">
+        <result property="transactionCount" column="transaction_count"/>
+        <result property="averageAmount" column="average_amount"/>
+    </resultMap>
 
     <select id="isChallengeMember" resultType="int">
         SELECT COUNT(*) FROM USERS
         WHERE id = #{userId} AND current_challenge_id = #{challengeId}
+    </select>
+    <select id="findCategoryExpenseAverage" resultMap="categoryExpenseAverageMap">
+        SELECT
+            COUNT(*) AS transaction_count,
+            COALESCE(ROUND(AVG(amount), 0), 0) AS average_amount
+        FROM TRANSACTIONS
+        WHERE user_id = #{userId}
+          AND type = 'EXPENSE'
+          AND amount > 0
+          AND category &lt;&gt; 'CARD_WITHDRAWAL'
+          AND (
+              category = #{category}
+              OR (#{category} = 'ETC' AND category = 'OTHER')
+          )
+          AND transaction_date BETWEEN #{startDate} AND #{endDate}
     </select>
     <select id="findChallengeName" resultType="string">
         SELECT name FROM CHALLENGE WHERE id = #{challengeId}
@@ -115,6 +135,15 @@
         INSERT INTO MESSAGE (challenge_id, user_id, message_type, reference_feed_id, content)
         VALUES (#{challengeId}, #{userId}, #{type}, #{feedId}, #{content})
     </insert>
+    <select id="findMessageByLastInsertId" resultMap="messageMap">
+        SELECT m.id, m.user_id, u.nickname, u.profile_image_url, m.message_type,
+               m.reference_feed_id, m.content, m.created_at,
+               f.media_url, f.thumbnail_url, f.media_type
+        FROM MESSAGE m
+        JOIN USERS u ON u.id = m.user_id
+        LEFT JOIN FEED f ON f.id = m.reference_feed_id AND f.status = 'ACTIVE'
+        WHERE m.id = LAST_INSERT_ID()
+    </select>
     <select id="findMessages" resultMap="messageMap">
         SELECT m.id, m.user_id, u.nickname, u.profile_image_url, m.message_type,
                m.reference_feed_id, m.content, m.created_at,
