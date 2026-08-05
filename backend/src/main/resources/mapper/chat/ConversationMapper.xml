@@ -38,6 +38,7 @@
         FROM CONVERSATIONS
         WHERE conversation_id = #{conversationId}
           AND user_id = #{userId}
+          AND status = 'ACTIVE'
     </select>
 
     <insert id="insert"
@@ -73,5 +74,23 @@
         UPDATE CONVERSATIONS
         SET updated_at = CURRENT_TIMESTAMP
         WHERE conversation_id = #{conversationId}
+    </update>
+
+    <update id="updateTitle">
+        UPDATE CONVERSATIONS
+        SET title = #{title},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE conversation_id = #{conversationId}
+          AND user_id = #{userId}
+          AND status = 'ACTIVE'
+    </update>
+
+    <update id="softDelete">
+        UPDATE CONVERSATIONS
+        SET status = 'DELETED',
+            updated_at = CURRENT_TIMESTAMP
+        WHERE conversation_id = #{conversationId}
+          AND user_id = #{userId}
+          AND status = 'ACTIVE'
     </update>
 </mapper>

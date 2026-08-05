@@ -3,9 +3,11 @@ import { defineStore } from "pinia"
 
 import {
   createConversation,
+  deleteConversation as deleteConversationApi,
   getConversationMessages,
   getConversations,
   sendConversationMessage,
+  updateConversationTitle,
 } from "@/api/conversationApi"
 
 const toViewMessage = (message, animate = false) => ({
@@ -105,23 +107,71 @@ export const useConversationStore = defineStore("conversation", () => {
     }
   }
 
+  const renameConversation = async (conversationId, userId, title) => {
+    try {
+      const updatedConversation = await updateConversationTitle(
+        conversationId,
+        userId,
+        title,
+      )
+      const index = conversations.value.findIndex(
+        (conversation) => conversation.conversationId === conversationId,
+      )
+      if (index >= 0) conversations.value.splice(index, 1, updatedConversation)
+      return true
+    } catch (error) {
+      alert(error.message || "채팅방 제목을 변경하지 못했습니다.")
+      return false
+    }
+  }
+
+  const removeConversation = async (conversationId, userId) => {
+    try {
+      await deleteConversationApi(conversationId, userId)
+      conversations.value = conversations.value.filter(
+        (conversation) => conversation.conversationId !== conversationId,
+      )
+
+      if (activeConversationId.value === conversationId) {
+        const nextConversationId = conversations.value[0]?.conversationId ?? null
+        activeConversationId.value = nextConversationId
+        if (nextConversationId) {
+          await fetchMessages(userId, nextConversationId)
+        } else {
+          messages.value = []
+        }
+      }
+      return true
+    } catch (error) {
+      alert(error.message || "채팅방을 삭제하지 못했습니다.")
+      return false
+    }
+  }
+
   const sendMessage = async (userId, content) => {
-    if (!activeConversationId.value) {
-      alert("새 채팅을 먼저 시작해 주세요.")
+    if (isSending.value) {
       return false
     }
 
-    const conversationId = activeConversationId.value
-    const pendingMessageId = `pending-${Date.now()}`
-    messages.value.push({
-      id: pendingMessageId,
-      role: "user",
-      content,
-      createdAt: new Date().toISOString(),
-    })
     isSending.value = true
+    let conversationId = activeConversationId.value
+    let pendingMessageId = null
 
     try {
+      if (!conversationId) {
+        const conversation = await startNewConversation(userId)
+        if (!conversation) return false
+        conversationId = conversation.conversationId
+      }
+
+      pendingMessageId = `pending-${Date.now()}`
+      messages.value.push({
+        id: pendingMessageId,
+        role: "user",
+        content,
+        createdAt: new Date().toISOString(),
+      })
+
       const response = await sendConversationMessage(
         conversationId,
         userId,
@@ -146,7 +196,7 @@ export const useConversationStore = defineStore("conversation", () => {
       return true
     } catch (error) {
       // 사용자 메시지는 AI 호출 전에 저장되므로 실패 시 DB 상태를 다시 읽는다.
-      if (activeConversationId.value === conversationId) {
+      if (conversationId && activeConversationId.value === conversationId) {
         await fetchMessages(userId, conversationId)
       }
       alert(error.message || "메시지를 전송하지 못했습니다.")
@@ -169,6 +219,8 @@ export const useConversationStore = defineStore("conversation", () => {
     startNewConversation,
     selectConversation,
     completeMessageAnimation,
+    renameConversation,
+    removeConversation,
     sendMessage,
   }
 })

@@ -3,6 +3,7 @@ package com.wallo.chat.service;
 import com.wallo.chat.domain.Conversation;
 import com.wallo.chat.dto.ConversationResponse;
 import com.wallo.chat.dto.CreateConversationRequest;
+import com.wallo.chat.dto.UpdateConversationTitleRequest;
 import com.wallo.chat.mapper.ConversationMapper;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -74,6 +75,32 @@ public class ConversationService {
         conversationMapper.touch(conversationId);
     }
 
+    @Transactional
+    public ConversationResponse updateTitle(
+            Long conversationId,
+            UpdateConversationTitleRequest request
+    ) {
+        if (request == null) {
+            throw new IllegalArgumentException("채팅방 제목 변경 요청이 필요합니다.");
+        }
+        validateOwnership(conversationId, request.getUserId());
+        String title = requireTitle(request.getTitle());
+        if (conversationMapper.updateTitle(conversationId, request.getUserId(), title) != 1) {
+            throw new IllegalArgumentException("채팅방 제목을 변경할 수 없습니다.");
+        }
+        return ConversationResponse.from(
+                conversationMapper.findByIdAndUserId(conversationId, request.getUserId())
+        );
+    }
+
+    @Transactional
+    public void deleteConversation(Long conversationId, Long userId) {
+        validateOwnership(conversationId, userId);
+        if (conversationMapper.softDelete(conversationId, userId) != 1) {
+            throw new IllegalArgumentException("채팅방을 삭제할 수 없습니다.");
+        }
+    }
+
     private void validateUserId(Long userId) {
         if (userId == null || userId < 1) {
             throw new IllegalArgumentException("올바른 사용자 ID가 필요합니다.");
@@ -88,6 +115,13 @@ public class ConversationService {
         return trimmedTitle.length() > 100
                 ? trimmedTitle.substring(0, 100)
                 : trimmedTitle;
+    }
+
+    private String requireTitle(String title) {
+        if (title == null || title.isBlank()) {
+            throw new IllegalArgumentException("채팅방 제목을 입력해 주세요.");
+        }
+        return normalizeTitle(title);
     }
 
     private String createTitle(String message) {

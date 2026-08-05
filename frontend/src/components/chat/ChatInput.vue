@@ -18,6 +18,13 @@ function submitMessage() {
   emit("send", message)
   inputMessage.value = ""
 }
+
+function handleEnter(event) {
+  if (event.isComposing || event.keyCode === 229) return
+
+  event.preventDefault()
+  submitMessage()
+}
 </script>
 
 <template>
@@ -31,7 +38,7 @@ function submitMessage() {
       maxlength="1000"
       placeholder="재무 목표나 자산에 대해 물어보세요"
       :disabled="disabled"
-      @keydown.enter.exact.prevent="submitMessage"
+      @keydown.enter.exact="handleEnter"
     ></textarea>
     <button
       type="submit"
