@@ -13,8 +13,8 @@ from fastapi import APIRouter, HTTPException
 from openai import APIConnectionError, APIStatusError, OpenAIError
 from pydantic import BaseModel, ValidationError, ValidationInfo, field_validator
 
-from app.openai_client import create_openai_client, get_openai_api_key, get_report_model
-from app.prompt import FINANCIAL_REPORT_INSTRUCTIONS, build_report_input
+from app.clients.openai_client import create_openai_client, get_openai_api_key, get_report_model
+from app.reports.prompts import FINANCIAL_REPORT_INSTRUCTIONS, build_report_input
 
 logger = logging.getLogger("wallo_ai")
 

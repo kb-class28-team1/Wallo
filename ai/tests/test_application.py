@@ -8,6 +8,7 @@ app.routes를 직접 순회하는 대신 app.openapi()로 실제 노출되는 �
 from fastapi import FastAPI
 
 from app.application import app
+from app.chat.router import router as chat_router
 
 
 def _registered_paths_with_method(method: str) -> set[str]:
@@ -25,6 +26,15 @@ def test_app_is_a_fastapi_instance():
 
 def test_chat_endpoint_is_registered():
     assert "/api/chat" in _registered_paths_with_method("POST")
+
+
+def test_chat_endpoint_is_not_registered_twice():
+    matching_routes = [
+        route
+        for route in chat_router.routes
+        if getattr(route, "path", None) == "/api/chat" and "POST" in getattr(route, "methods", set())
+    ]
+    assert len(matching_routes) == 1
 
 
 def test_financial_report_generate_endpoint_is_registered():
@@ -45,14 +55,14 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-from app.application import (
+from app.agents.financial.agent import generate_answer
+from app.chat.title_service import generate_conversation_title
+from app.demo.repository import load_demo_profiles
+from app.demo.service import (
     build_demo_asset_facts,
     compact_demo_profile,
-    generate_answer,
-    generate_conversation_title,
     generate_demo_asset_analysis,
     list_demo_profiles,
-    load_demo_profiles,
 )
 
 
