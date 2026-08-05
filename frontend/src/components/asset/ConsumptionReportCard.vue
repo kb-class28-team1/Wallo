@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted } from "vue";
 import { storeToRefs } from "pinia";
-import { useReportStore } from "@/stores/reportStore";
+import { useReportStore } from "@/stores/assetReportStore.js";
 
 const reportStore = useReportStore();
 const { insight, isInsightLoading, insightError } = storeToRefs(reportStore);
@@ -30,7 +30,7 @@ const loadInsight = async () => {
 
 const retryInsight = async () => {
   try {
-    await reportStore.retryInsight();
+    await reportStore.fetchInsight();
   } catch {
     // 재시도 오류는 Pinia에서 상태와 사용자 안내를 갱신합니다.
   }

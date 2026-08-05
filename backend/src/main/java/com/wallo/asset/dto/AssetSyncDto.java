@@ -2,8 +2,10 @@ package com.wallo.asset.dto;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
-import lombok.Getter;
 import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 public final class AssetSyncDto {
 
@@ -123,5 +125,28 @@ public final class AssetSyncDto {
             this.sourceTransactionId = sourceTransactionId;
             this.sourceDedupKey = sourceDedupKey;
         }
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ExistingClassification {
+        private String category;
+        private String categorySource;
+        private java.math.BigDecimal categoryConfidence;
+        private String classifierVersion;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ReconciliationCandidate {
+        private long transactionId;
+        private long amount;
+        private LocalDate date;
+        private LocalTime time;
+        private String category;
     }
 }

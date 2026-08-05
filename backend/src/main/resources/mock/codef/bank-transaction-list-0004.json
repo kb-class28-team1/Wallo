@@ -1,0 +1,59 @@
+{
+  "result": {
+    "code": "CF-00000",
+    "message": "성공",
+    "extraMessage": ""
+  },
+  "data": [
+    {
+      "resAccount": "123456-01-789012",
+      "resTrNo": "BANK-202606-0001",
+      "resTrDate": "20260630",
+      "resTrTime": "090000",
+      "resAccountIn": "100000",
+      "resAccountOut": "0",
+      "resAccountDesc": "용돈_6월",
+      "transactionKind": "INCOME"
+    },
+    {
+      "resAccount": "123456-01-789012",
+      "resTrNo": "BANK-202607-0001",
+      "resTrDate": "20260725",
+      "resTrTime": "100000",
+      "resAccountIn": "3000000",
+      "resAccountOut": "0",
+      "resAccountDesc": "월급_7월",
+      "transactionKind": "INCOME"
+    },
+    {
+      "resAccount": "123456-01-789012",
+      "resTrNo": "BANK-202607-0002",
+      "resTrDate": "20260726",
+      "resTrTime": "193000",
+      "resAccountIn": "0",
+      "resAccountOut": "38000",
+      "resAccountDesc": "체크가맹_배달의민족",
+      "transactionKind": "CARD_PAYMENT"
+    },
+    {
+      "resAccount": "123456-01-789012",
+      "resTrNo": "BANK-202607-0003",
+      "resTrDate": "20260728",
+      "resTrTime": "142000",
+      "resAccountIn": "0",
+      "resAccountOut": "50000",
+      "resAccountDesc": "김철수",
+      "transactionKind": "TRANSFER"
+    },
+    {
+      "resAccount": "123456-01-789012",
+      "resTrNo": "BANK-202608-0001",
+      "resTrDate": "20260801",
+      "resTrTime": "120000",
+      "resAccountIn": "0",
+      "resAccountOut": "120000",
+      "resAccountDesc": "8월 생활비 송금",
+      "transactionKind": "TRANSFER"
+    }
+  ]
+}

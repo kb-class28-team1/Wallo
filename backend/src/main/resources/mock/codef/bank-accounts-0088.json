@@ -1,0 +1,24 @@
+{
+  "result": {
+    "code": "CF-00000",
+    "message": "성공",
+    "extraMessage": ""
+  },
+  "data": {
+    "accounts": [
+      {
+        "resAccountName": "신한 주거래 통장",
+        "resAccount": "223344-01-556677",
+        "resAccountDisplay": "223344-**-***677",
+        "resAccountBalance": "7200000",
+        "resAccountEvalAmount": "7200000",
+        "resAccountCurrency": "KRW",
+        "resAccountStatus": "1",
+        "resAccountSubtype": "DEPOSIT"
+      }
+    ],
+    "loans": [],
+    "assetSnapshots": [],
+    "transactions": []
+  }
+}

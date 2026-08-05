@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from "vue";
+import { formatNumber } from "@/commonUtils/formatters";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -55,8 +56,6 @@ const calendarCells = computed(() => {
   return cells;
 });
 
-const formatAmount = (amount) => new Intl.NumberFormat("ko-KR").format(Number(amount) || 0);
-
 const selectDate = (cell) => {
   if (!cell.isBlank) {
     emit("select-date", cell.date);
@@ -93,10 +92,10 @@ const selectDate = (cell) => {
           <span class="calendar-day-number">{{ cell.day }}</span>
           <div v-if="cell.daily" class="calendar-day-amounts">
             <span v-if="Number(cell.daily.totalIncome) > 0" class="income-amount">
-              +{{ formatAmount(cell.daily.totalIncome) }}
+              +{{ formatNumber(cell.daily.totalIncome) }}
             </span>
             <span v-if="Number(cell.daily.totalExpense) > 0" class="expense-amount">
-              -{{ formatAmount(cell.daily.totalExpense) }}
+              -{{ formatNumber(cell.daily.totalExpense) }}
             </span>
           </div>
         </template>

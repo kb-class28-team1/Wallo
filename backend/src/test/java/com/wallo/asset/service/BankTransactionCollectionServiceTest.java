@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.wallo.asset.classification.ExpenseCategoryClassifier;
 import com.wallo.asset.domain.Institution;
 import com.wallo.asset.dto.AssetSyncDto;
 import com.wallo.asset.mapper.AssetSyncMapper;
@@ -19,7 +20,9 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -27,6 +30,7 @@ import org.mockito.ArgumentCaptor;
 class BankTransactionCollectionServiceTest {
 
     private final BankTransactionClient bankTransactionClient = mock(BankTransactionClient.class);
+    private final ExpenseCategoryClassifier categoryClassifier = mock(ExpenseCategoryClassifier.class);
     private final AssetSyncMapper assetSyncMapper = mock(AssetSyncMapper.class);
     private BankTransactionCollectionService service;
     private Institution institution;
@@ -40,18 +44,36 @@ class BankTransactionCollectionServiceTest {
         service = new BankTransactionCollectionService(
                 bankTransactionClient,
                 new ObjectMapper(),
+                categoryClassifier,
                 new TransactionSourceKeyGenerator(),
                 assetSyncMapper,
                 clock
         );
+        when(categoryClassifier.classify(any())).thenReturn(
+                new ExpenseCategoryClassifier.Result(
+                        "LIVING",
+                        "AI",
+                        new BigDecimal("0.8600"),
+                        "ai-v1"
+                )
+        );
+        when(categoryClassifier.classifyBeforeAi(any())).thenReturn(Optional.empty());
+        when(categoryClassifier.classifyBatch(any())).thenReturn(List.of(
+                new ExpenseCategoryClassifier.Result(
+                        "LIVING",
+                        "AI",
+                        new BigDecimal("0.8600"),
+                        "ai-v1"
+                )
+        ));
         institution = new Institution(1L, "0004", "국민은행", "BANK", "bank-logo");
     }
 
     @Test
     void collectsIncomeAndOutgoingTransferTransactions() {
         when(bankTransactionClient.getTransactions(any())).thenReturn(CodefDto.Response.success(List.of(
-                transaction("BANK-1", "3000000", "0", "월급_7월"),
-                transaction("BANK-2", "0", "50000", "김철수")
+                transaction("BANK-1", "3000000", "0", "월급_7월", "INCOME"),
+                transaction("BANK-2", "0", "50000", "김철수", "TRANSFER")
         )));
 
         int collectedCount = service.collect(
@@ -88,6 +110,101 @@ class BankTransactionCollectionServiceTest {
         assertEquals("BANK-2", savedTransactions.get(1).getSourceTransactionId());
         assertNull(savedTransactions.get(1).getApprovalNo());
         assertEquals(64, savedTransactions.get(1).getSourceDedupKey().length());
+        verify(categoryClassifier, never()).classify(any());
+    }
+
+    @Test
+    void classifiesCardPaymentAsExpenseUsingExpenseCategoryClassifier() {
+        when(bankTransactionClient.getTransactions(any())).thenReturn(CodefDto.Response.success(List.of(
+                transaction("BANK-CARD-1", "0", "12000", "신한 편의점", "CARD_PAYMENT")
+        )));
+
+        service.collect(
+                7L,
+                31L,
+                "123456-01-789012",
+                institution,
+                LocalDate.of(2026, 8, 1),
+                LocalDate.of(2026, 8, 5)
+        );
+
+        ArgumentCaptor<AssetSyncDto.Transaction> transactionCaptor =
+                ArgumentCaptor.forClass(AssetSyncDto.Transaction.class);
+        verify(assetSyncMapper).upsertTransaction(transactionCaptor.capture());
+        AssetSyncDto.Transaction savedTransaction = transactionCaptor.getValue();
+
+        assertEquals("EXPENSE", savedTransaction.getType());
+        assertEquals("LIVING", savedTransaction.getCategory());
+        assertEquals("AI", savedTransaction.getCategorySource());
+        assertEquals(new BigDecimal("0.8600"), savedTransaction.getCategoryConfidence());
+        assertEquals("ai-v1", savedTransaction.getClassifierVersion());
+        assertEquals(12_000L, savedTransaction.getAmount());
+
+        ArgumentCaptor<List> contextCaptor = ArgumentCaptor.forClass(List.class);
+        verify(categoryClassifier).classifyBatch(contextCaptor.capture());
+        assertEquals("편의점", ((ExpenseCategoryClassifier.Context) contextCaptor.getValue().get(0)).merchantName());
+        assertEquals(12_000L, ((ExpenseCategoryClassifier.Context) contextCaptor.getValue().get(0)).amount());
+    }
+
+    @Test
+    void keepsLegacyTransferForMissingTransactionKindAndMarksFallback() {
+        when(bankTransactionClient.getTransactions(any())).thenReturn(CodefDto.Response.success(List.of(
+                transaction("BANK-LEGACY-1", "0", "50000", "김철수", null)
+        )));
+
+        service.collect(
+                7L,
+                31L,
+                "123456-01-789012",
+                institution,
+                LocalDate.of(2026, 8, 1),
+                LocalDate.of(2026, 8, 5)
+        );
+
+        ArgumentCaptor<AssetSyncDto.Transaction> transactionCaptor =
+                ArgumentCaptor.forClass(AssetSyncDto.Transaction.class);
+        verify(assetSyncMapper).upsertTransaction(transactionCaptor.capture());
+        AssetSyncDto.Transaction savedTransaction = transactionCaptor.getValue();
+
+        assertEquals("TRANSFER", savedTransaction.getType());
+        assertEquals("SEND", savedTransaction.getCategory());
+        assertEquals("BANK_DIRECTION_FALLBACK", savedTransaction.getCategorySource());
+        assertEquals("bank-direction-fallback-v1", savedTransaction.getClassifierVersion());
+        verify(categoryClassifier, never()).classify(any());
+    }
+
+    @Test
+    void reusesExistingCardPaymentClassificationWithoutCallingClassifier() {
+        when(bankTransactionClient.getTransactions(any())).thenReturn(CodefDto.Response.success(List.of(
+                transaction("BANK-CARD-1", "0", "12000", "unknown store", "CARD_PAYMENT")
+        )));
+        when(assetSyncMapper.findExistingClassification(
+                org.mockito.ArgumentMatchers.eq(7L),
+                org.mockito.ArgumentMatchers.eq("BANK_TRANSACTION"),
+                org.mockito.ArgumentMatchers.eq("0004"),
+                any()
+        )).thenReturn(new AssetSyncDto.ExistingClassification(
+                "TRANSPORT",
+                "AI",
+                new BigDecimal("0.9300"),
+                "ai-v1"
+        ));
+
+        service.collect(
+                7L,
+                31L,
+                "123456-01-789012",
+                institution,
+                LocalDate.of(2026, 8, 1),
+                LocalDate.of(2026, 8, 5)
+        );
+
+        ArgumentCaptor<AssetSyncDto.Transaction> transactionCaptor =
+                ArgumentCaptor.forClass(AssetSyncDto.Transaction.class);
+        verify(assetSyncMapper).upsertTransaction(transactionCaptor.capture());
+        assertEquals("TRANSPORT", transactionCaptor.getValue().getCategory());
+        assertEquals("AI", transactionCaptor.getValue().getCategorySource());
+        verify(categoryClassifier, never()).classify(any());
     }
 
     @Test
@@ -113,7 +230,7 @@ class BankTransactionCollectionServiceTest {
     @Test
     void invalidDirectionDoesNotWriteTransaction() {
         when(bankTransactionClient.getTransactions(any())).thenReturn(CodefDto.Response.success(List.of(
-                transaction("BANK-1", "1000", "1000", "잘못된 거래")
+                transaction("BANK-1", "1000", "1000", "잘못된 거래", "TRANSFER")
         )));
 
         assertThrows(IllegalArgumentException.class, () -> service.collect(
@@ -148,7 +265,8 @@ class BankTransactionCollectionServiceTest {
             String transactionId,
             String accountIn,
             String accountOut,
-            String description
+            String description,
+            String transactionKind
     ) {
         CodefDto.BankTransaction transaction = new CodefDto.BankTransaction();
         transaction.setResAccount("123456-01-789012");
@@ -158,6 +276,7 @@ class BankTransactionCollectionServiceTest {
         transaction.setResAccountIn(accountIn);
         transaction.setResAccountOut(accountOut);
         transaction.setResAccountDesc(description);
+        transaction.setTransactionKind(transactionKind);
         return transaction;
     }
 }

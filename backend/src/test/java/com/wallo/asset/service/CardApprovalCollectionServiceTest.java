@@ -11,6 +11,9 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wallo.asset.classification.ExpenseCategoryClassifier;
+import com.wallo.asset.classification.AiCategoryRule;
+import com.wallo.asset.classification.CategoryClassificationClient;
+import com.wallo.asset.classification.CategoryClassificationDto;
 import com.wallo.asset.classification.MerchantKeywordCategoryRule;
 import com.wallo.asset.classification.MerchantSectorCategoryRule;
 import com.wallo.asset.domain.Institution;
@@ -22,6 +25,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,6 +35,8 @@ class CardApprovalCollectionServiceTest {
 
     private final CardApprovalClient cardApprovalClient = mock(CardApprovalClient.class);
     private final AssetSyncMapper assetSyncMapper = mock(AssetSyncMapper.class);
+    private final CategoryClassificationClient categoryClassificationClient =
+            mock(CategoryClassificationClient.class);
     private CardApprovalCollectionService service;
     private Institution institution;
 
@@ -38,8 +44,15 @@ class CardApprovalCollectionServiceTest {
     void setUp() {
         ExpenseCategoryClassifier classifier = new ExpenseCategoryClassifier(List.of(
                 new MerchantSectorCategoryRule(),
-                new MerchantKeywordCategoryRule()
+                new MerchantKeywordCategoryRule(),
+                new AiCategoryRule(categoryClassificationClient)
         ));
+        when(categoryClassificationClient.classify(any())).thenReturn(
+                new CategoryClassificationDto.Response("LIVING", new BigDecimal("0.8600"))
+        );
+        when(categoryClassificationClient.classifyBatch(any())).thenReturn(
+                List.of(new CategoryClassificationDto.Response("LIVING", new BigDecimal("0.8600")))
+        );
         Clock clock = Clock.fixed(
                 Instant.parse("2026-08-03T00:00:00Z"),
                 ZoneId.of("Asia/Seoul")
@@ -90,10 +103,18 @@ class CardApprovalCollectionServiceTest {
         assertEquals("DELIVERY", transactions.get(0).getCategory());
         assertEquals("MERCHANT_KEYWORD", transactions.get(0).getCategorySource());
         assertEquals("TRANSPORT", transactions.get(1).getCategory());
-        assertEquals("ETC", transactions.get(2).getCategory());
+        assertEquals("LIVING", transactions.get(2).getCategory());
+        assertEquals("AI", transactions.get(2).getCategorySource());
         assertEquals("CARD_APPROVAL", transactions.get(0).getSourceType());
         assertEquals(64, transactions.get(0).getSourceDedupKey().length());
         assertEquals(38_000L, transactions.get(0).getAmount());
+
+        org.mockito.ArgumentCaptor<List> categoryRequestCaptor =
+                org.mockito.ArgumentCaptor.forClass(List.class);
+        verify(categoryClassificationClient).classifyBatch(categoryRequestCaptor.capture());
+        CategoryClassificationDto.Request request =
+                (CategoryClassificationDto.Request) categoryRequestCaptor.getValue().get(0);
+        assertEquals(12_000L, request.amount());
     }
 
     @Test
@@ -107,6 +128,59 @@ class CardApprovalCollectionServiceTest {
         verify(cardApprovalClient).getApprovals(requestCaptor.capture());
         assertEquals("20260503", requestCaptor.getValue().getStartDate());
         assertEquals("20260803", requestCaptor.getValue().getEndDate());
+    }
+
+    @Test
+    void reusesExistingClassificationWithoutCallingClassifier() {
+        when(cardApprovalClient.getApprovals(any())).thenReturn(CodefDto.Response.success(List.of(
+                approval("9876", "10000001", "unknown merchant", "unknown sector", "12000")
+        )));
+        when(assetSyncMapper.findCardId(11L, "9876")).thenReturn(21L);
+        when(assetSyncMapper.findExistingClassification(
+                eq(7L),
+                eq("CARD_APPROVAL"),
+                eq("0311"),
+                any()
+        )).thenReturn(new AssetSyncDto.ExistingClassification(
+                "CULTURE",
+                "AI",
+                new BigDecimal("0.9100"),
+                "ai-v1"
+        ));
+
+        service.collect(
+                7L,
+                11L,
+                institution,
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 7, 31)
+        );
+
+        ArgumentCaptor<AssetSyncDto.Transaction> transactionCaptor =
+                ArgumentCaptor.forClass(AssetSyncDto.Transaction.class);
+        verify(assetSyncMapper).upsertTransaction(transactionCaptor.capture());
+        assertEquals("CULTURE", transactionCaptor.getValue().getCategory());
+        assertEquals("AI", transactionCaptor.getValue().getCategorySource());
+        verify(categoryClassificationClient, never()).classify(any());
+    }
+
+    @Test
+    void cachesSameClassificationContextDuringCollection() {
+        when(cardApprovalClient.getApprovals(any())).thenReturn(CodefDto.Response.success(List.of(
+                approval("9876", "10000001", "unknown merchant", "unknown sector", "12000"),
+                approval("9876", "10000002", "unknown merchant", "unknown sector", "12000")
+        )));
+        when(assetSyncMapper.findCardId(11L, "9876")).thenReturn(21L);
+
+        service.collect(
+                7L,
+                11L,
+                institution,
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 7, 31)
+        );
+
+        verify(categoryClassificationClient).classifyBatch(any());
     }
 
     @Test

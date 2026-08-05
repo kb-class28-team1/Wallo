@@ -8,6 +8,8 @@
         <id property="institutionId" column="institution_id" />
         <result property="codefOrganizationCode" column="codef_organization_code" />
         <result property="name" column="name" />
+        <result property="financialGroupCode" column="financial_group_code" />
+        <result property="financialGroupName" column="financial_group_name" />
         <result property="institutionType" column="type" />
         <result property="logoUrl" column="logo_url" />
         <result property="services" column="services" />
@@ -19,6 +21,8 @@
             codef_organization_code,
             type,
             name,
+            financial_group_code,
+            financial_group_name,
             logo_url,
             services
         FROM INSTITUTIONS
