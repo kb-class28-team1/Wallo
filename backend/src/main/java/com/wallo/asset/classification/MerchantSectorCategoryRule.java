@@ -41,6 +41,8 @@ public class MerchantSectorCategoryRule implements ExpenseCategoryRule {
         categories.put("주유", "TRANSPORT");
         categories.put("온라인쇼핑", "SHOPPING");
         categories.put("잡화/화장품", "SHOPPING");
+        categories.put("편의점", "SHOPPING");
+        categories.put("서점", "CULTURE");
         categories.put("통신", "HOUSING");
         categories.put("주거", "HOUSING");
         return Map.copyOf(categories);

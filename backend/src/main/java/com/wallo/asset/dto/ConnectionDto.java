@@ -43,10 +43,38 @@ public final class ConnectionDto {
     public static class Result {
         private Long institutionId;
         private String institutionName;
+        private String financialGroupCode;
+        private String financialGroupName;
         private String institutionType;
         private String logoUrl;
         private Status status;
         private String message;
+    }
+
+    @Getter
+    @Setter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class InstitutionResponse {
+        private List<InstitutionItem> banks;
+        private List<InstitutionItem> cards;
+        private List<InstitutionItem> stocks;
+    }
+
+    @Getter
+    @Setter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class InstitutionItem {
+        private Long institutionId;
+        private String codefOrganizationCode;
+        private String name;
+        private String financialGroupCode;
+        private String financialGroupName;
+        private String logoUrl;
+        private List<String> services;
     }
 
     public enum Status {

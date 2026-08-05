@@ -3,7 +3,9 @@ import { computed, onMounted, ref } from "vue";
 import ExpenseCalendar from "@/components/asset/ExpenseCalendar.vue";
 import ExpenseCategoryBreakdown from "@/components/asset/ExpenseCategoryBreakdown.vue";
 import ExpenseTransactionList from "@/components/asset/ExpenseTransactionList.vue";
-import { getExpenseHistory } from "@/api/assetApi";
+import { getExpenses } from "@/api/assetApi";
+import { getApiErrorMessage } from "@/commonUtils/apiError";
+import { formatWon } from "@/commonUtils/formatters";
 
 const PAGE_SIZE = 20;
 
@@ -71,21 +73,12 @@ const selectedDateLabel = computed(() => {
   return `${year}년 ${month}월 ${day}일`;
 });
 
-const formatWon = (amount) =>
-  `${new Intl.NumberFormat("ko-KR").format(Number(amount) || 0)}원`;
-
 function formatDate(date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
-
-const getErrorMessage = (caughtError, fallbackMessage) =>
-  caughtError.response?.data?.error?.message ||
-  caughtError.response?.data?.message ||
-  caughtError.message ||
-  fallbackMessage;
 
 const normalizeExpenseData = (data) => ({
   totalExpense: Number(data?.totalExpense) || 0,
@@ -112,7 +105,7 @@ const fetchExpensePage = async (page, append = false) => {
   }
 
   try {
-    const response = await getExpenseHistory({
+    const response = await getExpenses({
       ...dateRange.value,
       page,
       size: PAGE_SIZE,
@@ -134,7 +127,7 @@ const fetchExpensePage = async (page, append = false) => {
   } catch (caughtError) {
     if (currentRequest !== requestVersion) return;
 
-    const message = getErrorMessage(
+    const message = getApiErrorMessage(
       caughtError,
       append
         ? "추가 거래 내역을 불러오지 못했습니다. 다시 시도해 주세요."
@@ -187,7 +180,7 @@ const fetchDailyExpensePage = async (page, append = false) => {
   }
 
   try {
-    const response = await getExpenseHistory({
+    const response = await getExpenses({
       startDate: selectedDate.value,
       endDate: selectedDate.value,
       page,
@@ -209,7 +202,7 @@ const fetchDailyExpensePage = async (page, append = false) => {
     dailyPagination.value = nextData.pagination;
   } catch (caughtError) {
     if (currentRequest !== dailyRequestVersion) return;
-    const message = getErrorMessage(
+    const message = getApiErrorMessage(
       caughtError,
       append
         ? "추가 거래 내역을 불러오지 못했습니다. 다시 시도해 주세요."

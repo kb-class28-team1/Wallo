@@ -10,6 +10,7 @@ import {
   PointElement,
   Tooltip,
 } from "chart.js";
+import { formatWon } from "@/commonUtils/formatters";
 
 ChartJS.register(
   CategoryScale,
@@ -31,7 +32,6 @@ const props = defineProps({
   },
 });
 
-const formatWon = (amount = 0) => `${new Intl.NumberFormat("ko-KR").format(amount)}원`;
 const assetChangeAmount = computed(() => {
   if (!props.assets.previousMonthTotalAssets) {
     return null;

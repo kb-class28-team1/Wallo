@@ -804,4 +804,3 @@ INSERT INTO MESSAGE (
       (17401, 1101, 101, 'REPLY', 17201, NULL, '이번 주도 함께 절약해요', NOW()),
       (17402, 1101, 101, 'REPLY', 17202, NULL, '좋아요, 계속 도전해요', DATE_SUB(NOW(), INTERVAL 1 DAY)),
       (17403, 1101, 101, 'REPLY', 17204, NULL, '무지출 성공을 축하해요', DATE_SUB(NOW(), INTERVAL 2 DAY));
-
