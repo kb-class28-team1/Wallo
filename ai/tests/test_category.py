@@ -5,7 +5,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from app.application import app
-from app.category import CategoryClassification, CategoryClassificationBatch
+from app.category.schemas import CategoryClassification, CategoryClassificationBatch
 
 
 class FakeChatCompletions:
@@ -44,7 +44,7 @@ class CategoryClassificationApiTest(unittest.TestCase):
         )
 
         with patch(
-            "app.category.get_groq_client",
+            "app.category.service.create_groq_client",
             return_value=fake_client,
         ):
             response = self.client.post(
@@ -93,7 +93,7 @@ class CategoryClassificationApiTest(unittest.TestCase):
         )
 
         with patch(
-            "app.category.get_groq_client",
+            "app.category.service.create_groq_client",
             return_value=fake_client,
         ):
             response = self.client.post(
@@ -125,7 +125,7 @@ class CategoryClassificationApiTest(unittest.TestCase):
         fake_client = FakeGroqClient(content=None)
 
         with patch(
-            "app.category.get_groq_client",
+            "app.category.service.create_groq_client",
             return_value=fake_client,
         ):
             response = self.client.post(
@@ -141,7 +141,7 @@ class CategoryClassificationApiTest(unittest.TestCase):
 
     def test_returns_service_unavailable_when_groq_key_is_missing(self):
         with patch(
-            "app.category.get_groq_client",
+            "app.category.service.create_groq_client",
             side_effect=RuntimeError("GROQ_API_KEY is not configured"),
         ):
             response = self.client.post(
