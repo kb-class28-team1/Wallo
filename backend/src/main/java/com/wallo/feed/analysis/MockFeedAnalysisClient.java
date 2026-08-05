@@ -2,10 +2,8 @@ package com.wallo.feed.analysis;
 
 import com.wallo.feed.dto.FeedDtos.AnalysisResponse;
 import java.util.Map;
-import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
-@Component
 public class MockFeedAnalysisClient implements FeedAnalysisClient {
     private static final Map<String, Integer> CATEGORY_AMOUNTS = Map.of(
             "FOOD", 10000,

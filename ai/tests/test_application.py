@@ -1,4 +1,4 @@
-"""application.py 구조 테스트: 앱 생성과 router 등록을 확인한다. 실제 OpenAI 호출은 하지 않는다.
+"""application.py 구조 테스트: 앱 생성과 router 등록을 확인한다. 실제 AI API를 호출하지 않는다.
 
 app.routes를 직접 순회하는 대신 app.openapi()로 실제 노출되는 경로를 확인한다 — include_router로
 등록된 하위 라우터는 Starlette/FastAPI 내부 표현상 app.routes에 곧바로 펼쳐지지 않기 때문에,
