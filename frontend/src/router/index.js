@@ -17,9 +17,10 @@ const DashboardView = () => import("@/views/dashboard/DashboardView.vue")
 const PointShopView = () => import("@/views/product/PointShopView.vue")
 const PointHistoryView = () => import("@/views/product/PointHistoryView.vue")
 const ReportListView = () => import("@/views/report/ReportListView.vue")
+const ReportDetailView = () => import("@/views/report/ReportDetailView.vue")
 const SettingsView = () => import("@/views/user/SettingsView.vue")
 const ConnectionManagementView = () => import("@/views/user/ConnectionManagementView.vue")
-const ChatView = () => import("@/views/ChatView.vue")
+const ChatView = () => import("@/views/chat/ChatView.vue")
 
 const withAppShell = (route) => ({
   ...route,
@@ -28,7 +29,7 @@ const withAppShell = (route) => ({
     requiresAuth: true,
     appShell: true,
   },
-})
+  })
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -138,6 +139,12 @@ const router = createRouter({
           path: "/reports",
           name: "reports",
           component: ReportListView,
+        },
+        // 금융 리포트 상세 페이지로 이동하는 주소임
+        {
+          path: "/reports/:newsId",
+          name: "report-detail",
+          component: ReportDetailView,
         },
         // 사용자 설정 페이지로 이동하는 주소임
         {

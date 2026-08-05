@@ -47,10 +47,11 @@ class ConversationMessageServiceTest {
         ChatMessage userMessage = message(1L, "USER", request.getMessage());
         ChatMessage assistantMessage = message(2L, "ASSISTANT", "답변");
 
+        when(persistenceService.hasNoMessages(1L)).thenReturn(true);
         when(persistenceService.saveMessage(1L, "USER", request.getMessage()))
                 .thenReturn(userMessage);
-        when(chatService.chat(new ChatRequest(request.getMessage())))
-                .thenReturn(new ChatResponse("답변"));
+        when(chatService.chat(new ChatRequest(request.getMessage(), true)))
+                .thenReturn(new ChatResponse("답변", "맞춤 저축 계획"));
         when(persistenceService.saveMessage(1L, "ASSISTANT", "답변"))
                 .thenReturn(assistantMessage);
 
@@ -66,14 +67,15 @@ class ConversationMessageServiceTest {
                 chatService
         );
         order.verify(conversationService).validateOwnership(1L, 1L);
+        order.verify(persistenceService).hasNoMessages(1L);
         order.verify(persistenceService)
                 .saveMessage(1L, "USER", request.getMessage());
-        order.verify(conversationService)
-                .updateAfterUserMessage(1L, request.getMessage());
-        order.verify(chatService).chat(new ChatRequest(request.getMessage()));
+        order.verify(chatService)
+                .chat(new ChatRequest(request.getMessage(), true));
         order.verify(persistenceService)
                 .saveMessage(1L, "ASSISTANT", "답변");
-        order.verify(conversationService).touch(1L);
+        order.verify(conversationService)
+                .updateAfterUserMessage(1L, "맞춤 저축 계획");
     }
 
     @Test
@@ -91,8 +93,6 @@ class ConversationMessageServiceTest {
 
         verify(persistenceService)
                 .saveMessage(1L, "USER", "질문");
-        verify(conversationService)
-                .updateAfterUserMessage(1L, "질문");
     }
 
     private SendConversationMessageRequest request(Long userId, String content) {
