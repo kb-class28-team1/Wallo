@@ -8,19 +8,27 @@ from app.application import app
 from app.category import CategoryClassification, CategoryClassificationBatch
 
 
-class FakeResponses:
-    def __init__(self, parsed=None):
-        self.parsed = parsed
+class FakeChatCompletions:
+    def __init__(self, content=None):
+        self.content = content
         self.kwargs = None
 
-    def parse(self, **kwargs):
+    def create(self, **kwargs):
         self.kwargs = kwargs
-        return SimpleNamespace(output_parsed=self.parsed)
+        return SimpleNamespace(
+            choices=[
+                SimpleNamespace(
+                    message=SimpleNamespace(content=self.content),
+                )
+            ]
+        )
 
 
-class FakeOpenAiClient:
-    def __init__(self, parsed=None):
-        self.responses = FakeResponses(parsed)
+class FakeGroqClient:
+    def __init__(self, content=None):
+        self.chat = SimpleNamespace(
+            completions=FakeChatCompletions(content),
+        )
 
 
 class CategoryClassificationApiTest(unittest.TestCase):
@@ -28,12 +36,15 @@ class CategoryClassificationApiTest(unittest.TestCase):
         self.client = TestClient(app)
 
     def test_classifies_category_with_structured_response(self):
-        fake_client = FakeOpenAiClient(
-            CategoryClassification(category="LIVING", confidence=0.86)
+        fake_client = FakeGroqClient(
+            CategoryClassification(
+                category="LIVING",
+                confidence=0.86,
+            ).model_dump_json()
         )
 
         with patch(
-            "app.category.get_openai_client",
+            "app.category.get_groq_client",
             return_value=fake_client,
         ):
             response = self.client.post(
@@ -51,10 +62,16 @@ class CategoryClassificationApiTest(unittest.TestCase):
             {"category": "LIVING", "confidence": 0.86},
         )
         self.assertEqual(
-            fake_client.responses.kwargs["model"],
-            "gpt-4o-mini",
+            fake_client.chat.completions.kwargs["model"],
+            "openai/gpt-oss-20b",
         )
-        self.assertFalse(fake_client.responses.kwargs["store"])
+        self.assertEqual(
+            fake_client.chat.completions.kwargs["response_format"]["type"],
+            "json_schema",
+        )
+        self.assertTrue(
+            fake_client.chat.completions.kwargs["response_format"]["json_schema"]["strict"]
+        )
 
     def test_rejects_invalid_request(self):
         response = self.client.post(
@@ -69,17 +86,17 @@ class CategoryClassificationApiTest(unittest.TestCase):
         self.assertEqual(response.status_code, 422)
 
     def test_classifies_category_batch_with_results_in_input_order(self):
-        fake_client = FakeOpenAiClient(
+        fake_client = FakeGroqClient(
             CategoryClassificationBatch(
                 results=[
                     CategoryClassification(category="LIVING", confidence=0.86),
                     CategoryClassification(category="FOOD", confidence=0.91),
                 ]
-            )
+            ).model_dump_json()
         )
 
         with patch(
-            "app.category.get_openai_client",
+            "app.category.get_groq_client",
             return_value=fake_client,
         ):
             response = self.client.post(
@@ -102,13 +119,16 @@ class CategoryClassificationApiTest(unittest.TestCase):
                 ]
             },
         )
-        self.assertEqual(len(fake_client.responses.kwargs["input"].split("unknown")) - 1, 2)
+        self.assertEqual(
+            len(fake_client.chat.completions.kwargs["messages"][1]["content"].split("unknown")) - 1,
+            2,
+        )
 
     def test_returns_bad_gateway_when_ai_returns_no_result(self):
-        fake_client = FakeOpenAiClient(parsed=None)
+        fake_client = FakeGroqClient(content=None)
 
         with patch(
-            "app.category.get_openai_client",
+            "app.category.get_groq_client",
             return_value=fake_client,
         ):
             response = self.client.post(
@@ -121,6 +141,22 @@ class CategoryClassificationApiTest(unittest.TestCase):
             )
 
         self.assertEqual(response.status_code, 502)
+
+    def test_returns_service_unavailable_when_groq_key_is_missing(self):
+        with patch(
+            "app.category.get_groq_client",
+            side_effect=RuntimeError("GROQ_API_KEY is not configured"),
+        ):
+            response = self.client.post(
+                "/api/category/classify",
+                json={
+                    "merchantName": "unknown store",
+                    "merchantSector": None,
+                    "amount": 1000,
+                },
+            )
+
+        self.assertEqual(response.status_code, 503)
 
 
 if __name__ == "__main__":
