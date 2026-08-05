@@ -1,6 +1,6 @@
 package com.wallo.asset.controller;
 
-import com.wallo.asset.dto.ReportDto;
+import com.wallo.asset.dto.AssetReportDto;
 import com.wallo.asset.service.AssetReportService;
 import com.wallo.auth.CurrentUserProvider;
 import com.wallo.common.response.CommonResponse;
@@ -25,14 +25,14 @@ public class AssetReportController {
     }
 
     @GetMapping("/insights")
-    public CommonResponse<ReportDto.Insight> getConsumptionInsight() {
+    public CommonResponse<AssetReportDto.Insight> getConsumptionInsight() {
         return CommonResponse.success(
                 assetReportService.getConsumptionInsight(currentUserProvider.getCurrentUserId())
         );
     }
 
     @GetMapping("/tax-settlement")
-    public CommonResponse<ReportDto.TaxSettlement> getTaxSettlement(
+    public CommonResponse<AssetReportDto.TaxSettlement> getTaxSettlement(
             @RequestParam(value = "year", required = false) Integer year
     ) {
         return CommonResponse.success(

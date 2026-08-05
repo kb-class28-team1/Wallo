@@ -1,14 +1,13 @@
 package com.wallo.asset.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.wallo.asset.dto.ReportDto;
-import com.wallo.asset.mapper.ReportMapper;
+import com.wallo.asset.dto.AssetReportDto;
+import com.wallo.asset.mapper.AssetReportMapper;
 import com.wallo.common.exception.CustomException;
 import com.wallo.common.exception.ErrorCode;
 import java.time.LocalDate;
@@ -17,23 +16,23 @@ import org.junit.jupiter.api.Test;
 
 class AssetReportServiceTest {
 
-    private final ReportMapper reportMapper = mock(ReportMapper.class);
-    private final AssetReportService assetReportService = new AssetReportService(reportMapper);
+    private final AssetReportMapper assetReportMapper = mock(AssetReportMapper.class);
+    private final AssetReportService assetReportService = new AssetReportService(assetReportMapper);
 
     @Test
     void returnsTaxSettlementIncludingCreditAndCheckCardSpending() {
-        when(reportMapper.selectAnnualSalary(7L)).thenReturn(50_000_000L);
-        when(reportMapper.selectCardSpending(
+        when(assetReportMapper.selectAnnualSalary(7L)).thenReturn(50_000_000L);
+        when(assetReportMapper.selectCardSpending(
                 7L,
                 "2026-01-01",
                 "2026-07-31"
-        )).thenReturn(new ReportDto.CardSpending(
+        )).thenReturn(new AssetReportDto.CardSpending(
                 11_500_000L,
                 3_000_000L,
                 8_500_000L
         ));
 
-        ReportDto.TaxSettlement result = assetReportService.getTaxSettlement(
+        AssetReportDto.TaxSettlement result = assetReportService.getTaxSettlement(
                 7L,
                 2026,
                 LocalDate.of(2026, 7, 31)
@@ -48,7 +47,7 @@ class AssetReportServiceTest {
 
     @Test
     void rejectsTaxSettlementWhenAnnualSalaryIsMissing() {
-        when(reportMapper.selectAnnualSalary(7L)).thenReturn(null);
+        when(assetReportMapper.selectAnnualSalary(7L)).thenReturn(null);
 
         CustomException exception = assertThrows(
                 CustomException.class,
@@ -77,30 +76,30 @@ class AssetReportServiceTest {
     }
 
     @Test
-    void returnsCategoryWithLargestExpenseIncrease() {
-        when(reportMapper.selectCategoryExpenses(
+    void returnsCategoryWithLargestCurrentExpense() {
+        when(assetReportMapper.selectCategoryExpenses(
                 7L,
                 "2026-07-01",
                 "2026-07-31",
                 "2026-06-01",
                 "2026-06-30"
         )).thenReturn(Arrays.asList(
-                new ReportDto.CategoryExpense("DELIVERY", 150_000L, 100_000L),
-                new ReportDto.CategoryExpense("CAFE", 300_000L, 200_000L),
-                new ReportDto.CategoryExpense("SHOPPING", 125_000L, 100_000L)
+                new AssetReportDto.CategoryExpense("DELIVERY", 500_000L, 100_000L),
+                new AssetReportDto.CategoryExpense("CAFE", 600_000L, 590_000L),
+                new AssetReportDto.CategoryExpense("SHOPPING", 125_000L, 100_000L)
         ));
 
-        ReportDto.Insight insight = assetReportService.getConsumptionInsight(
+        AssetReportDto.Insight insight = assetReportService.getConsumptionInsight(
                 7L,
                 LocalDate.of(2026, 7, 31)
         );
 
-        assertEquals("카페 지출 50% 급증!", insight.getReportTitle());
+        assertEquals("카페 지출이 가장 많아요", insight.getReportTitle());
         assertEquals(
-                "지난달 대비 카페 지출이 크게 늘었어요. 소비 내역을 확인해 보세요!",
+                "이번 달은 카페 지출이 가장 많아요. 소비 내역을 한 번 확인해 보세요.",
                 insight.getReportContent()
         );
-        verify(reportMapper).selectCategoryExpenses(
+        verify(assetReportMapper).selectCategoryExpenses(
                 7L,
                 "2026-07-01",
                 "2026-07-31",
@@ -110,68 +109,94 @@ class AssetReportServiceTest {
     }
 
     @Test
-    void returnsNullWhenNoCategoryMeetsInsightCondition() {
-        when(reportMapper.selectCategoryExpenses(
+    void returnsLargestCategoryEvenWhenItDidNotIncreaseRapidly() {
+        when(assetReportMapper.selectCategoryExpenses(
                 7L,
                 "2026-07-01",
                 "2026-07-15",
                 "2026-06-01",
                 "2026-06-15"
         )).thenReturn(Arrays.asList(
-                new ReportDto.CategoryExpense("FOOD", 129_000L, 100_000L),
-                new ReportDto.CategoryExpense("CAFE", 50_000L, 0L),
-                new ReportDto.CategoryExpense("SHOPPING", 80_000L, 100_000L)
+                new AssetReportDto.CategoryExpense("FOOD", 129_000L, 100_000L),
+                new AssetReportDto.CategoryExpense("CAFE", 50_000L, 0L),
+                new AssetReportDto.CategoryExpense("SHOPPING", 80_000L, 100_000L)
         ));
 
-        ReportDto.Insight insight = assetReportService.getConsumptionInsight(
+        AssetReportDto.Insight insight = assetReportService.getConsumptionInsight(
                 7L,
                 LocalDate.of(2026, 7, 15)
         );
 
-        assertNull(insight);
+        assertEquals("식비 지출이 가장 많아요", insight.getReportTitle());
+        assertEquals(
+                "이번 달은 식비 지출이 가장 많아요. 소비 내역을 한 번 확인해 보세요.",
+                insight.getReportContent()
+        );
     }
 
     @Test
-    void returnsNullWhenCurrentMonthHasNoDeliveryExpense() {
-        when(reportMapper.selectCategoryExpenses(
+    void returnsEarlyMonthMessageWithoutQueryingExpenses() {
+        AssetReportDto.Insight insight = assetReportService.getConsumptionInsight(
+                7L,
+                LocalDate.of(2026, 7, 3)
+        );
+
+        assertEquals("소비 데이터를 모으고 있어요", insight.getReportTitle());
+        assertEquals(
+                "이번 달 소비 패턴을 분석하려면 조금 더 지출 내역이 필요해요."
+                        + " 데이터가 쌓이면 지출이 많은 카테고리와 지난달 대비 변화를 알려드릴게요.",
+                insight.getReportContent()
+        );
+    }
+
+    @Test
+    void returnsInsufficientDataMessageWhenCurrentTotalExpenseIsBelowThreshold() {
+        when(assetReportMapper.selectCategoryExpenses(
                 7L,
                 "2026-07-01",
                 "2026-07-15",
                 "2026-06-01",
                 "2026-06-15"
         )).thenReturn(Arrays.asList(
-                new ReportDto.CategoryExpense("DELIVERY", 0L, 100_000L)
+                new AssetReportDto.CategoryExpense("FOOD", 20_000L, 10_000L),
+                new AssetReportDto.CategoryExpense("CAFE", 9_000L, 5_000L)
         ));
 
-        ReportDto.Insight insight = assetReportService.getConsumptionInsight(
+        AssetReportDto.Insight insight = assetReportService.getConsumptionInsight(
                 7L,
                 LocalDate.of(2026, 7, 15)
         );
 
-        assertNull(insight);
+        assertEquals("소비 데이터가 아직 충분하지 않아요", insight.getReportTitle());
+        assertEquals(
+                "현재까지의 소비 데이터가 아직 충분하지 않아요."
+                        + " 조금 더 지출 내역이 쌓이면 소비 패턴을 분석해드릴게요.",
+                insight.getReportContent()
+        );
     }
 
     @Test
-    void keepsDeliverySpecificMessageWhenDeliveryHasLargestIncrease() {
-        when(reportMapper.selectCategoryExpenses(
+    void includesIncreaseRateWhenLargestCategoryIncreasedByAtLeastThirtyPercent() {
+        when(assetReportMapper.selectCategoryExpenses(
                 7L,
                 "2026-07-01",
                 "2026-07-20",
                 "2026-06-01",
                 "2026-06-20"
         )).thenReturn(Arrays.asList(
-                new ReportDto.CategoryExpense("DELIVERY", 130_000L, 100_000L),
-                new ReportDto.CategoryExpense("FOOD", 65_000L, 50_000L)
+                new AssetReportDto.CategoryExpense("DELIVERY", 130_000L, 100_000L),
+                new AssetReportDto.CategoryExpense("FOOD", 65_000L, 50_000L)
         ));
 
-        ReportDto.Insight insight = assetReportService.getConsumptionInsight(
+        AssetReportDto.Insight insight = assetReportService.getConsumptionInsight(
                 7L,
                 LocalDate.of(2026, 7, 20)
         );
 
-        assertEquals("배달비 30% 급증!", insight.getReportTitle());
+        assertEquals("배달 지출이 가장 많아요", insight.getReportTitle());
         assertEquals(
-                "지난달 대비 식비 중 배달 앱 결제가 크게 늘었어요. 야식의 유혹을 조심하세요!",
+                "이번 달은 배달 지출이 가장 많아요. 지난달 같은 기간보다 30% 늘었어요."
+                        + " 소비 내역을 한 번 확인해 보세요.",
                 insight.getReportContent()
         );
     }

@@ -1,7 +1,7 @@
 package com.wallo.asset.service;
 
-import com.wallo.asset.dto.ReportDto;
-import com.wallo.asset.mapper.ReportMapper;
+import com.wallo.asset.dto.AssetReportDto;
+import com.wallo.asset.mapper.AssetReportMapper;
 import com.wallo.common.exception.CustomException;
 import com.wallo.common.exception.ErrorCode;
 import java.time.LocalDate;
@@ -15,8 +15,14 @@ import org.springframework.stereotype.Service;
 public class AssetReportService {
 
     private static final long RAPID_INCREASE_THRESHOLD_PERCENT = 30L;
-    private static final String DELIVERY_REPORT_CONTENT =
-            "지난달 대비 식비 중 배달 앱 결제가 크게 늘었어요. 야식의 유혹을 조심하세요!";
+    private static final String EARLY_MONTH_REPORT_TITLE = "소비 데이터를 모으고 있어요";
+    private static final String EARLY_MONTH_REPORT_CONTENT =
+            "이번 달 소비 패턴을 분석하려면 조금 더 지출 내역이 필요해요."
+                    + " 데이터가 쌓이면 지출이 많은 카테고리와 지난달 대비 변화를 알려드릴게요.";
+    private static final String INSUFFICIENT_DATA_REPORT_TITLE = "소비 데이터가 아직 충분하지 않아요";
+    private static final String INSUFFICIENT_DATA_REPORT_CONTENT =
+            "현재까지의 소비 데이터가 아직 충분하지 않아요."
+                    + " 조금 더 지출 내역이 쌓이면 소비 패턴을 분석해드릴게요.";
     private static final Map<String, String> CATEGORY_LABELS = Map.ofEntries(
             Map.entry("FOOD", "식비"),
             Map.entry("CAFE", "카페"),
@@ -32,21 +38,21 @@ public class AssetReportService {
             Map.entry("ETC", "기타")
     );
 
-    private final ReportMapper reportMapper;
+    private final AssetReportMapper assetReportMapper;
 
-    public AssetReportService(ReportMapper reportMapper) {
-        this.reportMapper = reportMapper;
+    public AssetReportService(AssetReportMapper assetReportMapper) {
+        this.assetReportMapper = assetReportMapper;
     }
 
-    public ReportDto.Insight getConsumptionInsight(long userId) {
+    public AssetReportDto.Insight getConsumptionInsight(long userId) {
         return getConsumptionInsight(userId, LocalDate.now());
     }
 
-    public ReportDto.TaxSettlement getTaxSettlement(long userId, Integer year) {
+    public AssetReportDto.TaxSettlement getTaxSettlement(long userId, Integer year) {
         return getTaxSettlement(userId, year, LocalDate.now());
     }
 
-    ReportDto.TaxSettlement getTaxSettlement(
+    AssetReportDto.TaxSettlement getTaxSettlement(
             long userId,
             Integer year,
             LocalDate today
@@ -57,7 +63,7 @@ public class AssetReportService {
             throw new CustomException(ErrorCode.INVALID_REPORT_YEAR);
         }
 
-        Long annualSalary = reportMapper.selectAnnualSalary(userId);
+        Long annualSalary = assetReportMapper.selectAnnualSalary(userId);
         if (annualSalary == null || annualSalary <= 0) {
             throw new CustomException(ErrorCode.ANNUAL_SALARY_REQUIRED);
         }
@@ -66,7 +72,7 @@ public class AssetReportService {
         LocalDate endDate = targetYear == today.getYear()
                 ? today
                 : LocalDate.of(targetYear, 12, 31);
-        ReportDto.CardSpending spending = reportMapper.selectCardSpending(
+        AssetReportDto.CardSpending spending = assetReportMapper.selectCardSpending(
                 userId,
                 startDate.toString(),
                 endDate.toString()
@@ -78,7 +84,7 @@ public class AssetReportService {
         long checkCardSpentYtd =
                 spending == null ? 0L : spending.getCheckCardSpentYtd();
 
-        return new ReportDto.TaxSettlement(
+        return new AssetReportDto.TaxSettlement(
                 annualSalary,
                 annualSalary / 4,
                 cardSpentYtd,
@@ -87,7 +93,14 @@ public class AssetReportService {
         );
     }
 
-    ReportDto.Insight getConsumptionInsight(long userId, LocalDate today) {
+    AssetReportDto.Insight getConsumptionInsight(long userId, LocalDate today) {
+        if (today.getDayOfMonth() <= 3) {
+            return new AssetReportDto.Insight(
+                    EARLY_MONTH_REPORT_TITLE,
+                    EARLY_MONTH_REPORT_CONTENT
+            );
+        }
+
         LocalDate currentStartDate = today.withDayOfMonth(1);
         YearMonth previousMonth = YearMonth.from(today).minusMonths(1);
         LocalDate previousStartDate = previousMonth.atDay(1);
@@ -95,7 +108,7 @@ public class AssetReportService {
                 Math.min(today.getDayOfMonth(), previousMonth.lengthOfMonth())
         );
 
-        List<ReportDto.CategoryExpense> categoryExpenses = reportMapper.selectCategoryExpenses(
+        List<AssetReportDto.CategoryExpense> categoryExpenses = assetReportMapper.selectCategoryExpenses(
                 userId,
                 currentStartDate.toString(),
                 today.toString(),
@@ -103,9 +116,19 @@ public class AssetReportService {
                 previousEndDate.toString()
         );
 
+        long currentTotalExpense = values(categoryExpenses).stream()
+                .mapToLong(AssetReportDto.CategoryExpense::getCurrentAmount)
+                .sum();
+        if (currentTotalExpense < 30_000L) {
+            return new AssetReportDto.Insight(
+                    INSUFFICIENT_DATA_REPORT_TITLE,
+                    INSUFFICIENT_DATA_REPORT_CONTENT
+            );
+        }
+
         InsightCandidate selectedCandidate = null;
 
-        for (ReportDto.CategoryExpense expense : values(categoryExpenses)) {
+        for (AssetReportDto.CategoryExpense expense : values(categoryExpenses)) {
             InsightCandidate candidate = createCandidate(expense);
 
             if (candidate != null && candidate.isHigherPriorityThan(selectedCandidate)) {
@@ -116,46 +139,47 @@ public class AssetReportService {
         return selectedCandidate == null ? null : createInsight(selectedCandidate);
     }
 
-    private InsightCandidate createCandidate(ReportDto.CategoryExpense expense) {
+    private InsightCandidate createCandidate(AssetReportDto.CategoryExpense expense) {
         long previousAmount = expense.getPreviousAmount();
         long currentAmount = expense.getCurrentAmount();
 
-        if (previousAmount <= 0 || currentAmount <= previousAmount) {
+        if (currentAmount <= 0) {
             return null;
         }
 
-        double increaseRate =
-                ((double) currentAmount - previousAmount) / previousAmount * 100;
-
-        if (increaseRate < RAPID_INCREASE_THRESHOLD_PERCENT) {
-            return null;
-        }
+        double increaseRate = previousAmount > 0 && currentAmount > previousAmount
+                ? ((double) currentAmount - previousAmount) / previousAmount * 100
+                : 0;
 
         return new InsightCandidate(
                 expense.normalizedCategory(),
+                currentAmount,
                 currentAmount - previousAmount,
                 increaseRate
         );
     }
 
-    private ReportDto.Insight createInsight(InsightCandidate candidate) {
+    private AssetReportDto.Insight createInsight(InsightCandidate candidate) {
         String categoryLabel = CATEGORY_LABELS.getOrDefault(candidate.category, "기타");
         long roundedIncreaseRate = Math.round(candidate.increaseRate);
-        String title = "DELIVERY".equals(candidate.category)
-                ? String.format("배달비 %d%% 급증!", roundedIncreaseRate)
-                : String.format("%s 지출 %d%% 급증!", categoryLabel, roundedIncreaseRate);
-        String content = "DELIVERY".equals(candidate.category)
-                ? DELIVERY_REPORT_CONTENT
+        String title = String.format("%s 지출이 가장 많아요", categoryLabel);
+        String content = candidate.increaseRate >= RAPID_INCREASE_THRESHOLD_PERCENT
+                ? String.format(
+                        "이번 달은 %s 지출이 가장 많아요. 지난달 같은 기간보다 %d%% 늘었어요."
+                                + " 소비 내역을 한 번 확인해 보세요.",
+                        categoryLabel,
+                        roundedIncreaseRate
+                )
                 : String.format(
-                        "지난달 대비 %s 지출이 크게 늘었어요. 소비 내역을 확인해 보세요!",
+                        "이번 달은 %s 지출이 가장 많아요. 소비 내역을 한 번 확인해 보세요.",
                         categoryLabel
                 );
 
-        return new ReportDto.Insight(title, content);
+        return new AssetReportDto.Insight(title, content);
     }
 
-    private List<ReportDto.CategoryExpense> values(
-            List<ReportDto.CategoryExpense> categoryExpenses
+    private List<AssetReportDto.CategoryExpense> values(
+            List<AssetReportDto.CategoryExpense> categoryExpenses
     ) {
         return categoryExpenses == null ? Collections.emptyList() : categoryExpenses;
     }
@@ -163,11 +187,18 @@ public class AssetReportService {
     private static class InsightCandidate {
 
         private final String category;
+        private final long currentAmount;
         private final long increaseAmount;
         private final double increaseRate;
 
-        private InsightCandidate(String category, long increaseAmount, double increaseRate) {
+        private InsightCandidate(
+                String category,
+                long currentAmount,
+                long increaseAmount,
+                double increaseRate
+        ) {
             this.category = category;
+            this.currentAmount = currentAmount;
             this.increaseAmount = increaseAmount;
             this.increaseRate = increaseRate;
         }
@@ -176,11 +207,14 @@ public class AssetReportService {
             if (other == null) {
                 return true;
             }
-            if (increaseAmount != other.increaseAmount) {
-                return increaseAmount > other.increaseAmount;
+            if (currentAmount != other.currentAmount) {
+                return currentAmount > other.currentAmount;
             }
             if (Double.compare(increaseRate, other.increaseRate) != 0) {
                 return increaseRate > other.increaseRate;
+            }
+            if (increaseAmount != other.increaseAmount) {
+                return increaseAmount > other.increaseAmount;
             }
             return category.compareTo(other.category) < 0;
         }

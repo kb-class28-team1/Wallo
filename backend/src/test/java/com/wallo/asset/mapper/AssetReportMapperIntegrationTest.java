@@ -2,7 +2,8 @@ package com.wallo.asset.mapper;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.wallo.asset.dto.ReportDto;
+import com.wallo.asset.dto.AssetReportDto;
+
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.PreparedStatement;
@@ -18,11 +19,11 @@ import org.junit.jupiter.api.Test;
 import org.mybatis.spring.SqlSessionFactoryBean;
 import org.springframework.core.io.ClassPathResource;
 
-class ReportMapperIntegrationTest {
+class AssetReportMapperIntegrationTest {
 
     private DataSource dataSource;
     private SqlSession sqlSession;
-    private ReportMapper reportMapper;
+    private AssetReportMapper assetReportMapper;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -44,7 +45,7 @@ class ReportMapperIntegrationTest {
                 new ClassPathResource("mapper/asset/ReportMapper.xml")
         );
         sqlSession = factoryBean.getObject().openSession(true);
-        reportMapper = sqlSession.getMapper(ReportMapper.class);
+        assetReportMapper = sqlSession.getMapper(AssetReportMapper.class);
     }
 
     @AfterEach
@@ -66,7 +67,7 @@ class ReportMapperIntegrationTest {
         insertTransaction(7L, "EXPENSE", "SEND", 200_000L, "2026-07-10");
         insertTransaction(7L, "EXPENSE", "INCOME", 400_000L, "2026-07-10");
 
-        List<ReportDto.CategoryExpense> results = reportMapper.selectCategoryExpenses(
+        List<AssetReportDto.CategoryExpense> results = assetReportMapper.selectCategoryExpenses(
                 7L,
                 "2026-07-01",
                 "2026-07-15",
@@ -96,7 +97,7 @@ class ReportMapperIntegrationTest {
         insertCardTransaction(7L, 1L, "EXPENSE", 4_000_000L, "2025-12-31");
         insertCardTransaction(7L, 2L, "EXPENSE", 6_000_000L, "2026-08-01");
 
-        ReportDto.CardSpending spending = reportMapper.selectCardSpending(
+        AssetReportDto.CardSpending spending = assetReportMapper.selectCardSpending(
                 7L,
                 "2026-01-01",
                 "2026-07-31"
@@ -105,7 +106,7 @@ class ReportMapperIntegrationTest {
         assertEquals(11_500_000L, spending.getCardSpentYtd());
         assertEquals(3_000_000L, spending.getCreditCardSpentYtd());
         assertEquals(8_500_000L, spending.getCheckCardSpentYtd());
-        assertEquals(50_000_000L, reportMapper.selectAnnualSalary(7L));
+        assertEquals(50_000_000L, assetReportMapper.selectAnnualSalary(7L));
     }
 
     private void createTables() throws Exception {

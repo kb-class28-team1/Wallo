@@ -2,7 +2,7 @@
 <!DOCTYPE mapper
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.wallo.asset.mapper.ReportMapper">
+<mapper namespace="com.wallo.asset.mapper.AssetReportMapper">
 
     <select id="selectAnnualSalary" resultType="java.lang.Long">
         SELECT annual_salary
@@ -11,7 +11,7 @@
     </select>
 
     <select id="selectCardSpending"
-            resultType="com.wallo.asset.dto.ReportDto$CardSpending">
+            resultType="com.wallo.asset.dto.AssetReportDto$CardSpending">
         SELECT
             COALESCE(SUM(t.amount), 0) AS cardSpentYtd,
             COALESCE(SUM(
@@ -30,7 +30,7 @@
     </select>
 
     <select id="selectCategoryExpenses"
-            resultType="com.wallo.asset.dto.ReportDto$CategoryExpense">
+            resultType="com.wallo.asset.dto.AssetReportDto$CategoryExpense">
         SELECT
             category AS category,
             COALESCE(SUM(

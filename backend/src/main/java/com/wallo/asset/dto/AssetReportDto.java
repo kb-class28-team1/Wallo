@@ -6,9 +6,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-public final class ReportDto {
+public final class AssetReportDto {
 
-    private ReportDto() {
+    private AssetReportDto() {
     }
 
     @Getter
@@ -30,7 +30,8 @@ public final class ReportDto {
         private long previousAmount;
 
         public String normalizedCategory() {
-            return Objects.toString(category, "ETC").toUpperCase();
+            String normalized = Objects.toString(category, "ETC").toUpperCase();
+            return "OTHER".equals(normalized) ? "ETC" : normalized;
         }
     }
 

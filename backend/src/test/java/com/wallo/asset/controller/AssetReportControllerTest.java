@@ -8,8 +8,8 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.wallo.asset.dto.ReportDto;
-import com.wallo.asset.mapper.ReportMapper;
+import com.wallo.asset.dto.AssetReportDto;
+import com.wallo.asset.mapper.AssetReportMapper;
 import com.wallo.asset.service.AssetReportService;
 import com.wallo.auth.CurrentUserProvider;
 import com.wallo.auth.SessionCurrentUserProvider;
@@ -27,7 +27,7 @@ class AssetReportControllerTest {
         CurrentUserProvider currentUserProvider = mock(CurrentUserProvider.class);
         when(currentUserProvider.getCurrentUserId()).thenReturn(7L);
         when(assetReportService.getTaxSettlement(7L, 2026))
-                .thenReturn(new ReportDto.TaxSettlement(
+                .thenReturn(new AssetReportDto.TaxSettlement(
                         50_000_000L,
                         12_500_000L,
                         11_500_000L,
@@ -56,7 +56,7 @@ class AssetReportControllerTest {
 
     @Test
     void returnsUnauthorizedWithoutLoginSession() throws Exception {
-        AssetReportService assetReportService = new AssetReportService(mock(ReportMapper.class));
+        AssetReportService assetReportService = new AssetReportService(mock(AssetReportMapper.class));
         AssetReportController assetReportController = new AssetReportController(
                 assetReportService,
                 new SessionCurrentUserProvider()
