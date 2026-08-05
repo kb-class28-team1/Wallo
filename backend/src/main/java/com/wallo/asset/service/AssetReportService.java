@@ -12,6 +12,8 @@ import java.time.YearMonth;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Logger;
 import org.springframework.stereotype.Service;
 
@@ -48,6 +50,8 @@ public class AssetReportService {
 
     private final AssetReportMapper assetReportMapper;
     private final AssetReportAiClient assetReportAiClient;
+    private final ConcurrentMap<ConsumptionInsightCacheKey, AssetReportDto.Insight>
+            consumptionInsightCache = new ConcurrentHashMap<>();
 
     public AssetReportService(
             AssetReportMapper assetReportMapper,
@@ -141,6 +145,14 @@ public class AssetReportService {
             );
         }
 
+        YearMonth currentMonth = YearMonth.from(today);
+        AssetReportDto.Insight cachedInsight = consumptionInsightCache.get(
+                new ConsumptionInsightCacheKey(userId, currentMonth)
+        );
+        if (cachedInsight != null) {
+            return copyInsight(cachedInsight);
+        }
+
         InsightCandidate selectedCandidate = null;
 
         for (AssetReportDto.CategoryExpense expense : values(categoryExpenses)) {
@@ -151,7 +163,9 @@ public class AssetReportService {
             }
         }
 
-        return selectedCandidate == null ? null : createInsight(selectedCandidate);
+        return selectedCandidate == null
+                ? null
+                : createInsight(userId, currentMonth, selectedCandidate);
     }
 
     private InsightCandidate createCandidate(AssetReportDto.CategoryExpense expense) {
@@ -175,7 +189,11 @@ public class AssetReportService {
         );
     }
 
-    private AssetReportDto.Insight createInsight(InsightCandidate candidate) {
+    private AssetReportDto.Insight createInsight(
+            long userId,
+            YearMonth currentMonth,
+            InsightCandidate candidate
+    ) {
         String categoryLabel = CATEGORY_LABELS.getOrDefault(candidate.category, "기타");
         AssetReportAiDto.Request request = new AssetReportAiDto.Request(
                 candidate.category,
@@ -186,11 +204,16 @@ public class AssetReportService {
 
         try {
             AssetReportAiDto.Response response = assetReportAiClient.generate(request);
-            return new AssetReportDto.Insight(
+            AssetReportDto.Insight insight = new AssetReportDto.Insight(
                     response.reportTitle(),
                     response.reportContent(),
                     AssetReportDto.GenerationMode.AI
             );
+            consumptionInsightCache.putIfAbsent(
+                    new ConsumptionInsightCacheKey(userId, currentMonth),
+                    insight
+            );
+            return copyInsight(insight);
         } catch (AiServerException exception) {
             LOGGER.warning("AI consumption insight failed; using fallback response. type="
                     + exception.getClass().getSimpleName());
@@ -200,6 +223,14 @@ public class AssetReportService {
                     AssetReportDto.GenerationMode.FALLBACK
             );
         }
+    }
+
+    private AssetReportDto.Insight copyInsight(AssetReportDto.Insight insight) {
+        return new AssetReportDto.Insight(
+                insight.getReportTitle(),
+                insight.getReportContent(),
+                insight.getGenerationMode()
+        );
     }
 
     private List<AssetReportDto.CategoryExpense> values(
@@ -245,5 +276,8 @@ public class AssetReportService {
             }
             return category.compareTo(other.category) < 0;
         }
+    }
+
+    private record ConsumptionInsightCacheKey(long userId, YearMonth currentMonth) {
     }
 }

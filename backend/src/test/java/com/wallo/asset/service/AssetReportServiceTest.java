@@ -2,7 +2,11 @@ package com.wallo.asset.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyLong;
+import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -169,6 +173,47 @@ class AssetReportServiceTest {
     }
 
     @Test
+    void cachesAiInsightByUserAndCurrentMonth() {
+        when(assetReportMapper.selectCategoryExpenses(
+                anyLong(),
+                anyString(),
+                anyString(),
+                anyString(),
+                anyString()
+        )).thenReturn(Arrays.asList(
+                new AssetReportDto.CategoryExpense("CAFE", 600_000L, 590_000L)
+        ));
+        when(assetReportAiClient.generate(any(AssetReportAiDto.Request.class)))
+                .thenReturn(new AssetReportAiDto.Response(
+                        "카페 지출이 가장 많아요",
+                        "이번 달에는 카페 지출을 조금만 줄여보세요."
+                ));
+
+        AssetReportDto.Insight first = assetReportService.getConsumptionInsight(
+                7L,
+                LocalDate.of(2026, 7, 31)
+        );
+        AssetReportDto.Insight sameUserAndMonth = assetReportService.getConsumptionInsight(
+                7L,
+                LocalDate.of(2026, 7, 31)
+        );
+        AssetReportDto.Insight differentUser = assetReportService.getConsumptionInsight(
+                8L,
+                LocalDate.of(2026, 7, 31)
+        );
+        AssetReportDto.Insight differentMonth = assetReportService.getConsumptionInsight(
+                7L,
+                LocalDate.of(2026, 8, 31)
+        );
+
+        assertEquals(first.getReportTitle(), sameUserAndMonth.getReportTitle());
+        assertEquals(first.getReportContent(), sameUserAndMonth.getReportContent());
+        assertEquals(first.getReportTitle(), differentUser.getReportTitle());
+        assertEquals(first.getReportTitle(), differentMonth.getReportTitle());
+        verify(assetReportAiClient, times(3)).generate(any(AssetReportAiDto.Request.class));
+    }
+
+    @Test
     void returnsEarlyMonthMessageWithoutQueryingExpenses() {
         AssetReportDto.Insight insight = assetReportService.getConsumptionInsight(
                 7L,
@@ -273,12 +318,19 @@ class AssetReportServiceTest {
                 LocalDate.of(2026, 7, 20)
         );
 
+        AssetReportDto.Insight secondInsight = assetReportService.getConsumptionInsight(
+                7L,
+                LocalDate.of(2026, 7, 20)
+        );
+
         assertEquals("소비 리포트를 준비 중이에요", insight.getReportTitle());
         assertEquals(
                 "현재 소비 내역은 확인했지만 맞춤 분석 문구를 생성하지 못했어요."
                         + " 잠시 후 다시 시도해 주세요.",
                 insight.getReportContent()
         );
+        assertEquals(insight.getReportTitle(), secondInsight.getReportTitle());
         assertEquals(AssetReportDto.GenerationMode.FALLBACK, insight.getGenerationMode());
+        verify(assetReportAiClient, times(2)).generate(any(AssetReportAiDto.Request.class));
     }
 }
