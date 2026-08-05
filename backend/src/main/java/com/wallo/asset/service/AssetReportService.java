@@ -97,7 +97,8 @@ public class AssetReportService {
         if (today.getDayOfMonth() <= 3) {
             return new AssetReportDto.Insight(
                     EARLY_MONTH_REPORT_TITLE,
-                    EARLY_MONTH_REPORT_CONTENT
+                    EARLY_MONTH_REPORT_CONTENT,
+                    AssetReportDto.GenerationMode.RULE
             );
         }
 
@@ -122,7 +123,8 @@ public class AssetReportService {
         if (currentTotalExpense < 30_000L) {
             return new AssetReportDto.Insight(
                     INSUFFICIENT_DATA_REPORT_TITLE,
-                    INSUFFICIENT_DATA_REPORT_CONTENT
+                    INSUFFICIENT_DATA_REPORT_CONTENT,
+                    AssetReportDto.GenerationMode.RULE
             );
         }
 
@@ -175,7 +177,11 @@ public class AssetReportService {
                         categoryLabel
                 );
 
-        return new AssetReportDto.Insight(title, content);
+        return new AssetReportDto.Insight(
+                title,
+                content,
+                AssetReportDto.GenerationMode.RULE
+        );
     }
 
     private List<AssetReportDto.CategoryExpense> values(

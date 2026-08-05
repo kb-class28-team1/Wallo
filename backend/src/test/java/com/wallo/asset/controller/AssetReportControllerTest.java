@@ -55,6 +55,34 @@ class AssetReportControllerTest {
     }
 
     @Test
+    void returnsInsightGenerationMode() throws Exception {
+        AssetReportService assetReportService = mock(AssetReportService.class);
+        CurrentUserProvider currentUserProvider = mock(CurrentUserProvider.class);
+        when(currentUserProvider.getCurrentUserId()).thenReturn(7L);
+        when(assetReportService.getConsumptionInsight(7L))
+                .thenReturn(new AssetReportDto.Insight(
+                        "카페 지출이 가장 많아요",
+                        "이번 달은 카페 지출이 가장 많아요.",
+                        AssetReportDto.GenerationMode.AI
+                ));
+        MockMvc mockMvc = MockMvcBuilders
+                .standaloneSetup(new AssetReportController(assetReportService, currentUserProvider))
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
+
+        String responseBody = mockMvc.perform(get("/api/reports/insights"))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString(StandardCharsets.UTF_8);
+
+        assertTrue(responseBody.contains("\"success\":true"));
+        assertTrue(responseBody.contains("\"reportTitle\":\"카페 지출이 가장 많아요\""));
+        assertTrue(responseBody.contains("\"generationMode\":\"AI\""));
+        verify(assetReportService).getConsumptionInsight(eq(7L));
+    }
+
+    @Test
     void returnsUnauthorizedWithoutLoginSession() throws Exception {
         AssetReportService assetReportService = new AssetReportService(mock(AssetReportMapper.class));
         AssetReportController assetReportController = new AssetReportController(

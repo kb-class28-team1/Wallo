@@ -99,6 +99,7 @@ class AssetReportServiceTest {
                 "이번 달은 카페 지출이 가장 많아요. 소비 내역을 한 번 확인해 보세요.",
                 insight.getReportContent()
         );
+        assertEquals(AssetReportDto.GenerationMode.RULE, insight.getGenerationMode());
         verify(assetReportMapper).selectCategoryExpenses(
                 7L,
                 "2026-07-01",
@@ -132,6 +133,7 @@ class AssetReportServiceTest {
                 "이번 달은 식비 지출이 가장 많아요. 소비 내역을 한 번 확인해 보세요.",
                 insight.getReportContent()
         );
+        assertEquals(AssetReportDto.GenerationMode.RULE, insight.getGenerationMode());
     }
 
     @Test
@@ -147,6 +149,7 @@ class AssetReportServiceTest {
                         + " 데이터가 쌓이면 지출이 많은 카테고리와 지난달 대비 변화를 알려드릴게요.",
                 insight.getReportContent()
         );
+        assertEquals(AssetReportDto.GenerationMode.RULE, insight.getGenerationMode());
     }
 
     @Test
@@ -173,6 +176,7 @@ class AssetReportServiceTest {
                         + " 조금 더 지출 내역이 쌓이면 소비 패턴을 분석해드릴게요.",
                 insight.getReportContent()
         );
+        assertEquals(AssetReportDto.GenerationMode.RULE, insight.getGenerationMode());
     }
 
     @Test
@@ -199,5 +203,6 @@ class AssetReportServiceTest {
                         + " 소비 내역을 한 번 확인해 보세요.",
                 insight.getReportContent()
         );
+        assertEquals(AssetReportDto.GenerationMode.RULE, insight.getGenerationMode());
     }
 }

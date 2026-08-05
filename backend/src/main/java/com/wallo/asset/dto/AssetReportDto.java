@@ -11,6 +11,12 @@ public final class AssetReportDto {
     private AssetReportDto() {
     }
 
+    public enum GenerationMode {
+        AI,
+        FALLBACK,
+        RULE
+    }
+
     @Getter
     @Setter
     @NoArgsConstructor
@@ -18,6 +24,7 @@ public final class AssetReportDto {
     public static class Insight {
         private String reportTitle;
         private String reportContent;
+        private GenerationMode generationMode;
     }
 
     @Getter
