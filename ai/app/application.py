@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 
 from app.chat.router import router as chat_router
 from app.category.router import router as category_router
+from app.consumption_insights.router import router as consumption_insights_router
 from app.demo.router import router as demo_router
 from app.health.router import router as health_router
 from app.reports.router import router as financial_report_router
@@ -20,6 +21,7 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     app.include_router(chat_router)
     app.include_router(category_router)
+    app.include_router(consumption_insights_router)
     app.include_router(demo_router)
     app.include_router(financial_report_router)
 
