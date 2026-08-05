@@ -508,15 +508,26 @@ app = FastAPI(title="Wallo AI Server")
 app.include_router(financial_report_router)
 
 
+def _json_safe(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {str(key): _json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(item) for item in value]
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    return str(value)
+
+
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     """422 발생 시 어떤 필드가 왜 실패했는지 서버 콘솔에 남긴다 (요청 본문 전체는 남기지 않는다)."""
+    errors = _json_safe(exc.errors())
     logger.warning(
         "요청 검증 실패 - path: %s, errors: %s",
         request.url.path,
-        exc.errors(),
+        errors,
     )
-    return JSONResponse(status_code=422, content={"detail": exc.errors()})
+    return JSONResponse(status_code=422, content={"detail": errors})
 
 
 def get_openai_client() -> OpenAI:
