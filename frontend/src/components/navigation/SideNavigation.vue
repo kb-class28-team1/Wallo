@@ -2,8 +2,6 @@
 import { computed, ref, watch } from "vue"
 import { RouterLink, useRoute, useRouter } from "vue-router"
 import { getCurrentChallenge } from "@/api/challengeApi"
-import brandPenguin from "@/assets/penguin-coins.svg"
-import thinkingPenguin from "@/assets/thinking-penguin.svg"
 
 // public 폴더의 이미지는 루트 절대 경로로 참조함.
 const brandPenguin = "/images/profiles/penguin-coins.svg"
