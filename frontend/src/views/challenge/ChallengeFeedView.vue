@@ -3,15 +3,14 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } 
 import { useRoute } from "vue-router"
 import { useUserStore } from "@/stores/userStore"
 import { formatWon } from "@/commonUtils/formatters"
+import AppDialog from "@/components/common/AppDialog.vue"
 import {
   analyzeFeed,
   createFeed,
   deleteFeed,
   getFeeds,
   getRoomMessages,
-  sendRoomMessage,
   addFeedLike,
-  updateFeed,
 } from '@/api/feedApi'
 import { EXPENSE_CATEGORY_META, FEED_CATEGORY_CODES } from '@/features/financial/financialCategories'
 
@@ -30,39 +29,37 @@ const errorMessage = ref('')
 const modalOpen = ref(false)
 const isAnalyzing = ref(false)
 const isUploading = ref(false)
-const editModalOpen = ref(false)
-const isUpdating = ref(false)
 const likingFeedId = ref(null)
 const likeBursts = ref([])
 const deletingFeedId = ref(null)
 const chatInput = ref('')
+const chatInputElement = ref(null)
 const mentionedFeed = ref(null)
 const fileInput = ref(null)
 const previewUrl = ref('')
 const focusedFeedElement = ref(null)
-let refreshTimer
+const messagesElement = ref(null)
+const isSendingMessage = ref(false)
+const dialogVisible = ref(false)
+const dialogTitle = ref('알림')
+const dialogMessage = ref('')
+const dialogConfirmText = ref('확인')
+const dialogShowCancel = ref(false)
+let chatSocket = null
+let chatReconnectTimer = null
+let chatReconnectAttempts = 0
+let shouldReconnectChat = true
 let likeBurstSequence = 0
 const likeBurstTimers = new Set()
+let dialogResolver = null
 
 const form = reactive({
   file: null,
-  spendingType: '',
   category: '',
   caption: '',
   savingAmount: 0,
   analysisSummary: '',
   confidenceScore: 0,
-})
-
-const editForm = reactive({
-  feedId: null,
-  mediaUrl: '',
-  mediaType: 'IMAGE',
-  spendingType: '',
-  category: '',
-  caption: '',
-  savingAmount: 0,
-  analysisSummary: '',
 })
 
 const spendingTypes = [
@@ -80,6 +77,29 @@ const spendingLabel = (value) =>
   spendingTypes.find((item) => item.value === value)?.label || value
 const isVideoFile = computed(() => form.file?.type?.startsWith("video/"))
 const roomTitle = computed(() => `${challengeName.value} 채팅방`)
+const DEFAULT_SPENDING_TYPE = 'REDUCED'
+
+const openDialog = ({
+  title = '알림',
+  message,
+  confirmText = '확인',
+  showCancel = false,
+}) =>
+  new Promise((resolve) => {
+    dialogTitle.value = title
+    dialogMessage.value = message
+    dialogConfirmText.value = confirmText
+    dialogShowCancel.value = showCancel
+    dialogResolver = resolve
+    dialogVisible.value = true
+  })
+
+const resolveDialog = (confirmed) => {
+  const resolve = dialogResolver
+  dialogResolver = null
+  dialogVisible.value = false
+  resolve?.(confirmed)
+}
 
 const isMyFeed = (feed) => Number(feed.userId) === Number(userStore.user?.id)
 
@@ -112,10 +132,89 @@ const loadFeeds = async () => {
   inviteCode.value = data.inviteCode || ''
   mySavingTotal.value = data.mySavingTotal
 }
-const loadMessages = async () => {
+const isNearMessagesBottom = () => {
+  const element = messagesElement.value
+  if (!element) return true
+  return element.scrollHeight - element.scrollTop - element.clientHeight <= 80
+}
+const scrollMessagesToBottom = async () => {
+  await nextTick()
+  const element = messagesElement.value
+  if (element) element.scrollTop = element.scrollHeight
+}
+const loadMessages = async ({ forceScroll = false } = {}) => {
+  const shouldScroll = forceScroll || isNearMessagesBottom()
   const data = await getRoomMessages(challengeId.value)
   messages.value = data.messages
   challengeName.value = data.challengeName
+  if (shouldScroll) await scrollMessagesToBottom()
+}
+
+const chatWebSocketUrl = () => {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  return `${protocol}//${window.location.host}/ws/challenges/${challengeId.value}`
+}
+
+const handleChatSocketMessage = async (event) => {
+  let payload
+  try {
+    payload = JSON.parse(event.data)
+  } catch {
+    return
+  }
+
+  if (payload.type === 'ERROR') {
+    openDialog({ message: payload.message || '메시지를 보내지 못했습니다.' })
+    return
+  }
+
+  if (payload.type !== 'MESSAGE' || !payload.message?.id) return
+  const incomingMessage = payload.message
+  if (messages.value.some((item) => Number(item.id) === Number(incomingMessage.id))) return
+
+  const shouldScroll =
+    isNearMessagesBottom() || Number(incomingMessage.userId) === Number(userStore.user?.id)
+  messages.value = [...messages.value, incomingMessage]
+  if (shouldScroll) await scrollMessagesToBottom()
+}
+
+const scheduleChatReconnect = () => {
+  if (!shouldReconnectChat || chatReconnectTimer) return
+  const delay = Math.min(1_000 * 2 ** chatReconnectAttempts, 10_000)
+  chatReconnectAttempts += 1
+  chatReconnectTimer = window.setTimeout(() => {
+    chatReconnectTimer = null
+    connectChatSocket()
+  }, delay)
+}
+
+const connectChatSocket = () => {
+  if (!shouldReconnectChat || chatSocket) return
+
+  chatSocket = new WebSocket(chatWebSocketUrl())
+  chatSocket.onopen = () => {
+    chatReconnectAttempts = 0
+  }
+  chatSocket.onmessage = handleChatSocketMessage
+  chatSocket.onerror = () => {
+    chatSocket?.close()
+  }
+  chatSocket.onclose = () => {
+    chatSocket = null
+    scheduleChatReconnect()
+  }
+}
+
+const disconnectChatSocket = () => {
+  shouldReconnectChat = false
+  if (chatReconnectTimer) {
+    window.clearTimeout(chatReconnectTimer)
+    chatReconnectTimer = null
+  }
+  if (chatSocket) {
+    chatSocket.close()
+    chatSocket = null
+  }
 }
 const loadPage = async () => {
   isLoading.value = true
@@ -140,9 +239,9 @@ const copyInviteCode = async () => {
   if (!inviteCode.value) return
   try {
     await navigator.clipboard.writeText(inviteCode.value)
-    alert('초대 코드가 복사되었습니다.')
+    await openDialog({ message: '초대 코드가 복사되었습니다.' })
   } catch {
-    alert(`초대 코드: ${inviteCode.value}`)
+    await openDialog({ message: `초대 코드: ${inviteCode.value}` })
   }
 }
 const openModal = () => {
@@ -154,7 +253,6 @@ const closeModal = () => {
   previewUrl.value = ''
   Object.assign(form, {
     file: null,
-    spendingType: '',
     category: '',
     caption: '',
     savingAmount: 0,
@@ -162,53 +260,6 @@ const closeModal = () => {
     confidenceScore: 0,
   })
   if (fileInput.value) fileInput.value.value = ''
-}
-const openEditModal = (feed) => {
-  if (!isMyFeed(feed)) return
-  Object.assign(editForm, {
-    feedId: feed.id,
-    mediaUrl: feed.mediaUrl || feed.thumbnailUrl || '',
-    mediaType: feed.mediaType || 'IMAGE',
-    spendingType: feed.spendingType || 'REDUCED',
-    category: FEED_CATEGORY_CODES.includes(feed.category) ? feed.category : 'ETC',
-    caption: feed.caption || '',
-    savingAmount: Number(feed.savingAmount || 0),
-    analysisSummary: feed.analysisSummary || '기존 AI 분석 결과를 불러왔어요.',
-  })
-  editModalOpen.value = true
-}
-const closeEditModal = () => {
-  editModalOpen.value = false
-  Object.assign(editForm, {
-    feedId: null,
-    mediaUrl: '',
-    mediaType: 'IMAGE',
-    spendingType: '',
-    category: '',
-    caption: '',
-    savingAmount: 0,
-    analysisSummary: '',
-  })
-}
-const saveFeedEdit = async () => {
-  if (!editForm.spendingType) return alert('소비 종류를 선택해 주세요.')
-  if (!editForm.category) return alert('세부 카테고리를 선택해 주세요.')
-  if (editForm.savingAmount < 0) return alert('절약 금액은 0원 이상 입력해 주세요.')
-  isUpdating.value = true
-  try {
-    await updateFeed(challengeId.value, editForm.feedId, {
-      spendingType: editForm.spendingType,
-      category: editForm.category,
-      caption: editForm.caption,
-      savingAmount: Number(editForm.savingAmount || 0),
-    })
-    closeEditModal()
-    await loadFeeds()
-  } catch (error) {
-    alert(error.message)
-  } finally {
-    isUpdating.value = false
-  }
 }
 const addLike = async (feed) => {
   if (likingFeedId.value !== null) return
@@ -228,30 +279,36 @@ const addLike = async (feed) => {
     }, 950)
     likeBurstTimers.add(timer)
   } catch (error) {
-    alert(error.message)
+    openDialog({ message: error.message })
   } finally {
     likingFeedId.value = null
   }
 }
 const removeFeed = async (feed) => {
   if (!isMyFeed(feed) || deletingFeedId.value !== null) return
-  if (!window.confirm('이 피드를 삭제할까요?')) return
+  const confirmed = await openDialog({
+    title: '피드 삭제',
+    message: '이 피드를 삭제할까요?',
+    confirmText: '삭제',
+    showCancel: true,
+  })
+  if (!confirmed) return
   deletingFeedId.value = feed.id
   try {
     await deleteFeed(challengeId.value, feed.id)
-    await Promise.all([loadFeeds(), loadMessages()])
+    await Promise.all([loadFeeds(), loadMessages({ forceScroll: true })])
   } catch (error) {
-    alert(error.message)
+    openDialog({ message: error.message })
   } finally {
     deletingFeedId.value = null
   }
 }
 const chooseFile = () => fileInput.value?.click()
-const handleFile = (event) => {
+const handleFile = async (event) => {
   const file = event.target.files?.[0]
   if (!file) return
   if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
-    alert('사진 또는 영상 파일을 선택해 주세요.')
+    await openDialog({ message: '사진 또는 영상 파일을 선택해 주세요.' })
     return
   }
   if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
@@ -261,20 +318,19 @@ const handleFile = (event) => {
 }
 const validationMessage = () => {
   if (!form.file) return '사진이나 영상을 선택해 주세요.'
-  if (!form.spendingType) return '소비 종류를 선택해 주세요.'
   if (!form.category) return '세부 카테고리를 선택해 주세요.'
   return ''
 }
 const makeFormData = () => {
   const data = new FormData()
   data.append('media', form.file)
-  data.append('spendingType', form.spendingType)
+  data.append('spendingType', DEFAULT_SPENDING_TYPE)
   data.append('category', form.category)
   return data
 }
 const requestAnalysis = async () => {
   const invalid = validationMessage()
-  if (invalid) return alert(invalid)
+  if (invalid) return openDialog({ message: invalid })
   isAnalyzing.value = true
   try {
     const result = await analyzeFeed(challengeId.value, makeFormData())
@@ -282,15 +338,15 @@ const requestAnalysis = async () => {
     form.analysisSummary = result.summary
     form.confidenceScore = result.confidenceScore
   } catch (error) {
-    alert(error.message)
+    openDialog({ message: error.message })
   } finally {
     isAnalyzing.value = false
   }
 }
 const uploadFeed = async () => {
   const invalid = validationMessage()
-  if (invalid) return alert(invalid)
-  if (!form.analysisSummary) return alert('먼저 AI 분석을 진행해 주세요.')
+  if (invalid) return openDialog({ message: invalid })
+  if (!form.analysisSummary) return openDialog({ message: '먼저 AI 분석을 진행해 주세요.' })
   isUploading.value = true
   try {
     const data = makeFormData()
@@ -300,9 +356,9 @@ const uploadFeed = async () => {
     data.append('confidenceScore', String(form.confidenceScore))
     await createFeed(challengeId.value, data)
     closeModal()
-    await Promise.all([loadFeeds(), loadMessages()])
+    await Promise.all([loadFeeds(), loadMessages({ forceScroll: true })])
   } catch (error) {
-    alert(error.message)
+    openDialog({ message: error.message })
   } finally {
     isUploading.value = false
   }
@@ -337,17 +393,26 @@ const mentionFeed = (message) => {
 }
 const sendMessage = async () => {
   const content = chatInput.value.trim()
-  if (!content && !mentionedFeed.value) return
+  if ((!content && !mentionedFeed.value) || isSendingMessage.value) return
+  if (!chatSocket || chatSocket.readyState !== WebSocket.OPEN) {
+    openDialog({ message: '채팅 서버에 연결 중입니다. 잠시 후 다시 시도해 주세요.' })
+    return
+  }
+  isSendingMessage.value = true
   try {
-    await sendRoomMessage(challengeId.value, {
+    chatSocket.send(JSON.stringify({
       content: content || null,
       referenceFeedId: mentionedFeed.value?.id || null,
-    })
+    }))
     chatInput.value = ''
     mentionedFeed.value = null
-    await loadMessages()
+    await scrollMessagesToBottom()
   } catch (error) {
-    alert(error.message)
+    openDialog({ message: error.message || '메시지를 보내지 못했습니다.' })
+  } finally {
+    isSendingMessage.value = false
+    await nextTick()
+    chatInputElement.value?.focus()
   }
 }
 
@@ -355,10 +420,11 @@ watch([focusedFeedId, feeds, isLoading], scrollToFocusedFeed, { flush: 'post' })
 
 onMounted(async () => {
   await loadPage()
-  refreshTimer = window.setInterval(() => loadMessages().catch(() => {}), 5000)
+  await scrollMessagesToBottom()
+  connectChatSocket()
 })
 onBeforeUnmount(() => {
-  window.clearInterval(refreshTimer)
+  disconnectChatSocket()
   likeBurstTimers.forEach((timer) => window.clearTimeout(timer))
   if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
 })
@@ -468,7 +534,6 @@ onBeforeUnmount(() => {
               <div class="feed-caption-row">
                 <p>{{ feed.caption || '오늘의 절약 기록을 공유했어요.' }}</p>
                 <div v-if="isMyFeed(feed)" class="feed-owner-actions">
-                  <button type="button" @click.stop="openEditModal(feed)">수정</button>
                   <button
                     type="button"
                     :disabled="deletingFeedId === feed.id"
@@ -495,7 +560,7 @@ onBeforeUnmount(() => {
                 <small>피드와 이야기를 함께 나눠요</small>
               </div>
             </header>
-            <div class="messages">
+            <div ref="messagesElement" class="messages">
               <div
                 v-for="item in messages"
                 :key="item.id"
@@ -519,12 +584,16 @@ onBeforeUnmount(() => {
               <button @click="mentionedFeed = null">×</button>
             </div>
             <form class="chat-form" @submit.prevent="sendMessage">
-              <input
-                v-model="chatInput"
+      <input
+        ref="chatInputElement"
+        v-model="chatInput"
                 placeholder="메시지 보내기..."
+                :disabled="isSendingMessage"
                 @input="handleChatInput"
+                @keydown.enter.exact.prevent
+                @keyup.enter.exact.prevent="sendMessage"
               />
-              <button type="submit" aria-label="메시지 전송">
+              <button type="submit" aria-label="메시지 전송" :disabled="isSendingMessage">
                 <i class="bi bi-send" aria-hidden="true"></i>
               </button>
             </form>
@@ -560,18 +629,6 @@ onBeforeUnmount(() => {
             >
           </button>
 
-          <label class="section-label">소비 종류</label>
-          <div class="chip-row">
-            <button
-              v-for="item in spendingTypes"
-              :key="item.value"
-              type="button"
-              :class="{ selected: form.spendingType === item.value }"
-              @click="form.spendingType = item.value"
-            >
-              {{ item.label }}
-            </button>
-          </div>
           <label class="section-label">세부 카테고리</label>
           <div class="chip-row">
             <button
@@ -624,84 +681,16 @@ onBeforeUnmount(() => {
       </section>
     </div>
 
-    <div v-if="editModalOpen" class="modal-layer" @click.self="closeEditModal">
-      <section class="upload-modal edit-modal" role="dialog" aria-modal="true" aria-labelledby="edit-title">
-        <header>
-          <h2 id="edit-title">절약 피드 수정</h2>
-          <button type="button" aria-label="수정 창 닫기" @click="closeEditModal">×</button>
-        </header>
-        <div class="modal-body">
-          <label class="section-label">인증 자료</label>
-          <div class="upload-zone edit-media-preview">
-            <video
-              v-if="editForm.mediaType === 'VIDEO'"
-              :src="editForm.mediaUrl"
-              controls
-              preload="metadata"
-            ></video>
-            <img v-else :src="editForm.mediaUrl" alt="수정할 인증 사진" />
-          </div>
+    <AppDialog
+      :visible="dialogVisible"
+      :title="dialogTitle"
+      :message="dialogMessage"
+      :confirm-text="dialogConfirmText"
+      :show-cancel="dialogShowCancel"
+      @confirm="resolveDialog(true)"
+      @close="resolveDialog(false)"
+    />
 
-          <label class="section-label">소비 종류</label>
-          <div class="chip-row">
-            <button
-              v-for="item in spendingTypes"
-              :key="item.value"
-              type="button"
-              :class="{ selected: editForm.spendingType === item.value }"
-              @click="editForm.spendingType = item.value"
-            >
-              {{ item.label }}
-            </button>
-          </div>
-
-          <label class="section-label">세부 카테고리</label>
-          <div class="chip-row">
-            <button
-              v-for="item in categories"
-              :key="item.value"
-              type="button"
-              :class="{ selected: editForm.category === item.value }"
-              @click="editForm.category = item.value"
-            >
-              <i :class="['bi', item.icon]" aria-hidden="true"></i>
-              {{ item.label }}
-            </button>
-          </div>
-
-          <div class="analysis-box edit-analysis-box">
-            <div>
-              <b>🤖 AI 분석</b><span>처음 저장한 분석 결과를 불러왔어요.</span>
-            </div>
-            <div class="result-box ready">
-              <span>🤖 AI 추정</span><small>{{ editForm.analysisSummary }}</small>
-              <div>
-                <input
-                  id="edit-saving-amount"
-                  v-model.number="editForm.savingAmount"
-                  type="number"
-                  min="0"
-                /><b>원</b>
-              </div>
-            </div>
-          </div>
-
-          <label class="section-label" for="edit-caption">문구</label>
-          <textarea
-            id="edit-caption"
-            v-model="editForm.caption"
-            maxlength="500"
-            placeholder="절약 기록 문구를 입력해 주세요."
-          ></textarea>
-        </div>
-        <footer>
-          <button class="cancel" type="button" @click="closeEditModal">취소</button>
-          <button class="submit" type="button" :disabled="isUpdating" @click="saveFeedEdit">
-            {{ isUpdating ? '저장 중...' : '수정 저장' }}
-          </button>
-        </footer>
-      </section>
-    </div>
   </section>
 </template>
 
@@ -759,7 +748,7 @@ onBeforeUnmount(() => {
 }
 .feed-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 330px;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 330px);
   gap: 22px;
   align-items: start;
 }
@@ -767,12 +756,10 @@ onBeforeUnmount(() => {
   min-width: 0;
 }
 .feed-sidebar {
-  position: fixed;
+  position: sticky;
   top: 100px;
-  right: max(32px, calc((100vw - 1453px) / 2));
-  z-index: 15;
   display: flex;
-  width: 330px;
+  width: 100%;
   height: calc(100vh - 124px);
   min-width: 0;
   flex-direction: column;
@@ -1186,11 +1173,15 @@ onBeforeUnmount(() => {
   height: 40px;
   font-size: 1.05rem;
 }
+.chat-form button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
 .floating-add {
   position: fixed;
   right: 34px;
   bottom: 30px;
-  z-index: 10;
+  z-index: 40;
   width: 58px;
   height: 58px;
   font-size: 2rem;
@@ -1354,51 +1345,6 @@ textarea {
   min-height: 84px;
   resize: vertical;
 }
-.edit-select,
-.edit-amount-row input {
-  width: 100%;
-  padding: 12px 13px;
-  border: 1px solid #dedfeb;
-  border-radius: 12px;
-  background: #fff;
-}
-.edit-media-preview {
-  cursor: default;
-}
-.edit-media-preview img,
-.edit-media-preview video {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-.edit-analysis-box > div:first-child {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-.edit-analysis-box .result-box {
-  display: block;
-  margin: 0;
-  background: #f0fff7;
-}
-.edit-analysis-box .result-box > div {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 10px;
-  margin-bottom: 0;
-}
-.edit-amount-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.edit-amount-row input {
-  flex: 1;
-}
-.edit-modal textarea {
-  margin-top: 0;
-}
 .share-notice {
   padding: 10px;
   margin: 12px 0 0;
@@ -1442,7 +1388,7 @@ textarea {
       0 18px 38px #29315a35;
   }
 }
-@media (max-width: 1000px) {
+@media (max-width: 1200px) {
   .feed-layout {
     grid-template-columns: 1fr;
   }
