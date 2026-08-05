@@ -34,6 +34,9 @@ public class BankTransactionCollectionService {
     private static final String CARD_PAYMENT = "CARD_PAYMENT";
     private static final String BANK_DIRECTION_SOURCE = "BANK_DIRECTION";
     private static final String BANK_DIRECTION_CLASSIFIER_VERSION = "bank-direction-v1";
+    private static final String BANK_DIRECTION_FALLBACK_SOURCE = "BANK_DIRECTION_FALLBACK";
+    private static final String BANK_DIRECTION_FALLBACK_CLASSIFIER_VERSION =
+            "bank-direction-fallback-v1";
     private static final DateTimeFormatter REQUEST_DATE_FORMATTER = DateTimeFormatter.BASIC_ISO_DATE;
     private static final DateTimeFormatter RESPONSE_TIME_FORMATTER = new DateTimeFormatterBuilder()
             .appendValue(ChronoField.HOUR_OF_DAY, 2)
@@ -184,7 +187,7 @@ public class BankTransactionCollectionService {
                 ? ""
                 : transactionKind.trim().toUpperCase(Locale.ROOT);
         if (normalizedKind.isBlank()) {
-            return classifyByDirection(accountIn, accountOut);
+            return classifyByDirection(accountIn, accountOut, true);
         }
 
         return switch (normalizedKind) {
@@ -197,12 +200,16 @@ public class BankTransactionCollectionService {
         };
     }
 
-    private TransactionClassification classifyByDirection(long accountIn, long accountOut) {
+    private TransactionClassification classifyByDirection(
+            long accountIn,
+            long accountOut,
+            boolean fallback
+    ) {
         if (accountIn > 0 && accountOut == 0) {
-            return incomeClassification(accountIn);
+            return incomeClassification(accountIn, fallback);
         }
         if (accountOut > 0 && accountIn == 0) {
-            return transferClassification(accountOut);
+            return transferClassification(accountOut, fallback);
         }
         throw new IllegalArgumentException("입금액과 출금액 중 하나만 양수여야 합니다.");
     }
@@ -211,14 +218,14 @@ public class BankTransactionCollectionService {
         if (accountIn <= 0 || accountOut != 0) {
             throw new IllegalArgumentException("입금 거래의 금액 방향이 올바르지 않습니다.");
         }
-        return incomeClassification(accountIn);
+        return incomeClassification(accountIn, false);
     }
 
     private TransactionClassification classifyTransfer(long accountIn, long accountOut) {
         if (accountOut <= 0 || accountIn != 0) {
             throw new IllegalArgumentException("이체 거래의 금액 방향이 올바르지 않습니다.");
         }
-        return transferClassification(accountOut);
+        return transferClassification(accountOut, false);
     }
 
     private TransactionClassification classifyCardPayment(
@@ -243,25 +250,29 @@ public class BankTransactionCollectionService {
         );
     }
 
-    private TransactionClassification incomeClassification(long amount) {
+    private TransactionClassification incomeClassification(long amount, boolean fallback) {
         return new TransactionClassification(
                 INCOME,
                 INCOME,
                 amount,
-                BANK_DIRECTION_SOURCE,
+                fallback ? BANK_DIRECTION_FALLBACK_SOURCE : BANK_DIRECTION_SOURCE,
                 BigDecimal.ONE,
-                BANK_DIRECTION_CLASSIFIER_VERSION
+                fallback
+                        ? BANK_DIRECTION_FALLBACK_CLASSIFIER_VERSION
+                        : BANK_DIRECTION_CLASSIFIER_VERSION
         );
     }
 
-    private TransactionClassification transferClassification(long amount) {
+    private TransactionClassification transferClassification(long amount, boolean fallback) {
         return new TransactionClassification(
                 TRANSFER,
                 "SEND",
                 amount,
-                BANK_DIRECTION_SOURCE,
+                fallback ? BANK_DIRECTION_FALLBACK_SOURCE : BANK_DIRECTION_SOURCE,
                 BigDecimal.ONE,
-                BANK_DIRECTION_CLASSIFIER_VERSION
+                fallback
+                        ? BANK_DIRECTION_FALLBACK_CLASSIFIER_VERSION
+                        : BANK_DIRECTION_CLASSIFIER_VERSION
         );
     }
 

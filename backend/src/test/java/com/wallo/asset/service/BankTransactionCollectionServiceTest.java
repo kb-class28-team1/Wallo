@@ -138,6 +138,33 @@ class BankTransactionCollectionServiceTest {
     }
 
     @Test
+    void keepsLegacyTransferForMissingTransactionKindAndMarksFallback() {
+        when(bankTransactionClient.getTransactions(any())).thenReturn(CodefDto.Response.success(List.of(
+                transaction("BANK-LEGACY-1", "0", "50000", "김철수", null)
+        )));
+
+        service.collect(
+                7L,
+                31L,
+                "123456-01-789012",
+                institution,
+                LocalDate.of(2026, 8, 1),
+                LocalDate.of(2026, 8, 5)
+        );
+
+        ArgumentCaptor<AssetSyncDto.Transaction> transactionCaptor =
+                ArgumentCaptor.forClass(AssetSyncDto.Transaction.class);
+        verify(assetSyncMapper).upsertTransaction(transactionCaptor.capture());
+        AssetSyncDto.Transaction savedTransaction = transactionCaptor.getValue();
+
+        assertEquals("TRANSFER", savedTransaction.getType());
+        assertEquals("SEND", savedTransaction.getCategory());
+        assertEquals("BANK_DIRECTION_FALLBACK", savedTransaction.getCategorySource());
+        assertEquals("bank-direction-fallback-v1", savedTransaction.getClassifierVersion());
+        verify(categoryClassifier, never()).classify(any());
+    }
+
+    @Test
     void initialCollectionUsesPreviousThreeMonths() {
         when(bankTransactionClient.getTransactions(any())).thenReturn(
                 CodefDto.Response.success(List.of())
