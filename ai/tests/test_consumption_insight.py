@@ -8,14 +8,14 @@ from groq import GroqError
 from pydantic import ValidationError
 
 from app.application import app
-from app.consumption_insights.prompts import build_consumption_insight_input
-from app.consumption_insights.router import generate_consumption_insight_report
-from app.consumption_insights.schemas import (
+from app.asset_reports.prompts import build_consumption_insight_input
+from app.asset_reports.router import generate_consumption_insight_report
+from app.asset_reports.schemas import (
     ConsumptionInsightGenerateRequest,
     ConsumptionInsightGenerateResponse,
 )
-from app.consumption_insights.service import generate_consumption_insight
-from app.consumption_insights.service import InvalidConsumptionInsightResponseError
+from app.asset_reports.service import generate_consumption_insight
+from app.asset_reports.service import InvalidConsumptionInsightResponseError
 
 
 def _completion(content):
@@ -72,8 +72,23 @@ def test_generates_short_structured_consumption_insight():
     assert result.reportTitle == "카페 지출이 가장 많아요"
     assert result.reportContent.endswith("좋아요.")
     assert client.chat.completions.kwargs["model"] == "openai/gpt-oss-20b"
-    assert client.chat.completions.kwargs["response_format"] == {"type": "json_object"}
-    assert client.chat.completions.kwargs["max_completion_tokens"] == 300
+    assert client.chat.completions.kwargs["response_format"] == {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "consumption_insight",
+            "strict": True,
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "reportTitle": {"type": "string"},
+                    "reportContent": {"type": "string"},
+                },
+                "required": ["reportTitle", "reportContent"],
+                "additionalProperties": False,
+            },
+        },
+    }
+    assert client.chat.completions.kwargs["max_completion_tokens"] == 1000
 
 
 def test_prompt_contains_only_aggregated_spending_data_and_derived_rate():
@@ -123,7 +138,7 @@ def test_returns_bad_gateway_when_groq_fails():
     fake_client = FakeGroqClient(exception=GroqError("connection failed"))
 
     with patch(
-        "app.consumption_insights.service.create_groq_client",
+        "app.asset_reports.service.create_groq_client",
         return_value=fake_client,
     ):
         response = TestClient(app).post(
@@ -138,7 +153,7 @@ def test_endpoint_returns_service_unavailable_when_key_is_missing(monkeypatch):
     monkeypatch.delenv("GROQ_API_KEY", raising=False)
 
     with patch(
-        "app.consumption_insights.service.create_groq_client",
+        "app.asset_reports.service.create_groq_client",
         side_effect=RuntimeError("GROQ_API_KEY is not configured"),
     ):
         response = TestClient(app).post(
@@ -153,7 +168,7 @@ def test_endpoint_returns_structured_response_with_fake_groq_client():
     fake_client = FakeGroqClient(_valid_response().model_dump_json())
 
     with patch(
-        "app.consumption_insights.service.create_groq_client",
+        "app.asset_reports.service.create_groq_client",
         return_value=fake_client,
     ):
         response = TestClient(app).post(

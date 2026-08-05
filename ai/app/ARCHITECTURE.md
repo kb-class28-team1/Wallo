@@ -266,7 +266,7 @@ app.include_router(category_router)
 
 ### 소비 리포트 생성 API
 
-소비 리포트 생성은 `app/consumption_insights/` 패키지에서 관리한다. Spring 백엔드가
+소비 리포트 생성은 `app/asset_reports/` 패키지에서 관리한다. Spring 백엔드가
 선정한 카테고리와 현재·지난달 동일 기간의 집계 금액만 전달하며, 거래처명이나 원본
 거래내역은 AI 서버로 전달하지 않는다.
 

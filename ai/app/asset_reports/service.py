@@ -21,8 +21,23 @@ class InvalidConsumptionInsightResponseError(ValueError):
     """Groq 응답이 소비 리포트 응답 계약을 벗어난 경우."""
 
 
-def _build_response_format() -> dict[str, str]:
-    return {"type": "json_object"}
+def _build_response_format() -> dict[str, object]:
+    return {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "consumption_insight",
+            "strict": True,
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "reportTitle": {"type": "string"},
+                    "reportContent": {"type": "string"},
+                },
+                "required": ["reportTitle", "reportContent"],
+                "additionalProperties": False,
+            },
+        },
+    }
 
 
 def _call_groq(client: Groq, request: ConsumptionInsightGenerateRequest, model: str):
@@ -34,7 +49,7 @@ def _call_groq(client: Groq, request: ConsumptionInsightGenerateRequest, model: 
                 {"role": "user", "content": build_consumption_insight_input(request)},
             ],
             response_format=_build_response_format(),
-            max_completion_tokens=300,
+            max_completion_tokens=1000,
         )
     except GroqError as error:
         status_code = getattr(error, "status_code", "unknown")
