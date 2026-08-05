@@ -8,6 +8,9 @@ class ConsumptionInsightGenerateRequest(BaseModel):
     categoryLabel: str = Field(min_length=1, max_length=50)
     currentAmount: int = Field(gt=0)
     previousAmount: int = Field(ge=0)
+    currentTotalAmount: int = Field(default=0, ge=0)
+    previousTotalAmount: int = Field(default=0, ge=0)
+    monthlyBudget: int = Field(default=0, ge=0)
 
     @field_validator("category", "categoryLabel")
     @classmethod
@@ -19,8 +22,8 @@ class ConsumptionInsightGenerateRequest(BaseModel):
 
 
 class ConsumptionInsightGenerateResponse(BaseModel):
-    reportTitle: str = Field(min_length=1, max_length=80)
-    reportContent: str = Field(min_length=1, max_length=300)
+    reportTitle: str = Field(min_length=1, max_length=15)
+    reportContent: str = Field(min_length=1, max_length=50)
 
     @field_validator("reportTitle", "reportContent")
     @classmethod

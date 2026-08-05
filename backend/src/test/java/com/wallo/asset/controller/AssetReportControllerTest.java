@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.wallo.asset.dto.AssetReportDto;
 import com.wallo.asset.client.AssetReportAiClient;
 import com.wallo.asset.mapper.AssetReportMapper;
+import com.wallo.asset.mapper.BudgetMapper;
 import com.wallo.asset.service.AssetReportService;
 import com.wallo.auth.CurrentUserProvider;
 import com.wallo.auth.SessionCurrentUserProvider;
@@ -87,7 +88,8 @@ class AssetReportControllerTest {
     void returnsUnauthorizedWithoutLoginSession() throws Exception {
         AssetReportService assetReportService = new AssetReportService(
                 mock(AssetReportMapper.class),
-                mock(AssetReportAiClient.class)
+                mock(AssetReportAiClient.class),
+                mock(BudgetMapper.class)
         );
         AssetReportController assetReportController = new AssetReportController(
                 assetReportService,

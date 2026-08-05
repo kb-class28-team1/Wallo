@@ -75,7 +75,7 @@ CREATE TABLE CONVERSATIONS (
                                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                                CONSTRAINT ck_conversations_status
-                                   CHECK (status IN ('ACTIVE', 'ARCHIVED')),
+                                   CHECK (status IN ('ACTIVE', 'ARCHIVED', 'DELETED')),
                                INDEX idx_conversations_user_status_updated (user_id, status, updated_at)
 ) ENGINE=InnoDB
   DEFAULT CHARSET=utf8mb4
@@ -346,49 +346,49 @@ CREATE TABLE MESSAGE (
 
 -- =============================================================================
 CREATE TABLE news (
-    news_id      BIGINT AUTO_INCREMENT PRIMARY KEY,
-    title        VARCHAR(500) NOT NULL,
-    content      LONGTEXT NOT NULL,
-    source       VARCHAR(100) NOT NULL,
-    url          VARCHAR(500) NOT NULL,
-    category     VARCHAR(50) NOT NULL,
-    published_at DATETIME NOT NULL,
-    created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at   DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    UNIQUE KEY uk_news_url (url)
+                      news_id      BIGINT AUTO_INCREMENT PRIMARY KEY,
+                      title        VARCHAR(500) NOT NULL,
+                      content      LONGTEXT NOT NULL,
+                      source       VARCHAR(100) NOT NULL,
+                      url          VARCHAR(500) NOT NULL,
+                      category     VARCHAR(50) NOT NULL,
+                      published_at DATETIME NOT NULL,
+                      created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
+                      updated_at   DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                      UNIQUE KEY uk_news_url (url)
 ) ENGINE=InnoDB
   DEFAULT CHARSET=utf8mb4
   COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE TABLE financial_term (
-    term_id     BIGINT AUTO_INCREMENT PRIMARY KEY,
-    term_name   VARCHAR(100) NOT NULL UNIQUE,
-    description TEXT NOT NULL,
-    source      VARCHAR(100),
-    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+                                term_id     BIGINT AUTO_INCREMENT PRIMARY KEY,
+                                term_name   VARCHAR(100) NOT NULL UNIQUE,
+                                description TEXT NOT NULL,
+                                source      VARCHAR(100),
+                                created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB
   DEFAULT CHARSET=utf8mb4
   COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE TABLE news_report (
-    report_id         BIGINT AUTO_INCREMENT PRIMARY KEY,
-    news_id           BIGINT NOT NULL UNIQUE,
-    summary           TEXT NOT NULL,
-    event_description TEXT,
-    cause             TEXT,
-    social_impact     TEXT,
-    user_impact       TEXT,
-    response_strategy TEXT,
-    created_at        DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at        DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                             report_id         BIGINT AUTO_INCREMENT PRIMARY KEY,
+                             news_id           BIGINT NOT NULL UNIQUE,
+                             summary           TEXT NOT NULL,
+                             event_description TEXT,
+                             cause             TEXT,
+                             social_impact     TEXT,
+                             user_impact       TEXT,
+                             response_strategy TEXT,
+                             created_at        DATETIME DEFAULT CURRENT_TIMESTAMP,
+                             updated_at        DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB
   DEFAULT CHARSET=utf8mb4
   COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE TABLE news_term (
-    news_id BIGINT NOT NULL,
-    term_id BIGINT NOT NULL,
-    PRIMARY KEY (news_id, term_id)
+                           news_id BIGINT NOT NULL,
+                           term_id BIGINT NOT NULL,
+                           PRIMARY KEY (news_id, term_id)
 ) ENGINE=InnoDB
   DEFAULT CHARSET=utf8mb4
   COLLATE=utf8mb4_0900_ai_ci;

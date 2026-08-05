@@ -3,7 +3,9 @@ package com.wallo.asset.service;
 import com.wallo.asset.client.AssetReportAiClient;
 import com.wallo.asset.client.AssetReportAiDto;
 import com.wallo.asset.dto.AssetReportDto;
+import com.wallo.asset.dto.BudgetDto;
 import com.wallo.asset.mapper.AssetReportMapper;
+import com.wallo.asset.mapper.BudgetMapper;
 import com.wallo.chat.client.AiServerException;
 import com.wallo.common.exception.CustomException;
 import com.wallo.common.exception.ErrorCode;
@@ -49,16 +51,19 @@ public class AssetReportService {
     );
 
     private final AssetReportMapper assetReportMapper;
+    private final BudgetMapper budgetMapper;
     private final AssetReportAiClient assetReportAiClient;
     private final ConcurrentMap<ConsumptionInsightCacheKey, AssetReportDto.Insight>
             consumptionInsightCache = new ConcurrentHashMap<>();
 
     public AssetReportService(
             AssetReportMapper assetReportMapper,
-            AssetReportAiClient assetReportAiClient
+            AssetReportAiClient assetReportAiClient,
+            BudgetMapper budgetMapper
     ) {
         this.assetReportMapper = assetReportMapper;
         this.assetReportAiClient = assetReportAiClient;
+        this.budgetMapper = budgetMapper;
     }
 
     public AssetReportDto.Insight getConsumptionInsight(long userId) {
@@ -137,6 +142,9 @@ public class AssetReportService {
         long currentTotalExpense = values(categoryExpenses).stream()
                 .mapToLong(AssetReportDto.CategoryExpense::getCurrentAmount)
                 .sum();
+        long previousTotalExpense = values(categoryExpenses).stream()
+                .mapToLong(AssetReportDto.CategoryExpense::getPreviousAmount)
+                .sum();
         if (currentTotalExpense < 30_000L) {
             return new AssetReportDto.Insight(
                     INSUFFICIENT_DATA_REPORT_TITLE,
@@ -153,6 +161,9 @@ public class AssetReportService {
             return copyInsight(cachedInsight);
         }
 
+        BudgetDto.Budget budget = budgetMapper.selectBudget(userId, currentMonth.toString());
+        long monthlyBudget = budget == null ? 0L : budget.getTotalAmount();
+
         InsightCandidate selectedCandidate = null;
 
         for (AssetReportDto.CategoryExpense expense : values(categoryExpenses)) {
@@ -165,7 +176,14 @@ public class AssetReportService {
 
         return selectedCandidate == null
                 ? null
-                : createInsight(userId, currentMonth, selectedCandidate);
+                : createInsight(
+                        userId,
+                        currentMonth,
+                        selectedCandidate,
+                        currentTotalExpense,
+                        previousTotalExpense,
+                        monthlyBudget
+                );
     }
 
     private InsightCandidate createCandidate(AssetReportDto.CategoryExpense expense) {
@@ -192,14 +210,20 @@ public class AssetReportService {
     private AssetReportDto.Insight createInsight(
             long userId,
             YearMonth currentMonth,
-            InsightCandidate candidate
+            InsightCandidate candidate,
+            long currentTotalExpense,
+            long previousTotalExpense,
+            long monthlyBudget
     ) {
         String categoryLabel = CATEGORY_LABELS.getOrDefault(candidate.category, "기타");
         AssetReportAiDto.Request request = new AssetReportAiDto.Request(
                 candidate.category,
                 categoryLabel,
                 candidate.currentAmount,
-                candidate.previousAmount
+                candidate.previousAmount,
+                currentTotalExpense,
+                previousTotalExpense,
+                monthlyBudget
         );
 
         try {

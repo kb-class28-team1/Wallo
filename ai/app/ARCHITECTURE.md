@@ -267,8 +267,8 @@ app.include_router(category_router)
 ### 소비 리포트 생성 API
 
 소비 리포트 생성은 `app/asset_reports/` 패키지에서 관리한다. Spring 백엔드가
-선정한 카테고리와 현재·지난달 동일 기간의 집계 금액만 전달하며, 거래처명이나 원본
-거래내역은 AI 서버로 전달하지 않는다.
+선정한 카테고리와 현재·지난달 동일 기간의 집계 금액, 전체 지출액, 현재 월 예산만
+전달하며, 거래처명이나 원본 거래내역은 AI 서버로 전달하지 않는다.
 
 | Method | Path | 역할 |
 | --- | --- | --- |
@@ -281,13 +281,17 @@ app.include_router(category_router)
   "category": "CAFE",
   "categoryLabel": "카페",
   "currentAmount": 300000,
-  "previousAmount": 200000
+  "previousAmount": 200000,
+  "currentTotalAmount": 500000,
+  "previousTotalAmount": 600000,
+  "monthlyBudget": 700000
 }
 ```
 
 응답은 Spring `AssetReportDto.Insight`의 `reportTitle`·`reportContent`와 호환되는
-두 필드만 반환한다. `generationMode`는 AI 호출 성공 여부를 알고 있는 Spring 백엔드가
-`AI`, `FALLBACK`, `RULE` 중 하나로 설정한다.
+두 필드만 반환한다. 제목은 15자 이내, 본문은 50자 이내로 검증한다.
+`generationMode`는 AI 호출 성공 여부를 알고 있는 Spring 백엔드가 `AI`, `FALLBACK`,
+`RULE` 중 하나로 설정한다.
 
 ## 테스트 규칙
 

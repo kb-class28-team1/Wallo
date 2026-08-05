@@ -14,7 +14,9 @@ import static org.mockito.Mockito.when;
 import com.wallo.asset.client.AssetReportAiClient;
 import com.wallo.asset.client.AssetReportAiDto;
 import com.wallo.asset.dto.AssetReportDto;
+import com.wallo.asset.dto.BudgetDto;
 import com.wallo.asset.mapper.AssetReportMapper;
+import com.wallo.asset.mapper.BudgetMapper;
 import com.wallo.chat.client.AiServerException;
 import com.wallo.common.exception.CustomException;
 import com.wallo.common.exception.ErrorCode;
@@ -25,10 +27,12 @@ import org.junit.jupiter.api.Test;
 class AssetReportServiceTest {
 
     private final AssetReportMapper assetReportMapper = mock(AssetReportMapper.class);
+    private final BudgetMapper budgetMapper = mock(BudgetMapper.class);
     private final AssetReportAiClient assetReportAiClient = mock(AssetReportAiClient.class);
     private final AssetReportService assetReportService = new AssetReportService(
             assetReportMapper,
-            assetReportAiClient
+            assetReportAiClient,
+            budgetMapper
     );
 
     @Test
@@ -100,11 +104,16 @@ class AssetReportServiceTest {
                 new AssetReportDto.CategoryExpense("CAFE", 600_000L, 590_000L),
                 new AssetReportDto.CategoryExpense("SHOPPING", 125_000L, 100_000L)
         ));
+        when(budgetMapper.selectBudget(7L, "2026-07"))
+                .thenReturn(new BudgetDto.Budget(1L, "2026-07", 2_000_000L));
         when(assetReportAiClient.generate(new AssetReportAiDto.Request(
                 "CAFE",
                 "카페",
                 600_000L,
-                590_000L
+                590_000L,
+                1_225_000L,
+                790_000L,
+                2_000_000L
         ))).thenReturn(new AssetReportAiDto.Response(
                 "카페 지출이 가장 많아요",
                 "이번 달은 카페 지출이 가장 많아요. 이용 횟수를 조금 줄여보는 것도 좋아요."
@@ -125,7 +134,10 @@ class AssetReportServiceTest {
                 "CAFE",
                 "카페",
                 600_000L,
-                590_000L
+                590_000L,
+                1_225_000L,
+                790_000L,
+                2_000_000L
         ));
         verify(assetReportMapper).selectCategoryExpenses(
                 7L,
@@ -153,7 +165,10 @@ class AssetReportServiceTest {
                 "FOOD",
                 "식비",
                 129_000L,
-                100_000L
+                100_000L,
+                259_000L,
+                200_000L,
+                0L
         ))).thenReturn(new AssetReportAiDto.Response(
                 "식비 지출이 가장 많아요",
                 "이번 달은 식비 지출이 가장 많아요. 소비 습관을 한 번 확인해 보세요."
@@ -274,7 +289,10 @@ class AssetReportServiceTest {
                 "DELIVERY",
                 "배달",
                 130_000L,
-                100_000L
+                100_000L,
+                195_000L,
+                150_000L,
+                0L
         ))).thenReturn(new AssetReportAiDto.Response(
                 "배달 지출이 가장 많아요",
                 "이번 달은 배달 지출이 가장 많아요. 지난달 같은 기간보다 30% 늘었어요."
@@ -310,7 +328,10 @@ class AssetReportServiceTest {
                 "CAFE",
                 "카페",
                 130_000L,
-                100_000L
+                100_000L,
+                130_000L,
+                100_000L,
+                0L
         ))).thenThrow(new AiServerException("AI server unavailable"));
 
         AssetReportDto.Insight insight = assetReportService.getConsumptionInsight(

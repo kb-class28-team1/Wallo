@@ -50,6 +50,9 @@ def _sample_request() -> ConsumptionInsightGenerateRequest:
         categoryLabel="카페",
         currentAmount=300_000,
         previousAmount=200_000,
+        currentTotalAmount=500_000,
+        previousTotalAmount=600_000,
+        monthlyBudget=700_000,
     )
 
 
@@ -97,7 +100,11 @@ def test_prompt_contains_only_aggregated_spending_data_and_derived_rate():
     assert "카페" in prompt
     assert '"currentAmount": 300000' in prompt
     assert '"previousAmount": 200000' in prompt
-    assert '"increaseRate": 50.0' in prompt
+    assert '"currentTotalAmount": 500000' in prompt
+    assert '"previousTotalAmount": 600000' in prompt
+    assert '"monthlyBudget": 700000' in prompt
+    assert '"categoryChangeRate": 50.0' in prompt
+    assert '"totalChangeRate": -16.7' in prompt
     assert "merchantName" not in prompt
 
 
@@ -129,6 +136,16 @@ def test_rejects_invalid_request():
 
 def test_rejects_invalid_ai_response():
     client = FakeGroqClient(json.dumps({"reportTitle": "제목"}))
+
+    with pytest.raises(InvalidConsumptionInsightResponseError):
+        generate_consumption_insight(client, _sample_request(), "openai/gpt-oss-20b")
+
+
+def test_rejects_response_over_configured_lengths():
+    client = FakeGroqClient(json.dumps({
+        "reportTitle": "제목이 열다섯 글자를 넘습니다",
+        "reportContent": "짧은 본문이어야 하지만 오십 글자를 넘는 긴 소비 리포트 문구입니다.",
+    }))
 
     with pytest.raises(InvalidConsumptionInsightResponseError):
         generate_consumption_insight(client, _sample_request(), "openai/gpt-oss-20b")
