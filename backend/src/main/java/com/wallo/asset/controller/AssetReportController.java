@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/reports")
+@RequestMapping("/api/asset-reports")
 public class AssetReportController {
 
     private final AssetReportService assetReportService;
@@ -24,7 +24,7 @@ public class AssetReportController {
         this.currentUserProvider = currentUserProvider;
     }
 
-    @GetMapping("/insights")
+    @GetMapping("/insights/")
     public CommonResponse<AssetReportDto.Insight> getConsumptionInsight() {
         return CommonResponse.success(
                 assetReportService.getConsumptionInsight(currentUserProvider.getCurrentUserId())

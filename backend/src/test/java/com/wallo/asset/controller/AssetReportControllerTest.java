@@ -40,7 +40,7 @@ class AssetReportControllerTest {
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
 
-        String responseBody = mockMvc.perform(get("/api/reports/tax-settlement")
+        String responseBody = mockMvc.perform(get("/api/asset-reports/tax-settlement")
                         .param("year", "2026"))
                 .andExpect(status().isOk())
                 .andReturn()
@@ -71,7 +71,7 @@ class AssetReportControllerTest {
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
 
-        String responseBody = mockMvc.perform(get("/api/reports/insights"))
+        String responseBody = mockMvc.perform(get("/api/asset-reports/insights/"))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -98,7 +98,7 @@ class AssetReportControllerTest {
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
 
-        String responseBody = mockMvc.perform(get("/api/reports/insights"))
+        String responseBody = mockMvc.perform(get("/api/asset-reports/insights/"))
                 .andExpect(status().isUnauthorized())
                 .andReturn()
                 .getResponse()
