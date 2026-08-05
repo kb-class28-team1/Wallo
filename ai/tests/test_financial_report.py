@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from groq import GroqError
 from pydantic import ValidationError
 
-from app.financial_report import (
+from app.reports.router import (
     NewsReportGenerateRequest,
     NewsReportGenerateResponse,
     build_mock_response,
@@ -15,7 +15,7 @@ from app.financial_report import (
     generate_report,
     is_mock_enabled,
 )
-from app.prompt import build_report_input
+from app.reports.prompts import build_report_input
 
 
 def _sample_request(content: str = "정상적인 기사 본문입니다.") -> NewsReportGenerateRequest:
