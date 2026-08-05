@@ -4,7 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wallo.asset.domain.Institution;
-import com.wallo.asset.dto.InstitutionDto;
+import com.wallo.asset.dto.ConnectionDto;
 import com.wallo.asset.mapper.InstitutionMapper;
 import java.util.Collections;
 import java.util.List;
@@ -26,27 +26,32 @@ public class InstitutionService {
         return institutionMapper.findActiveInstitutions();
     }
 
-    public InstitutionDto.Response getInstitutions() {
+    public ConnectionDto.InstitutionResponse getInstitutions() {
         List<Institution> institutions = institutionMapper.findActiveInstitutions();
-        return new InstitutionDto.Response(
+        return new ConnectionDto.InstitutionResponse(
                 itemsOfType(institutions, "BANK"),
                 itemsOfType(institutions, "CARD"),
                 itemsOfType(institutions, "STOCK")
         );
     }
 
-    private List<InstitutionDto.Item> itemsOfType(List<Institution> institutions, String type) {
+    private List<ConnectionDto.InstitutionItem> itemsOfType(
+            List<Institution> institutions,
+            String type
+    ) {
         return institutions.stream()
                 .filter(institution -> type.equals(institution.getInstitutionType()))
                 .map(this::toItem)
                 .collect(Collectors.toList());
     }
 
-    private InstitutionDto.Item toItem(Institution institution) {
-        return new InstitutionDto.Item(
+    private ConnectionDto.InstitutionItem toItem(Institution institution) {
+        return new ConnectionDto.InstitutionItem(
                 institution.getInstitutionId(),
                 institution.getCodefOrganizationCode(),
                 institution.getName(),
+                institution.getFinancialGroupCode(),
+                institution.getFinancialGroupName(),
                 institution.getLogoUrl(),
                 parseServices(institution.getServices())
         );
