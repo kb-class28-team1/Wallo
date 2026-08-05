@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wallo.spending.mapper.SpendingAnalysisMapper">
+
+    <select id="selectExpenseAggregate" resultType="com.wallo.spending.dto.SpendingExpenseAggregate">
+        SELECT
+            COALESCE(SUM(amount), 0) AS totalExpense,
+            COUNT(*) AS transactionCount
+        FROM TRANSACTIONS
+        WHERE user_id = #{userId}
+          AND type = 'EXPENSE'
+          AND category NOT IN ('INCOME', 'SEND', 'CARD_WITHDRAWAL')
+          AND transaction_date BETWEEN #{startDate} AND #{endDate}
+    </select>
+
+</mapper>
