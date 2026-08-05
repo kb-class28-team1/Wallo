@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException
 from groq import Groq, GroqError
 from pydantic import BaseModel, ValidationError, ValidationInfo, field_validator
 
-from app.prompt import FINANCIAL_REPORT_INSTRUCTIONS, build_report_input
+from app.reports.prompts import FINANCIAL_REPORT_INSTRUCTIONS, build_report_input
 
 logger = logging.getLogger("wallo_ai")
 
