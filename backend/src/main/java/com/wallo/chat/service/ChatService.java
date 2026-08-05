@@ -3,6 +3,8 @@ package com.wallo.chat.service;
 import com.wallo.chat.client.PythonAiClient;
 import com.wallo.chat.dto.ChatRequest;
 import com.wallo.chat.dto.ChatResponse;
+import com.wallo.chat.dto.SummarizeConversationRequest;
+import com.wallo.chat.dto.SummarizeConversationResponse;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -21,5 +23,12 @@ public class ChatService {
         }
 
         return pythonAiClient.chat(request);
+    }
+
+    public SummarizeConversationResponse summarize(SummarizeConversationRequest request) {
+        if (request == null || request.messages() == null || request.messages().isEmpty()) {
+            throw new IllegalArgumentException("요약할 대화가 필요합니다.");
+        }
+        return pythonAiClient.summarize(request);
     }
 }

@@ -24,11 +24,26 @@ class FinancialAgent:
         self.client = client
         self.model = model or get_groq_model()
 
-    def run(self, user_message: str) -> str:
+    def run(
+        self,
+        user_message: str,
+        history: list[dict[str, str]] | None = None,
+        summary: str | None = None,
+    ) -> str:
         messages: list[dict[str, Any]] = [
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_message},
         ]
+        if summary and summary.strip():
+            messages.append({
+                "role": "system",
+                "content": (
+                    "다음은 이 채팅방의 오래된 대화를 누적 요약한 장기 기억입니다. "
+                    "현재 질문과 관련 있을 때만 활용하고, 최근 대화와 충돌하면 최근 대화를 우선하세요.\n\n"
+                    + summary.strip()
+                ),
+            })
+        messages.extend(history or [])
+        messages.append({"role": "user", "content": user_message})
         completion = self.client.chat.completions.create(
             model=self.model,
             messages=messages,

@@ -75,6 +75,27 @@ public class ConversationService {
         conversationMapper.touch(conversationId);
     }
 
+    @Transactional(readOnly = true)
+    public Conversation getConversationMemory(Long conversationId, Long userId) {
+        validateUserId(userId);
+        if (conversationId == null || conversationId < 1) {
+            throw new IllegalArgumentException("올바른 채팅방 ID가 필요합니다.");
+        }
+        Conversation conversation = conversationMapper.findByIdAndUserId(conversationId, userId);
+        if (conversation == null) {
+            throw new IllegalArgumentException("접근할 수 없는 채팅방입니다.");
+        }
+        return conversation;
+    }
+
+    @Transactional
+    public void updateSummary(Long conversationId, String summary, Long summarizedMessageId) {
+        if (summary == null || summary.isBlank() || summarizedMessageId == null) {
+            throw new IllegalArgumentException("채팅방 요약 정보가 올바르지 않습니다.");
+        }
+        conversationMapper.updateSummary(conversationId, summary.trim(), summarizedMessageId);
+    }
+
     @Transactional
     public ConversationResponse updateTitle(
             Long conversationId,

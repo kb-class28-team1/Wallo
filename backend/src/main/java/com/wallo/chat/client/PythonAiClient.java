@@ -2,6 +2,8 @@ package com.wallo.chat.client;
 
 import com.wallo.chat.dto.ChatRequest;
 import com.wallo.chat.dto.ChatResponse;
+import com.wallo.chat.dto.SummarizeConversationRequest;
+import com.wallo.chat.dto.SummarizeConversationResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
@@ -18,6 +20,7 @@ public class PythonAiClient {
 
     private final RestTemplate restTemplate;
     private final URI chatUri;
+    private final URI summarizeUri;
 
     public PythonAiClient() {
         SimpleClientHttpRequestFactory requestFactory =
@@ -29,6 +32,28 @@ public class PythonAiClient {
         String serverUrl = System.getenv()
                 .getOrDefault("AI_SERVER_URL", DEFAULT_AI_SERVER_URL);
         this.chatUri = URI.create(removeTrailingSlash(serverUrl) + "/api/chat");
+        this.summarizeUri = URI.create(removeTrailingSlash(serverUrl) + "/api/chat/summarize");
+    }
+
+    public SummarizeConversationResponse summarize(SummarizeConversationRequest request) {
+        try {
+            ResponseEntity<SummarizeConversationResponse> response = restTemplate.postForEntity(
+                    summarizeUri, request, SummarizeConversationResponse.class);
+            if (response.getBody() == null
+                    || response.getBody().summary() == null
+                    || response.getBody().summary().isBlank()) {
+                throw new AiServerException("AI 서버의 대화 요약 응답이 비어 있습니다.");
+            }
+            return response.getBody();
+        } catch (HttpStatusCodeException exception) {
+            throw new AiServerException(
+                    "AI 서버가 대화 요약에 실패했습니다. 상태 코드: "
+                            + exception.getRawStatusCode(), exception);
+        } catch (ResourceAccessException exception) {
+            throw new AiServerException("AI 서버에 연결할 수 없습니다.", exception);
+        } catch (RestClientException exception) {
+            throw new AiServerException("AI 서버의 대화 요약 응답 처리에 실패했습니다.", exception);
+        }
     }
 
     public ChatResponse chat(ChatRequest chatRequest) {

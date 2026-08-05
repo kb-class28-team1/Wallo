@@ -10,7 +10,12 @@ class ChatService:
         self.client = client
 
     def chat(self, request: ChatRequest) -> ChatResponse:
-        answer = FinancialAgent(self.client).run(request.message)
+        history = [message.model_dump() for message in request.history]
+        answer = FinancialAgent(self.client).run(
+            request.message,
+            history,
+            request.summary,
+        )
         title = (
             generate_conversation_title(self.client, request.message, answer)
             if request.generate_title
