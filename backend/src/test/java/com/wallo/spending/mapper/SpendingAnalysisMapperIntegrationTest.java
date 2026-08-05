@@ -1,11 +1,15 @@
 package com.wallo.spending.mapper;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.wallo.spending.dto.SpendingCategoryAggregate;
 import com.wallo.spending.dto.SpendingExpenseAggregate;
 import java.sql.Connection;
 import java.sql.Statement;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 import javax.sql.DataSource;
 import org.apache.ibatis.session.SqlSession;
@@ -60,9 +64,9 @@ class SpendingAnalysisMapperIntegrationTest {
                 7L, LocalDate.of(2026, 7, 1), LocalDate.of(2026, 7, 31)
         );
 
-        // FOOD(1000) + CAFE(2000) + DELIVERY(3000) + ETC(500) = 6500, 4건
-        assertEquals(6500L, result.getTotalExpense());
-        assertEquals(4L, result.getTransactionCount());
+        // FOOD(1000+1500) + CAFE(2000) + DELIVERY(3000) + ETC(500) = 8000, 5건
+        assertEquals(8000L, result.getTotalExpense());
+        assertEquals(5L, result.getTransactionCount());
     }
 
     @Test
@@ -87,13 +91,13 @@ class SpendingAnalysisMapperIntegrationTest {
 
     @Test
     void excludesTransactionsOutsideRequestedRange() {
-        // 7/31(DELIVERY 3000)을 범위에서 제외 -> FOOD(1000)+CAFE(2000)+ETC(500) = 3500, 3건
+        // 7/31(DELIVERY 3000)을 범위에서 제외 -> FOOD(1000+1500)+CAFE(2000)+ETC(500) = 5000, 4건
         SpendingExpenseAggregate result = spendingAnalysisMapper.selectExpenseAggregate(
                 7L, LocalDate.of(2026, 7, 1), LocalDate.of(2026, 7, 30)
         );
 
-        assertEquals(3500L, result.getTotalExpense());
-        assertEquals(3L, result.getTransactionCount());
+        assertEquals(5000L, result.getTotalExpense());
+        assertEquals(4L, result.getTransactionCount());
     }
 
     @Test
@@ -137,10 +141,122 @@ class SpendingAnalysisMapperIntegrationTest {
                 7L, LocalDate.of(2026, 6, 1), LocalDate.of(2026, 6, 30)
         );
 
-        assertEquals(6500L, current.getTotalExpense());
-        assertEquals(4L, current.getTransactionCount());
+        assertEquals(8000L, current.getTotalExpense());
+        assertEquals(5L, current.getTransactionCount());
         assertEquals(8000L, comparison.getTotalExpense());
         assertEquals(1L, comparison.getTransactionCount());
+    }
+
+    // ---------- selectCategoryAggregates ----------
+
+    @Test
+    void groupsMultipleCategoriesWithCorrectSumsCountsAndAscendingOrder() {
+        List<SpendingCategoryAggregate> result = spendingAnalysisMapper.selectCategoryAggregates(
+                7L, LocalDate.of(2026, 7, 1), LocalDate.of(2026, 7, 31)
+        );
+
+        // category ASC: CAFE, DELIVERY, ETC, FOOD(1000+1500 합산·2건)
+        assertEquals(4, result.size());
+        assertEquals("CAFE", result.get(0).getCategory());
+        assertEquals(2000L, result.get(0).getAmount());
+        assertEquals(1L, result.get(0).getTransactionCount());
+        assertEquals("DELIVERY", result.get(1).getCategory());
+        assertEquals(3000L, result.get(1).getAmount());
+        assertEquals(1L, result.get(1).getTransactionCount());
+        assertEquals("ETC", result.get(2).getCategory());
+        assertEquals(500L, result.get(2).getAmount());
+        assertEquals(1L, result.get(2).getTransactionCount());
+        assertEquals("FOOD", result.get(3).getCategory());
+        assertEquals(2500L, result.get(3).getAmount());
+        assertEquals(2L, result.get(3).getTransactionCount());
+    }
+
+    @Test
+    void includesCategoryTransactionOnStartDateBoundary() {
+        List<SpendingCategoryAggregate> result = spendingAnalysisMapper.selectCategoryAggregates(
+                7L, LocalDate.of(2026, 7, 1), LocalDate.of(2026, 7, 1)
+        );
+
+        assertEquals(1, result.size());
+        assertEquals("FOOD", result.get(0).getCategory());
+        assertEquals(1000L, result.get(0).getAmount());
+        assertEquals(1L, result.get(0).getTransactionCount());
+    }
+
+    @Test
+    void includesCategoryTransactionOnEndDateBoundary() {
+        List<SpendingCategoryAggregate> result = spendingAnalysisMapper.selectCategoryAggregates(
+                7L, LocalDate.of(2026, 7, 31), LocalDate.of(2026, 7, 31)
+        );
+
+        assertEquals(1, result.size());
+        assertEquals("DELIVERY", result.get(0).getCategory());
+        assertEquals(3000L, result.get(0).getAmount());
+    }
+
+    @Test
+    void excludesCategoryTransactionsOutsideRequestedRangeWithoutPhantomZeroRow() {
+        // 7/31(DELIVERY)을 범위에서 제외 -> DELIVERY 행 자체가 결과에 없어야 한다(0원 행 생성 금지).
+        List<SpendingCategoryAggregate> result = spendingAnalysisMapper.selectCategoryAggregates(
+                7L, LocalDate.of(2026, 7, 1), LocalDate.of(2026, 7, 30)
+        );
+
+        assertEquals(3, result.size());
+        assertEquals("CAFE", result.get(0).getCategory());
+        assertEquals("ETC", result.get(1).getCategory());
+        assertEquals("FOOD", result.get(2).getCategory());
+        assertEquals(2500L, result.get(2).getAmount());
+        assertEquals(2L, result.get(2).getTransactionCount());
+    }
+
+    @Test
+    void excludesOtherUsersCategoryTransactions() {
+        List<SpendingCategoryAggregate> result = spendingAnalysisMapper.selectCategoryAggregates(
+                8L, LocalDate.of(2026, 7, 1), LocalDate.of(2026, 7, 31)
+        );
+
+        assertEquals(1, result.size());
+        assertEquals("SHOPPING", result.get(0).getCategory());
+        assertEquals(50_000L, result.get(0).getAmount());
+        assertEquals(1L, result.get(0).getTransactionCount());
+    }
+
+    @Test
+    void excludesIncomeSendCardWithdrawalAndNonExpenseTransferCategoryRows() {
+        // 2026-07-10에는 INCOME/SEND/CARD_WITHDRAWAL/기타 TRANSFER 4건이 있지만
+        // 전부 제외 대상이라 빈 리스트여야 한다.
+        List<SpendingCategoryAggregate> result = spendingAnalysisMapper.selectCategoryAggregates(
+                7L, LocalDate.of(2026, 7, 10), LocalDate.of(2026, 7, 10)
+        );
+
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void returnsEmptyListNotNullWhenNoTransactionsMatch() {
+        List<SpendingCategoryAggregate> result = spendingAnalysisMapper.selectCategoryAggregates(
+                7L, LocalDate.of(2025, 1, 1), LocalDate.of(2025, 1, 31)
+        );
+
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void sameMethodSupportsCurrentAndComparisonCategoryPeriods() {
+        List<SpendingCategoryAggregate> current = spendingAnalysisMapper.selectCategoryAggregates(
+                7L, LocalDate.of(2026, 7, 1), LocalDate.of(2026, 7, 31)
+        );
+        List<SpendingCategoryAggregate> comparison = spendingAnalysisMapper.selectCategoryAggregates(
+                7L, LocalDate.of(2026, 6, 1), LocalDate.of(2026, 6, 30)
+        );
+
+        assertEquals(4, current.size());
+        assertEquals(1, comparison.size());
+        assertEquals("FOOD", comparison.get(0).getCategory());
+        assertEquals(8000L, comparison.get(0).getAmount());
+        assertEquals(1L, comparison.get(0).getTransactionCount());
     }
 
     private void createTransactions(DataSource dataSource) throws Exception {
@@ -173,7 +289,8 @@ class SpendingAnalysisMapperIntegrationTest {
                         (8, 7, 'TRANSFER', 'ETC', 999, '기타이체', '2026-07-10', '14:00:00'),
                         (9, 7, 'EXPENSE', 'FOOD', 8000, '이전달식당', '2026-06-30', '09:00:00'),
                         (10, 7, 'EXPENSE', 'FOOD', 9000, '다음달식당', '2026-08-01', '09:00:00'),
-                        (11, 8, 'EXPENSE', 'SHOPPING', 50000, '다른사용자상점', '2026-07-15', '09:00:00')
+                        (11, 8, 'EXPENSE', 'SHOPPING', 50000, '다른사용자상점', '2026-07-15', '09:00:00'),
+                        (12, 7, 'EXPENSE', 'FOOD', 1500, '식당2', '2026-07-05', '08:00:00')
                     """);
         }
     }

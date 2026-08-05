@@ -1,7 +1,9 @@
 package com.wallo.spending.mapper;
 
+import com.wallo.spending.dto.SpendingCategoryAggregate;
 import com.wallo.spending.dto.SpendingExpenseAggregate;
 import java.time.LocalDate;
+import java.util.List;
 import org.apache.ibatis.annotations.Param;
 
 public interface SpendingAnalysisMapper {
@@ -13,6 +15,21 @@ public interface SpendingAnalysisMapper {
      * 비교 기간을 각각 다른 {@code startDate}/{@code endDate}로 넘겨 두 번 호출해 재사용한다.</p>
      */
     SpendingExpenseAggregate selectExpenseAggregate(
+            @Param("userId") long userId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
+
+    /**
+     * 지정 기간(시작일·종료일 포함)의 카테고리별 유효 지출 금액과 거래 건수를 조회한다.
+     *
+     * <p>{@link #selectExpenseAggregate}와 마찬가지로 분석유형에 종속되지 않는 범용 기간
+     * 조회이며, 현재 기간과 비교 기간을 각각 다른 {@code startDate}/{@code endDate}로 넘겨
+     * 두 번 호출해 재사용한다. 거래가 없는 카테고리는 결과에 포함되지 않고, 유효 거래가 전혀
+     * 없으면 빈 리스트를 반환한다(현재/이전 결과 병합, 비중·증감률 계산, 누락 카테고리를 0으로
+     * 채우는 처리는 Service 계층 책임).</p>
+     */
+    List<SpendingCategoryAggregate> selectCategoryAggregates(
             @Param("userId") long userId,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate

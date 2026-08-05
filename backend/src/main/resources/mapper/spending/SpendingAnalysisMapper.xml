@@ -15,4 +15,18 @@
           AND transaction_date BETWEEN #{startDate} AND #{endDate}
     </select>
 
+    <select id="selectCategoryAggregates" resultType="com.wallo.spending.dto.SpendingCategoryAggregate">
+        SELECT
+            category AS category,
+            SUM(amount) AS amount,
+            COUNT(*) AS transactionCount
+        FROM TRANSACTIONS
+        WHERE user_id = #{userId}
+          AND type = 'EXPENSE'
+          AND category NOT IN ('INCOME', 'SEND', 'CARD_WITHDRAWAL')
+          AND transaction_date BETWEEN #{startDate} AND #{endDate}
+        GROUP BY category
+        ORDER BY category ASC
+    </select>
+
 </mapper>
