@@ -1,6 +1,8 @@
 package com.wallo.asset.classification;
 
 import java.util.Optional;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public interface ExpenseCategoryRule {
 
@@ -9,4 +11,10 @@ public interface ExpenseCategoryRule {
     );
 
     int getOrder();
+
+    default List<Optional<ExpenseCategoryClassifier.Result>> classifyBatch(
+            List<ExpenseCategoryClassifier.Context> contexts
+    ) {
+        return contexts.stream().map(this::classify).collect(Collectors.toList());
+    }
 }

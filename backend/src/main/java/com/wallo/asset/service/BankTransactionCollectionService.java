@@ -17,9 +17,14 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.temporal.ChronoField;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.logging.Logger;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,6 +48,7 @@ public class BankTransactionCollectionService {
             .appendValue(ChronoField.MINUTE_OF_HOUR, 2)
             .appendValue(ChronoField.SECOND_OF_MINUTE, 2)
             .toFormatter();
+    private static final Logger LOGGER = Logger.getLogger(BankTransactionCollectionService.class.getName());
 
     private final BankTransactionClient bankTransactionClient;
     private final ObjectMapper objectMapper;
@@ -94,6 +100,8 @@ public class BankTransactionCollectionService {
     ) {
         validateCollectionRequest(accountNumber, institution, startDate, endDate);
 
+        long startedAt = System.nanoTime();
+        long apiStartedAt = System.nanoTime();
         CodefDto.Response response = bankTransactionClient.getTransactions(
                 new CodefDto.BankTransactionRequest(
                         institution.getCodefOrganizationCode(),
@@ -105,24 +113,64 @@ public class BankTransactionCollectionService {
                         endDate.format(REQUEST_DATE_FORMATTER)
                 )
         );
+        long apiElapsedMs = elapsedMillis(apiStartedAt);
         validateCodefResponse(response);
 
+        long conversionStartedAt = System.nanoTime();
         List<CodefDto.BankTransaction> transactions = objectMapper.convertValue(
                 response.getData(),
                 new TypeReference<List<CodefDto.BankTransaction>>() { }
         );
+        long conversionElapsedMs = elapsedMillis(conversionStartedAt);
 
         int savedCount = 0;
-        for (CodefDto.BankTransaction source : safeList(transactions)) {
-            assetSyncMapper.upsertTransaction(
-                    toTransaction(userId, accountId, accountNumber, institution, source)
+        int reusedClassificationCount = 0;
+        int aiRequestCount = 0;
+        long classificationStartedAt = System.nanoTime();
+        List<PreparedBankTransaction> preparedTransactions = safeList(transactions).stream()
+                .map(source -> prepareTransaction(userId, accountId, accountNumber, institution, source))
+                .toList();
+        Map<String, ClassificationResolution> classifications = resolveClassifications(
+                userId,
+                institution,
+                preparedTransactions
+        );
+        long classificationElapsedMs = elapsedMillis(classificationStartedAt);
+        long processingStartedAt = System.nanoTime();
+        for (PreparedBankTransaction source : preparedTransactions) {
+            TransactionMapping mapping = toTransaction(
+                    source,
+                    classifications.get(source.sourceDedupKey())
             );
+            assetSyncMapper.upsertTransaction(mapping.transaction());
+            if (mapping.reusedClassification()) {
+                reusedClassificationCount++;
+            } else if ("AI".equals(mapping.transaction().getCategorySource())) {
+                aiRequestCount++;
+            }
             savedCount++;
         }
+        long processingElapsedMs = elapsedMillis(processingStartedAt);
+        LOGGER.info(String.format(
+                Locale.ROOT,
+                "asset-sync bank organization=%s account=%s records=%d saved=%d reusedClassification=%d "
+                        + "aiRequests=%d apiMs=%d conversionMs=%d classificationMs=%d processingMs=%d totalMs=%d",
+                institution.getCodefOrganizationCode(),
+                accountNumber,
+                safeList(transactions).size(),
+                savedCount,
+                reusedClassificationCount,
+                aiRequestCount,
+                apiElapsedMs,
+                conversionElapsedMs,
+                classificationElapsedMs,
+                processingElapsedMs,
+                elapsedMillis(startedAt)
+        ));
         return savedCount;
     }
 
-    private AssetSyncDto.Transaction toTransaction(
+    private PreparedBankTransaction prepareTransaction(
             long userId,
             long accountId,
             String accountNumber,
@@ -142,46 +190,79 @@ public class BankTransactionCollectionService {
         long accountOut = parseNonNegativeAmount(source.getResAccountOut());
         String transactionId = required(source.getResTrNo(), "은행 거래번호");
         String description = defaultValue(source.getResAccountDesc(), "계좌 거래");
-        TransactionClassification classification = classifyTransaction(
-                source.getTransactionKind(),
-                accountIn,
-                accountOut,
-                description
-        );
         String sourceDedupKey = sourceKeyGenerator.forBankTransaction(
                 institution.getCodefOrganizationCode(),
                 accountId,
                 transactionId
         );
-
-        return new AssetSyncDto.Transaction(
+        String normalizedKind = source.getTransactionKind() == null
+                ? ""
+                : source.getTransactionKind().trim().toUpperCase(Locale.ROOT);
+        boolean cardPayment = CARD_PAYMENT.equals(normalizedKind);
+        ExpenseCategoryClassifier.Context context = cardPayment
+                ? new ExpenseCategoryClassifier.Context(description, null, accountOut)
+                : null;
+        TransactionClassification directionClassification = cardPayment
+                ? validateCardPayment(accountIn, accountOut)
+                : classifyDirectionTransaction(normalizedKind, accountIn, accountOut);
+        return new PreparedBankTransaction(
                 userId,
-                null,
                 accountId,
-                classification.type(),
-                classification.category(),
-                classification.amount(),
+                directionClassification,
+                cardPayment,
+                context,
                 description,
-                description,
-                null,
-                null,
                 parseDate(source.getResTrDate()),
                 parseTime(source.getResTrTime()),
-                classification.categorySource(),
-                classification.confidence(),
-                classification.classifierVersion(),
-                SOURCE_TYPE,
                 institution.getCodefOrganizationCode(),
                 transactionId,
                 sourceDedupKey
         );
     }
 
-    private TransactionClassification classifyTransaction(
+    private TransactionMapping toTransaction(
+            PreparedBankTransaction prepared,
+            ClassificationResolution resolution
+    ) {
+        TransactionClassification classification = prepared.cardPayment()
+                ? new TransactionClassification(
+                        "EXPENSE",
+                        resolution.result().category(),
+                        prepared.directionClassification().amount(),
+                        resolution.result().source(),
+                        resolution.result().confidence(),
+                        resolution.result().classifierVersion(),
+                        resolution.reused()
+                )
+                : prepared.directionClassification();
+        AssetSyncDto.Transaction transaction = new AssetSyncDto.Transaction(
+                prepared.userId(),
+                null,
+                prepared.accountId(),
+                classification.type(),
+                classification.category(),
+                classification.amount(),
+                prepared.description(),
+                prepared.description(),
+                null,
+                null,
+                prepared.transactionDate(),
+                prepared.transactionTime(),
+                classification.categorySource(),
+                classification.confidence(),
+                classification.classifierVersion(),
+                SOURCE_TYPE,
+                prepared.sourceOrganizationCode(),
+                prepared.transactionId(),
+                prepared.sourceDedupKey()
+        );
+        return new TransactionMapping(transaction, classification.reusedClassification());
+    }
+
+    private TransactionClassification classifyDirectionTransaction(
             String transactionKind,
             long accountIn,
-            long accountOut,
-            String description
+            long accountOut
     ) {
         String normalizedKind = transactionKind == null
                 ? ""
@@ -193,7 +274,6 @@ public class BankTransactionCollectionService {
         return switch (normalizedKind) {
             case INCOME -> classifyIncome(accountIn, accountOut);
             case TRANSFER -> classifyTransfer(accountIn, accountOut);
-            case CARD_PAYMENT -> classifyCardPayment(accountIn, accountOut, description);
             default -> throw new IllegalArgumentException(
                     "지원하지 않는 은행 거래 유형입니다: " + transactionKind
             );
@@ -228,26 +308,104 @@ public class BankTransactionCollectionService {
         return transferClassification(accountOut, false);
     }
 
-    private TransactionClassification classifyCardPayment(
+    private TransactionClassification validateCardPayment(
             long accountIn,
-            long accountOut,
-            String description
+            long accountOut
     ) {
         if (accountOut <= 0 || accountIn != 0) {
             throw new IllegalArgumentException("카드 결제 거래의 금액 방향이 올바르지 않습니다.");
         }
 
-        ExpenseCategoryClassifier.Result category = categoryClassifier.classify(
-                new ExpenseCategoryClassifier.Context(description, null, accountOut)
-        );
         return new TransactionClassification(
                 "EXPENSE",
-                category.category(),
+                null,
                 accountOut,
-                category.source(),
-                category.confidence(),
-                category.classifierVersion()
+                null,
+                null,
+                null,
+                false
         );
+    }
+
+    private Map<String, ClassificationResolution> resolveClassifications(
+            long userId,
+            Institution institution,
+            List<PreparedBankTransaction> transactions
+    ) {
+        Map<String, ClassificationResolution> resolutions = new HashMap<>();
+        List<ExpenseCategoryClassifier.Context> pendingContexts = new ArrayList<>();
+        for (PreparedBankTransaction transaction : transactions) {
+            if (!transaction.cardPayment()) {
+                resolutions.put(
+                        transaction.sourceDedupKey(),
+                        new ClassificationResolution(
+                                new ExpenseCategoryClassifier.Result(
+                                        transaction.directionClassification().category(),
+                                        transaction.directionClassification().categorySource(),
+                                        transaction.directionClassification().confidence(),
+                                        transaction.directionClassification().classifierVersion()
+                                ),
+                                false
+                        )
+                );
+                continue;
+            }
+
+            Optional<ExpenseCategoryClassifier.Result> deterministicClassification =
+                    categoryClassifier.classifyBeforeAi(transaction.context());
+            if (deterministicClassification != null && deterministicClassification.isPresent()) {
+                resolutions.put(
+                        transaction.sourceDedupKey(),
+                        new ClassificationResolution(deterministicClassification.get(), false)
+                );
+                continue;
+            }
+
+            AssetSyncDto.ExistingClassification existing = assetSyncMapper.findExistingClassification(
+                    userId,
+                    SOURCE_TYPE,
+                    institution.getCodefOrganizationCode(),
+                    transaction.sourceDedupKey()
+            );
+            if (isReusable(existing)) {
+                resolutions.put(
+                        transaction.sourceDedupKey(),
+                        new ClassificationResolution(
+                                new ExpenseCategoryClassifier.Result(
+                                        existing.getCategory(),
+                                        existing.getCategorySource(),
+                                        existing.getCategoryConfidence(),
+                                        existing.getClassifierVersion()
+                                ),
+                                true
+                        )
+                );
+            } else if (!pendingContexts.contains(transaction.context())) {
+                pendingContexts.add(transaction.context());
+            }
+        }
+
+        List<ExpenseCategoryClassifier.Result> classified = categoryClassifier.classifyBatch(pendingContexts);
+        for (PreparedBankTransaction transaction : transactions) {
+            if (resolutions.containsKey(transaction.sourceDedupKey())) {
+                continue;
+            }
+            int contextIndex = pendingContexts.indexOf(transaction.context());
+            resolutions.put(
+                    transaction.sourceDedupKey(),
+                    new ClassificationResolution(classified.get(contextIndex), false)
+            );
+        }
+        return resolutions;
+    }
+
+    private boolean isReusable(AssetSyncDto.ExistingClassification existing) {
+        return existing != null
+                && existing.getCategory() != null
+                && !existing.getCategory().isBlank()
+                && existing.getCategorySource() != null
+                && !existing.getCategorySource().isBlank()
+                && !"FALLBACK".equals(existing.getCategorySource());
     }
 
     private TransactionClassification incomeClassification(long amount, boolean fallback) {
@@ -259,7 +417,8 @@ public class BankTransactionCollectionService {
                 BigDecimal.ONE,
                 fallback
                         ? BANK_DIRECTION_FALLBACK_CLASSIFIER_VERSION
-                        : BANK_DIRECTION_CLASSIFIER_VERSION
+                        : BANK_DIRECTION_CLASSIFIER_VERSION,
+                false
         );
     }
 
@@ -272,7 +431,8 @@ public class BankTransactionCollectionService {
                 BigDecimal.ONE,
                 fallback
                         ? BANK_DIRECTION_FALLBACK_CLASSIFIER_VERSION
-                        : BANK_DIRECTION_CLASSIFIER_VERSION
+                        : BANK_DIRECTION_CLASSIFIER_VERSION,
+                false
         );
     }
 
@@ -347,13 +507,45 @@ public class BankTransactionCollectionService {
         return values == null ? Collections.emptyList() : values;
     }
 
+    private long elapsedMillis(long startedAt) {
+        return (System.nanoTime() - startedAt) / 1_000_000L;
+    }
+
+    private record ClassificationResolution(
+            ExpenseCategoryClassifier.Result result,
+            boolean reused
+    ) {
+    }
+
+    private record TransactionMapping(
+            AssetSyncDto.Transaction transaction,
+            boolean reusedClassification
+    ) {
+    }
+
+    private record PreparedBankTransaction(
+            long userId,
+            long accountId,
+            TransactionClassification directionClassification,
+            boolean cardPayment,
+            ExpenseCategoryClassifier.Context context,
+            String description,
+            LocalDate transactionDate,
+            LocalTime transactionTime,
+            String sourceOrganizationCode,
+            String transactionId,
+            String sourceDedupKey
+    ) {
+    }
+
     private record TransactionClassification(
             String type,
             String category,
             long amount,
             String categorySource,
             BigDecimal confidence,
-            String classifierVersion
+            String classifierVersion,
+            boolean reusedClassification
     ) {
     }
 }

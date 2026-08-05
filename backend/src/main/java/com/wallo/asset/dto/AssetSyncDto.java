@@ -131,6 +131,17 @@ public final class AssetSyncDto {
     @Setter
     @NoArgsConstructor
     @AllArgsConstructor
+    public static class ExistingClassification {
+        private String category;
+        private String categorySource;
+        private java.math.BigDecimal categoryConfidence;
+        private String classifierVersion;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class ReconciliationCandidate {
         private long transactionId;
         private long amount;

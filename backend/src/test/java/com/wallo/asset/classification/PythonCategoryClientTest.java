@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import com.wallo.chat.client.AiServerException;
 import java.math.BigDecimal;
 import java.net.URI;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.ResourceAccessException;
@@ -64,6 +65,32 @@ class PythonCategoryClientTest {
         )).thenReturn(ResponseEntity.ok(null));
 
         assertThrows(AiServerException.class, () -> client.classify(request));
+    }
+
+    @Test
+    void callsBatchCategoryEndpointAndReturnsClassificationsInOrder() {
+        List<CategoryClassificationDto.Request> requests = List.of(
+                new CategoryClassificationDto.Request("unknown one", null, 12_000L),
+                new CategoryClassificationDto.Request("unknown two", "restaurant", 18_000L)
+        );
+        CategoryClassificationDto.BatchResponse expected = new CategoryClassificationDto.BatchResponse(List.of(
+                new CategoryClassificationDto.Response("LIVING", new BigDecimal("0.8600")),
+                new CategoryClassificationDto.Response("FOOD", new BigDecimal("0.9100"))
+        ));
+        when(restTemplate.postForEntity(
+                eq(URI.create("http://localhost:8000/api/category/classify/batch")),
+                eq(new CategoryClassificationDto.BatchRequest(requests)),
+                eq(CategoryClassificationDto.BatchResponse.class)
+        )).thenReturn(ResponseEntity.ok(expected));
+
+        List<CategoryClassificationDto.Response> actual = client.classifyBatch(requests);
+
+        assertEquals(expected.results(), actual);
+        verify(restTemplate).postForEntity(
+                eq(URI.create("http://localhost:8000/api/category/classify/batch")),
+                eq(new CategoryClassificationDto.BatchRequest(requests)),
+                eq(CategoryClassificationDto.BatchResponse.class)
+        );
     }
 
     @Test

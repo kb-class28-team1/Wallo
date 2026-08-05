@@ -8,11 +8,15 @@ import com.wallo.external.client.CodefClient;
 import com.wallo.external.dto.CodefDto;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.logging.Logger;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ConnectionService {
+
+    private static final Logger LOGGER = Logger.getLogger(ConnectionService.class.getName());
 
     private final CodefClient codefClient;
     private final InstitutionService institutionService;
@@ -38,16 +42,47 @@ public class ConnectionService {
     public ConnectionDto.Response connectAllAssets(long userId, ConnectionDto.Request request) {
         validateConsent(request);
 
+        long totalStartedAt = System.nanoTime();
         List<ConnectionAttempt> attempts = new ArrayList<>();
+        long connectionStartedAt = System.nanoTime();
         for (Institution institution : institutionService.getConnectionTargetInstitutions()) {
+            long institutionStartedAt = System.nanoTime();
             CodefDto.Response codefResponse = codefClient.connectInstitution(createCodefRequest(institution));
-            attempts.add(new ConnectionAttempt(institution, codefResponse, toConnectionResult(institution, codefResponse)));
+            ConnectionDto.Result result = toConnectionResult(institution, codefResponse);
+            attempts.add(new ConnectionAttempt(institution, codefResponse, result));
+            LOGGER.info(String.format(
+                    Locale.ROOT,
+                    "asset-connect institution=%s type=%s status=%s durationMs=%d",
+                    institution.getCodefOrganizationCode(),
+                    institution.getInstitutionType(),
+                    result.getStatus(),
+                    elapsedMillis(institutionStartedAt)
+            ));
         }
+        long connectionElapsedMs = elapsedMillis(connectionStartedAt);
 
         List<ConnectionDto.Result> results = attempts.stream().map(ConnectionAttempt::result).toList();
+        long saveStartedAt = System.nanoTime();
         saveConnections(userId, results);
+        long saveElapsedMs = elapsedMillis(saveStartedAt);
+        long syncStartedAt = System.nanoTime();
         syncAssets(userId, attempts);
+        long syncElapsedMs = elapsedMillis(syncStartedAt);
+        long reconciliationStartedAt = System.nanoTime();
         cardWithdrawalReconciliationService.reconcile(userId);
+        long reconciliationElapsedMs = elapsedMillis(reconciliationStartedAt);
+        LOGGER.info(String.format(
+                Locale.ROOT,
+                "asset-connect summary institutions=%d success=%d connectionMs=%d saveMs=%d syncMs=%d "
+                        + "reconciliationMs=%d totalMs=%d",
+                attempts.size(),
+                results.stream().filter(result -> result.getStatus() == ConnectionDto.Status.SUCCESS).count(),
+                connectionElapsedMs,
+                saveElapsedMs,
+                syncElapsedMs,
+                reconciliationElapsedMs,
+                elapsedMillis(totalStartedAt)
+        ));
         return new ConnectionDto.Response(results);
     }
 
@@ -56,9 +91,21 @@ public class ConnectionService {
             if (attempt.result().getStatus() == ConnectionDto.Status.SUCCESS) {
                 Long connectionId = connectionMapper.findActiveConnectionId(userId, attempt.institution().getInstitutionId());
                 if (connectionId == null) throw new IllegalStateException("연동 정보를 찾을 수 없습니다.");
+                long startedAt = System.nanoTime();
                 assetSyncService.sync(userId, connectionId, attempt.institution(), attempt.response());
+                LOGGER.info(String.format(
+                        Locale.ROOT,
+                        "asset-sync institution=%s type=%s durationMs=%d",
+                        attempt.institution().getCodefOrganizationCode(),
+                        attempt.institution().getInstitutionType(),
+                        elapsedMillis(startedAt)
+                ));
             }
         }
+    }
+
+    private long elapsedMillis(long startedAt) {
+        return (System.nanoTime() - startedAt) / 1_000_000L;
     }
 
     private void saveConnections(long userId, List<ConnectionDto.Result> results) {

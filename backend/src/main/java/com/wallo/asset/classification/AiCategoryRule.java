@@ -2,7 +2,10 @@ package com.wallo.asset.classification;
 
 import com.wallo.chat.client.AiServerException;
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Locale;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import org.springframework.stereotype.Component;
@@ -53,6 +56,45 @@ public class AiCategoryRule implements ExpenseCategoryRule {
         } catch (AiServerException exception) {
             return Optional.empty();
         }
+    }
+
+    @Override
+    public List<Optional<ExpenseCategoryClassifier.Result>> classifyBatch(
+            List<ExpenseCategoryClassifier.Context> contexts
+    ) {
+        List<Optional<ExpenseCategoryClassifier.Result>> results = new ArrayList<>(
+                Collections.nCopies(contexts.size(), Optional.empty())
+        );
+        List<CategoryClassificationDto.Request> requests = new ArrayList<>();
+        List<Integer> requestIndexes = new ArrayList<>();
+        for (int index = 0; index < contexts.size(); index++) {
+            ExpenseCategoryClassifier.Context context = contexts.get(index);
+            if (canRequestClassification(context)) {
+                requests.add(new CategoryClassificationDto.Request(
+                        context.merchantName(),
+                        context.merchantSector(),
+                        context.amount()
+                ));
+                requestIndexes.add(index);
+            }
+        }
+        if (requests.isEmpty()) {
+            return results;
+        }
+
+        try {
+            List<CategoryClassificationDto.Response> responses =
+                    categoryClassificationClient.classifyBatch(requests);
+            if (responses == null || responses.size() != requests.size()) {
+                return results;
+            }
+            for (int index = 0; index < responses.size(); index++) {
+                results.set(requestIndexes.get(index), toResult(responses.get(index)));
+            }
+        } catch (AiServerException exception) {
+            return results;
+        }
+        return results;
     }
 
     @Override

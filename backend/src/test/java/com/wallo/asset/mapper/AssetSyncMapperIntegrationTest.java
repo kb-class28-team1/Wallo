@@ -110,6 +110,29 @@ class AssetSyncMapperIntegrationTest {
     }
 
     @Test
+    void findsExistingClassificationBySourceIdentity() {
+        assetSyncMapper.upsertTransaction(transaction(
+                38_000L,
+                "LIVING",
+                "AI",
+                new BigDecimal("0.8600"),
+                "ai-v1"
+        ));
+
+        AssetSyncDto.ExistingClassification classification = assetSyncMapper.findExistingClassification(
+                7L,
+                "CARD_APPROVAL",
+                "0311",
+                "5d7a6cf54a7923313a0e59bd97aec9e94d489da9470c43b4435de4036038737a"
+        );
+
+        assertEquals("LIVING", classification.getCategory());
+        assertEquals("AI", classification.getCategorySource());
+        assertEquals(new BigDecimal("0.8600"), classification.getCategoryConfidence());
+        assertEquals("ai-v1", classification.getClassifierVersion());
+    }
+
+    @Test
     void snapshotMonthMakesRepeatedSnapshotAnUpdate() throws Exception {
         assetSyncMapper.upsertAssetSnapshot(7L, new AssetSyncDto.AssetSnapshot("2026-08", 39_000_000L));
         assetSyncMapper.upsertAssetSnapshot(7L, new AssetSyncDto.AssetSnapshot("2026-08", 40_100_000L));

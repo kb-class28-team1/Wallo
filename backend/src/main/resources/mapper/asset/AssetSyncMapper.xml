@@ -122,6 +122,21 @@
             transaction_time = VALUES(transaction_time)
     </insert>
 
+    <select id="findExistingClassification"
+            resultType="com.wallo.asset.dto.AssetSyncDto$ExistingClassification">
+        SELECT
+            category AS category,
+            category_source AS categorySource,
+            category_confidence AS categoryConfidence,
+            classifier_version AS classifierVersion
+        FROM TRANSACTIONS
+        WHERE user_id = #{userId}
+          AND source_type = #{sourceType}
+          AND source_organization_code = #{sourceOrganizationCode}
+          AND source_dedup_key = #{sourceDedupKey}
+        LIMIT 1
+    </select>
+
     <select id="selectBankWithdrawalCandidates"
             resultType="com.wallo.asset.dto.AssetSyncDto$ReconciliationCandidate">
         SELECT

@@ -22,6 +22,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -56,6 +57,15 @@ class BankTransactionCollectionServiceTest {
                         "ai-v1"
                 )
         );
+        when(categoryClassifier.classifyBeforeAi(any())).thenReturn(Optional.empty());
+        when(categoryClassifier.classifyBatch(any())).thenReturn(List.of(
+                new ExpenseCategoryClassifier.Result(
+                        "LIVING",
+                        "AI",
+                        new BigDecimal("0.8600"),
+                        "ai-v1"
+                )
+        ));
         institution = new Institution(1L, "0004", "국민은행", "BANK", "bank-logo");
     }
 
@@ -130,11 +140,10 @@ class BankTransactionCollectionServiceTest {
         assertEquals("ai-v1", savedTransaction.getClassifierVersion());
         assertEquals(12_000L, savedTransaction.getAmount());
 
-        ArgumentCaptor<ExpenseCategoryClassifier.Context> contextCaptor =
-                ArgumentCaptor.forClass(ExpenseCategoryClassifier.Context.class);
-        verify(categoryClassifier).classify(contextCaptor.capture());
-        assertEquals("신한 편의점", contextCaptor.getValue().merchantName());
-        assertEquals(12_000L, contextCaptor.getValue().amount());
+        ArgumentCaptor<List> contextCaptor = ArgumentCaptor.forClass(List.class);
+        verify(categoryClassifier).classifyBatch(contextCaptor.capture());
+        assertEquals("신한 편의점", ((ExpenseCategoryClassifier.Context) contextCaptor.getValue().get(0)).merchantName());
+        assertEquals(12_000L, ((ExpenseCategoryClassifier.Context) contextCaptor.getValue().get(0)).amount());
     }
 
     @Test
@@ -161,6 +170,40 @@ class BankTransactionCollectionServiceTest {
         assertEquals("SEND", savedTransaction.getCategory());
         assertEquals("BANK_DIRECTION_FALLBACK", savedTransaction.getCategorySource());
         assertEquals("bank-direction-fallback-v1", savedTransaction.getClassifierVersion());
+        verify(categoryClassifier, never()).classify(any());
+    }
+
+    @Test
+    void reusesExistingCardPaymentClassificationWithoutCallingClassifier() {
+        when(bankTransactionClient.getTransactions(any())).thenReturn(CodefDto.Response.success(List.of(
+                transaction("BANK-CARD-1", "0", "12000", "unknown store", "CARD_PAYMENT")
+        )));
+        when(assetSyncMapper.findExistingClassification(
+                org.mockito.ArgumentMatchers.eq(7L),
+                org.mockito.ArgumentMatchers.eq("BANK_TRANSACTION"),
+                org.mockito.ArgumentMatchers.eq("0004"),
+                any()
+        )).thenReturn(new AssetSyncDto.ExistingClassification(
+                "TRANSPORT",
+                "AI",
+                new BigDecimal("0.9300"),
+                "ai-v1"
+        ));
+
+        service.collect(
+                7L,
+                31L,
+                "123456-01-789012",
+                institution,
+                LocalDate.of(2026, 8, 1),
+                LocalDate.of(2026, 8, 5)
+        );
+
+        ArgumentCaptor<AssetSyncDto.Transaction> transactionCaptor =
+                ArgumentCaptor.forClass(AssetSyncDto.Transaction.class);
+        verify(assetSyncMapper).upsertTransaction(transactionCaptor.capture());
+        assertEquals("TRANSPORT", transactionCaptor.getValue().getCategory());
+        assertEquals("AI", transactionCaptor.getValue().getCategorySource());
         verify(categoryClassifier, never()).classify(any());
     }
 

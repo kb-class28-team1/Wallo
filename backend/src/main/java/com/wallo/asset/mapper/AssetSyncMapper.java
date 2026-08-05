@@ -25,6 +25,13 @@ public interface AssetSyncMapper {
 
     int upsertTransaction(@Param("transaction") AssetSyncDto.Transaction transaction);
 
+    AssetSyncDto.ExistingClassification findExistingClassification(
+            @Param("userId") long userId,
+            @Param("sourceType") String sourceType,
+            @Param("sourceOrganizationCode") String sourceOrganizationCode,
+            @Param("sourceDedupKey") String sourceDedupKey
+    );
+
     List<AssetSyncDto.ReconciliationCandidate> selectBankWithdrawalCandidates(
             @Param("userId") long userId
     );
