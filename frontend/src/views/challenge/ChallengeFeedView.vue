@@ -1,7 +1,8 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
-import { useUserStore } from '@/stores/userStore'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue"
+import { useRoute } from "vue-router"
+import { useUserStore } from "@/stores/userStore"
+import { formatWon } from "@/commonUtils/formatters"
 import {
   analyzeFeed,
   createFeed,
@@ -12,7 +13,7 @@ import {
   addFeedLike,
   updateFeed,
 } from '@/api/feedApi'
-import { EXPENSE_CATEGORY_META, FEED_CATEGORY_CODES } from '@/constants/expenseCategories'
+import { EXPENSE_CATEGORY_META, FEED_CATEGORY_CODES } from '@/features/financial/financialCategories'
 
 const route = useRoute()
 const userStore = useUserStore()
@@ -74,10 +75,10 @@ const categories = FEED_CATEGORY_CODES.map((value) => ({
   ...EXPENSE_CATEGORY_META[value],
 }))
 const categoryLabel = (value, custom) =>
-  custom || EXPENSE_CATEGORY_META[value]?.label || value || '기타'
-const spendingLabel = (value) => spendingTypes.find((item) => item.value === value)?.label || value
-const formatWon = (value) => `${Number(value || 0).toLocaleString('ko-KR')}원`
-const isVideoFile = computed(() => form.file?.type?.startsWith('video/'))
+  custom || EXPENSE_CATEGORY_META[value]?.label || value || "기타"
+const spendingLabel = (value) =>
+  spendingTypes.find((item) => item.value === value)?.label || value
+const isVideoFile = computed(() => form.file?.type?.startsWith("video/"))
 const roomTitle = computed(() => `${challengeName.value} 채팅방`)
 
 const isMyFeed = (feed) => Number(feed.userId) === Number(userStore.user?.id)

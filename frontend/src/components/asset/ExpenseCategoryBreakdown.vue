@@ -6,7 +6,8 @@ import {
   EXPENSE_CATEGORY_META,
   getExpenseCategoryMeta,
   normalizeExpenseCategory,
-} from "@/constants/expenseCategories";
+} from "@/features/financial/financialCategories";
+import { formatWon } from "@/commonUtils/formatters";
 
 ChartJS.register(ArcElement, Tooltip);
 
@@ -107,8 +108,6 @@ const chartOptions = {
     tooltip: { enabled: false },
   },
 };
-
-const formatWon = (amount) => `${new Intl.NumberFormat("ko-KR").format(Number(amount) || 0)}원`;
 
 const categoryRate = (amount) => {
   const totalExpense = Number(props.totalExpense) || 0;

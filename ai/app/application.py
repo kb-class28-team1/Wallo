@@ -1,120 +1,37 @@
-import json
-import logging
-import os
-from collections.abc import Callable
-from functools import lru_cache
-from pathlib import Path
-from typing import Any
-
-from fastapi import FastAPI, HTTPException
-from dotenv import load_dotenv
-from groq import Groq, GroqError
-from pydantic import BaseModel, ConfigDict, Field
-
-
-load_dotenv()
-# Uvicorn의 기본 로그 핸들러를 사용해 Tool Calling 결과가 서버 터미널에 보이게 한다.
-logger = logging.getLogger("uvicorn.error")
-
-MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
-SYSTEM_PROMPT = """
-당신은 친절한 한국어 금융 AI 어시스턴트입니다.
-사용자의 요청이 제공된 금융 도구의 설명과 명확히 일치하면 해당 도구를 호출하세요.
-일치하지 않거나 일반적인 대화라면 도구를 호출하지 말고 직접 답변하세요.
-답변은 핵심부터 말하고 기본적으로 3~5문장, 500자 이내로 간결하게 작성하세요.
-불필요한 서론, 반복 설명, 과도한 목록은 생략하세요.
-사용자가 상세한 설명이나 보고서를 명시적으로 요청한 경우에만 필요한 만큼 길게 답변하세요.
-도구가 아직 실제 데이터와 연결되지 않았다는 결과를 받으면, 완료한 것처럼 꾸미지 말고
-어떤 기능이 선택되었으며 추후 어떤 데이터 연동이 필요한지 간결하게 안내하세요.
-""".strip()
-
 import logging
 
 from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-class ChatRequest(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
 
-    message: str = Field(min_length=1)
-    generate_title: bool = Field(default=False, alias="generateTitle")
+from app.chat.router import router as chat_router
+from app.category.router import router as category_router
+from app.demo.router import router as demo_router
+from app.health.router import router as health_router
+from app.reports.router import router as financial_report_router
 
-from app.financial_report import router as financial_report_router
-
-logger = logging.getLogger("wallo_ai")
 logging.basicConfig(level=logging.INFO)
-class ChatResponse(BaseModel):
-    answer: str
-    title: str | None = None
+logger = logging.getLogger("wallo_ai")
 
 
-class DemoAssetAnalysisRequest(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+def create_app() -> FastAPI:
+    app = FastAPI(title="Wallo AI Server")
+    app.include_router(health_router)
+    app.include_router(chat_router)
+    app.include_router(category_router)
+    app.include_router(demo_router)
+    app.include_router(financial_report_router)
 
-    profile_id: int = Field(gt=0, alias="profileId")
-    question: str = Field(
-        default="현재 자산 상태를 분석하고 우선 실행할 행동을 알려줘.",
-        min_length=1,
-    )
-
-
-class DemoProfileSummary(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
-
-    profile_id: int = Field(alias="profileId")
-    title: str
-    total_assets_krw: int | None = Field(alias="totalAssetsKrw")
-    monthly_net_income_krw: int | None = Field(alias="monthlyNetIncomeKrw")
-
-
-class DemoAssetAnalysisResponse(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
-
-    profile_id: int = Field(alias="profileId")
-    title: str
-    answer: str
-
-
-DATA_FILE = (
-        Path(__file__).resolve().parents[1]
-        / "data"
-        / "processed"
-        / "money_log_agent_inputs.json"
-)
-
-
-@lru_cache(maxsize=1)
-def load_demo_profiles() -> dict[int, dict[str, Any]]:
-    """정제된 머니로그 사례를 가상 사용자 프로필로 읽는다."""
-    try:
-        rows = json.loads(DATA_FILE.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as error:
-        logger.exception("Failed to load demo asset profiles")
-        raise RuntimeError("가상 사용자 데이터를 읽지 못했습니다.") from error
-
-    profiles: dict[int, dict[str, Any]] = {}
-    for row in rows:
-        profile = row.get("asset_analysis_input")
-        if isinstance(profile, dict) and isinstance(profile.get("profile_id"), int):
-            profiles[profile["profile_id"]] = profile
-    return profiles
-
-
-def list_demo_profiles() -> list[DemoProfileSummary]:
-    summaries = []
-    for profile_id, profile in sorted(load_demo_profiles().items()):
-        source = profile.get("source") or {}
-        assets = profile.get("assets") or {}
-        income = profile.get("income") or {}
-        summaries.append(
-            DemoProfileSummary(
-                profileId=profile_id,
-                title=source.get("title") or f"가상 사용자 {profile_id}",
-                totalAssetsKrw=assets.get("total_assets_krw"),
-                monthlyNetIncomeKrw=income.get("monthly_net_income_krw"),
-            )
+    @app.exception_handler(RequestValidationError)
+    async def validation_exception_handler(request: Request, exc: RequestValidationError):
+        logger.warning("요청 검증 실패 - path: %s, errors: %s", request.url.path, exc.errors())
+        return JSONResponse(
+            status_code=422,
+            content={"detail": jsonable_encoder(exc.errors())},
         )
-    return summaries
+
+    return app
 
 
 def build_demo_asset_facts(profile: dict[str, Any]) -> dict[str, Any]:
@@ -539,3 +456,4 @@ def chat(request: ChatRequest) -> ChatResponse:
             status_code=502,
             detail="Groq AI 응답을 생성하지 못했습니다.",
         ) from error
+app = create_app()

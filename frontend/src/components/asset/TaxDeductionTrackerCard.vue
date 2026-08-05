@@ -1,7 +1,8 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
 import { storeToRefs } from "pinia";
-import { useReportStore } from "@/stores/reportStore";
+import { useReportStore } from "@/stores/assetReportStore.js";
+import { formatNumber } from "@/commonUtils/formatters";
 
 const reportStore = useReportStore();
 const {
@@ -13,8 +14,6 @@ const {
 } = storeToRefs(reportStore);
 const salaryModalVisible = ref(false);
 const annualSalaryInput = ref("");
-
-const formatNumber = (amount = 0) => new Intl.NumberFormat("ko-KR").format(amount);
 
 const achievementRate = computed(() => {
   const spentAmount = Number(taxSettlement.value?.cardSpentYtd ?? 0);
@@ -57,7 +56,7 @@ const loadTaxSettlement = async () => {
 
 const retryTaxSettlement = async () => {
   try {
-    await reportStore.retryTaxSettlement();
+    await reportStore.fetchTaxSettlement();
   } catch {
     // 다시 시도 결과는 Pinia 상태를 통해 카드에 표시합니다.
   }

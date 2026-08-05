@@ -4,6 +4,7 @@ import { storeToRefs } from "pinia"
 import { RouterLink, useRouter } from "vue-router"
 import { getTodayMissions } from "@/api/missionApi"
 import { useUserStore } from "@/stores/userStore"
+import { formatNumber } from "@/commonUtils/formatters"
 
 // public 폴더의 이미지는 루트 절대 경로로 참조함.
 const pointWCoin = "/images/profiles/point-w-coin.svg"
@@ -15,7 +16,7 @@ const isMissionOpen = ref(false)
 const isMissionLoading = ref(false)
 
 // 포인트 숫자에 천 단위 구분 기호를 적용함
-const formattedPointBalance = computed(() => pointBalance.value.toLocaleString("ko-KR"))
+const formattedPointBalance = computed(() => formatNumber(pointBalance.value))
 const displayedNickname = computed(() =>
   isLoading.value && !nickname.value ? "불러오는 중..." : nickname.value || "username",
 )

@@ -12,6 +12,7 @@ import {
   Tooltip,
 } from "chart.js"
 import { getMyChallengeDashboard } from "@/api/challengeApi"
+import { formatNumber, formatWon } from "@/commonUtils/formatters"
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler)
 
@@ -66,7 +67,7 @@ const chartOptions = {
     },
     tooltip: {
       callbacks: {
-        label: (context) => formatCurrency(context.parsed.y),
+        label: (context) => formatWon(context.parsed.y),
       },
     },
   },
@@ -119,28 +120,27 @@ const activityStats = computed(() => [
 const summaryStats = computed(() => [
   {
     label: "이번 달 절약",
-    value: formatCurrency(dashboard.value?.currentMonthSavingAmount),
+    value: formatWon(dashboard.value?.currentMonthSavingAmount),
     subText: savingChangeLabel.value,
   },
   {
     label: "지난달 절약",
-    value: formatCurrency(dashboard.value?.previousMonthSavingAmount),
+    value: formatWon(dashboard.value?.previousMonthSavingAmount),
     subText: "지난달 기록",
   },
   {
     label: "총 인증 횟수",
-    value: `${Number(dashboard.value?.verificationCount || 0).toLocaleString("ko-KR")}회`,
+    value: `${formatNumber(dashboard.value?.verificationCount)}회`,
     subText: `연속 ${dashboard.value?.streakDays || 0}일`,
   },
   {
     label: "평균 절약/건",
-    value: formatCurrency(dashboard.value?.averageSavingAmount),
+    value: formatWon(dashboard.value?.averageSavingAmount),
     subText: "인증 게시물 기준",
   },
 ])
 
-const formatCurrency = (amount) => `${Number(amount || 0).toLocaleString("ko-KR")}원`
-const formatCount = (count) => Number(count || 0).toLocaleString("ko-KR")
+const formatCount = (count) => formatNumber(count)
 const formatMonth = (period) => {
   const dateParts = String(period || "").split("-")
 
@@ -239,7 +239,7 @@ onMounted(loadDashboard)
       <article class="dashboard-card saving-summary-card">
         <div class="total-saving">
           <span>총 절약 금액</span>
-          <strong>{{ formatCurrency(dashboard.totalSavingAmount) }}</strong>
+          <strong>{{ formatWon(dashboard.totalSavingAmount) }}</strong>
           <small>누적 절약 금액</small>
         </div>
 
