@@ -30,7 +30,6 @@ app/
 │  └─ prompts.py               # 제목 생성 프롬프트
 ├─ clients/
 │  ├─ groq_client.py           # Groq 클라이언트 생성
-│  └─ openai_client.py         # OpenAI 클라이언트 생성
 ├─ core/
 │  └─ config.py                # 환경변수와 모델 설정
 ├─ demo/
@@ -81,7 +80,7 @@ app/
 
 ### `clients/`
 
-- Groq, OpenAI 등 외부 서비스 클라이언트를 생성한다.
+- Groq 등 외부 서비스 클라이언트를 생성한다.
 - API 키와 모델명은 하드코딩하지 않고 `core/config.py`에서 읽는다.
 
 ### `agents/`
@@ -211,9 +210,7 @@ python -m pytest tests/test_application.py tests/test_chat.py tests/test_financi
 GROQ_API_KEY=본인의_API_KEY
 GROQ_MODEL=openai/gpt-oss-20b
 
-OPENAI_API_KEY=본인의_API_KEY
-OPENAI_MODEL=gpt-4o-mini
-OPENAI_REPORT_MODEL=gpt-4o-mini
+GROQ_REPORT_MODEL=openai/gpt-oss-20b
 ```
 
 새 환경변수를 추가할 때는 직접 `os.getenv()`를 여러 기능에서 호출하지 않고

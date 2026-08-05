@@ -3,6 +3,11 @@ package com.wallo.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.wallo.feed.analysis.FeedAnalysisClient;
+import com.wallo.feed.analysis.GeminiFeedAnalysisClient;
+import com.wallo.feed.analysis.MockFeedAnalysisClient;
+import java.time.Clock;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
@@ -46,6 +51,20 @@ public class AppConfig {
     @Bean
     public RestTemplate restTemplate() {
         return new RestTemplate();
+    }
+
+    @Bean
+    public FeedAnalysisClient feedAnalysisClient(
+            RestTemplate restTemplate,
+            ObjectMapper objectMapper,
+            @Value("${gemini.enabled:false}") boolean geminiEnabled,
+            @Value("${gemini.api-key:}") String geminiApiKey,
+            @Value("${gemini.model:gemini-3.6-flash}") String geminiModel) {
+        if (geminiEnabled && geminiApiKey != null && !geminiApiKey.isBlank()) {
+            return new GeminiFeedAnalysisClient(
+                    restTemplate, objectMapper, geminiApiKey.trim(), geminiModel.trim());
+        }
+        return new MockFeedAnalysisClient();
     }
 
     @Bean
