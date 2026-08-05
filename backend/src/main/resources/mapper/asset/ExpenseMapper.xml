@@ -9,6 +9,7 @@
         FROM TRANSACTIONS
         WHERE user_id = #{userId}
           AND type = 'EXPENSE'
+          AND category &lt;&gt; 'CARD_WITHDRAWAL'
           AND transaction_date BETWEEN #{condition.startDate} AND #{condition.endDate}
     </select>
 
@@ -27,6 +28,7 @@
         FROM TRANSACTIONS
         WHERE user_id = #{userId}
           AND type = 'EXPENSE'
+          AND category &lt;&gt; 'CARD_WITHDRAWAL'
           AND transaction_date BETWEEN #{condition.startDate} AND #{condition.endDate}
         GROUP BY CASE WHEN category = 'OTHER' THEN 'ETC' ELSE category END
         ORDER BY amount DESC, category ASC

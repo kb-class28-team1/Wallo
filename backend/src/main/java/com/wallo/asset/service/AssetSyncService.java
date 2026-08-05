@@ -11,10 +11,14 @@ import java.time.LocalTime;
 import java.time.YearMonth;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
+import java.util.logging.Logger;
 import org.springframework.stereotype.Service;
 
 @Service
 public class AssetSyncService {
+
+    private static final Logger LOGGER = Logger.getLogger(AssetSyncService.class.getName());
 
     private final AssetSyncMapper assetSyncMapper;
     private final ObjectMapper objectMapper;
@@ -34,6 +38,7 @@ public class AssetSyncService {
     }
 
     public void sync(long userId, long connectionId, Institution institution, CodefDto.Response response) {
+        long startedAt = System.nanoTime();
         CodefDto.AssetData data = objectMapper.convertValue(response.getData(), CodefDto.AssetData.class);
 
         for (CodefDto.AssetSnapshot snapshot : values(data.getAssetSnapshots())) {
@@ -60,6 +65,8 @@ public class AssetSyncService {
                     card.getResCardNo(), card.getResCardName(), defaultValue(card.getResCardType(), "CREDIT"),
                     status(card.getResCardState()), card.getResValidPeriod()));
         }
+        long assetStageElapsedMs = elapsedMillis(startedAt);
+        long transactionStageStartedAt = System.nanoTime();
         if ("CARD".equals(institution.getInstitutionType())) {
             cardApprovalCollectionService.collectInitial(userId, connectionId, institution);
         } else if ("BANK".equals(institution.getInstitutionType())) {
@@ -74,6 +81,24 @@ public class AssetSyncService {
                 syncTransaction(userId, connectionId, source);
             }
         }
+        LOGGER.info(String.format(
+                Locale.ROOT,
+                "asset-sync-service organization=%s type=%s snapshots=%d accounts=%d loans=%d cards=%d "
+                        + "assetStageMs=%d transactionStageMs=%d totalMs=%d",
+                institution.getCodefOrganizationCode(),
+                institution.getInstitutionType(),
+                values(data.getAssetSnapshots()).size(),
+                values(data.getAccounts()).size(),
+                values(data.getLoans()).size(),
+                values(data.getCards()).size(),
+                assetStageElapsedMs,
+                elapsedMillis(transactionStageStartedAt),
+                elapsedMillis(startedAt)
+        ));
+    }
+
+    private long elapsedMillis(long startedAt) {
+        return (System.nanoTime() - startedAt) / 1_000_000L;
     }
 
     private void collectBankTransactions(

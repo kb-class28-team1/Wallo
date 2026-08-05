@@ -2,9 +2,7 @@ package com.wallo.external.controller;
 
 import com.wallo.external.auth.CodefAccessTokenProvider;
 import com.wallo.external.dto.CodefDto;
-import com.wallo.external.service.CodefMockResponseLoader;
-import com.wallo.external.service.CodefTransactionMockService;
-import java.util.Map;
+import com.wallo.external.service.CodefMockService;
 import javax.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,23 +13,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class CodefMockController {
 
-    private static final Map<String, String> FIXTURE_BY_PATH = Map.of(
-            "/mock/v1/kr/bank/p/account/account-list", "bank-accounts.json",
-            "/mock/v1/kr/card/p/account/card-list", "card-list.json",
-            "/mock/v1/kr/stock/p/account/account-list", "stock-accounts.json"
-    );
-
-    private final CodefMockResponseLoader codefMockResponseLoader;
-    private final CodefTransactionMockService codefTransactionMockService;
+    private final CodefMockService codefMockService;
     private final CodefAccessTokenProvider accessTokenProvider;
 
     public CodefMockController(
-            CodefMockResponseLoader codefMockResponseLoader,
-            CodefTransactionMockService codefTransactionMockService,
+            CodefMockService codefMockService,
             CodefAccessTokenProvider accessTokenProvider
     ) {
-        this.codefMockResponseLoader = codefMockResponseLoader;
-        this.codefTransactionMockService = codefTransactionMockService;
+        this.codefMockService = codefMockService;
         this.accessTokenProvider = accessTokenProvider;
     }
 
@@ -41,16 +30,16 @@ public class CodefMockController {
             "/mock/v1/kr/stock/p/account/account-list"
     })
     public CodefDto.Response getMockResponse(
-            @RequestBody CodefDto.Request ignoredRequest,
+            @RequestBody CodefDto.Request codefRequest,
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorizationHeader,
-            HttpServletRequest request
+            HttpServletRequest httpRequest
     ) {
         CodefDto.Response authenticationFailure = authenticate(authorizationHeader);
         if (authenticationFailure != null) {
             return authenticationFailure;
         }
-        String requestPath = request.getRequestURI().substring(request.getContextPath().length());
-        return loadResponse(FIXTURE_BY_PATH.get(requestPath));
+        String requestPath = httpRequest.getRequestURI().substring(httpRequest.getContextPath().length());
+        return codefMockService.getAssetResponse(requestPath, codefRequest.getOrganization());
     }
 
     @PostMapping("/mock/v1/kr/card/p/approval-list")
@@ -62,7 +51,7 @@ public class CodefMockController {
         if (authenticationFailure != null) {
             return authenticationFailure;
         }
-        return codefTransactionMockService.getCardApprovals(request);
+        return codefMockService.getCardApprovals(request);
     }
 
     @PostMapping({
@@ -77,7 +66,7 @@ public class CodefMockController {
         if (authenticationFailure != null) {
             return authenticationFailure;
         }
-        return codefTransactionMockService.getBankTransactions(request);
+        return codefMockService.getBankTransactions(request);
     }
 
     private CodefDto.Response authenticate(String authorizationHeader) {
@@ -90,9 +79,5 @@ public class CodefMockController {
                 "인증 정보가 올바르지 않습니다.",
                 "유효한 Authorization Bearer 토큰이 필요합니다."
         );
-    }
-
-    private CodefDto.Response loadResponse(String fileName) {
-        return codefMockResponseLoader.load(fileName);
     }
 }

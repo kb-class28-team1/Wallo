@@ -2,7 +2,8 @@
 import { computed } from "vue";
 import { Doughnut } from "vue-chartjs";
 import { ArcElement, Chart as ChartJS, Legend, Tooltip } from "chart.js";
-import { getExpenseCategoryLabel } from "@/constants/expenseCategories";
+import { getExpenseCategoryLabel } from "@/features/financial/financialCategories";
+import { formatWon } from "@/commonUtils/formatters";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -17,7 +18,6 @@ const props = defineProps({
   },
 });
 
-const formatWon = (amount = 0) => `${new Intl.NumberFormat("ko-KR").format(amount)}원`;
 const topExpenseCategories = computed(() => (
   [...(props.expenses.expenseCategoryBreakdown ?? [])]
     .sort((first, second) => Number(second.amount) - Number(first.amount))

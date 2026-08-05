@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from "vue"
 import { storeToRefs } from "pinia"
 import { grantWeeklyRankingRewardsForTest } from "@/api/challengeApi"
 import { useChallengeStore } from "@/stores/challengeStore"
+import { formatNumber, formatWon } from "@/commonUtils/formatters"
 import { useUserStore } from "@/stores/userStore"
 
 const DEFAULT_PROFILE_IMAGE = "/images/profiles/default-profile.svg"
@@ -38,8 +39,7 @@ const rankingPeriod = computed(() => {
   return `${formatDate(startDate.value)} ~ ${formatDate(endDate.value)} (이번 주)`
 })
 
-const formatCurrency = (amount) => `${Number(amount || 0).toLocaleString("ko-KR")}원`
-const formatPoint = (point) => `${Number(point || 0).toLocaleString("ko-KR")}P`
+const formatPoint = (point) => `${formatNumber(point)}P`
 const formatDate = (date) => date.replaceAll("-", ".")
 
 // DB 프로필 주소가 없거나 이미지 로드에 실패하면 기본 프로필을 표시함
@@ -123,7 +123,7 @@ onMounted(() => {
               />
             </div>
             <strong class="podium-nickname">{{ ranking.nickname }}</strong>
-            <strong class="podium-saving">{{ formatCurrency(ranking.savingAmount) }}</strong>
+            <strong class="podium-saving">{{ formatWon(ranking.savingAmount) }}</strong>
             <span class="podium-streak">🔥 {{ ranking.streakDays }}일 연속</span>
           </article>
         </div>
@@ -151,7 +151,7 @@ onMounted(() => {
               />
               <span>{{ ranking.nickname }}</span>
             </div>
-            <strong>{{ formatCurrency(ranking.savingAmount) }}</strong>
+            <strong>{{ formatWon(ranking.savingAmount) }}</strong>
             <span>{{ ranking.streakDays }}일</span>
             <span>{{ ranking.likeCount }}</span>
           </div>
@@ -177,7 +177,7 @@ onMounted(() => {
           <div class="my-rank-stats">
             <div>
               <span>절약 금액</span>
-              <strong>{{ formatCurrency(myRanking.savingAmount) }}</strong>
+              <strong>{{ formatWon(myRanking.savingAmount) }}</strong>
             </div>
             <div>
               <span>연속 인증</span>
@@ -194,7 +194,7 @@ onMounted(() => {
           <h2>이번 주 나의 기록</h2>
           <ul class="record-list list-unstyled mb-0">
             <li>
-              <span>💰 절약 금액</span><strong>{{ formatCurrency(myRanking.savingAmount) }}</strong>
+              <span>💰 절약 금액</span><strong>{{ formatWon(myRanking.savingAmount) }}</strong>
             </li>
             <li>
               <span>🔥 연속 인증</span><strong>{{ myRanking.streakDays }}일</strong>

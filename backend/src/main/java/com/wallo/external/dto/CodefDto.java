@@ -166,6 +166,8 @@ public final class CodefDto {
         private String resAccountIn;
         private String resAccountOut;
         private String resAccountDesc;
+        /** Mock/normalization field used to distinguish merchant payments from transfers. */
+        private String transactionKind;
     }
 
     @Getter

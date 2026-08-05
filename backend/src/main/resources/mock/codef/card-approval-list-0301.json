@@ -1,0 +1,39 @@
+{
+  "result": {
+    "code": "CF-00000",
+    "message": "성공",
+    "extraMessage": ""
+  },
+  "data": [
+    {
+      "resCardNo": "9876-0000-0000-4321",
+      "resUsedDate": "20260724",
+      "resUsedTime": "120500",
+      "resApprovalNo": "93000001",
+      "resMemberName": "국민카드 온라인몰",
+      "resUsedAmount": "27500",
+      "resMemberSector": "온라인쇼핑",
+      "resCardType": "1"
+    },
+    {
+      "resCardNo": "9876-0000-0000-4321",
+      "resUsedDate": "20260803",
+      "resUsedTime": "091500",
+      "resApprovalNo": "93000002",
+      "resMemberName": "국민카드 편의점",
+      "resUsedAmount": "6500",
+      "resMemberSector": "편의점",
+      "resCardType": "1"
+    },
+    {
+      "resCardNo": "4321-0000-0000-8765",
+      "resUsedDate": "20260804",
+      "resUsedTime": "181000",
+      "resApprovalNo": "93000003",
+      "resMemberName": "국민카드 서점",
+      "resUsedAmount": "22000",
+      "resMemberSector": "서점",
+      "resCardType": "1"
+    }
+  ]
+}

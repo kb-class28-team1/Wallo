@@ -61,6 +61,8 @@ public class ConnectionServiceTest {
 
         assertEquals(3, response.getResults().size());
         assertEquals(ConnectionDto.Status.SUCCESS, response.getResults().get(0).getStatus());
+        assertEquals("KB", response.getResults().get(0).getFinancialGroupCode());
+        assertEquals("KB Financial", response.getResults().get(0).getFinancialGroupName());
         assertEquals(ConnectionDto.Status.SUCCESS, response.getResults().get(1).getStatus());
         assertEquals(ConnectionDto.Status.SUCCESS, response.getResults().get(2).getStatus());
         verify(codefClient, times(3)).connectInstitution(any(CodefDto.Request.class));
@@ -94,9 +96,9 @@ public class ConnectionServiceTest {
 
     private void givenConnectionTargets() {
         List<Institution> institutions = Arrays.asList(
-                new Institution(1L, "0004", "Bank", "BANK", "bank-logo"),
-                new Institution(2L, "0311", "Card", "CARD", "card-logo"),
-                new Institution(3L, "0264", "Stock", "STOCK", "stock-logo")
+                new Institution(1L, "0004", "Bank", "KB", "KB Financial", "BANK", "bank-logo"),
+                new Institution(2L, "0311", "Card", "HANA", "Hana Financial", "CARD", "card-logo"),
+                new Institution(3L, "0264", "Stock", "KIWOOM", "Kiwoom", "STOCK", "stock-logo")
         );
         when(institutionService.getConnectionTargetInstitutions()).thenReturn(institutions);
     }

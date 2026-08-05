@@ -1,0 +1,24 @@
+{
+  "result": {
+    "code": "CF-00000",
+    "message": "성공",
+    "extraMessage": ""
+  },
+  "data": {
+    "accounts": [
+      {
+        "resAccountName": "하나 급여 통장",
+        "resAccount": "334455-01-667788",
+        "resAccountDisplay": "334455-**-***788",
+        "resAccountBalance": "6100000",
+        "resAccountEvalAmount": "6100000",
+        "resAccountCurrency": "KRW",
+        "resAccountStatus": "1",
+        "resAccountSubtype": "DEPOSIT"
+      }
+    ],
+    "loans": [],
+    "assetSnapshots": [],
+    "transactions": []
+  }
+}

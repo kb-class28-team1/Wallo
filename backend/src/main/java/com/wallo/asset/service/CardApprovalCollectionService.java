@@ -16,8 +16,14 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.temporal.ChronoField;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.logging.Logger;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +39,7 @@ public class CardApprovalCollectionService {
             .appendValue(ChronoField.MINUTE_OF_HOUR, 2)
             .appendValue(ChronoField.SECOND_OF_MINUTE, 2)
             .toFormatter();
+    private static final Logger LOGGER = Logger.getLogger(CardApprovalCollectionService.class.getName());
 
     private final CardApprovalClient cardApprovalClient;
     private final ObjectMapper objectMapper;
@@ -71,6 +78,8 @@ public class CardApprovalCollectionService {
     ) {
         validateCollectionRequest(institution, startDate, endDate);
 
+        long startedAt = System.nanoTime();
+        long apiStartedAt = System.nanoTime();
         CodefDto.Response response = cardApprovalClient.getApprovals(
                 new CodefDto.CardApprovalRequest(
                         institution.getCodefOrganizationCode(),
@@ -81,24 +90,63 @@ public class CardApprovalCollectionService {
                         endDate.format(REQUEST_DATE_FORMATTER)
                 )
         );
+        long apiElapsedMs = elapsedMillis(apiStartedAt);
         validateCodefResponse(response);
 
+        long conversionStartedAt = System.nanoTime();
         List<CodefDto.CardApproval> approvals = objectMapper.convertValue(
                 response.getData(),
                 new TypeReference<List<CodefDto.CardApproval>>() { }
         );
+        long conversionElapsedMs = elapsedMillis(conversionStartedAt);
 
         int savedCount = 0;
-        for (CodefDto.CardApproval approval : safeList(approvals)) {
-            assetSyncMapper.upsertTransaction(
-                    toTransaction(userId, connectionId, institution, approval)
+        int reusedClassificationCount = 0;
+        int aiRequestCount = 0;
+        long classificationStartedAt = System.nanoTime();
+        List<PreparedApproval> preparedApprovals = safeList(approvals).stream()
+                .map(approval -> prepareApproval(userId, connectionId, institution, approval))
+                .toList();
+        Map<String, ClassificationResolution> classifications = resolveClassifications(
+                userId,
+                institution,
+                preparedApprovals
+        );
+        long classificationElapsedMs = elapsedMillis(classificationStartedAt);
+        long processingStartedAt = System.nanoTime();
+        for (PreparedApproval approval : preparedApprovals) {
+            TransactionMapping mapping = toTransaction(
+                    approval,
+                    classifications.get(approval.sourceDedupKey())
             );
+            assetSyncMapper.upsertTransaction(mapping.transaction());
+            if (mapping.reusedClassification()) {
+                reusedClassificationCount++;
+            } else if ("AI".equals(mapping.transaction().getCategorySource())) {
+                aiRequestCount++;
+            }
             savedCount++;
         }
+        long processingElapsedMs = elapsedMillis(processingStartedAt);
+        LOGGER.info(String.format(
+                Locale.ROOT,
+                "asset-sync card organization=%s records=%d saved=%d reusedClassification=%d aiRequests=%d "
+                        + "apiMs=%d conversionMs=%d classificationMs=%d processingMs=%d totalMs=%d",
+                institution.getCodefOrganizationCode(),
+                safeList(approvals).size(),
+                savedCount,
+                reusedClassificationCount,
+                aiRequestCount,
+                apiElapsedMs,
+                conversionElapsedMs,
+                classificationElapsedMs,
+                processingElapsedMs,
+                elapsedMillis(startedAt)
+        ));
         return savedCount;
     }
 
-    private AssetSyncDto.Transaction toTransaction(
+    private PreparedApproval prepareApproval(
             long userId,
             long connectionId,
             Institution institution,
@@ -114,39 +162,124 @@ public class CardApprovalCollectionService {
         long amount = parsePositiveAmount(approval.getResUsedAmount());
         LocalDate transactionDate = parseDate(approval.getResUsedDate());
         LocalTime transactionTime = parseTime(approval.getResUsedTime());
-        ExpenseCategoryClassifier.Result classification = categoryClassifier.classify(
-                new ExpenseCategoryClassifier.Context(
-                        merchantName,
-                        approval.getResMemberSector()
-                )
+        ExpenseCategoryClassifier.Context context = new ExpenseCategoryClassifier.Context(
+                merchantName,
+                approval.getResMemberSector(),
+                amount
         );
         String sourceDedupKey = sourceKeyGenerator.forCardApproval(
                 institution.getCodefOrganizationCode(),
                 cardId,
                 approvalNo
         );
-
-        return new AssetSyncDto.Transaction(
+        return new PreparedApproval(
                 userId,
                 cardId,
-                null,
-                "EXPENSE",
-                classification.category(),
-                amount,
+                approvalNo,
                 merchantName,
                 approval.getResMemberName(),
                 approval.getResMemberSector(),
-                approvalNo,
+                amount,
                 transactionDate,
                 transactionTime,
+                context,
+                sourceDedupKey,
+                institution.getCodefOrganizationCode()
+        );
+    }
+
+    private TransactionMapping toTransaction(
+            PreparedApproval approval,
+            ClassificationResolution resolution
+    ) {
+        ExpenseCategoryClassifier.Result classification = resolution.result();
+        AssetSyncDto.Transaction transaction = new AssetSyncDto.Transaction(
+                approval.userId(),
+                approval.cardId(),
+                null,
+                "EXPENSE",
+                classification.category(),
+                approval.amount(),
+                approval.merchantName(),
+                approval.originalMerchantName(),
+                approval.merchantSector(),
+                approval.approvalNo(),
+                approval.transactionDate(),
+                approval.transactionTime(),
                 classification.source(),
                 classification.confidence(),
                 classification.classifierVersion(),
                 SOURCE_TYPE,
-                institution.getCodefOrganizationCode(),
-                approvalNo,
-                sourceDedupKey
+                approval.sourceOrganizationCode(),
+                approval.approvalNo(),
+                approval.sourceDedupKey()
         );
+        return new TransactionMapping(transaction, resolution.reused());
+    }
+
+    private Map<String, ClassificationResolution> resolveClassifications(
+            long userId,
+            Institution institution,
+            List<PreparedApproval> approvals
+    ) {
+        Map<String, ClassificationResolution> resolutions = new HashMap<>();
+        List<ExpenseCategoryClassifier.Context> pendingContexts = new ArrayList<>();
+        for (PreparedApproval approval : approvals) {
+            Optional<ExpenseCategoryClassifier.Result> deterministicClassification =
+                    categoryClassifier.classifyBeforeAi(approval.context());
+            if (deterministicClassification != null && deterministicClassification.isPresent()) {
+                resolutions.put(
+                        approval.sourceDedupKey(),
+                        new ClassificationResolution(deterministicClassification.get(), false)
+                );
+                continue;
+            }
+
+            AssetSyncDto.ExistingClassification existing = assetSyncMapper.findExistingClassification(
+                    userId,
+                    SOURCE_TYPE,
+                    institution.getCodefOrganizationCode(),
+                    approval.sourceDedupKey()
+            );
+            if (isReusable(existing)) {
+                resolutions.put(
+                        approval.sourceDedupKey(),
+                        new ClassificationResolution(
+                                new ExpenseCategoryClassifier.Result(
+                                        existing.getCategory(),
+                                        existing.getCategorySource(),
+                                        existing.getCategoryConfidence(),
+                                        existing.getClassifierVersion()
+                                ),
+                                true
+                        )
+                );
+            } else if (!pendingContexts.contains(approval.context())) {
+                pendingContexts.add(approval.context());
+            }
+        }
+
+        List<ExpenseCategoryClassifier.Result> classified = categoryClassifier.classifyBatch(pendingContexts);
+        for (PreparedApproval approval : approvals) {
+            if (resolutions.containsKey(approval.sourceDedupKey())) {
+                continue;
+            }
+            int contextIndex = pendingContexts.indexOf(approval.context());
+            resolutions.put(
+                    approval.sourceDedupKey(),
+                    new ClassificationResolution(classified.get(contextIndex), false)
+            );
+        }
+        return resolutions;
+    }
+
+    private boolean isReusable(AssetSyncDto.ExistingClassification existing) {
+        return existing != null
+                && existing.getCategory() != null
+                && !existing.getCategory().isBlank()
+                && existing.getCategorySource() != null
+                && !existing.getCategorySource().isBlank()
+                && !"FALLBACK".equals(existing.getCategorySource());
     }
 
     private Long resolveCardId(long connectionId, String cardNumber) {
@@ -225,5 +358,37 @@ public class CardApprovalCollectionService {
 
     private <T> List<T> safeList(List<T> values) {
         return values == null ? Collections.emptyList() : values;
+    }
+
+    private long elapsedMillis(long startedAt) {
+        return (System.nanoTime() - startedAt) / 1_000_000L;
+    }
+
+    private record ClassificationResolution(
+            ExpenseCategoryClassifier.Result result,
+            boolean reused
+    ) {
+    }
+
+    private record TransactionMapping(
+            AssetSyncDto.Transaction transaction,
+            boolean reusedClassification
+    ) {
+    }
+
+    private record PreparedApproval(
+            long userId,
+            Long cardId,
+            String approvalNo,
+            String merchantName,
+            String originalMerchantName,
+            String merchantSector,
+            long amount,
+            LocalDate transactionDate,
+            LocalTime transactionTime,
+            ExpenseCategoryClassifier.Context context,
+            String sourceDedupKey,
+            String sourceOrganizationCode
+    ) {
     }
 }

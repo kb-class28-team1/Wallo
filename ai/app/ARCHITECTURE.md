@@ -28,6 +28,11 @@ app/
 │  ├─ service.py               # 답변 및 제목 생성 흐름
 │  ├─ title_service.py         # 첫 대화의 채팅방 제목 생성
 │  └─ prompts.py               # 제목 생성 프롬프트
+├─ category/
+│  ├─ router.py                # `/api/category` HTTP 요청·응답
+│  ├─ schemas.py               # 카테고리 분류 Pydantic 요청·응답 모델
+│  ├─ service.py               # Groq 호출과 분류 결과 검증
+│  └─ prompts.py               # 단건·배치 분류 프롬프트
 ├─ clients/
 │  ├─ groq_client.py           # Groq 클라이언트 생성
 ├─ core/
@@ -186,6 +191,74 @@ from app.new_feature.router import router as new_feature_router
 app.include_router(new_feature_router)
 ```
 
+### 카테고리 분류 API
+
+카테고리 분류 기능은 `app/category/` 패키지에서 관리한다. Router가 HTTP 요청을
+받고, Service가 Groq 호출과 결과 검증을 수행하며, Pydantic 모델과 프롬프트는 각각
+전용 파일에 둔다.
+
+```text
+app/category/
+├─ __init__.py                # 카테고리 스키마의 호환 import 제공
+├─ router.py                  # `/api/category/classify`와 batch 경로
+├─ schemas.py                 # 요청·응답 모델과 ExpenseCategory
+├─ service.py                 # 단건·배치 분류 흐름, JSON·결과 개수 검증
+└─ prompts.py                 # Groq system/user prompt 생성
+```
+
+현재 제공하는 API는 다음과 같다.
+
+| Method | Path | 역할 |
+| --- | --- | --- |
+| `POST` | `/api/category/classify` | 거래 1건을 카테고리로 분류 |
+| `POST` | `/api/category/classify/batch` | 거래 여러 건을 입력 순서대로 분류 |
+
+단건 요청 예시는 다음과 같다.
+
+```json
+{
+  "merchantName": "우리동네 세탁소",
+  "merchantSector": "기타",
+  "amount": 12000
+}
+```
+
+응답은 `ExpenseCategory`에 정의된 카테고리 코드와 `0`부터 `1` 사이의
+`confidence`를 반환한다.
+
+```json
+{
+  "category": "LIVING",
+  "confidence": 0.9
+}
+```
+
+카테고리 분류의 처리 흐름은 다음과 같다.
+
+1. `router.py`가 요청 형식과 HTTP 응답을 관리한다.
+2. `service.py`가 `clients/groq_client.py`를 통해 Groq를 호출한다.
+3. `prompts.py`의 지침과 거래 정보를 모델에 전달한다.
+4. Groq 응답을 `schemas.py` 모델로 검증한다.
+5. 배치 응답은 입력 건수와 결과 건수가 같은지 추가로 검증한다.
+
+Groq 호출 실패는 다음 기준으로 HTTP 상태 코드로 변환한다.
+
+- `GROQ_API_KEY` 미설정: `503 Service Unavailable`
+- Groq API 오류: `502 Bad Gateway`
+- JSON 형식, 카테고리 코드 또는 결과 건수 오류: `502 Bad Gateway`
+
+카테고리 API는 `application.py`에서 다음과 같이 등록한다.
+
+```python
+from app.category.router import router as category_router
+
+app.include_router(category_router)
+```
+
+카테고리 테스트는 실제 Groq API를 호출하지 않고 `create_groq_client`를 Fake Client로
+대체한다. 경로, 입력 검증, 정상 응답, 배치 순서, AI 오류 상태 코드를
+`tests/test_category.py`에서 확인한다.
+
 ## 테스트 규칙
 
 - 실제 AI API를 호출하지 않고 Mock 또는 Fake Client를 주입한다.
@@ -199,7 +272,7 @@ AI 핵심 테스트 실행 예시:
 
 ```bash
 cd ai
-python -m pytest tests/test_application.py tests/test_chat.py tests/test_financial_report.py
+python -m pytest tests/test_application.py tests/test_chat.py tests/test_category.py tests/test_financial_report.py
 ```
 
 ## 환경변수
