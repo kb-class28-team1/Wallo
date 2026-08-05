@@ -4,7 +4,8 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
-from app.application import CategoryClassification, CategoryClassificationBatch, app
+from app.application import app
+from app.category import CategoryClassification, CategoryClassificationBatch
 
 
 class FakeResponses:
@@ -32,14 +33,14 @@ class CategoryClassificationApiTest(unittest.TestCase):
         )
 
         with patch(
-            "app.application.get_openai_client",
+            "app.category.get_openai_client",
             return_value=fake_client,
         ):
             response = self.client.post(
                 "/api/category/classify",
                 json={
-                    "merchantName": "알 수 없는 생활용품점",
-                    "merchantSector": "기타",
+                    "merchantName": "unknown daily goods",
+                    "merchantSector": "other",
                     "amount": 12000,
                 },
             )
@@ -60,7 +61,7 @@ class CategoryClassificationApiTest(unittest.TestCase):
             "/api/category/classify",
             json={
                 "merchantName": "   ",
-                "merchantSector": "기타",
+                "merchantSector": "other",
                 "amount": 0,
             },
         )
@@ -78,7 +79,7 @@ class CategoryClassificationApiTest(unittest.TestCase):
         )
 
         with patch(
-            "app.application.get_openai_client",
+            "app.category.get_openai_client",
             return_value=fake_client,
         ):
             response = self.client.post(
@@ -107,13 +108,13 @@ class CategoryClassificationApiTest(unittest.TestCase):
         fake_client = FakeOpenAiClient(parsed=None)
 
         with patch(
-            "app.application.get_openai_client",
+            "app.category.get_openai_client",
             return_value=fake_client,
         ):
             response = self.client.post(
                 "/api/category/classify",
                 json={
-                    "merchantName": "분류 불가 상점",
+                    "merchantName": "unknown store",
                     "merchantSector": None,
                     "amount": 1000,
                 },
