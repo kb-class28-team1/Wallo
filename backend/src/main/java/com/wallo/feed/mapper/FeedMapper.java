@@ -2,11 +2,18 @@ package com.wallo.feed.mapper;
 
 import com.wallo.feed.domain.Feed;
 import com.wallo.feed.domain.FeedMessage;
+import com.wallo.feed.dto.FeedDtos.CategoryExpenseAverage;
+import java.time.LocalDate;
 import java.util.List;
 import org.apache.ibatis.annotations.Param;
 
 public interface FeedMapper {
     int isChallengeMember(@Param("userId") Long userId, @Param("challengeId") Long challengeId);
+    CategoryExpenseAverage findCategoryExpenseAverage(
+            @Param("userId") Long userId,
+            @Param("category") String category,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
     String findChallengeName(@Param("challengeId") Long challengeId);
     String findChallengeInviteCode(@Param("challengeId") Long challengeId);
     List<Feed> findFeeds(@Param("challengeId") Long challengeId, @Param("userId") Long userId,
@@ -31,6 +38,7 @@ public interface FeedMapper {
     int insertMessage(@Param("challengeId") Long challengeId, @Param("userId") Long userId,
                       @Param("content") String content, @Param("feedId") Long feedId,
                       @Param("type") String type);
+    FeedMessage findMessageByLastInsertId();
     List<FeedMessage> findMessages(@Param("challengeId") Long challengeId);
     Long sumSavingAmount(@Param("challengeId") Long challengeId, @Param("userId") Long userId);
 }

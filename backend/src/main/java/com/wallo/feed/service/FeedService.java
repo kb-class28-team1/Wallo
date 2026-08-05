@@ -2,20 +2,25 @@ package com.wallo.feed.service;
 
 import com.wallo.feed.analysis.FeedAnalysisClient;
 import com.wallo.feed.domain.Feed;
+import com.wallo.feed.domain.FeedMessage;
 import com.wallo.feed.dto.FeedDtos.AnalysisResponse;
+import com.wallo.feed.dto.FeedDtos.CategoryExpenseAverage;
 import com.wallo.feed.dto.FeedDtos.FeedListResponse;
 import com.wallo.feed.dto.FeedDtos.LikeResponse;
 import com.wallo.feed.dto.FeedDtos.MessageRequest;
 import com.wallo.feed.dto.FeedDtos.RoomResponse;
 import com.wallo.feed.dto.FeedDtos.UpdateFeedRequest;
 import com.wallo.feed.mapper.FeedMapper;
+import com.wallo.feed.websocket.ChallengeChatBroadcaster;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.time.LocalDate;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -26,13 +31,25 @@ public class FeedService {
     private static final Set<String> FEED_CATEGORIES = Set.of(
             "FOOD", "CAFE", "TRANSPORT", "SHOPPING", "DELIVERY",
             "HOUSING", "LIVING", "CULTURE", "HEALTH", "ETC");
+    private static final int PRIMARY_HISTORY_DAYS = 60;
+    private static final int EXTENDED_HISTORY_DAYS = 90;
+    private static final int MINIMUM_HISTORY_TRANSACTIONS = 3;
     private static final long MAX_FILE_SIZE = 50L * 1024 * 1024;
     private final FeedMapper feedMapper;
     private final FeedAnalysisClient analysisClient;
+    private final ChallengeChatBroadcaster chatBroadcaster;
 
+    /** 분석 단위 테스트와 기존 호출부의 호환을 위한 생성자. */
     public FeedService(FeedMapper feedMapper, FeedAnalysisClient analysisClient) {
+        this(feedMapper, analysisClient, null);
+    }
+
+    @Autowired
+    public FeedService(FeedMapper feedMapper, FeedAnalysisClient analysisClient,
+                       ChallengeChatBroadcaster chatBroadcaster) {
         this.feedMapper = feedMapper;
         this.analysisClient = analysisClient;
+        this.chatBroadcaster = chatBroadcaster;
     }
 
     public FeedListResponse getFeeds(Long userId, Long challengeId, boolean mineOnly) {
@@ -56,7 +73,8 @@ public class FeedService {
         requireMember(userId, challengeId);
         String normalizedCategory = normalizeCategory(category);
         validate(media, spendingType, normalizedCategory);
-        return analysisClient.analyze(media, spendingType, normalizedCategory);
+        AnalysisResponse analysis = analysisClient.analyze(media, spendingType, normalizedCategory);
+        return applyCategoryAverageFallback(userId, analysis);
     }
 
     @Transactional
@@ -89,6 +107,7 @@ public class FeedService {
         feedMapper.insertAnalysis(feed.getId(), spendingType, normalizedCategory,
                 feed.getSavingAmount(), analysisSummary, confidenceScore);
         feedMapper.insertFeedShareMessage(challengeId, userId, feed.getId());
+        publishMessageAfterCommit(challengeId, feedMapper.findMessageByLastInsertId());
         return feed;
     }
 
@@ -155,6 +174,13 @@ public class FeedService {
         String type = referenceFeedId == null ? "TEXT" : "REPLY";
         feedMapper.insertMessage(challengeId, userId, content,
                 referenceFeedId, type);
+        publishMessageAfterCommit(challengeId, feedMapper.findMessageByLastInsertId());
+    }
+
+    private void publishMessageAfterCommit(Long challengeId, FeedMessage message) {
+        if (chatBroadcaster != null) {
+            chatBroadcaster.broadcastAfterCommit(challengeId, message);
+        }
     }
 
     private void requireMember(Long userId, Long challengeId) {
@@ -177,6 +203,62 @@ public class FeedService {
 
     private String normalizeCategory(String category) {
         return category == null ? "" : category.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private AnalysisResponse applyCategoryAverageFallback(Long userId, AnalysisResponse analysis) {
+        if (analysis == null
+                || analysis.estimatedSavingAmount() > 0
+                || "SPENT".equals(analysis.spendingType())) {
+            return analysis;
+        }
+
+        LocalDate endDate = LocalDate.now().minusDays(1);
+        CategoryExpenseAverage average = feedMapper.findCategoryExpenseAverage(
+                userId,
+                analysis.category(),
+                endDate.minusDays(PRIMARY_HISTORY_DAYS - 1L),
+                endDate);
+        int historyDays = PRIMARY_HISTORY_DAYS;
+
+        if (!hasEnoughHistory(average)) {
+            average = feedMapper.findCategoryExpenseAverage(
+                    userId,
+                    analysis.category(),
+                    endDate.minusDays(EXTENDED_HISTORY_DAYS - 1L),
+                    endDate);
+            historyDays = EXTENDED_HISTORY_DAYS;
+        }
+
+        if (!hasEnoughHistory(average)) {
+            return analysis;
+        }
+
+        int estimatedAmount = toSavingAmount(average.getAverageAmount());
+        if (estimatedAmount == 0) {
+            return analysis;
+        }
+
+        String summary = appendHistoryFallbackSummary(analysis.summary(), historyDays);
+        return new AnalysisResponse(
+                analysis.spendingType(), analysis.category(), estimatedAmount,
+                summary, analysis.confidenceScore());
+    }
+
+    private boolean hasEnoughHistory(CategoryExpenseAverage average) {
+        return average != null
+                && average.getTransactionCount() >= MINIMUM_HISTORY_TRANSACTIONS
+                && average.getAverageAmount() > 0;
+    }
+
+    private int toSavingAmount(long amount) {
+        return (int) Math.min(Integer.MAX_VALUE, Math.max(0L, amount));
+    }
+
+    private String appendHistoryFallbackSummary(String summary, int historyDays) {
+        String base = blankToNull(summary);
+        String fallback = "AI가 금액을 명확히 판단하지 못해 최근 "
+                + historyDays + "일간 해당 카테고리의 평균 결제 금액으로 추정했어요.";
+        return base == null ? fallback : base + " " + fallback;
     }
 
     private String store(MultipartFile media) {
