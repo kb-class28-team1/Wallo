@@ -43,6 +43,17 @@ class ExpenseCategoryClassifierTest {
     }
 
     @Test
+    void livingServiceKeywordClassifiesBeforeAi() {
+        ExpenseCategoryClassifier.Result result = classifier.classify(
+                new ExpenseCategoryClassifier.Context("우리동네 세탁소", "기타", 18_000L)
+        );
+
+        assertEquals("LIVING", result.category());
+        assertEquals("MERCHANT_KEYWORD", result.source());
+        assertEquals("living-service-keyword-v1", result.classifierVersion());
+    }
+
+    @Test
     void unknownMerchantFallsBackToEtc() {
         ExpenseCategoryClassifier.Result result = classifier.classify(
                 new ExpenseCategoryClassifier.Context("알 수 없는 상점", "미분류")
