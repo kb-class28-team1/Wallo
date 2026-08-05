@@ -4,10 +4,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.wallo.asset.client.AssetReportAiClient;
+import com.wallo.asset.client.AssetReportAiDto;
 import com.wallo.asset.dto.AssetReportDto;
 import com.wallo.asset.mapper.AssetReportMapper;
+import com.wallo.chat.client.AiServerException;
 import com.wallo.common.exception.CustomException;
 import com.wallo.common.exception.ErrorCode;
 import java.time.LocalDate;
@@ -17,7 +21,11 @@ import org.junit.jupiter.api.Test;
 class AssetReportServiceTest {
 
     private final AssetReportMapper assetReportMapper = mock(AssetReportMapper.class);
-    private final AssetReportService assetReportService = new AssetReportService(assetReportMapper);
+    private final AssetReportAiClient assetReportAiClient = mock(AssetReportAiClient.class);
+    private final AssetReportService assetReportService = new AssetReportService(
+            assetReportMapper,
+            assetReportAiClient
+    );
 
     @Test
     void returnsTaxSettlementIncludingCreditAndCheckCardSpending() {
@@ -88,6 +96,15 @@ class AssetReportServiceTest {
                 new AssetReportDto.CategoryExpense("CAFE", 600_000L, 590_000L),
                 new AssetReportDto.CategoryExpense("SHOPPING", 125_000L, 100_000L)
         ));
+        when(assetReportAiClient.generate(new AssetReportAiDto.Request(
+                "CAFE",
+                "카페",
+                600_000L,
+                590_000L
+        ))).thenReturn(new AssetReportAiDto.Response(
+                "카페 지출이 가장 많아요",
+                "이번 달은 카페 지출이 가장 많아요. 이용 횟수를 조금 줄여보는 것도 좋아요."
+        ));
 
         AssetReportDto.Insight insight = assetReportService.getConsumptionInsight(
                 7L,
@@ -96,10 +113,16 @@ class AssetReportServiceTest {
 
         assertEquals("카페 지출이 가장 많아요", insight.getReportTitle());
         assertEquals(
-                "이번 달은 카페 지출이 가장 많아요. 소비 내역을 한 번 확인해 보세요.",
+                "이번 달은 카페 지출이 가장 많아요. 이용 횟수를 조금 줄여보는 것도 좋아요.",
                 insight.getReportContent()
         );
-        assertEquals(AssetReportDto.GenerationMode.RULE, insight.getGenerationMode());
+        assertEquals(AssetReportDto.GenerationMode.AI, insight.getGenerationMode());
+        verify(assetReportAiClient).generate(new AssetReportAiDto.Request(
+                "CAFE",
+                "카페",
+                600_000L,
+                590_000L
+        ));
         verify(assetReportMapper).selectCategoryExpenses(
                 7L,
                 "2026-07-01",
@@ -122,6 +145,15 @@ class AssetReportServiceTest {
                 new AssetReportDto.CategoryExpense("CAFE", 50_000L, 0L),
                 new AssetReportDto.CategoryExpense("SHOPPING", 80_000L, 100_000L)
         ));
+        when(assetReportAiClient.generate(new AssetReportAiDto.Request(
+                "FOOD",
+                "식비",
+                129_000L,
+                100_000L
+        ))).thenReturn(new AssetReportAiDto.Response(
+                "식비 지출이 가장 많아요",
+                "이번 달은 식비 지출이 가장 많아요. 소비 습관을 한 번 확인해 보세요."
+        ));
 
         AssetReportDto.Insight insight = assetReportService.getConsumptionInsight(
                 7L,
@@ -130,10 +162,10 @@ class AssetReportServiceTest {
 
         assertEquals("식비 지출이 가장 많아요", insight.getReportTitle());
         assertEquals(
-                "이번 달은 식비 지출이 가장 많아요. 소비 내역을 한 번 확인해 보세요.",
+                "이번 달은 식비 지출이 가장 많아요. 소비 습관을 한 번 확인해 보세요.",
                 insight.getReportContent()
         );
-        assertEquals(AssetReportDto.GenerationMode.RULE, insight.getGenerationMode());
+        assertEquals(AssetReportDto.GenerationMode.AI, insight.getGenerationMode());
     }
 
     @Test
@@ -150,6 +182,7 @@ class AssetReportServiceTest {
                 insight.getReportContent()
         );
         assertEquals(AssetReportDto.GenerationMode.RULE, insight.getGenerationMode());
+        verifyNoInteractions(assetReportAiClient);
     }
 
     @Test
@@ -177,6 +210,7 @@ class AssetReportServiceTest {
                 insight.getReportContent()
         );
         assertEquals(AssetReportDto.GenerationMode.RULE, insight.getGenerationMode());
+        verifyNoInteractions(assetReportAiClient);
     }
 
     @Test
@@ -191,6 +225,16 @@ class AssetReportServiceTest {
                 new AssetReportDto.CategoryExpense("DELIVERY", 130_000L, 100_000L),
                 new AssetReportDto.CategoryExpense("FOOD", 65_000L, 50_000L)
         ));
+        when(assetReportAiClient.generate(new AssetReportAiDto.Request(
+                "DELIVERY",
+                "배달",
+                130_000L,
+                100_000L
+        ))).thenReturn(new AssetReportAiDto.Response(
+                "배달 지출이 가장 많아요",
+                "이번 달은 배달 지출이 가장 많아요. 지난달 같은 기간보다 30% 늘었어요."
+                        + " 이용 횟수를 한 번 점검해 보세요."
+        ));
 
         AssetReportDto.Insight insight = assetReportService.getConsumptionInsight(
                 7L,
@@ -200,9 +244,41 @@ class AssetReportServiceTest {
         assertEquals("배달 지출이 가장 많아요", insight.getReportTitle());
         assertEquals(
                 "이번 달은 배달 지출이 가장 많아요. 지난달 같은 기간보다 30% 늘었어요."
-                        + " 소비 내역을 한 번 확인해 보세요.",
+                        + " 이용 횟수를 한 번 점검해 보세요.",
                 insight.getReportContent()
         );
-        assertEquals(AssetReportDto.GenerationMode.RULE, insight.getGenerationMode());
+        assertEquals(AssetReportDto.GenerationMode.AI, insight.getGenerationMode());
+    }
+
+    @Test
+    void returnsFallbackWhenAiServerFails() {
+        when(assetReportMapper.selectCategoryExpenses(
+                7L,
+                "2026-07-01",
+                "2026-07-20",
+                "2026-06-01",
+                "2026-06-20"
+        )).thenReturn(Arrays.asList(
+                new AssetReportDto.CategoryExpense("CAFE", 130_000L, 100_000L)
+        ));
+        when(assetReportAiClient.generate(new AssetReportAiDto.Request(
+                "CAFE",
+                "카페",
+                130_000L,
+                100_000L
+        ))).thenThrow(new AiServerException("AI server unavailable"));
+
+        AssetReportDto.Insight insight = assetReportService.getConsumptionInsight(
+                7L,
+                LocalDate.of(2026, 7, 20)
+        );
+
+        assertEquals("소비 리포트를 준비 중이에요", insight.getReportTitle());
+        assertEquals(
+                "현재 소비 내역은 확인했지만 맞춤 분석 문구를 생성하지 못했어요."
+                        + " 잠시 후 다시 시도해 주세요.",
+                insight.getReportContent()
+        );
+        assertEquals(AssetReportDto.GenerationMode.FALLBACK, insight.getGenerationMode());
     }
 }

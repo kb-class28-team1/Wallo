@@ -1,7 +1,10 @@
 package com.wallo.asset.service;
 
+import com.wallo.asset.client.AssetReportAiClient;
+import com.wallo.asset.client.AssetReportAiDto;
 import com.wallo.asset.dto.AssetReportDto;
 import com.wallo.asset.mapper.AssetReportMapper;
+import com.wallo.chat.client.AiServerException;
 import com.wallo.common.exception.CustomException;
 import com.wallo.common.exception.ErrorCode;
 import java.time.LocalDate;
@@ -9,12 +12,13 @@ import java.time.YearMonth;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Logger;
 import org.springframework.stereotype.Service;
 
 @Service
 public class AssetReportService {
 
-    private static final long RAPID_INCREASE_THRESHOLD_PERCENT = 30L;
+    private static final Logger LOGGER = Logger.getLogger(AssetReportService.class.getName());
     private static final String EARLY_MONTH_REPORT_TITLE = "소비 데이터를 모으고 있어요";
     private static final String EARLY_MONTH_REPORT_CONTENT =
             "이번 달 소비 패턴을 분석하려면 조금 더 지출 내역이 필요해요."
@@ -23,6 +27,10 @@ public class AssetReportService {
     private static final String INSUFFICIENT_DATA_REPORT_CONTENT =
             "현재까지의 소비 데이터가 아직 충분하지 않아요."
                     + " 조금 더 지출 내역이 쌓이면 소비 패턴을 분석해드릴게요.";
+    private static final String AI_FALLBACK_REPORT_TITLE = "소비 리포트를 준비 중이에요";
+    private static final String AI_FALLBACK_REPORT_CONTENT =
+            "현재 소비 내역은 확인했지만 맞춤 분석 문구를 생성하지 못했어요."
+                    + " 잠시 후 다시 시도해 주세요.";
     private static final Map<String, String> CATEGORY_LABELS = Map.ofEntries(
             Map.entry("FOOD", "식비"),
             Map.entry("CAFE", "카페"),
@@ -39,9 +47,14 @@ public class AssetReportService {
     );
 
     private final AssetReportMapper assetReportMapper;
+    private final AssetReportAiClient assetReportAiClient;
 
-    public AssetReportService(AssetReportMapper assetReportMapper) {
+    public AssetReportService(
+            AssetReportMapper assetReportMapper,
+            AssetReportAiClient assetReportAiClient
+    ) {
         this.assetReportMapper = assetReportMapper;
+        this.assetReportAiClient = assetReportAiClient;
     }
 
     public AssetReportDto.Insight getConsumptionInsight(long userId) {
@@ -155,6 +168,7 @@ public class AssetReportService {
 
         return new InsightCandidate(
                 expense.normalizedCategory(),
+                previousAmount,
                 currentAmount,
                 currentAmount - previousAmount,
                 increaseRate
@@ -163,25 +177,29 @@ public class AssetReportService {
 
     private AssetReportDto.Insight createInsight(InsightCandidate candidate) {
         String categoryLabel = CATEGORY_LABELS.getOrDefault(candidate.category, "기타");
-        long roundedIncreaseRate = Math.round(candidate.increaseRate);
-        String title = String.format("%s 지출이 가장 많아요", categoryLabel);
-        String content = candidate.increaseRate >= RAPID_INCREASE_THRESHOLD_PERCENT
-                ? String.format(
-                        "이번 달은 %s 지출이 가장 많아요. 지난달 같은 기간보다 %d%% 늘었어요."
-                                + " 소비 내역을 한 번 확인해 보세요.",
-                        categoryLabel,
-                        roundedIncreaseRate
-                )
-                : String.format(
-                        "이번 달은 %s 지출이 가장 많아요. 소비 내역을 한 번 확인해 보세요.",
-                        categoryLabel
-                );
-
-        return new AssetReportDto.Insight(
-                title,
-                content,
-                AssetReportDto.GenerationMode.RULE
+        AssetReportAiDto.Request request = new AssetReportAiDto.Request(
+                candidate.category,
+                categoryLabel,
+                candidate.currentAmount,
+                candidate.previousAmount
         );
+
+        try {
+            AssetReportAiDto.Response response = assetReportAiClient.generate(request);
+            return new AssetReportDto.Insight(
+                    response.reportTitle(),
+                    response.reportContent(),
+                    AssetReportDto.GenerationMode.AI
+            );
+        } catch (AiServerException exception) {
+            LOGGER.warning("AI consumption insight failed; using fallback response. type="
+                    + exception.getClass().getSimpleName());
+            return new AssetReportDto.Insight(
+                    AI_FALLBACK_REPORT_TITLE,
+                    AI_FALLBACK_REPORT_CONTENT,
+                    AssetReportDto.GenerationMode.FALLBACK
+            );
+        }
     }
 
     private List<AssetReportDto.CategoryExpense> values(
@@ -193,17 +211,20 @@ public class AssetReportService {
     private static class InsightCandidate {
 
         private final String category;
+        private final long previousAmount;
         private final long currentAmount;
         private final long increaseAmount;
         private final double increaseRate;
 
         private InsightCandidate(
                 String category,
+                long previousAmount,
                 long currentAmount,
                 long increaseAmount,
                 double increaseRate
         ) {
             this.category = category;
+            this.previousAmount = previousAmount;
             this.currentAmount = currentAmount;
             this.increaseAmount = increaseAmount;
             this.increaseRate = increaseRate;
