@@ -13,6 +13,10 @@ USE wallo;
 SET FOREIGN_KEY_CHECKS = 0;
 
 DROP VIEW IF EXISTS V_WEEKLY_RANKING;
+DROP TABLE IF EXISTS NEWS_TERM;
+DROP TABLE IF EXISTS NEWS_REPORT;
+DROP TABLE IF EXISTS NEWS;
+DROP TABLE IF EXISTS FINANCIAL_TERM;
 DROP TABLE IF EXISTS CHAT_MESSAGES;
 DROP TABLE IF EXISTS CONVERSATIONS;
 DROP TABLE IF EXISTS MESSAGE;
@@ -341,6 +345,54 @@ CREATE TABLE MESSAGE (
 
 
 -- =============================================================================
+CREATE TABLE news (
+    news_id      BIGINT AUTO_INCREMENT PRIMARY KEY,
+    title        VARCHAR(500) NOT NULL,
+    content      LONGTEXT NOT NULL,
+    source       VARCHAR(100) NOT NULL,
+    url          VARCHAR(500) NOT NULL,
+    category     VARCHAR(50) NOT NULL,
+    published_at DATETIME NOT NULL,
+    created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at   DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_news_url (url)
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE financial_term (
+    term_id     BIGINT AUTO_INCREMENT PRIMARY KEY,
+    term_name   VARCHAR(100) NOT NULL UNIQUE,
+    description TEXT NOT NULL,
+    source      VARCHAR(100),
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE news_report (
+    report_id         BIGINT AUTO_INCREMENT PRIMARY KEY,
+    news_id           BIGINT NOT NULL UNIQUE,
+    summary           TEXT NOT NULL,
+    event_description TEXT,
+    cause             TEXT,
+    social_impact     TEXT,
+    user_impact       TEXT,
+    response_strategy TEXT,
+    created_at        DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at        DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE news_term (
+    news_id BIGINT NOT NULL,
+    term_id BIGINT NOT NULL,
+    PRIMARY KEY (news_id, term_id)
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_0900_ai_ci;
+
 -- 3. CREATE VIEWS
 -- =============================================================================
 
@@ -494,6 +546,16 @@ ALTER TABLE MESSAGE
 
 
 -- =============================================================================
+ALTER TABLE news_report
+    ADD CONSTRAINT fk_news_report_news
+        FOREIGN KEY (news_id) REFERENCES news(news_id);
+
+ALTER TABLE news_term
+    ADD CONSTRAINT fk_news_term_news
+        FOREIGN KEY (news_id) REFERENCES news(news_id),
+    ADD CONSTRAINT fk_news_term_term
+        FOREIGN KEY (term_id) REFERENCES financial_term(term_id);
+
 -- 5. INSERT DATA (Seed & Demo Data)
 -- =============================================================================
 
