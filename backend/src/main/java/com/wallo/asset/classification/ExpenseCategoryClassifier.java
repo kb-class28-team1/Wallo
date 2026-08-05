@@ -13,6 +13,10 @@ public class ExpenseCategoryClassifier {
 
     public record Context(String merchantName, String merchantSector, long amount) {
 
+        public Context {
+            merchantName = MerchantNamePreprocessor.preprocess(merchantName);
+        }
+
         public Context(String merchantName, String merchantSector) {
             this(merchantName, merchantSector, 0L);
         }

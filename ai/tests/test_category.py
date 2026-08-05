@@ -66,11 +66,8 @@ class CategoryClassificationApiTest(unittest.TestCase):
             "openai/gpt-oss-20b",
         )
         self.assertEqual(
-            fake_client.chat.completions.kwargs["response_format"]["type"],
-            "json_schema",
-        )
-        self.assertTrue(
-            fake_client.chat.completions.kwargs["response_format"]["json_schema"]["strict"]
+            fake_client.chat.completions.kwargs["response_format"],
+            {"type": "json_object"},
         )
 
     def test_rejects_invalid_request(self):

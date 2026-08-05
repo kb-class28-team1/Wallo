@@ -142,7 +142,7 @@ class BankTransactionCollectionServiceTest {
 
         ArgumentCaptor<List> contextCaptor = ArgumentCaptor.forClass(List.class);
         verify(categoryClassifier).classifyBatch(contextCaptor.capture());
-        assertEquals("신한 편의점", ((ExpenseCategoryClassifier.Context) contextCaptor.getValue().get(0)).merchantName());
+        assertEquals("편의점", ((ExpenseCategoryClassifier.Context) contextCaptor.getValue().get(0)).merchantName());
         assertEquals(12_000L, ((ExpenseCategoryClassifier.Context) contextCaptor.getValue().get(0)).amount());
     }
 

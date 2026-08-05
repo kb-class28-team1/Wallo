@@ -37,6 +37,8 @@ class ExpenseCategoryClassifierTest {
         assertEquals("FOOD", classify("동네식당", "요식/음료"));
         assertEquals("TRANSPORT", classify("SK에너지", "주유"));
         assertEquals("SHOPPING", classify("무신사", "온라인쇼핑"));
+        assertEquals("SHOPPING", classify("편의점", "편의점"));
+        assertEquals("CULTURE", classify("서점", "서점"));
         assertEquals("HOUSING", classify("통신요금", "통신"));
     }
 

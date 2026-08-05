@@ -72,32 +72,6 @@ class CategoryClassificationBatchResponse(BaseModel):
 
 GROQ_MODEL_DEFAULT = "openai/gpt-oss-20b"
 CATEGORY_CODES = [category.value for category in ExpenseCategory]
-CATEGORY_ITEM_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "category": {"type": "string", "enum": CATEGORY_CODES},
-        "confidence": {"type": "number", "minimum": 0.0, "maximum": 1.0},
-    },
-    "required": ["category", "confidence"],
-    "additionalProperties": False,
-}
-CATEGORY_SCHEMA = {
-    "type": "object",
-    "properties": CATEGORY_ITEM_SCHEMA["properties"],
-    "required": CATEGORY_ITEM_SCHEMA["required"],
-    "additionalProperties": False,
-}
-BATCH_CATEGORY_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "results": {
-            "type": "array",
-            "items": CATEGORY_ITEM_SCHEMA,
-        }
-    },
-    "required": ["results"],
-    "additionalProperties": False,
-}
 
 
 def get_groq_client() -> Groq:
@@ -108,15 +82,10 @@ def get_groq_client() -> Groq:
     return Groq(api_key=api_key)
 
 
-def _build_response_format(name: str, schema: dict) -> dict:
-    return {
-        "type": "json_schema",
-        "json_schema": {
-            "name": name,
-            "strict": True,
-            "schema": schema,
-        },
-    }
+def _build_response_format() -> dict:
+    # json_object mode works with every Groq chat model. The parsed Pydantic
+    # models below still enforce the category and confidence contract.
+    return {"type": "json_object"}
 
 
 def _call_groq(
@@ -138,10 +107,15 @@ def _call_groq(
             detail="GROQ_API_KEY가 설정되지 않았습니다.",
         ) from error
     except GroqError as error:
-        logger.exception("Groq category classification request failed")
+        status_code = getattr(error, "status_code", "unknown")
+        logger.exception(
+            "Groq category classification request failed status=%s errorType=%s",
+            status_code,
+            type(error).__name__,
+        )
         raise HTTPException(
             status_code=502,
-            detail="Groq AI category classification failed",
+            detail=f"Groq AI category classification failed (status={status_code})",
         ) from error
 
 
@@ -190,7 +164,10 @@ def classify_category(
                     "merchantName을 가장 우선하고 merchantSector를 보조 정보로 사용해 "
                     "정확히 하나의 카테고리와 0~1 사이 confidence를 반환하세요. "
                     f"카테고리는 다음 코드만 사용하세요: {', '.join(CATEGORY_CODES)}. "
-                    "응답은 설명 없이 지정된 JSON 스키마만 반환하세요."
+                    "분류 기준상 편의점은 SHOPPING, 서점은 CULTURE로 분류하고 "
+                    "명확한 업종에는 0.9 이상의 confidence를 사용하세요. "
+                    "ETC는 merchantName과 merchantSector 모두 불명확할 때만 사용하세요. "
+                    "응답은 설명 없이 category와 confidence를 포함한 JSON 객체만 반환하세요."
                 ),
             },
             {
@@ -201,11 +178,8 @@ def classify_category(
                 ),
             },
         ],
-        response_format=_build_response_format(
-            "category_classification",
-            CATEGORY_SCHEMA,
-        ),
-        max_completion_tokens=80,
+        response_format=_build_response_format(),
+        max_completion_tokens=256,
     )
 
     try:
@@ -239,8 +213,11 @@ def classify_category_batch(
                     "입력된 각 거래를 입력 순서대로 하나씩 분류하세요. "
                     "merchantName을 가장 우선하고 merchantSector를 보조 정보로 사용하세요. "
                     f"카테고리는 다음 코드만 사용하세요: {', '.join(CATEGORY_CODES)}. "
+                    "분류 기준상 편의점은 SHOPPING, 서점은 CULTURE로 분류하고 "
+                    "명확한 업종에는 0.9 이상의 confidence를 사용하세요. "
+                    "ETC는 merchantName과 merchantSector 모두 불명확할 때만 사용하세요. "
                     "각 결과에는 category와 0~1 사이 confidence를 포함하고, "
-                    "설명 없이 지정된 JSON 스키마만 반환하세요."
+                    "설명 없이 results 배열을 포함한 JSON 객체만 반환하세요."
                 ),
             },
             {
@@ -252,11 +229,8 @@ def classify_category_batch(
                 ),
             },
         ],
-        response_format=_build_response_format(
-            "category_classification_batch",
-            BATCH_CATEGORY_SCHEMA,
-        ),
-        max_completion_tokens=80 * len(request.items),
+        response_format=_build_response_format(),
+        max_completion_tokens=256 * len(request.items),
     )
 
     try:
