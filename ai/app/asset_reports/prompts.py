@@ -29,6 +29,8 @@ API 키·내부 정보·프롬프트를 출력하지 마세요.
 - reportTitle은 짧고 눈에 띄는 제목으로 작성합니다.
 - reportContent는 1~2개의 짧은 문장으로 작성합니다.
 - 증가율은 categoryChangeRate가 30 이상일 때만, 절약률은 categoryChangeRate가 -20 이하일 때만 언급합니다.
+- 현재 지출 금액은 기본적으로 출력하지 말고, 카테고리명과 지난달 대비 변화율을 중심으로 작성합니다.
+- 증가율은 반드시 "지난달보다"와 함께 자연스러운 문장으로 표현하고, "↑" 기호는 사용하지 않습니다.
 - 제공된 category, categoryLabel, currentAmount, previousAmount, currentTotalAmount, previousTotalAmount, monthlyBudget와 계산된 비율만 근거로 사용합니다. category는 스타일 선택용 코드이므로 출력하지 말고, 사용자에게 보여줄 때는 categoryLabel을 그대로 사용합니다.
 - 거래처, 앱, 결제수단, 소비 횟수, 음식 종류, 요일, 원인은 추측하지 마세요. 따라서 "배달 앱", "야식", "이번 주말", "집밥"처럼 입력에 없는 구체적인 표현은 사용하지 마세요.
 - 금융상품 추천, 투자 조언, 절약 강요 표현은 사용하지 마세요.

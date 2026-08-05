@@ -8,7 +8,10 @@ from groq import GroqError
 from pydantic import ValidationError
 
 from app.application import app
-from app.asset_reports.prompts import build_consumption_insight_input
+from app.asset_reports.prompts import (
+    CONSUMPTION_INSIGHT_INSTRUCTIONS,
+    build_consumption_insight_input,
+)
 from app.asset_reports.router import generate_consumption_insight_report
 from app.asset_reports.schemas import (
     ConsumptionInsightGenerateRequest,
@@ -105,6 +108,9 @@ def test_prompt_contains_only_aggregated_spending_data_and_derived_rate():
     assert '"monthlyBudget": 700000' in prompt
     assert '"categoryChangeRate": 50.0' in prompt
     assert '"totalChangeRate": -16.7' in prompt
+    assert "현재 지출 금액은 기본적으로 출력하지 말고" in CONSUMPTION_INSIGHT_INSTRUCTIONS
+    assert '증가율은 반드시 "지난달보다"와 함께' in CONSUMPTION_INSIGHT_INSTRUCTIONS
+    assert '"↑" 기호는 사용하지 않습니다' in CONSUMPTION_INSIGHT_INSTRUCTIONS
     assert "merchantName" not in prompt
 
 

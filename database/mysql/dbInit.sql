@@ -71,6 +71,8 @@ CREATE TABLE CONVERSATIONS (
                                conversation_id BIGINT AUTO_INCREMENT PRIMARY KEY,
                                user_id BIGINT NOT NULL,
                                title VARCHAR(100) NOT NULL DEFAULT '새 채팅',
+                               summary TEXT NULL,
+                               summarized_message_id BIGINT NULL,
                                status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
                                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
