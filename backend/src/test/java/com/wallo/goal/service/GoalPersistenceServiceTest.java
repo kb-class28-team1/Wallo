@@ -3,6 +3,7 @@ package com.wallo.goal.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -100,6 +101,23 @@ class GoalPersistenceServiceTest {
         assertEquals("유럽 여행 자금", goal.getTitle());
         assertEquals(10_000_000L, goal.getTargetAmount());
         assertEquals("ACTIVE", goal.getStatus());
+        verify(goalMapper).completeSession(31L, "COMPLETED");
+    }
+
+    @Test
+    void motivationAndPriorityDoNotBlockGoalConfirmation() {
+        when(goalMapper.findActiveSession(7L, 11L)).thenReturn(activeSession(31L));
+        when(goalMapper.completeSession(31L, "COMPLETED")).thenReturn(1);
+        GoalInterviewDto.Draft draft = draft(true);
+        draft.setMotivation(null);
+        draft.setPriority(null);
+
+        service.applyResult(7L, 11L, result(GoalInterviewDto.Action.CONFIRM, draft));
+
+        ArgumentCaptor<FinancialGoal> captor = ArgumentCaptor.forClass(FinancialGoal.class);
+        verify(goalMapper).insertGoal(captor.capture());
+        assertNull(captor.getValue().getMotivation());
+        assertNull(captor.getValue().getPriority());
         verify(goalMapper).completeSession(31L, "COMPLETED");
     }
 

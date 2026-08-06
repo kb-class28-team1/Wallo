@@ -59,7 +59,11 @@ class ChatService:
                     draft=cancelled,
                 ),
             )
-        if draft.state == InterviewState.CONFIRMATION and self._is_confirmation(
+        if draft.state in {
+            InterviewState.CONFIRMATION,
+            InterviewState.REVIEW,
+            InterviewState.FEASIBILITY_REVIEW,
+        } and self._is_confirmation(
             normalized_message,
         ):
             confirmed = draft.model_copy(

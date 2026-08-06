@@ -1,7 +1,7 @@
 import logging
 
 from fastapi import APIRouter, HTTPException
-from groq import GroqError
+from groq import GroqError, RateLimitError
 
 from app.chat.schemas import (
     ChatRequest,
@@ -16,6 +16,21 @@ from app.clients.groq_client import create_groq_client
 logger = logging.getLogger("wallo_ai")
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
+RATE_LIMIT_MESSAGE = (
+    "현재 AI 사용량 한도에 도달했습니다. 잠시 후 다시 시도해 주세요."
+)
+
+
+def raise_rate_limit(error: RateLimitError, operation: str) -> None:
+    logger.warning("Groq rate limit reached while %s", operation)
+    retry_after = error.response.headers.get("retry-after")
+    headers = {"Retry-After": retry_after} if retry_after else None
+    raise HTTPException(
+        status_code=429,
+        detail=RATE_LIMIT_MESSAGE,
+        headers=headers,
+    ) from error
+
 
 @router.post("", response_model=ChatResponse)
 def chat(request: ChatRequest) -> ChatResponse:
@@ -23,6 +38,8 @@ def chat(request: ChatRequest) -> ChatResponse:
         return ChatService(create_groq_client()).chat(request)
     except RuntimeError as error:
         raise HTTPException(status_code=503, detail=str(error)) from error
+    except RateLimitError as error:
+        raise_rate_limit(error, "generating chat response")
     except GroqError as error:
         logger.exception("Groq API request failed")
         raise HTTPException(status_code=502, detail="Groq AI 응답을 생성하지 못했습니다.") from error
@@ -35,6 +52,8 @@ def summarize(request: SummarizeConversationRequest) -> SummarizeConversationRes
         return SummarizeConversationResponse(summary=summary)
     except RuntimeError as error:
         raise HTTPException(status_code=503, detail=str(error)) from error
+    except RateLimitError as error:
+        raise_rate_limit(error, "summarizing conversation")
     except GroqError as error:
         logger.exception("Groq conversation summarization failed")
         raise HTTPException(status_code=502, detail="대화 요약을 생성하지 못했습니다.") from error

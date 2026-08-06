@@ -32,8 +32,8 @@ CREATE TABLE IF NOT EXISTS FINANCIAL_GOALS (
     goal_type VARCHAR(30) NOT NULL,
     target_amount BIGINT NOT NULL,
     target_date DATE NOT NULL,
-    motivation VARCHAR(500) NOT NULL,
-    priority VARCHAR(20) NOT NULL,
+    motivation VARCHAR(500) NULL,
+    priority VARCHAR(20) NULL,
     initial_amount BIGINT NOT NULL DEFAULT 0,
     monthly_contribution BIGINT NOT NULL DEFAULT 0,
     status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
@@ -50,3 +50,7 @@ CREATE TABLE IF NOT EXISTS FINANCIAL_GOALS (
 -- 기존 로컬 DB는 생성 시점에 따라 부모 테이블의 엔진이나 외래 키 메타데이터가
 -- 다를 수 있다. 이 마이그레이션은 데이터 보존을 우선하여 테이블과 인덱스만
 -- 추가한다. 깨끗한 초기화 환경에서는 dbInit.sql이 모든 외래 키를 구성한다.
+
+ALTER TABLE FINANCIAL_GOALS
+    MODIFY motivation VARCHAR(500) NULL,
+    MODIFY priority VARCHAR(20) NULL;

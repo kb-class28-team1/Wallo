@@ -1,11 +1,14 @@
 package com.wallo.chat.client;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wallo.chat.dto.ChatRequest;
 import com.wallo.chat.dto.ChatResponse;
 import com.wallo.chat.dto.SummarizeConversationRequest;
 import com.wallo.chat.dto.SummarizeConversationResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.ResourceAccessException;
@@ -22,17 +25,29 @@ public class PythonAiClient {
     private final URI chatUri;
     private final URI summarizeUri;
 
-    public PythonAiClient() {
+    @Autowired
+    public PythonAiClient(ObjectMapper objectMapper) {
+        this(createRestTemplate(objectMapper), System.getenv()
+                .getOrDefault("AI_SERVER_URL", DEFAULT_AI_SERVER_URL));
+    }
+
+    PythonAiClient(RestTemplate restTemplate, String serverUrl) {
+        this.restTemplate = restTemplate;
+        this.chatUri = URI.create(removeTrailingSlash(serverUrl) + "/api/chat");
+        this.summarizeUri = URI.create(removeTrailingSlash(serverUrl) + "/api/chat/summarize");
+    }
+
+    static RestTemplate createRestTemplate(ObjectMapper objectMapper) {
         SimpleClientHttpRequestFactory requestFactory =
                 new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(5_000);
         requestFactory.setReadTimeout(90_000);
-        this.restTemplate = new RestTemplate(requestFactory);
-
-        String serverUrl = System.getenv()
-                .getOrDefault("AI_SERVER_URL", DEFAULT_AI_SERVER_URL);
-        this.chatUri = URI.create(removeTrailingSlash(serverUrl) + "/api/chat");
-        this.summarizeUri = URI.create(removeTrailingSlash(serverUrl) + "/api/chat/summarize");
+        RestTemplate restTemplate = new RestTemplate(requestFactory);
+        restTemplate.getMessageConverters().stream()
+                .filter(MappingJackson2HttpMessageConverter.class::isInstance)
+                .map(MappingJackson2HttpMessageConverter.class::cast)
+                .forEach(converter -> converter.setObjectMapper(objectMapper));
+        return restTemplate;
     }
 
     public SummarizeConversationResponse summarize(SummarizeConversationRequest request) {
@@ -46,6 +61,9 @@ public class PythonAiClient {
             }
             return response.getBody();
         } catch (HttpStatusCodeException exception) {
+            if (exception.getRawStatusCode() == 429) {
+                throw rateLimitException(exception);
+            }
             throw new AiServerException(
                     "AI 서버가 대화 요약에 실패했습니다. 상태 코드: "
                             + exception.getRawStatusCode(), exception);
@@ -69,6 +87,9 @@ public class PythonAiClient {
             }
             return response.getBody();
         } catch (HttpStatusCodeException exception) {
+            if (exception.getRawStatusCode() == 429) {
+                throw rateLimitException(exception);
+            }
             throw new AiServerException(
                     "AI 서버가 요청 처리에 실패했습니다. 상태 코드: "
                             + exception.getRawStatusCode()
@@ -83,9 +104,18 @@ public class PythonAiClient {
         }
     }
 
-    private String removeTrailingSlash(String value) {
+    private static String removeTrailingSlash(String value) {
         return value.endsWith("/")
                 ? value.substring(0, value.length() - 1)
                 : value;
+    }
+
+    private AiRateLimitException rateLimitException(
+            HttpStatusCodeException exception
+    ) {
+        return new AiRateLimitException(
+                "현재 AI 사용량 한도에 도달했습니다. 잠시 후 다시 시도해 주세요.",
+                exception
+        );
     }
 }

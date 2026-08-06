@@ -1,6 +1,7 @@
 package com.wallo.common;
 
 import com.wallo.chat.client.AiServerException;
+import com.wallo.chat.client.AiRateLimitException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.core.Ordered;
@@ -16,6 +17,14 @@ public class ApiExceptionHandler {
             IllegalArgumentException exception
     ) {
         return ResponseEntity.badRequest()
+                .body(new ErrorResponse(exception.getMessage()));
+    }
+
+    @ExceptionHandler(AiRateLimitException.class)
+    public ResponseEntity<ErrorResponse> handleAiRateLimit(
+            AiRateLimitException exception
+    ) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                 .body(new ErrorResponse(exception.getMessage()));
     }
 

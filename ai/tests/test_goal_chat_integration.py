@@ -40,15 +40,21 @@ def test_financial_goal_tool_starts_structured_goal_interview():
             arguments=json.dumps({"request": "여행 목표를 세우고 싶어"}),
         )
     )
-    client.chat.completions.create.side_effect = [
-        completion(SimpleNamespace(content=None, tool_calls=[goal_tool_call])),
-        completion(SimpleNamespace(
-            content=json.dumps({
+    extraction_tool_call = SimpleNamespace(
+        function=SimpleNamespace(
+            name="extract_financial_goal",
+            arguments=json.dumps({
                 "title": "유럽 여행 자금",
                 "goal_type": "TRAVEL",
                 "target_amount": 8_000_000,
             }, ensure_ascii=False),
-            tool_calls=None,
+        )
+    )
+    client.chat.completions.create.side_effect = [
+        completion(SimpleNamespace(content=None, tool_calls=[goal_tool_call])),
+        completion(SimpleNamespace(
+            content=None,
+            tool_calls=[extraction_tool_call],
         )),
     ]
 
@@ -60,8 +66,40 @@ def test_financial_goal_tool_starts_structured_goal_interview():
     assert response.goal_interview.action == GoalInterviewAction.CONTINUE
     assert response.goal_interview.active is True
     assert response.goal_interview.draft.goal_type == GoalType.TRAVEL
-    assert response.answer == "언제까지 이 목표를 달성하고 싶으세요?"
+    assert response.answer == "유럽 여행 자금을 언제까지 마련하고 싶으세요?"
     assert client.chat.completions.create.call_count == 2
+
+
+def test_natural_emergency_goal_reaches_review_even_when_model_extraction_fails():
+    client = Mock()
+    routing_call = SimpleNamespace(
+        function=SimpleNamespace(
+            name="set_financial_goal",
+            arguments='{"request":"비상금 목표"}',
+        )
+    )
+    invalid_extraction_call = SimpleNamespace(
+        function=SimpleNamespace(
+            name="extract_financial_goal",
+            arguments="invalid-json",
+        )
+    )
+    client.chat.completions.create.side_effect = [
+        completion(SimpleNamespace(content=None, tool_calls=[routing_call])),
+        completion(SimpleNamespace(content=None, tool_calls=[invalid_extraction_call])),
+        completion(SimpleNamespace(content=None, tool_calls=[invalid_extraction_call])),
+    ]
+
+    response = ChatService(client).chat(ChatRequest(message=(
+        "내년 11월까지 비상금 1000만 원을 모으고 싶고, "
+        "현재 200만 원이 있으며 매달 50만 원씩 저축할 수 있어"
+    )))
+
+    assert response.goal_interview is not None
+    assert response.goal_interview.draft.title == "비상금 마련"
+    assert response.goal_interview.draft.state == InterviewState.CONFIRMATION
+    assert response.goal_interview.draft.missing_fields == []
+    assert "현재 계획으로 확정" in response.answer
 
 
 def test_active_confirmation_is_confirmed_without_another_llm_call():

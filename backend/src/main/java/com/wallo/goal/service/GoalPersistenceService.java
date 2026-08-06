@@ -130,8 +130,6 @@ public class GoalPersistenceService {
                 || draft.getTargetAmount() == null
                 || draft.getTargetAmount() <= 0
                 || draft.getTargetDate() == null
-                || blank(draft.getMotivation())
-                || blank(draft.getPriority())
                 || draft.getCurrentAmount() == null
                 || draft.getCurrentAmount() < 0
                 || draft.getMonthlyContribution() == null

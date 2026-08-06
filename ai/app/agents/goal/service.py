@@ -10,17 +10,14 @@ from app.agents.goal.models import (
     GoalExtraction,
     GoalField,
     GoalInterviewResult,
+    GoalType,
     InterviewState,
 )
 
 
-REQUIRED_FIELD_ORDER = (
-    GoalField.TITLE,
-    GoalField.GOAL_TYPE,
+PLANNING_FIELD_ORDER = (
     GoalField.TARGET_AMOUNT,
     GoalField.TARGET_DATE,
-    GoalField.MOTIVATION,
-    GoalField.PRIORITY,
     GoalField.CURRENT_AMOUNT,
     GoalField.MONTHLY_CONTRIBUTION,
 )
@@ -34,6 +31,19 @@ FIELD_ATTRIBUTE = {
     GoalField.PRIORITY: "priority",
     GoalField.CURRENT_AMOUNT: "current_amount",
     GoalField.MONTHLY_CONTRIBUTION: "monthly_contribution",
+}
+
+DEFAULT_TITLE_BY_GOAL_TYPE = {
+    GoalType.EMERGENCY_FUND: "비상금 마련",
+    GoalType.TRAVEL: "여행 자금 마련",
+    GoalType.HOUSING: "주거 자금 마련",
+    GoalType.EDUCATION: "교육 자금 마련",
+    GoalType.MARRIAGE: "결혼 자금 마련",
+    GoalType.DEBT_REPAYMENT: "부채 상환",
+    GoalType.INVESTMENT: "투자 자금 마련",
+    GoalType.RETIREMENT: "은퇴 자금 마련",
+    GoalType.PURCHASE: "구매 자금 마련",
+    GoalType.OTHER: "재무 목표 마련",
 }
 
 
@@ -71,6 +81,7 @@ class GoalInterviewService:
                 ),
             )
         updated = merge_goal_draft(current_draft, extraction)
+        updated = apply_goal_defaults(updated)
         missing_fields = find_missing_fields(updated)
         updated = GoalDraft.model_validate({
             **updated.model_dump(),
@@ -79,14 +90,20 @@ class GoalInterviewService:
         })
 
         if missing_fields:
+            next_field = choose_next_field(missing_fields, extraction)
             return GoalInterviewResult(
                 draft=updated,
-                next_question=question_for(missing_fields[0], financial_context),
+                next_question=next_question_for(
+                    next_field,
+                    extraction,
+                    updated,
+                    financial_context,
+                ),
             )
 
         feasibility = calculate_feasibility(updated, today)
         state = (
-            InterviewState.FEASIBILITY_REVIEW
+            InterviewState.REVIEW
             if feasibility.status == FeasibilityStatus.ADJUSTMENT_REQUIRED
             else InterviewState.CONFIRMATION
         )
@@ -104,7 +121,7 @@ class GoalInterviewService:
 def merge_goal_draft(draft: GoalDraft, extraction: GoalExtraction) -> GoalDraft:
     updates = extraction.model_dump(
         exclude_none=True,
-        exclude={"assumptions"},
+        exclude={"assumptions", "next_field", "next_question"},
     )
     assumptions = list(dict.fromkeys([
         *draft.assumptions,
@@ -117,46 +134,66 @@ def merge_goal_draft(draft: GoalDraft, extraction: GoalExtraction) -> GoalDraft:
     })
 
 
+def apply_goal_defaults(draft: GoalDraft) -> GoalDraft:
+    updates = {}
+    if draft.goal_type is None and draft.title is not None:
+        updates["goal_type"] = GoalType.OTHER
+    if draft.title is None and draft.goal_type is not None:
+        updates["title"] = DEFAULT_TITLE_BY_GOAL_TYPE[draft.goal_type]
+    return draft.model_copy(update=updates) if updates else draft
+
+
 def find_missing_fields(draft: GoalDraft) -> list[GoalField]:
-    return [
+    missing = []
+    if draft.title is None and draft.goal_type is None:
+        missing.append(GoalField.GOAL_TYPE)
+    missing.extend([
         field
-        for field in REQUIRED_FIELD_ORDER
+        for field in PLANNING_FIELD_ORDER
         if getattr(draft, FIELD_ATTRIBUTE[field]) is None
-    ]
+    ])
+    return missing
 
 
 def interview_state_for(missing_fields: list[GoalField]) -> InterviewState:
-    if not missing_fields:
-        return InterviewState.FEASIBILITY_REVIEW
-    next_field = missing_fields[0]
-    if next_field in {GoalField.TITLE, GoalField.GOAL_TYPE}:
-        return InterviewState.DISCOVERY
-    if next_field in {
-        GoalField.TARGET_AMOUNT,
-        GoalField.TARGET_DATE,
-        GoalField.MOTIVATION,
-        GoalField.PRIORITY,
-    }:
-        return InterviewState.DETAILING
-    return InterviewState.FINANCIAL_CHECK
+    return InterviewState.ACTIVE if missing_fields else InterviewState.REVIEW
+
+
+def choose_next_field(
+    missing_fields: list[GoalField],
+    extraction: GoalExtraction,
+) -> GoalField:
+    if extraction.next_field in missing_fields:
+        return extraction.next_field
+    return missing_fields[0]
+
+
+def next_question_for(
+    field: GoalField,
+    extraction: GoalExtraction,
+    draft: GoalDraft,
+    financial_context: FinancialContext | None,
+) -> str:
+    if extraction.next_field == field and extraction.next_question:
+        return extraction.next_question
+    return question_for(field, financial_context, draft)
 
 
 def question_for(
     field: GoalField,
     financial_context: FinancialContext | None = None,
+    draft: GoalDraft | None = None,
 ) -> str:
+    goal_name = draft.title if draft and draft.title else "이 목표"
     questions = {
-        GoalField.TITLE: "달성하고 싶은 금융 목표를 구체적으로 알려주세요.",
-        GoalField.GOAL_TYPE: "이 목표는 여행, 주거, 비상금, 부채 상환 등 어떤 유형인가요?",
-        GoalField.TARGET_AMOUNT: "이 목표를 이루려면 총 얼마가 필요할까요?",
-        GoalField.TARGET_DATE: "언제까지 이 목표를 달성하고 싶으세요?",
-        GoalField.MOTIVATION: "이 목표가 지금 중요한 이유는 무엇인가요?",
-        GoalField.PRIORITY: "다른 재무 계획과 비교했을 때 이 목표의 우선순위는 어느 정도인가요?",
-        GoalField.MONTHLY_CONTRIBUTION: "이 목표를 위해 매달 부담 없이 마련할 수 있는 금액은 얼마인가요?",
+        GoalField.GOAL_TYPE: "어떤 상황이나 계획을 위해 돈을 마련하고 싶으세요?",
+        GoalField.TARGET_AMOUNT: f"{goal_name}에 필요한 금액은 어느 정도인가요?",
+        GoalField.TARGET_DATE: f"{goal_name}을 언제까지 마련하고 싶으세요?",
+        GoalField.MONTHLY_CONTRIBUTION: f"{goal_name}을 위해 매달 부담 없이 마련할 수 있는 금액은 얼마인가요?",
     }
     if field == GoalField.CURRENT_AMOUNT:
         return current_amount_question(financial_context)
-    return questions[field]
+    return questions.get(field, "계획을 계산하는 데 필요한 내용을 조금 더 알려주세요.")
 
 
 def current_amount_question(financial_context: FinancialContext | None) -> str:
@@ -256,22 +293,31 @@ def feasibility_question(
     draft: GoalDraft,
     result: FeasibilityResult,
 ) -> str:
+    goal_name = draft.title or "재무 목표"
     if result.status == FeasibilityStatus.ALREADY_ACHIEVED:
-        return "현재 준비금으로 목표 금액을 이미 마련했습니다. 이 내용으로 목표를 확정할까요?"
+        return (
+            f"'{goal_name}'은 현재 준비금으로 이미 마련할 수 있어요. "
+            "이 계획으로 목표를 확정할까요?"
+        )
     if result.status == FeasibilityStatus.ADJUSTMENT_REQUIRED:
         if result.required_monthly_amount is None:
-            return "목표 날짜가 이미 지났거나 너무 가까워 계획을 계산할 수 없습니다. 목표 시점을 조정할까요?"
+            return (
+                f"'{goal_name}'의 목표 날짜가 이미 지났거나 너무 가까워요. "
+                "새로운 목표 시점을 알려주시겠어요?"
+            )
+        increase = max(0, -result.monthly_gap) if result.monthly_gap is not None else 0
         return (
-            f"현재 계획에는 매달 약 {result.required_monthly_amount:,}원이 필요하지만, "
-            f"가능한 금액은 {draft.monthly_contribution:,}원입니다. "
-            "목표 금액, 목표 시점, 월 납입액 중 무엇을 조정할까요?"
+            f"'{goal_name}'까지 남은 금액은 약 {result.remaining_amount:,}원이고, "
+            f"목표 시점까지 매달 약 {result.required_monthly_amount:,}원이 필요해요. "
+            f"현재 계획보다 월 {increase:,}원 정도 더 필요합니다. "
+            "월 납입액이나 목표 시점을 조정할까요, 아니면 이대로 확정할까요?"
         )
     if result.status == FeasibilityStatus.TIGHT:
         return (
-            f"매달 약 {result.required_monthly_amount:,}원이 필요해 여유가 크지 않습니다. "
-            "현재 계획으로 목표를 확정할까요?"
+            f"'{goal_name}'을 위해 매달 약 {result.required_monthly_amount:,}원이 필요해 "
+            "여유가 크지는 않아요. 현재 계획으로 확정할까요?"
         )
     return (
-        f"매달 약 {result.required_monthly_amount:,}원을 마련하면 목표를 달성할 수 있습니다. "
-        "이 내용으로 목표를 확정할까요?"
+        f"'{goal_name}'은 매달 약 {result.required_monthly_amount:,}원을 마련하면 "
+        "목표 시점까지 달성할 수 있어요. 이 계획으로 확정할까요?"
     )

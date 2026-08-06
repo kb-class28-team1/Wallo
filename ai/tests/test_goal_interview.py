@@ -9,7 +9,11 @@ import httpx
 import pytest
 from groq import BadRequestError
 
-from app.agents.goal.extractor import GoalExtractionError, GoalExtractor
+from app.agents.goal.extractor import (
+    GoalExtractionError,
+    GoalExtractor,
+    explicit_target_date,
+)
 from app.agents.goal.models import (
     FeasibilityStatus,
     GoalDraft,
@@ -39,9 +43,14 @@ class StubExtractor:
         return self.extraction
 
 
-def completion(content):
+def tool_completion(arguments):
     return SimpleNamespace(
-        choices=[SimpleNamespace(message=SimpleNamespace(content=content))],
+        choices=[SimpleNamespace(message=SimpleNamespace(
+            content=None,
+            tool_calls=[SimpleNamespace(
+                function=SimpleNamespace(arguments=arguments),
+            )],
+        ))],
     )
 
 
@@ -80,7 +89,7 @@ def test_extractor_parses_structured_goal_fields_and_sends_current_draft():
     client = SimpleNamespace(
         chat=SimpleNamespace(
             completions=SimpleNamespace(
-                create=lambda **kwargs: completion(json.dumps({
+                create=lambda **kwargs: tool_completion(json.dumps({
                     "title": "유럽 여행 자금",
                     "goal_type": "TRAVEL",
                     "target_amount": 8_000_000,
@@ -105,20 +114,25 @@ def test_extractor_parses_structured_goal_fields_and_sends_current_draft():
     assert call is not None
 
 
-def test_extractor_rejects_invalid_model_response():
+def test_extractor_uses_explicit_facts_when_model_response_is_invalid():
     client = SimpleNamespace(
         chat=SimpleNamespace(
             completions=SimpleNamespace(
-                create=lambda **kwargs: completion('{"goal_type":"INVALID"}')
+                create=lambda **kwargs: tool_completion('{"goal_type":"INVALID"}')
             )
         )
     )
 
-    with pytest.raises(GoalExtractionError):
-        GoalExtractor(client).extract("여행 가고 싶어", GoalDraft(), date(2026, 8, 6))
+    result = GoalExtractor(client).extract(
+        "여행 가고 싶어",
+        GoalDraft(),
+        date(2026, 8, 6),
+    )
+
+    assert result.goal_type == GoalType.TRAVEL
 
 
-def test_extractor_retries_groq_json_validation_failure():
+def test_extractor_uses_fallback_without_repeating_failed_provider_call():
     client = Mock()
     response = httpx.Response(
         400,
@@ -129,10 +143,7 @@ def test_extractor_retries_groq_json_validation_failure():
         response=response,
         body={"error": {"code": "json_validate_failed"}},
     )
-    client.chat.completions.create.side_effect = [
-        json_error,
-        completion('{"target_amount":13000000}'),
-    ]
+    client.chat.completions.create.side_effect = json_error
 
     result = GoalExtractor(client).extract(
         "1300만 원 정도 필요해",
@@ -141,8 +152,73 @@ def test_extractor_retries_groq_json_validation_failure():
     )
 
     assert result.target_amount == 13_000_000
-    assert client.chat.completions.create.call_count == 2
+    assert client.chat.completions.create.call_count == 1
     assert client.chat.completions.create.call_args.kwargs["temperature"] == 0
+    assert client.chat.completions.create.call_args.kwargs["reasoning_effort"] == "low"
+    assert client.chat.completions.create.call_args.kwargs["tool_choice"] == {
+        "type": "function",
+        "function": {"name": "extract_financial_goal"},
+    }
+
+
+def test_emergency_goal_gets_default_title_and_skips_redundant_title_question():
+    extraction = GoalExtraction(
+        goal_type=GoalType.EMERGENCY_FUND,
+        target_amount=10_000_000,
+        target_date=date(2027, 11, 1),
+        motivation="비상 상황 대비",
+        current_amount=2_000_000,
+        monthly_contribution=500_000,
+    )
+
+    result = GoalInterviewService(StubExtractor(extraction)).process(
+        "내년 11월까지 비상금 1000만 원을 모으고 싶고, "
+        "현재 200만 원이 있으며 매달 50만 원씩 저축할 수 있어",
+        reference_date=date(2026, 8, 6),
+    )
+
+    assert result.draft.title == "비상금 마련"
+    assert result.draft.goal_type == GoalType.EMERGENCY_FUND
+    assert result.draft.missing_fields == []
+    assert result.draft.state == InterviewState.REVIEW
+    assert result.feasibility is not None
+    assert result.feasibility.status == FeasibilityStatus.ADJUSTMENT_REQUIRED
+    assert "월 납입액이나 목표 시점" in result.next_question
+
+
+def test_explicit_emergency_facts_survive_model_extraction_failure():
+    client = Mock()
+    client.chat.completions.create.side_effect = [
+        tool_completion("invalid-json"),
+        tool_completion("invalid-json"),
+    ]
+    message = (
+        "내년 11월까지 비상금 1000만 원을 모으고 싶고, "
+        "현재 200만 원이 있으며 매달 50만 원씩 저축할 수 있어"
+    )
+
+    extraction = GoalExtractor(client).extract(
+        message,
+        GoalDraft(),
+        date(2026, 8, 6),
+    )
+
+    assert extraction.goal_type == GoalType.EMERGENCY_FUND
+    assert extraction.target_amount == 10_000_000
+    assert extraction.target_date == date(2027, 11, 30)
+    assert extraction.current_amount == 2_000_000
+    assert extraction.monthly_contribution == 500_000
+    assert extraction.motivation == "비상 상황에 대비하기 위해"
+
+
+def test_understands_common_relative_and_explicit_deadlines():
+    reference = date(2026, 8, 6)
+
+    assert explicit_target_date("2027년 11월까지", reference)[0] == date(2027, 11, 30)
+    assert explicit_target_date("내년 말까지", reference)[0] == date(2027, 12, 31)
+    assert explicit_target_date("1년 뒤까지", reference)[0] == date(2027, 8, 6)
+    assert explicit_target_date("1년 정도 모을래", reference)[0] == date(2027, 8, 6)
+    assert explicit_target_date("18개월 후", reference)[0] == date(2028, 2, 6)
 
 
 def test_interview_preserves_draft_when_json_extraction_keeps_failing():
@@ -164,7 +240,7 @@ def test_interview_preserves_draft_when_json_extraction_keeps_failing():
 
     assert result.draft.title == "유럽 여행 자금"
     assert result.draft.target_amount == 13_000_000
-    assert result.draft.missing_fields[0] == GoalField.MOTIVATION
+    assert result.draft.missing_fields[0] == GoalField.CURRENT_AMOUNT
     assert "정확히 이해하지 못했어요" in result.next_question
 
 
@@ -200,7 +276,7 @@ def test_selects_one_asset_personalized_question_for_current_amount():
         date(2026, 8, 6),
     )
 
-    assert result.draft.state == InterviewState.FINANCIAL_CHECK
+    assert result.draft.state == InterviewState.ACTIVE
     assert result.draft.missing_fields == [
         GoalField.CURRENT_AMOUNT,
         GoalField.MONTHLY_CONTRIBUTION,
@@ -251,11 +327,12 @@ def test_unaffordable_goal_moves_to_feasibility_review():
         date(2026, 8, 6),
     )
 
-    assert result.draft.state == InterviewState.FEASIBILITY_REVIEW
+    assert result.draft.state == InterviewState.REVIEW
     assert result.feasibility is not None
     assert result.feasibility.status == FeasibilityStatus.ADJUSTMENT_REQUIRED
     assert result.feasibility.monthly_gap == -300_000
-    assert "무엇을 조정할까요?" in result.next_question
+    assert "월 납입액이나 목표 시점" in result.next_question
+    assert "이대로 확정" in result.next_question
 
 
 def test_feasibility_handles_missing_already_achieved_and_tight_goals():
@@ -297,5 +374,23 @@ def test_missing_field_order_is_deterministic():
     assert missing[:3] == [
         GoalField.TARGET_AMOUNT,
         GoalField.TARGET_DATE,
-        GoalField.MOTIVATION,
+        GoalField.CURRENT_AMOUNT,
     ]
+
+
+def test_model_can_choose_a_more_natural_next_question_than_fallback_order():
+    extraction = GoalExtraction(
+        goal_type=GoalType.TRAVEL,
+        target_amount=8_000_000,
+        next_field=GoalField.CURRENT_AMOUNT,
+        next_question="여행을 위해 이미 준비해 둔 돈이 있나요?",
+    )
+
+    result = GoalInterviewService(StubExtractor(extraction)).process(
+        "유럽 여행 자금 800만 원을 모으고 싶어",
+        reference_date=date(2026, 8, 6),
+    )
+
+    assert GoalField.TARGET_DATE in result.draft.missing_fields
+    assert GoalField.CURRENT_AMOUNT in result.draft.missing_fields
+    assert result.next_question == "여행을 위해 이미 준비해 둔 돈이 있나요?"

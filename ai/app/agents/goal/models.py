@@ -17,6 +17,8 @@ class InterviewState(str, Enum):
     CONFIRMATION = "CONFIRMATION"
     COMPLETED = "COMPLETED"
     CANCELLED = "CANCELLED"
+    ACTIVE = "ACTIVE"
+    REVIEW = "REVIEW"
 
 
 class GoalInterviewAction(str, Enum):
@@ -135,8 +137,10 @@ class GoalExtraction(BaseModel):
     current_amount: int | None = Field(default=None, ge=0)
     monthly_contribution: int | None = Field(default=None, ge=0)
     assumptions: list[str] = Field(default_factory=list)
+    next_field: GoalField | None = None
+    next_question: str | None = Field(default=None, max_length=500)
 
-    @field_validator("title", "motivation")
+    @field_validator("title", "motivation", "next_question")
     @classmethod
     def normalize_optional_text(cls, value: str | None) -> str | None:
         return GoalDraft.normalize_optional_text(value)
