@@ -15,9 +15,20 @@ const nicknameInput = ref("")
 const nicknameError = ref("")
 const nicknameSavedMessage = ref("")
 const isNicknameSaving = ref(false)
+const profileImageInput = ref(null)
+const previewImageUrl = ref("")
+const profileImageError = ref("")
+const profileImageSavedMessage = ref("")
+const isProfileImageSaving = ref(false)
+
+const MAX_PROFILE_IMAGE_SIZE = 5 * 1024 * 1024
+const ALLOWED_PROFILE_IMAGE_TYPES = ["image/jpeg", "image/png"]
 
 const isNicknameDirty = computed(
   () => nicknameInput.value.trim() !== (user.value?.nickname || ""),
+)
+const displayProfileImageUrl = computed(
+  () => previewImageUrl.value || profileImageUrl.value,
 )
 
 const loadProfile = async () => {
@@ -89,6 +100,73 @@ const saveNickname = async () => {
   }
 }
 
+const clearProfileImagePreview = () => {
+  if (previewImageUrl.value) {
+    URL.revokeObjectURL(previewImageUrl.value)
+    previewImageUrl.value = ""
+  }
+}
+
+const chooseProfileImage = () => {
+  profileImageInput.value?.click()
+}
+
+const saveProfileImage = async (file) => {
+  profileImageError.value = ""
+  profileImageSavedMessage.value = ""
+
+  if (!file) {
+    return
+  }
+
+  if (!ALLOWED_PROFILE_IMAGE_TYPES.includes(file.type)) {
+    profileImageError.value = "JPG 또는 PNG 이미지 파일만 업로드할 수 있습니다."
+    return
+  }
+
+  if (file.size > MAX_PROFILE_IMAGE_SIZE) {
+    profileImageError.value = "프로필 이미지는 5MB 이하만 업로드할 수 있습니다."
+    return
+  }
+
+  clearProfileImagePreview()
+  previewImageUrl.value = URL.createObjectURL(file)
+  isProfileImageSaving.value = true
+
+  try {
+    await userStore.updateProfileImage(file)
+    clearProfileImagePreview()
+    profileImageSavedMessage.value = "프로필 이미지가 저장되었습니다."
+  } catch (error) {
+    clearProfileImagePreview()
+    profileImageError.value = error.message || "프로필 이미지를 저장하지 못했습니다."
+  } finally {
+    isProfileImageSaving.value = false
+  }
+}
+
+const handleProfileImageSelected = async (event) => {
+  const file = event.target.files?.[0]
+  event.target.value = ""
+  await saveProfileImage(file)
+}
+
+const resetProfileImage = async () => {
+  profileImageError.value = ""
+  profileImageSavedMessage.value = ""
+  isProfileImageSaving.value = true
+
+  try {
+    await userStore.resetProfileImage()
+    clearProfileImagePreview()
+    profileImageSavedMessage.value = "프로필 이미지가 기본 이미지로 변경되었습니다."
+  } catch (error) {
+    profileImageError.value = error.message || "기본 프로필 이미지로 변경하지 못했습니다."
+  } finally {
+    isProfileImageSaving.value = false
+  }
+}
+
 onMounted(loadProfile)
 </script>
 
@@ -115,7 +193,7 @@ onMounted(loadProfile)
 
       <div class="profile-image-section d-flex flex-column flex-sm-row align-items-sm-center gap-3 mb-4">
         <img
-          :src="profileImageUrl"
+          :src="displayProfileImageUrl"
           alt="프로필 이미지"
           class="profile-image rounded-circle"
           @error="userStore.useDefaultProfileImage"
@@ -123,15 +201,47 @@ onMounted(loadProfile)
         <div>
           <p class="fw-semibold mb-1">프로필 사진</p>
           <p class="small text-secondary mb-2">
-            JPG, PNG · 5MB 이하<br />현재는 기본 프로필 이미지를 사용합니다.
+            JPG, PNG · 5MB 이하<br />랭킹과 챌린지 피드에 함께 노출돼요.
           </p>
           <div class="d-flex flex-wrap gap-2">
-            <button type="button" class="btn btn-outline-secondary btn-sm" disabled>
+            <button
+              type="button"
+              class="btn btn-outline-secondary btn-sm"
+              :disabled="isProfileImageSaving"
+              @click="chooseProfileImage"
+            >
+              <span
+                v-if="isProfileImageSaving"
+                class="spinner-border spinner-border-sm me-1"
+                aria-hidden="true"
+              ></span>
               사진 업로드
             </button>
-            <button type="button" class="btn btn-outline-secondary btn-sm" disabled>
+            <button
+              type="button"
+              class="btn btn-outline-secondary btn-sm"
+              :disabled="isProfileImageSaving"
+              @click="resetProfileImage"
+            >
               기본 이미지로
             </button>
+          </div>
+          <input
+            ref="profileImageInput"
+            type="file"
+            class="d-none"
+            accept="image/jpeg,image/png"
+            @change="handleProfileImageSelected"
+          />
+          <div v-if="profileImageError" class="alert alert-danger py-2 mt-3 mb-0" role="alert">
+            {{ profileImageError }}
+          </div>
+          <div
+            v-else-if="profileImageSavedMessage"
+            class="alert alert-success py-2 mt-3 mb-0"
+            role="status"
+          >
+            {{ profileImageSavedMessage }}
           </div>
         </div>
       </div>

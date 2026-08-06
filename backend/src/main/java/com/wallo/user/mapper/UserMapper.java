@@ -13,4 +13,11 @@ public interface UserMapper {
             @Param("userId") Long userId,
             @Param("nickname") String nickname
     );
+
+    String findProfileImageUrl(@Param("userId") Long userId);
+
+    int updateProfileImageUrl(
+            @Param("userId") Long userId,
+            @Param("profileImageUrl") String profileImageUrl
+    );
 }

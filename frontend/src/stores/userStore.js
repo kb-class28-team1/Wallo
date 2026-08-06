@@ -5,7 +5,11 @@ import {
   login as loginRequest,
   logout as logoutRequest,
 } from "@/api/authApi"
-import { updateNickname as updateNicknameRequest } from "@/api/userApi"
+import {
+  resetProfileImage as resetProfileImageRequest,
+  updateNickname as updateNicknameRequest,
+  updateProfileImage as updateProfileImageRequest,
+} from "@/api/userApi"
 
 const DEFAULT_PROFILE_IMAGE = "/images/profiles/default-profile.svg"
 
@@ -103,6 +107,44 @@ export const useUserStore = defineStore("user", () => {
     }
   }
 
+  const updateProfileImage = async (file) => {
+    isLoading.value = true
+    try {
+      const updatedProfile = await updateProfileImageRequest(file)
+      const updatedImageUrl = updatedProfile?.profileImageUrl || DEFAULT_PROFILE_IMAGE
+
+      if (user.value) {
+        user.value = {
+          ...user.value,
+          profileImageUrl: updatedImageUrl,
+        }
+      }
+
+      return updatedImageUrl
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  const resetProfileImage = async () => {
+    isLoading.value = true
+    try {
+      const updatedProfile = await resetProfileImageRequest()
+      const updatedImageUrl = updatedProfile?.profileImageUrl || DEFAULT_PROFILE_IMAGE
+
+      if (user.value) {
+        user.value = {
+          ...user.value,
+          profileImageUrl: updatedImageUrl,
+        }
+      }
+
+      return updatedImageUrl
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   const fetchUserProfile = async () => {
     try {
       await restoreSession()
@@ -128,6 +170,8 @@ export const useUserStore = defineStore("user", () => {
     login,
     logout,
     updateNickname,
+    updateProfileImage,
+    resetProfileImage,
     restoreSession,
     clearAuth,
     updatePointBalance,

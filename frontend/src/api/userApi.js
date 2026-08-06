@@ -19,3 +19,26 @@ export const updateNickname = async (nickname) => {
     throw createUserError(error, "닉네임을 저장하지 못했습니다.")
   }
 }
+
+export const updateProfileImage = async (file) => {
+  try {
+    const formData = new FormData()
+    formData.append("image", file)
+    const response = await httpClient.patch("/api/users/profile/image", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    })
+
+    return response.data?.data ?? response.data
+  } catch (error) {
+    throw createUserError(error, "프로필 이미지를 저장하지 못했습니다.")
+  }
+}
+
+export const resetProfileImage = async () => {
+  try {
+    const response = await httpClient.delete("/api/users/profile/image")
+    return response.data?.data ?? response.data
+  } catch (error) {
+    throw createUserError(error, "기본 프로필 이미지로 변경하지 못했습니다.")
+  }
+}
