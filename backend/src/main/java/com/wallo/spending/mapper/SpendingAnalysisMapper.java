@@ -2,6 +2,7 @@ package com.wallo.spending.mapper;
 
 import com.wallo.spending.dto.SpendingCategoryAggregate;
 import com.wallo.spending.dto.SpendingExpenseAggregate;
+import com.wallo.spending.dto.SpendingTimeSlotAggregate;
 import com.wallo.spending.dto.SpendingWeekdayAggregate;
 import java.time.LocalDate;
 import java.util.List;
@@ -45,6 +46,20 @@ public interface SpendingAnalysisMapper {
      * 0으로 채우는 처리, 주요 소비 요일 판정은 Service 계층 책임).</p>
      */
     List<SpendingWeekdayAggregate> selectWeekdayAggregates(
+            @Param("userId") long userId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
+
+    /**
+     * 지정 기간(시작일·종료일 포함)의 시간대별 유효 지출 금액과 거래 건수를 조회한다.
+     *
+     * <p>날짜 필터는 {@code transaction_date}, 시간대 분류는 {@code transaction_time}
+     * 기준이다. 다른 집계 메서드와 마찬가지로 범용 기간 조회이며, 거래가 없는 시간대는 결과에
+     * 포함되지 않고 유효 거래가 전혀 없으면 빈 리스트를 반환한다(누락 시간대를 0으로 채우는
+     * 처리, 주요 소비 시간대 판정은 Service 계층 책임).</p>
+     */
+    List<SpendingTimeSlotAggregate> selectTimeSlotAggregates(
             @Param("userId") long userId,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate

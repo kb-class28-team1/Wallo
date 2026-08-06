@@ -6,11 +6,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.wallo.spending.dto.SpendingCategoryAggregate;
 import com.wallo.spending.dto.SpendingExpenseAggregate;
+import com.wallo.spending.dto.SpendingTimeSlotAggregate;
 import com.wallo.spending.dto.SpendingWeekdayAggregate;
 import java.sql.Connection;
 import java.sql.Statement;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 import java.util.UUID;
@@ -49,6 +51,11 @@ class SpendingAnalysisMapperIntegrationTest {
     private static final LocalDate WEEK_SUNDAY = WEEK_MONDAY.plusDays(6);
     private static final LocalDate WEEK_BEFORE_MONDAY = WEEK_MONDAY.minusDays(1);
     private static final LocalDate WEEK_AFTER_SUNDAY = WEEK_SUNDAY.plusDays(1);
+
+    // 시간대 집계 전용 테스트 데이터(기존 userId 7/8/77/78과 절대 섞이지 않도록 별도 ID 사용).
+    private static final long TIME_SLOT_BOUNDARY_USER_ID = 87L;
+    private static final long TIME_SLOT_GROUPING_USER_ID = 88L;
+    private static final LocalDate TIME_SLOT_BOUNDARY_DATE = LocalDate.of(2026, 3, 10);
 
     @BeforeEach
     void setUp() throws Exception {
@@ -360,6 +367,66 @@ class SpendingAnalysisMapperIntegrationTest {
         assertTrue(result.isEmpty());
     }
 
+    // ---------- selectTimeSlotAggregates ----------
+
+    @Test
+    void mapsAllTimeSlotBoundariesAndOrdersFromDawnToEvening() {
+        // userId=87: 각 구간의 하한·상한 경계 시각에 2건씩(서로 다른 금액) 넣어
+        // 00:00:00/05:59:59->DAWN, 06:00:00/11:59:59->MORNING,
+        // 12:00:00/17:59:59->AFTERNOON, 18:00:00/23:59:59->EVENING 매핑과
+        // DAWN->MORNING->AFTERNOON->EVENING 순서, 구간별 2건 합산을 한 번에 검증한다.
+        List<SpendingTimeSlotAggregate> result = spendingAnalysisMapper.selectTimeSlotAggregates(
+                TIME_SLOT_BOUNDARY_USER_ID, TIME_SLOT_BOUNDARY_DATE, TIME_SLOT_BOUNDARY_DATE
+        );
+
+        assertEquals(4, result.size());
+        assertEquals("DAWN", result.get(0).getTimeSlot());
+        assertEquals(23L, result.get(0).getAmount());
+        assertEquals(2L, result.get(0).getTransactionCount());
+        assertEquals("MORNING", result.get(1).getTimeSlot());
+        assertEquals(43L, result.get(1).getAmount());
+        assertEquals(2L, result.get(1).getTransactionCount());
+        assertEquals("AFTERNOON", result.get(2).getTimeSlot());
+        assertEquals(63L, result.get(2).getAmount());
+        assertEquals(2L, result.get(2).getTransactionCount());
+        assertEquals("EVENING", result.get(3).getTimeSlot());
+        assertEquals(83L, result.get(3).getAmount());
+        assertEquals(2L, result.get(3).getTransactionCount());
+    }
+
+    @Test
+    void omitsMissingTimeSlotsAndExcludedTransactionsWhileIncludingDateRangeBoundaries() {
+        // userId=88, 조회기간 2026-05-01~2026-05-03:
+        //  - 05-01(시작일) 08:00 EXPENSE 1000 -> MORNING에 포함(시작일 포함 증명)
+        //  - 05-02 02:00 INCOME(제외)     -> DAWN 행 자체가 없어야 함
+        //  - 05-02 19:00 SEND(제외), 20:00 CARD_WITHDRAWAL(제외), 21:00 TRANSFER/ETC(제외)
+        //  - 05-03(종료일) 22:00 EXPENSE 3000 -> EVENING에 포함(종료일 포함 증명)
+        //  - 04-30(범위 이전) EXPENSE 8000, 05-04(범위 이후) EXPENSE 9000
+        //    -> 새어 들어오면 MORNING/EVENING 합계가 각각 달라지므로 기간 필터도 함께 증명됨
+        //  - AFTERNOON은 거래 자체가 없어 자연 누락
+        List<SpendingTimeSlotAggregate> result = spendingAnalysisMapper.selectTimeSlotAggregates(
+                TIME_SLOT_GROUPING_USER_ID, LocalDate.of(2026, 5, 1), LocalDate.of(2026, 5, 3)
+        );
+
+        assertEquals(2, result.size());
+        assertEquals("MORNING", result.get(0).getTimeSlot());
+        assertEquals(1000L, result.get(0).getAmount());
+        assertEquals(1L, result.get(0).getTransactionCount());
+        assertEquals("EVENING", result.get(1).getTimeSlot());
+        assertEquals(3000L, result.get(1).getAmount());
+        assertEquals(1L, result.get(1).getTransactionCount());
+    }
+
+    @Test
+    void returnsEmptyListNotNullWhenNoTimeSlotTransactionsMatch() {
+        List<SpendingTimeSlotAggregate> result = spendingAnalysisMapper.selectTimeSlotAggregates(
+                TIME_SLOT_GROUPING_USER_ID, LocalDate.of(2020, 1, 1), LocalDate.of(2020, 1, 31)
+        );
+
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+    }
+
     private void createTransactions(DataSource dataSource) throws Exception {
         try (Connection connection = dataSource.getConnection();
              Statement statement = connection.createStatement()) {
@@ -428,6 +495,66 @@ class SpendingAnalysisMapperIntegrationTest {
                     WEEK_BEFORE_MONDAY,
                     WEEK_AFTER_SUNDAY
             ));
+
+            insertTimeSlotFixtures(statement);
         }
+    }
+
+    /**
+     * 시간대 집계 전용 fixture. positional index가 많은 {@code String.format} 블록에 억지로
+     * 끼워 넣는 대신, 한 행씩 명확히 읽히도록 개별 INSERT로 작성했다.
+     */
+    private void insertTimeSlotFixtures(Statement statement) throws Exception {
+        // userId=87: 경계값 검증 전용, 구간마다 하한·상한 시각에 2건씩
+        insertTransaction(statement, 201, TIME_SLOT_BOUNDARY_USER_ID, "EXPENSE", "FOOD", 11,
+                TIME_SLOT_BOUNDARY_DATE, LocalTime.of(0, 0, 0));
+        insertTransaction(statement, 202, TIME_SLOT_BOUNDARY_USER_ID, "EXPENSE", "FOOD", 12,
+                TIME_SLOT_BOUNDARY_DATE, LocalTime.of(5, 59, 59));
+        insertTransaction(statement, 203, TIME_SLOT_BOUNDARY_USER_ID, "EXPENSE", "FOOD", 21,
+                TIME_SLOT_BOUNDARY_DATE, LocalTime.of(6, 0, 0));
+        insertTransaction(statement, 204, TIME_SLOT_BOUNDARY_USER_ID, "EXPENSE", "FOOD", 22,
+                TIME_SLOT_BOUNDARY_DATE, LocalTime.of(11, 59, 59));
+        insertTransaction(statement, 205, TIME_SLOT_BOUNDARY_USER_ID, "EXPENSE", "FOOD", 31,
+                TIME_SLOT_BOUNDARY_DATE, LocalTime.of(12, 0, 0));
+        insertTransaction(statement, 206, TIME_SLOT_BOUNDARY_USER_ID, "EXPENSE", "FOOD", 32,
+                TIME_SLOT_BOUNDARY_DATE, LocalTime.of(17, 59, 59));
+        insertTransaction(statement, 207, TIME_SLOT_BOUNDARY_USER_ID, "EXPENSE", "FOOD", 41,
+                TIME_SLOT_BOUNDARY_DATE, LocalTime.of(18, 0, 0));
+        insertTransaction(statement, 208, TIME_SLOT_BOUNDARY_USER_ID, "EXPENSE", "FOOD", 42,
+                TIME_SLOT_BOUNDARY_DATE, LocalTime.of(23, 59, 59));
+
+        // userId=88: 그룹화·제외조건·기간경계 검증 전용
+        insertTransaction(statement, 211, TIME_SLOT_GROUPING_USER_ID, "EXPENSE", "FOOD", 1000,
+                LocalDate.of(2026, 5, 1), LocalTime.of(8, 0, 0));
+        insertTransaction(statement, 212, TIME_SLOT_GROUPING_USER_ID, "INCOME", "INCOME", 100000,
+                LocalDate.of(2026, 5, 2), LocalTime.of(2, 0, 0));
+        insertTransaction(statement, 213, TIME_SLOT_GROUPING_USER_ID, "TRANSFER", "SEND", 5000,
+                LocalDate.of(2026, 5, 2), LocalTime.of(19, 0, 0));
+        insertTransaction(statement, 214, TIME_SLOT_GROUPING_USER_ID, "TRANSFER", "CARD_WITHDRAWAL", 7000,
+                LocalDate.of(2026, 5, 2), LocalTime.of(20, 0, 0));
+        insertTransaction(statement, 215, TIME_SLOT_GROUPING_USER_ID, "TRANSFER", "ETC", 999,
+                LocalDate.of(2026, 5, 2), LocalTime.of(21, 0, 0));
+        insertTransaction(statement, 216, TIME_SLOT_GROUPING_USER_ID, "EXPENSE", "DELIVERY", 3000,
+                LocalDate.of(2026, 5, 3), LocalTime.of(22, 0, 0));
+        insertTransaction(statement, 217, TIME_SLOT_GROUPING_USER_ID, "EXPENSE", "FOOD", 8000,
+                LocalDate.of(2026, 4, 30), LocalTime.of(8, 0, 0));
+        insertTransaction(statement, 218, TIME_SLOT_GROUPING_USER_ID, "EXPENSE", "FOOD", 9000,
+                LocalDate.of(2026, 5, 4), LocalTime.of(22, 0, 0));
+    }
+
+    private void insertTransaction(
+            Statement statement, long transactionId, long userId, String type, String category,
+            long amount, LocalDate date, LocalTime time
+    ) throws Exception {
+        // LocalTime#toString()은 초가 0이면 "HH:mm"처럼 초를 생략하므로(예: 00:00:00 -> "00:00"),
+        // 항상 "HH:mm:ss"로 명시 포맷해 TIME 리터럴 표현을 일관되게 만든다.
+        String timeLiteral = String.format(
+                "%02d:%02d:%02d", time.getHour(), time.getMinute(), time.getSecond());
+        statement.execute(String.format(
+                "INSERT INTO TRANSACTIONS (transaction_id, user_id, type, category, amount, "
+                        + "merchant_name, transaction_date, transaction_time) VALUES "
+                        + "(%d, %d, '%s', '%s', %d, '시간대테스트', '%s', '%s')",
+                transactionId, userId, type, category, amount, date, timeLiteral
+        ));
     }
 }

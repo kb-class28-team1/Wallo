@@ -59,4 +59,40 @@
         END
     </select>
 
+    <select id="selectTimeSlotAggregates" resultType="com.wallo.spending.dto.SpendingTimeSlotAggregate">
+        <!--
+            transaction_time(00:00:00~23:59:59, NOT NULL)의 시(hour, 0~23)를 6시간 단위로 나눠
+            0=DAWN, 1=MORNING, 2=AFTERNOON, 3=EVENING으로 매핑한다. 지시된 4개 구간 경계가
+            전부 정각이라 HOUR() 기준 정수 나눗셈만으로 정확히 일치한다.
+            버킷 값을 서브쿼리에서 먼저 계산해 일반 컬럼(bucket)으로 만든 뒤 바깥 쿼리에서
+            GROUP BY/ORDER BY 하도록 했다 — SELECT의 CASE 식과 동일한 복합 표현식을
+            GROUP BY/ORDER BY에 그대로 반복하면(FLOOR(HOUR(transaction_time) / 6)) H2가
+            같은 식으로 인식하지 못해 "컬럼이 GROUP BY 목록에 없다" 오류가 발생함을 확인했다.
+            평범한 컬럼을 GROUP BY하는 방식으로 H2 MySQL 모드에서 정상 동작함을 확인했다.
+            서브쿼리와 GROUP BY는 MySQL에서도 지원되는 일반적인 문법이지만,
+            실제 MySQL 서버 실행 검증은 별도로 필요하다.
+        -->
+        SELECT
+            CASE bucketed.bucket
+                WHEN 0 THEN 'DAWN'
+                WHEN 1 THEN 'MORNING'
+                WHEN 2 THEN 'AFTERNOON'
+                WHEN 3 THEN 'EVENING'
+            END AS timeSlot,
+            SUM(bucketed.amount) AS amount,
+            COUNT(*) AS transactionCount
+        FROM (
+            SELECT
+                amount,
+                FLOOR(HOUR(transaction_time) / 6) AS bucket
+            FROM TRANSACTIONS
+            WHERE user_id = #{userId}
+              AND type = 'EXPENSE'
+              AND category NOT IN ('INCOME', 'SEND', 'CARD_WITHDRAWAL')
+              AND transaction_date BETWEEN #{startDate} AND #{endDate}
+        ) bucketed
+        GROUP BY bucketed.bucket
+        ORDER BY bucketed.bucket
+    </select>
+
 </mapper>
