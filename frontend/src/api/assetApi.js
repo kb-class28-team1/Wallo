@@ -60,13 +60,13 @@ export const putBudget = async (targetMonth, totalAmount) => {
 };
 
 export const getInsight = async () => {
-  const response = await httpClient.get("/api/reports/insights");
+  const response = await httpClient.get("/api/asset-reports/insights/");
 
   return response.data;
 };
 
 export const getTaxSettlement = async (year) => {
-  const response = await httpClient.get("/api/reports/tax-settlement", {
+  const response = await httpClient.get("/api/asset-reports/tax-settlement", {
     params: year ? { year } : {},
   });
 

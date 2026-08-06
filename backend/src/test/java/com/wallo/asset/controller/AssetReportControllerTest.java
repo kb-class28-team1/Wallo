@@ -8,13 +8,18 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.wallo.asset.dto.ReportDto;
-import com.wallo.asset.mapper.ReportMapper;
+import com.wallo.asset.dto.AssetReportDto;
+import com.wallo.asset.client.AssetReportAiClient;
+import com.wallo.asset.mapper.AssetReportMapper;
+import com.wallo.asset.mapper.BudgetMapper;
+import com.wallo.asset.service.ConsumptionInsightCache;
 import com.wallo.asset.service.AssetReportService;
 import com.wallo.auth.CurrentUserProvider;
 import com.wallo.auth.SessionCurrentUserProvider;
 import com.wallo.common.exception.GlobalExceptionHandler;
+import java.time.Clock;
 import java.nio.charset.StandardCharsets;
+import java.time.ZoneId;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -27,7 +32,7 @@ class AssetReportControllerTest {
         CurrentUserProvider currentUserProvider = mock(CurrentUserProvider.class);
         when(currentUserProvider.getCurrentUserId()).thenReturn(7L);
         when(assetReportService.getTaxSettlement(7L, 2026))
-                .thenReturn(new ReportDto.TaxSettlement(
+                .thenReturn(new AssetReportDto.TaxSettlement(
                         50_000_000L,
                         12_500_000L,
                         11_500_000L,
@@ -39,7 +44,7 @@ class AssetReportControllerTest {
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
 
-        String responseBody = mockMvc.perform(get("/api/reports/tax-settlement")
+        String responseBody = mockMvc.perform(get("/api/asset-reports/tax-settlement")
                         .param("year", "2026"))
                 .andExpect(status().isOk())
                 .andReturn()
@@ -55,8 +60,44 @@ class AssetReportControllerTest {
     }
 
     @Test
+    void returnsInsightGenerationMode() throws Exception {
+        AssetReportService assetReportService = mock(AssetReportService.class);
+        CurrentUserProvider currentUserProvider = mock(CurrentUserProvider.class);
+        when(currentUserProvider.getCurrentUserId()).thenReturn(7L);
+        when(assetReportService.getConsumptionInsight(7L))
+                .thenReturn(new AssetReportDto.Insight(
+                        "카페 지출이 가장 많아요",
+                        "이번 달은 카페 지출이 가장 많아요.",
+                        AssetReportDto.GenerationMode.AI,
+                        "CAFE"
+                ));
+        MockMvc mockMvc = MockMvcBuilders
+                .standaloneSetup(new AssetReportController(assetReportService, currentUserProvider))
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
+
+        String responseBody = mockMvc.perform(get("/api/asset-reports/insights/"))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString(StandardCharsets.UTF_8);
+
+        assertTrue(responseBody.contains("\"success\":true"));
+        assertTrue(responseBody.contains("\"reportTitle\":\"카페 지출이 가장 많아요\""));
+        assertTrue(responseBody.contains("\"generationMode\":\"AI\""));
+        assertTrue(responseBody.contains("\"category\":\"CAFE\""));
+        verify(assetReportService).getConsumptionInsight(eq(7L));
+    }
+
+    @Test
     void returnsUnauthorizedWithoutLoginSession() throws Exception {
-        AssetReportService assetReportService = new AssetReportService(mock(ReportMapper.class));
+        AssetReportService assetReportService = new AssetReportService(
+                mock(AssetReportMapper.class),
+                mock(AssetReportAiClient.class),
+                mock(BudgetMapper.class),
+                new ConsumptionInsightCache(),
+                Clock.system(ZoneId.of("Asia/Seoul"))
+        );
         AssetReportController assetReportController = new AssetReportController(
                 assetReportService,
                 new SessionCurrentUserProvider()
@@ -66,7 +107,7 @@ class AssetReportControllerTest {
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
 
-        String responseBody = mockMvc.perform(get("/api/reports/insights"))
+        String responseBody = mockMvc.perform(get("/api/asset-reports/insights/"))
                 .andExpect(status().isUnauthorized())
                 .andReturn()
                 .getResponse()

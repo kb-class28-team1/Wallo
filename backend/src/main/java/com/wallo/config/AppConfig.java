@@ -79,8 +79,7 @@ public class AppConfig {
 
     @Bean
     public Clock clock() {
-        // 서비스 운영 지역이 한국이므로 공용 시간 기준도 한국 시간으로 고정함.
-        return Clock.system(BUSINESS_ZONE);
+        return Clock.system(ZoneId.of("Asia/Seoul"));
     }
 
     @Bean
