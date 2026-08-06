@@ -51,3 +51,37 @@ export const sendConversationMessage = async (
     throw new Error(getApiErrorMessage(error, "메시지를 전송하지 못했습니다."))
   }
 }
+
+export const updateConversationTitle = async (
+  conversationId,
+  userId,
+  title,
+) => {
+  try {
+    const response = await httpClient.patch(
+      `/api/conversations/${conversationId}`,
+      { userId, title },
+    )
+    return response.data
+  } catch (error) {
+    const message =
+      error.response?.data?.error?.message ||
+      error.response?.data?.message ||
+      "채팅방 제목을 변경하지 못했습니다."
+    throw new Error(message)
+  }
+}
+
+export const deleteConversation = async (conversationId, userId) => {
+  try {
+    await httpClient.delete(`/api/conversations/${conversationId}`, {
+      params: { userId },
+    })
+  } catch (error) {
+    const message =
+      error.response?.data?.error?.message ||
+      error.response?.data?.message ||
+      "채팅방을 삭제하지 못했습니다."
+    throw new Error(message)
+  }
+}

@@ -117,4 +117,20 @@
         ORDER BY snapshot_month ASC
     </select>
 
+    <select id="selectGoalContextAccounts"
+            resultType="com.wallo.asset.dto.GoalAssetContextDto$AccountRecord">
+        SELECT
+            a.account_type AS accountType,
+            a.account_subtype AS accountSubtype,
+            a.balance AS balance,
+            a.eval_amount AS evaluationAmount
+        FROM ACCOUNTS a
+        INNER JOIN CONNECTIONS c ON c.connection_id = a.connection_id
+        WHERE c.user_id = #{userId}
+          AND c.status = 'ACTIVE'
+          AND c.deleted_at IS NULL
+          AND a.status = 'ACTIVE'
+        ORDER BY a.account_id
+    </select>
+
 </mapper>
