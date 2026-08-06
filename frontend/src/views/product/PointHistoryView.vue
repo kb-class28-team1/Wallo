@@ -110,15 +110,18 @@ onMounted(loadHistory)
 
 <template>
   <section class="point-history-page">
-    <header class="page-heading mb-4">
+    <header class="page-heading d-flex align-items-start gap-3 mb-4">
+      <RouterLink
+        to="/point-shop"
+        class="page-back-button"
+        aria-label="포인트 샵으로 이동"
+      >
+        <i class="bi bi-chevron-left" aria-hidden="true"></i>
+      </RouterLink>
       <div>
         <h1 class="mb-1">포인트 내역</h1>
         <p class="mb-0">내가 얻고 사용한 포인트를 한눈에 확인해보세요.</p>
       </div>
-      <RouterLink to="/point-shop" class="back-link">
-        <i class="bi bi-chevron-left" aria-hidden="true"></i>
-        포인트샵
-      </RouterLink>
     </header>
 
     <div class="summary-grid">
@@ -253,6 +256,40 @@ onMounted(loadHistory)
 </template>
 
 <style scoped>
+ .page-back-button {
+   display: inline-flex;
+   flex: 0 0 38px;
+   width: 38px;
+   height: 38px;
+   align-items: center;
+   justify-content: center;
+   padding: 0;
+   border: 0;
+   border-radius: 12px;
+   background: #f1efff;
+   color: #6b64e8;
+   text-decoration: none;
+   transform: translateX(-8px);
+   transition: background-color 160ms ease, color 160ms ease, transform 160ms ease;
+ }
+
+ .page-back-button:hover,
+ .page-back-button:focus-visible {
+   background: #e8e5ff;
+   color: #574fd2;
+   transform: translateX(-8px) translateY(-1px);
+ }
+
+ .page-back-button:focus-visible {
+   outline: 3px solid rgb(107 100 232 / 22%);
+   outline-offset: 2px;
+ }
+
+ .page-back-button i {
+   font-size: 16px;
+   line-height: 1;
+ }
+
 .point-history-page {
   width: 100%;
   color: #27304f;
@@ -262,7 +299,7 @@ onMounted(loadHistory)
   position: relative;
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: flex-start;
 }
 
 .page-heading h1 {
@@ -273,13 +310,6 @@ onMounted(loadHistory)
 .page-heading p {
   color: #8c95b0;
   font-size: 13px;
-}
-
-.back-link {
-  color: #68719a;
-  font-size: 13px;
-  font-weight: 700;
-  text-decoration: none;
 }
 
 .summary-grid {
@@ -488,16 +518,24 @@ onMounted(loadHistory)
 
 .history-main span,
 .history-date {
+  overflow: hidden;
   color: #9aa2bc;
   font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .history-category,
 .history-status {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   justify-self: start;
   padding: 5px 8px;
   border-radius: 999px;
   font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .history-category {
@@ -589,12 +627,8 @@ onMounted(loadHistory)
   }
 
   .page-heading {
-    display: block;
-  }
-
-  .back-link {
-    display: inline-block;
-    margin-top: 10px;
+    display: flex;
+    gap: 12px !important;
   }
 }
 </style>
