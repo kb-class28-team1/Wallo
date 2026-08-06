@@ -12,8 +12,4 @@ dist/
 
 # Local backend database and external API settings
 backend/src/main/resources/application.properties
-database/sql/tables/dbInit.sql
-database/mysql/000_reset_wallo_demo.sql
-database/mysql/001_insert_wallo_dummy_data.sql
-database/mysql/challenge/003_create_challenge_schema.sql
 database/mysql/dbInit.sql
