@@ -17,7 +17,7 @@ public enum UserErrorCode {
             "USER_INVALID_PASSWORD",
             "비밀번호는 8자 이상 72자 이하로 입력해주세요."),
     CURRENT_PASSWORD_MISMATCH(
-            HttpStatus.UNAUTHORIZED,
+            HttpStatus.BAD_REQUEST,
             "USER_CURRENT_PASSWORD_MISMATCH",
             "현재 비밀번호가 올바르지 않습니다."),
     PASSWORD_CONFIRMATION_MISMATCH(

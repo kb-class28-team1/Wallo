@@ -223,7 +223,7 @@ onMounted(loadProfile)
               :disabled="isProfileImageSaving"
               @click="resetProfileImage"
             >
-              기본 이미지로
+              기본 이미지
             </button>
           </div>
           <input

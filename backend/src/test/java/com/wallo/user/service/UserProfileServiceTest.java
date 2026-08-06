@@ -17,6 +17,7 @@ import com.wallo.user.mapper.UserMapper;
 import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
@@ -99,6 +100,7 @@ class UserProfileServiceTest {
         );
 
         assertEquals(UserErrorCode.CURRENT_PASSWORD_MISMATCH, exception.getErrorCode());
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getErrorCode().getStatus());
     }
 
     @Test
