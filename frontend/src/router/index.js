@@ -19,7 +19,9 @@ const PointHistoryView = () => import("@/views/product/PointHistoryView.vue")
 const ReportListView = () => import("@/views/report/ReportListView.vue")
 const ReportDetailView = () => import("@/views/report/ReportDetailView.vue")
 const SettingsView = () => import("@/views/user/SettingsView.vue")
+const ProfileSettingsView = () => import("@/views/user/ProfileSettingsView.vue")
 const ConnectionManagementView = () => import("@/views/user/ConnectionManagementView.vue")
+const PasswordSettingsView = () => import("@/views/user/PasswordSettingsView.vue")
 const ChatView = () => import("@/views/chat/ChatView.vue")
 
 const withAppShell = (route) => ({
@@ -149,13 +151,24 @@ const router = createRouter({
         // 사용자 설정 페이지로 이동하는 주소임
         {
           path: "/users/profile",
-          name: "user-profile",
           component: SettingsView,
-        },
-        {
-          path: "/users/profile/connections",
-          name: "connection-management",
-          component: ConnectionManagementView,
+          children: [
+            {
+              path: "",
+              name: "user-profile",
+              component: ProfileSettingsView,
+            },
+            {
+              path: "connections",
+              name: "connection-management",
+              component: ConnectionManagementView,
+            },
+            {
+              path: "password",
+              name: "password-settings",
+              component: PasswordSettingsView,
+            },
+          ],
         },
     ].map(withAppShell),
   ],
