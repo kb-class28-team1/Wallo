@@ -151,6 +151,7 @@ const closeRewardModal = () => {
 
 const rewardEffectRank = {
   "reward-effect-none": 0,
+  "reward-effect-blue": 1,
   "reward-effect-copper": 1,
   "reward-effect-silver": 2,
   "reward-effect-gold": 3,
@@ -162,7 +163,7 @@ const getRewardEffectClass = ({ rewardPoint = 0, itemName = "" } = {}) => {
   const name = String(itemName)
 
   if (Number(rewardPoint) === 250) {
-    return "reward-effect-none"
+    return "reward-effect-blue"
   }
   if (Number(rewardPoint) === 500) {
     return "reward-effect-silver"
@@ -598,7 +599,7 @@ onMounted(loadPointShop)
                     alt=""
                     aria-hidden="true"
                   />
-                  <span v-else class="bulk-draw-result-icon" aria-hidden="true">
+                  <span v-else-if="rewardModal.kind === 'win'" class="bulk-draw-result-icon" aria-hidden="true">
                     {{ rewardModal.kind === 'win' ? '🎉' : '😢' }}
                   </span>
                   <strong
@@ -666,7 +667,7 @@ onMounted(loadPointShop)
                   alt=""
                   aria-hidden="true"
                 />
-                <span v-else class="bulk-draw-result-icon" aria-hidden="true">
+                <span v-else-if="draw.result === 'WIN'" class="bulk-draw-result-icon" aria-hidden="true">
                   {{ draw.result === 'WIN' ? '🎉' : '😢' }}
                 </span>
                 <strong v-if="draw.result === 'WIN'" class="bulk-draw-title">상품에 당첨됐어요!</strong>
@@ -1042,31 +1043,6 @@ onMounted(loadPointShop)
   color: #2f6fed;
 }
 
-.reward-effect-copper {
-  border-color: #b87333;
-  box-shadow: 0 24px 70px rgb(0 0 0 / 38%), 0 0 30px 10px rgb(184 115 51 / 58%);
-}
-
-.reward-effect-silver {
-  border-color: #9ea9b8;
-  box-shadow: 0 24px 70px rgb(0 0 0 / 38%), 0 0 34px 11px rgb(158 169 184 / 68%);
-}
-
-.reward-effect-gold {
-  border-color: #e0a51b;
-  box-shadow: 0 24px 70px rgb(0 0 0 / 38%), 0 0 38px 12px rgb(224 165 27 / 68%);
-}
-
-.reward-effect-emerald {
-  border-color: #1fa77a;
-  box-shadow: 0 24px 70px rgb(0 0 0 / 38%), 0 0 42px 13px rgb(31 167 122 / 70%);
-}
-
-.reward-effect-sky {
-  border-color: #49b9ec;
-  box-shadow: 0 24px 70px rgb(0 0 0 / 38%), 0 0 46px 14px rgb(73 185 236 / 72%);
-}
-
 .reward-modal-kicker {
   display: block;
   margin-bottom: 5px;
@@ -1247,7 +1223,7 @@ onMounted(loadPointShop)
   height: 48px;
   place-items: center;
   border-radius: 14px;
-  background: #f0edff;
+  background: #fff;
   font-size: 27px;
   line-height: 1;
 }
@@ -1256,7 +1232,7 @@ onMounted(loadPointShop)
   width: 48px;
   height: 48px;
   padding: 8px;
-  background: #eaf3ff;
+  background: #fff;
   object-fit: contain;
 }
 
@@ -1267,21 +1243,22 @@ onMounted(loadPointShop)
   color: #4d5675;
   font-size: 13px;
   line-height: 1.25;
+  text-align: center;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   word-break: keep-all;
 }
 
 .bulk-draw-card.draw-win .bulk-draw-result-icon {
-  background: #f0edff;
+  background: #fff;
 }
 
 .bulk-draw-card.draw-point .bulk-draw-result-icon {
-  background: #eaf3ff;
+  background: #fff;
 }
 
 .bulk-draw-card.draw-lose .bulk-draw-result-icon {
-  background: #f1f2f7;
+  background: #fff;
   filter: none;
 }
 
@@ -1297,6 +1274,7 @@ onMounted(loadPointShop)
   border-color: #ebeaff;
   background: #fff;
   opacity: 1;
+  justify-content: center;
 }
 
 .bulk-draw-card.draw-lose .bulk-draw-title {
@@ -1313,7 +1291,7 @@ onMounted(loadPointShop)
   gap: 6px;
   padding: 8px;
   border-radius: 12px;
-  background: #f7f6ff;
+  background: #fff;
 }
 
 .bulk-draw-prize-icon {
@@ -1337,6 +1315,7 @@ onMounted(loadPointShop)
   color: #5546ca;
   font-size: 13px;
   line-height: 1.25;
+  text-align: center;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   word-break: keep-all;
@@ -1347,11 +1326,61 @@ onMounted(loadPointShop)
 }
 
 .draw-lose .bulk-draw-prize-card {
-  background: #f7f6ff;
+  background: #fff;
 }
 
 .draw-lose .bulk-draw-prize-card strong {
   color: #5546ca;
+}
+
+.bulk-draw-card.reward-effect-blue {
+  border-color: #5686ed;
+  border-width: 2px;
+  box-shadow:
+    0 0 0 3px rgb(86 134 237 / 30%),
+    0 0 20px 6px rgb(86 134 237 / 78%),
+    0 0 38px 11px rgb(86 134 237 / 34%),
+    inset 0 0 11px rgb(86 134 237 / 20%);
+}
+
+.bulk-draw-card.reward-effect-silver {
+  border-color: #9ea9b8;
+  border-width: 2px;
+  box-shadow:
+    0 0 0 3px rgb(158 169 184 / 32%),
+    0 0 24px 7px rgb(158 169 184 / 82%),
+    0 0 42px 12px rgb(158 169 184 / 36%),
+    inset 0 0 13px rgb(158 169 184 / 22%);
+}
+
+.bulk-draw-card.reward-effect-gold {
+  border-color: #e0a51b;
+  border-width: 2px;
+  box-shadow:
+    0 0 0 3px rgb(224 165 27 / 34%),
+    0 0 28px 8px rgb(224 165 27 / 86%),
+    0 0 46px 13px rgb(224 165 27 / 38%),
+    inset 0 0 15px rgb(224 165 27 / 24%);
+}
+
+.bulk-draw-card.reward-effect-emerald {
+  border-color: #1fa77a;
+  border-width: 2px;
+  box-shadow:
+    0 0 0 3px rgb(31 167 122 / 36%),
+    0 0 32px 9px rgb(31 167 122 / 90%),
+    0 0 50px 14px rgb(31 167 122 / 40%),
+    inset 0 0 17px rgb(31 167 122 / 26%);
+}
+
+.bulk-draw-card.reward-effect-sky {
+  border-color: #49b9ec;
+  border-width: 2px;
+  box-shadow:
+    0 0 0 3px rgb(73 185 236 / 38%),
+    0 0 36px 10px rgb(73 185 236 / 94%),
+    0 0 54px 15px rgb(73 185 236 / 42%),
+    inset 0 0 19px rgb(73 185 236 / 28%);
 }
 
 .bulk-result-confirm {
@@ -1370,31 +1399,6 @@ onMounted(loadPointShop)
 .bulk-result-confirm:hover,
 .bulk-result-confirm:focus-visible {
   background: #5949df;
-}
-
-.bulk-draw-card.reward-effect-copper {
-  border-color: #b87333;
-  box-shadow: 0 0 30px 9px rgb(184 115 51 / 62%);
-}
-
-.bulk-draw-card.reward-effect-silver {
-  border-color: #9ea9b8;
-  box-shadow: 0 0 34px 10px rgb(158 169 184 / 72%);
-}
-
-.bulk-draw-card.reward-effect-gold {
-  border-color: #e0a51b;
-  box-shadow: 0 0 39px 11px rgb(224 165 27 / 72%);
-}
-
-.bulk-draw-card.reward-effect-emerald {
-  border-color: #1fa77a;
-  box-shadow: 0 0 45px 12px rgb(31 167 122 / 74%);
-}
-
-.bulk-draw-card.reward-effect-sky {
-  border-color: #49b9ec;
-  box-shadow: 0 0 51px 13px rgb(73 185 236 / 76%);
 }
 
 .result-lose .reward-modal-icon {
@@ -1486,15 +1490,20 @@ onMounted(loadPointShop)
 }
 
 .probability-control {
-  position: relative;
+  position: absolute;
+  z-index: 3;
+  top: 14px;
+  right: 18px;
 }
 
 .probability-popover {
   position: absolute;
   z-index: 2;
-  right: 18px;
-  bottom: calc(100% - 1px);
-  left: 18px;
+  top: calc(100% + 6px);
+  right: 0;
+  bottom: auto;
+  left: auto;
+  width: 260px;
   padding: 14px;
   border: 1px solid #e4e7f2;
   border-radius: 12px;
