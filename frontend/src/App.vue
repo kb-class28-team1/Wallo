@@ -3,9 +3,11 @@ import { computed } from "vue"
 import { RouterView, useRoute } from "vue-router"
 import SideNavigation from "@/components/navigation/SideNavigation.vue"
 import TopHeader from "@/components/navigation/TopHeader.vue"
+import { useModalEnter } from "@/composables/useModalEnter"
 
 const route = useRoute()
 const usesAppShell = computed(() => Boolean(route.meta.appShell))
+useModalEnter()
 </script>
 
 <template>

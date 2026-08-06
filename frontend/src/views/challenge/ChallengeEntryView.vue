@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { createChallenge, getCurrentChallenge, joinChallenge } from '@/api/challengeApi'
+import AppDialog from '@/components/common/AppDialog.vue'
 
 const router = useRouter()
 
@@ -10,6 +11,9 @@ const isSubmitting = ref(false)
 const errorMessage = ref('')
 const currentChallenge = ref(null)
 const activeForm = ref('create')
+const dialogVisible = ref(false)
+const dialogMessage = ref('')
+const dialogNextRoute = ref(null)
 
 const createForm = reactive({
   name: '',
@@ -17,6 +21,19 @@ const createForm = reactive({
 const inviteCode = ref('')
 
 const hasChallenge = computed(() => currentChallenge.value?.joined === true)
+
+const showDialog = (message, nextRoute = null) => {
+  dialogMessage.value = message
+  dialogNextRoute.value = nextRoute
+  dialogVisible.value = true
+}
+
+const closeDialog = async () => {
+  const nextRoute = dialogNextRoute.value
+  dialogNextRoute.value = null
+  dialogVisible.value = false
+  if (nextRoute) await router.push(nextRoute)
+}
 
 const loadCurrentChallenge = async () => {
   isLoading.value = true
@@ -34,7 +51,7 @@ const loadCurrentChallenge = async () => {
 const submitCreate = async () => {
   const name = createForm.name.trim()
   if (!name) {
-    alert('챌린지 이름을 입력해 주세요.')
+    showDialog('챌린지 이름을 입력해 주세요.')
     return
   }
 
@@ -43,13 +60,12 @@ const submitCreate = async () => {
     const createdChallenge = await createChallenge({
       name,
     })
-    alert('챌린지가 만들어졌습니다.')
-    await router.push({
+    showDialog('챌린지가 만들어졌습니다.', {
       name: 'challenge-feed',
       params: { challengeId: createdChallenge.id },
     })
   } catch (error) {
-    alert(error.message)
+    showDialog(error.message)
   } finally {
     isSubmitting.value = false
   }
@@ -58,20 +74,19 @@ const submitCreate = async () => {
 const submitJoin = async () => {
   const code = inviteCode.value.trim()
   if (!code) {
-    alert('초대 코드를 입력해 주세요.')
+    showDialog('초대 코드를 입력해 주세요.')
     return
   }
 
   isSubmitting.value = true
   try {
     const joinedChallenge = await joinChallenge(code)
-    alert('챌린지에 참여했습니다.')
-    await router.push({
+    showDialog('챌린지에 참여했습니다.', {
       name: 'challenge-feed',
       params: { challengeId: joinedChallenge.id },
     })
   } catch (error) {
-    alert(error.message)
+    showDialog(error.message)
   } finally {
     isSubmitting.value = false
   }
@@ -80,9 +95,9 @@ const submitJoin = async () => {
 const copyInviteCode = async () => {
   try {
     await navigator.clipboard.writeText(currentChallenge.value.inviteCode)
-    alert('초대 코드가 복사되었습니다.')
+    showDialog('초대 코드가 복사되었습니다.')
   } catch {
-    alert(`초대 코드: ${currentChallenge.value.inviteCode}`)
+    showDialog(`초대 코드: ${currentChallenge.value.inviteCode}`)
   }
 }
 
@@ -278,6 +293,14 @@ onMounted(loadCurrentChallenge)
         </form>
       </div>
     </div>
+
+    <AppDialog
+      :visible="dialogVisible"
+      title="챌린지 안내"
+      :message="dialogMessage"
+      @confirm="closeDialog"
+      @close="closeDialog"
+    />
   </section>
 </template>
 

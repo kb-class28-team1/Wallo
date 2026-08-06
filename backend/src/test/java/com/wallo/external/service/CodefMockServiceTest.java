@@ -64,6 +64,41 @@ public class CodefMockServiceTest {
     }
 
     @Test
+    public void cardAssetEndpointUsesOrganizationSpecificFixture() {
+        CodefDto.Response hanaResponse = service.getAssetResponse(
+                "/mock/v1/kr/card/p/account/card-list",
+                "0311"
+        );
+        CodefDto.Response kbResponse = service.getAssetResponse(
+                "/mock/v1/kr/card/p/account/card-list",
+                "0301"
+        );
+
+        assertSuccess(hanaResponse);
+        assertSuccess(kbResponse);
+        CodefDto.AssetData hanaData = objectMapper.convertValue(
+                hanaResponse.getData(), CodefDto.AssetData.class
+        );
+        CodefDto.AssetData kbData = objectMapper.convertValue(
+                kbResponse.getData(), CodefDto.AssetData.class
+        );
+
+        assertEquals("4321-0000-0000-8765", hanaData.getCards().get(0).getResCardNo());
+        assertEquals("1357-0000-0000-2468", kbData.getCards().get(0).getResCardNo());
+    }
+
+    @Test
+    public void unsupportedCardAssetOrganizationReturnsNotFoundFailure() {
+        CodefDto.Response response = service.getAssetResponse(
+                "/mock/v1/kr/card/p/account/card-list",
+                "0999"
+        );
+
+        assertEquals("CF-40400", response.getResult().getCode());
+        assertNull(response.getData());
+    }
+
+    @Test
     public void stockAssetEndpointLoadsStockFixture() {
         assertSuccess(service.getAssetResponse(
                 "/mock/v1/kr/stock/p/account/account-list"

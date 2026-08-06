@@ -6,6 +6,7 @@ import com.wallo.asset.domain.GoalFundAvailability;
 import com.wallo.asset.dto.AssetDto;
 import com.wallo.asset.dto.GoalAssetContextDto;
 import com.wallo.asset.mapper.AssetMapper;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
@@ -20,14 +21,16 @@ public class AssetService {
     private static final int ASSET_TREND_MONTH_COUNT = 5;
 
     private final AssetMapper assetMapper;
+    private final Clock clock;
 
-    public AssetService(AssetMapper assetMapper) {
+    public AssetService(AssetMapper assetMapper, Clock clock) {
         this.assetMapper = assetMapper;
+        this.clock = clock;
     }
 
     public AssetDto.Response getAssets(long userId) {
-        YearMonth currentMonth = YearMonth.now();
-        LocalDate currentDate = LocalDate.now();
+        LocalDate currentDate = LocalDate.now(clock);
+        YearMonth currentMonth = YearMonth.from(currentDate);
         YearMonth previousMonth = currentMonth.minusMonths(1);
         YearMonth trendStartMonth = currentMonth.minusMonths(ASSET_TREND_MONTH_COUNT - 1);
 
