@@ -1,6 +1,11 @@
 <script setup>
 import { computed, onMounted, ref } from "vue"
-import { getPointShop, openRandomBox } from "@/api/pointShopApi"
+import {
+  deleteUsedInventoryItem,
+  getPointShop,
+  openRandomBox,
+  openRandomBoxes,
+} from "@/api/pointShopApi"
 import { useUserStore } from "@/stores/userStore"
 
 const userStore = useUserStore()
@@ -9,6 +14,25 @@ const shopPointBalance = ref(null)
 const isLoading = ref(false)
 const isOpeningBox = ref(false)
 const errorMessage = ref("")
+const BULK_OPEN_COUNT = 10
+const pointWCoin = "/images/profiles/point-w-coin.svg"
+const rewardModal = ref({
+  open: false,
+  kind: "neutral",
+  icon: "📦",
+  kicker: "랜덤 박스 결과",
+  title: "개봉 결과",
+  message: "보상 결과를 확인해보세요.",
+  itemName: "",
+  rewardPoint: 0,
+  openedCount: 0,
+  itemRewardCount: 0,
+  pointRewardCount: 0,
+  loseCount: 0,
+  rewards: [],
+  drawResults: [],
+  effectClass: "reward-effect-none",
+})
 
 // API에서 박스 정보를 받기 전에도 기본 상자 UI가 유지되도록 기본값을 둠
 const randomBoxes = ref([
@@ -20,12 +44,12 @@ const randomBoxes = ref([
     price: 500,
     colorClass: "box-basic",
     probabilities: [
-      { label: "편의점 1,000원 금액권", rate: 10 },
-      { label: "아메리카노 기프티콘", rate: 8 },
-      { label: "편의점 5,000원 금액권", rate: 5 },
-      { label: "꽝", rate: 40 },
-      { label: "250P 즉시 지급", rate: 25 },
-      { label: "500P 즉시 지급", rate: 12 },
+      { label: "꽝", rate: 71 },
+      { label: "250P 즉시 지급", rate: 12 },
+      { label: "500P 즉시 지급", rate: 8 },
+      { label: "편의점 1,000원 금액권", rate: 5 },
+      { label: "아메리카노 기프티콘", rate: 3 },
+      { label: "편의점 5,000원 금액권", rate: 1 },
     ],
   },
 ])
@@ -40,6 +64,8 @@ const formattedPoint = computed(() =>
 const currentPoint = computed(() =>
   Number(shopPointBalance.value ?? userStore.pointBalance ?? 0),
 )
+
+const bulkOpenPrice = (box) => Number(box.price || 0) * BULK_OPEN_COUNT
 
 const getInventoryIcon = (itemName) => {
   if (itemName?.includes("아메리카노") || itemName?.includes("커피")) {
@@ -87,26 +113,221 @@ const loadPointShop = async () => {
       : []
   } catch (error) {
     errorMessage.value = error.message || "포인트 샵 정보를 불러오지 못했습니다."
-    alert(errorMessage.value)
   } finally {
     isLoading.value = false
   }
 }
 
-const toggleProbability = (boxId) => {
-  activeProbabilityBox.value =
-    activeProbabilityBox.value === boxId ? null : boxId
+const showProbability = (boxId) => {
+  activeProbabilityBox.value = boxId
+}
+
+const hideProbability = (boxId) => {
+  if (activeProbabilityBox.value === boxId) {
+    activeProbabilityBox.value = null
+  }
+}
+
+const openRewardModal = (payload) => {
+  rewardModal.value = {
+    ...rewardModal.value,
+    ...payload,
+    effectClass:
+      payload.effectClass ||
+      (payload.kind === "point"
+        ? getRewardEffectClass({ rewardPoint: payload.rewardPoint })
+        : payload.kind === "win"
+          ? getRewardEffectClass({ itemName: payload.itemName })
+          : payload.kind === "bulk"
+            ? getBulkRewardEffectClass(payload.rewardPoint, payload.rewards || [])
+            : "reward-effect-none"),
+    open: true,
+  }
+}
+
+const closeRewardModal = () => {
+  rewardModal.value.open = false
+}
+
+const rewardEffectRank = {
+  "reward-effect-none": 0,
+  "reward-effect-blue": 1,
+  "reward-effect-copper": 1,
+  "reward-effect-silver": 2,
+  "reward-effect-gold": 3,
+  "reward-effect-emerald": 4,
+  "reward-effect-sky": 5,
+}
+
+const getRewardEffectClass = ({ rewardPoint = 0, itemName = "" } = {}) => {
+  const name = String(itemName)
+
+  if (Number(rewardPoint) === 250) {
+    return "reward-effect-blue"
+  }
+  if (Number(rewardPoint) === 500) {
+    return "reward-effect-silver"
+  }
+  if (name.includes("1,000") || name.includes("1000")) {
+    return "reward-effect-gold"
+  }
+  if (name.includes("아메리카노") || name.includes("커피")) {
+    return "reward-effect-emerald"
+  }
+  if (name.includes("5,000") || name.includes("5000")) {
+    return "reward-effect-sky"
+  }
+
+  return "reward-effect-none"
+}
+
+const getBulkRewardEffectClass = (rewardPoint, rewards) => {
+  const effectClasses = [
+    getRewardEffectClass({ rewardPoint }),
+    ...rewards.map((reward) => getRewardEffectClass({ itemName: reward?.itemName })),
+  ]
+
+  return effectClasses.reduce(
+    (best, current) =>
+      rewardEffectRank[current] > rewardEffectRank[best] ? current : best,
+    "reward-effect-none",
+  )
+}
+
+const buildFallbackDrawResults = ({ rewards, pointRewardCount, loseCount, rewardPoint }) => {
+  const itemResults = rewards.map((reward) => ({
+    result: "WIN",
+    inventoryId: reward.inventoryId,
+    itemName: reward.itemName,
+    grade: reward.grade,
+    rewardPoint: 0,
+  }))
+  const pointValue = pointRewardCount
+    ? Math.round(Number(rewardPoint || 0) / pointRewardCount)
+    : 0
+  const pointResults = Array.from({ length: pointRewardCount }, (_, index) => ({
+    result: "POINT",
+    inventoryId: null,
+    itemName: "",
+    grade: "",
+    rewardPoint: pointValue,
+    fallbackIndex: index,
+  }))
+  const loseResults = Array.from({ length: loseCount }, (_, index) => ({
+    result: "LOSE",
+    inventoryId: null,
+    itemName: "",
+    grade: "",
+    rewardPoint: 0,
+    fallbackIndex: index,
+  }))
+
+  const fallbackResults = [...itemResults, ...pointResults, ...loseResults]
+  while (fallbackResults.length < BULK_OPEN_COUNT) {
+    fallbackResults.push({
+      result: "LOSE",
+      inventoryId: null,
+      itemName: "",
+      grade: "",
+      rewardPoint: 0,
+      fallbackIndex: fallbackResults.length,
+    })
+  }
+
+  return fallbackResults.slice(0, BULK_OPEN_COUNT)
+}
+
+const showBoxErrorModal = (message) => {
+  openRewardModal({
+    kind: "error",
+    icon: "💳",
+    kicker: "랜덤 박스 안내",
+    title: "개봉할 수 없어요",
+    message,
+    itemName: "",
+    rewardPoint: 0,
+    rewards: [],
+  })
+}
+
+const showSingleBoxResult = (result) => {
+  if (result?.result === "LOSE") {
+    openRewardModal({
+      kind: "lose",
+      icon: "😢",
+      kicker: "랜덤 박스 결과",
+      title: "아쉽게도 꽝이에요",
+      message: "다음에는 더 좋은 보상이 나오길 바랄게요.",
+      itemName: "",
+      rewardPoint: 0,
+      rewards: [],
+    })
+    return
+  }
+
+  if (result?.result === "POINT") {
+    const rewardPoint = Number(result?.rewardPoint || 0)
+    openRewardModal({
+      kind: "point",
+      icon: "🪙",
+      kicker: "랜덤 박스 결과",
+      title: `${rewardPoint.toLocaleString("ko-KR")}P 당첨!`,
+      message: "포인트가 즉시 지급되었어요.",
+      itemName: "",
+      rewardPoint,
+      rewards: [],
+    })
+    return
+  }
+
+  openRewardModal({
+    kind: "win",
+    icon: "🎉",
+    kicker: "랜덤 박스 결과",
+    title: "상품에 당첨됐어요!",
+    message: "획득한 상품을 보관함에서 확인해보세요.",
+    itemName: result?.reward?.itemName || "상품",
+    rewardPoint: 0,
+    rewards: [],
+  })
+}
+
+const showBulkBoxResult = (result) => {
+  const openedCount = Number(result?.openedCount || BULK_OPEN_COUNT)
+  const itemRewardCount = Number(result?.itemRewardCount || 0)
+  const pointRewardCount = Number(result?.pointRewardCount || 0)
+  const loseCount = Number(result?.loseCount || 0)
+  const rewardPoint = Number(result?.rewardPoint || 0)
+  const rewards = Array.isArray(result?.rewards) ? result.rewards : []
+  const drawResults =
+    Array.isArray(result?.drawResults) && result.drawResults.length === BULK_OPEN_COUNT
+      ? result.drawResults
+      : buildFallbackDrawResults({ rewards, pointRewardCount, loseCount, rewardPoint })
+
+  openRewardModal({
+    kind: "bulk",
+    icon: itemRewardCount || rewardPoint ? "🎉" : "📦",
+    kicker: "랜덤 박스 일괄 개봉 결과",
+    title: `${openedCount}개 개봉 완료!`,
+    message: itemRewardCount || rewardPoint
+      ? "이번 개봉에서 획득한 보상이에요."
+      : "이번에는 당첨된 보상이 없어요.",
+    itemName: "",
+    rewardPoint,
+    openedCount,
+    itemRewardCount,
+    pointRewardCount,
+    loseCount,
+    rewards,
+    drawResults,
+  })
 }
 
 const handleOpenBox = async (box) => {
   if (isOpeningBox.value || currentPoint.value < box.price) {
     if (currentPoint.value < box.price) {
-      alert("보유 포인트가 부족합니다.")
+      showBoxErrorModal("보유 포인트가 부족합니다.")
     }
-    return
-  }
-
-  if (!window.confirm(`${box.price.toLocaleString("ko-KR")}P를 사용해 상자를 열까요?`)) {
     return
   }
 
@@ -116,26 +337,57 @@ const handleOpenBox = async (box) => {
     const result = response?.data || response
     shopPointBalance.value = result?.remainingPoint ?? shopPointBalance.value
     userStore.updatePointBalance(shopPointBalance.value)
-    if (result?.result === "LOSE") {
-      alert("아쉽게도 당첨되지 않았습니다.")
-    } else if (result?.result === "POINT") {
-      alert(`${Number(result?.rewardPoint || 0).toLocaleString("ko-KR")}P가 즉시 지급되었습니다!`)
-    } else {
-      alert(`${result?.reward?.itemName || "상품"}에 당첨되었습니다!`)
-    }
+    showSingleBoxResult(result)
     await loadPointShop()
   } catch (error) {
-    alert(error.message || "랜덤박스를 열지 못했습니다.")
+    showBoxErrorModal(error.message || "랜덤박스를 열지 못했습니다.")
   } finally {
     isOpeningBox.value = false
   }
 }
 
-// 사용 처리된 아이템만 화면 목록에서 삭제함
-const removeUsedItem = (itemId) => {
-  inventoryItems.value = inventoryItems.value.filter(
-    (item) => item.id !== itemId || !item.used,
-  )
+// 사용 완료 아이템만 서버에서 삭제한 뒤 목록을 다시 조회함.
+const removeUsedItem = async (itemId) => {
+  const item = inventoryItems.value.find((inventoryItem) => inventoryItem.id === itemId)
+  if (!item?.used) {
+    return
+  }
+
+  if (!window.confirm("사용 완료 아이템을 삭제할까요?")) {
+    return
+  }
+
+  try {
+    await deleteUsedInventoryItem(itemId)
+    await loadPointShop()
+  } catch (error) {
+    alert(error.message || "아이템을 삭제하지 못했습니다.")
+  }
+}
+
+const handleOpenBoxes = async (box) => {
+  const totalPrice = bulkOpenPrice(box)
+  if (isOpeningBox.value || currentPoint.value < totalPrice) {
+    if (currentPoint.value < totalPrice) {
+      showBoxErrorModal(`10개를 열려면 ${totalPrice.toLocaleString("ko-KR")}P가 필요합니다.`)
+    }
+    return
+  }
+
+  isOpeningBox.value = true
+  try {
+    const response = await openRandomBoxes(box.id)
+    const result = response?.data || response
+    shopPointBalance.value = result?.remainingPoint ?? shopPointBalance.value
+    userStore.updatePointBalance(shopPointBalance.value)
+
+    showBulkBoxResult(result)
+    await loadPointShop()
+  } catch (error) {
+    showBoxErrorModal(error.message || "랜덤박스 10개를 열지 못했습니다.")
+  } finally {
+    isOpeningBox.value = false
+  }
 }
 
 // 페이지에 들어오면 로그인 사용자의 포인트와 보관함을 조회함
@@ -145,9 +397,13 @@ onMounted(loadPointShop)
 <template>
   <section class="point-shop-page">
     <header class="page-heading d-flex align-items-center gap-3 mb-4">
-      <button type="button" class="btn back-button" @click="$router.back()">
+      <button
+        type="button"
+        class="btn page-back-button"
+        aria-label="뒤로 가기"
+        @click="$router.back()"
+      >
         <i class="bi bi-chevron-left" aria-hidden="true"></i>
-        뒤로
       </button>
       <h1 class="mb-0">포인트 샵</h1>
     </header>
@@ -192,27 +448,46 @@ onMounted(loadPointShop)
         <h3>{{ box.name }}</h3>
         <p>{{ box.description }}</p>
         <strong class="box-price">🪙 {{ box.price.toLocaleString("ko-KR") }}P</strong>
-        <button
-          type="button"
-          class="open-box-button"
-          :disabled="isOpeningBox || currentPoint < box.price"
-          @click="handleOpenBox(box)"
+        <div class="open-box-actions">
+          <button
+            type="button"
+            class="open-box-button"
+            :disabled="isOpeningBox || currentPoint < box.price"
+            @click="handleOpenBox(box)"
+          >
+            {{ isOpeningBox ? "상자를 여는 중임..." : "상자 열기" }}
+          </button>
+          <button
+            type="button"
+            class="bulk-open-box-button"
+            :disabled="isOpeningBox || currentPoint < bulkOpenPrice(box)"
+            @click="handleOpenBoxes(box)"
+          >
+            {{
+              isOpeningBox
+                ? "10개를 여는 중..."
+                : `10개 한 번에 열기 · ${bulkOpenPrice(box).toLocaleString("ko-KR")}P`
+            }}
+          </button>
+        </div>
+        <div
+          class="probability-control"
+          @mouseenter="showProbability(box.id)"
+          @mouseleave="hideProbability(box.id)"
         >
-          {{ isOpeningBox ? "상자를 여는 중임..." : "상자 열기" }}
-        </button>
-        <button
-          type="button"
-          class="probability-button"
-          :aria-expanded="activeProbabilityBox === box.id"
-          @click="toggleProbability(box.id)"
-        >
-          ▸ 확률 보기
-        </button>
-        <div v-if="activeProbabilityBox === box.id" class="probability-popover">
-          <strong>상품별 확률</strong>
-          <div v-for="item in box.probabilities" :key="item.label" class="probability-row">
-            <span>{{ item.label }}</span>
-            <b>{{ item.rate }}%</b>
+          <button
+            type="button"
+            class="probability-button"
+            :aria-expanded="activeProbabilityBox === box.id"
+          >
+            ▸ 확률 보기
+          </button>
+          <div v-if="activeProbabilityBox === box.id" class="probability-popover">
+            <strong>상품별 확률</strong>
+            <div v-for="item in box.probabilities" :key="item.label" class="probability-row">
+              <span>{{ item.label }}</span>
+              <b>{{ item.rate }}%</b>
+            </div>
           </div>
         </div>
       </article>
@@ -253,10 +528,228 @@ onMounted(loadPointShop)
       <strong>보관함이 비어 있어요.</strong>
       <p>랜덤박스에서 획득한 상품이 이곳에 표시돼요.</p>
     </article>
+
+    <Transition name="reward-modal">
+      <div
+        v-if="rewardModal.open"
+        class="reward-modal-backdrop"
+        :class="{ 'bulk-backdrop': rewardModal.kind === 'bulk' }"
+        role="dialog"
+        aria-modal="true"
+        :aria-labelledby="rewardModal.kind === 'bulk' ? 'bulk-result-title' : ['point', 'win', 'lose'].includes(rewardModal.kind) ? 'single-result-title' : 'reward-modal-title'"
+        tabindex="-1"
+        @click.self="closeRewardModal"
+        @keydown.esc="closeRewardModal"
+      >
+        <div
+          class="reward-modal-shell"
+          :class="{
+            'bulk-modal-shell': rewardModal.kind === 'bulk',
+          }"
+        >
+          <article
+            class="reward-modal-card"
+            :class="[
+              `result-${rewardModal.kind}`,
+              rewardModal.kind === 'bulk' ? rewardModal.effectClass : '',
+              { 'single-modal-card': ['point', 'win', 'lose'].includes(rewardModal.kind) },
+            ]"
+          >
+          <button
+            type="button"
+            class="reward-modal-close"
+            aria-label="결과 창 닫기"
+            @click="closeRewardModal"
+          >
+            <i class="bi bi-x-lg" aria-hidden="true"></i>
+          </button>
+
+          <template v-if="['error', 'neutral'].includes(rewardModal.kind)">
+            <div class="reward-modal-icon" aria-hidden="true">{{ rewardModal.icon }}</div>
+            <span v-if="rewardModal.kind === 'error'" class="reward-modal-kicker">{{ rewardModal.kicker }}</span>
+            <h2 id="reward-modal-title">{{ rewardModal.title }}</h2>
+            <p v-if="rewardModal.kind === 'error'" class="reward-modal-message">{{ rewardModal.message }}</p>
+          </template>
+
+          <template v-else-if="['point', 'win', 'lose'].includes(rewardModal.kind)">
+            <div class="bulk-draw-panel single-draw-panel">
+              <div class="bulk-draw-grid single-draw-grid">
+                <div
+                  class="bulk-draw-card single-draw-card"
+                  :class="[
+                    `draw-${rewardModal.kind === 'point' ? 'point' : rewardModal.kind === 'win' ? 'win' : 'lose'}`,
+                    getRewardEffectClass({
+                      rewardPoint: rewardModal.rewardPoint,
+                      itemName: rewardModal.itemName,
+                    }),
+                  ]"
+                >
+                  <button
+                    type="button"
+                    class="bulk-draw-close"
+                    aria-label="결과 창 닫기"
+                    @click="closeRewardModal"
+                  >
+                    <i class="bi bi-x-lg" aria-hidden="true"></i>
+                  </button>
+                  <img
+                    v-if="rewardModal.kind === 'point'"
+                    :src="pointWCoin"
+                    class="bulk-draw-result-icon bulk-draw-point-icon"
+                    alt=""
+                    aria-hidden="true"
+                  />
+                  <span v-else-if="rewardModal.kind === 'win'" class="bulk-draw-result-icon" aria-hidden="true">
+                    {{ rewardModal.kind === 'win' ? '🎉' : '😢' }}
+                  </span>
+                  <strong
+                    v-if="rewardModal.kind === 'win'"
+                    id="single-result-title"
+                    class="bulk-draw-title"
+                  >상품에 당첨됐어요!</strong>
+                  <strong
+                    v-else-if="rewardModal.kind === 'point'"
+                    id="single-result-title"
+                    class="bulk-draw-title"
+                  >
+                    {{ Number(rewardModal.rewardPoint || 0).toLocaleString("ko-KR") }}P 당첨!
+                  </strong>
+                  <strong v-else id="single-result-title" class="bulk-draw-title">다음 기회에..</strong>
+                  <div class="bulk-draw-prize-card">
+                    <img
+                      v-if="rewardModal.kind === 'point'"
+                      :src="pointWCoin"
+                      class="bulk-draw-prize-icon"
+                      alt=""
+                      aria-hidden="true"
+                    />
+                    <span v-else-if="rewardModal.kind === 'win'" class="bulk-draw-prize-icon" aria-hidden="true">
+                      🎁
+                    </span>
+                    <strong v-if="rewardModal.kind === 'win'">{{ rewardModal.itemName }}</strong>
+                    <strong v-else-if="rewardModal.kind === 'point'">
+                      {{ Number(rewardModal.rewardPoint || 0).toLocaleString("ko-KR") }}P
+                    </strong>
+                    <strong v-else>꽝</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <template v-if="rewardModal.kind === 'bulk'">
+            <div class="bulk-result-heading" aria-hidden="true">
+              <h2 id="bulk-result-title">{{ rewardModal.title }}</h2>
+            </div>
+            <div class="bulk-draw-panel">
+              <div class="bulk-draw-grid">
+              <div
+                v-for="(draw, index) in rewardModal.drawResults"
+                :key="`${index}-${draw.inventoryId || draw.result}`"
+                class="bulk-draw-card"
+                :class="[
+                  `draw-${String(draw.result).toLowerCase()}`,
+                  getRewardEffectClass({ rewardPoint: draw.rewardPoint, itemName: draw.itemName }),
+                ]"
+              >
+                <button
+                  type="button"
+                  class="bulk-draw-close"
+                  :aria-label="`${index + 1}번 결과 닫기`"
+                  @click="closeRewardModal"
+                >
+                  <i class="bi bi-x-lg" aria-hidden="true"></i>
+                </button>
+                <img
+                  v-if="draw.result === 'POINT'"
+                  :src="pointWCoin"
+                  class="bulk-draw-result-icon bulk-draw-point-icon"
+                  alt=""
+                  aria-hidden="true"
+                />
+                <span v-else-if="draw.result === 'WIN'" class="bulk-draw-result-icon" aria-hidden="true">
+                  {{ draw.result === 'WIN' ? '🎉' : '😢' }}
+                </span>
+                <strong v-if="draw.result === 'WIN'" class="bulk-draw-title">상품에 당첨됐어요!</strong>
+                <strong v-else-if="draw.result === 'POINT'" class="bulk-draw-title">
+                  {{ Number(draw.rewardPoint || 0).toLocaleString("ko-KR") }}P 당첨!
+                </strong>
+                <strong v-else class="bulk-draw-title">다음 기회에..</strong>
+                <div class="bulk-draw-prize-card">
+                  <img
+                    v-if="draw.result === 'POINT'"
+                    :src="pointWCoin"
+                    class="bulk-draw-prize-icon"
+                    alt=""
+                    aria-hidden="true"
+                  />
+                  <span v-else-if="draw.result === 'WIN'" class="bulk-draw-prize-icon" aria-hidden="true">
+                    🎁
+                  </span>
+                  <strong v-if="draw.result === 'WIN'">{{ draw.itemName }}</strong>
+                  <strong v-else-if="draw.result === 'POINT'">
+                    {{ Number(draw.rewardPoint || 0).toLocaleString("ko-KR") }}P
+                  </strong>
+                  <strong v-else>꽝</strong>
+                </div>
+              </div>
+              </div>
+            </div>
+            <button type="button" class="bulk-result-confirm" @click="closeRewardModal">
+              확인
+            </button>
+          </template>
+
+          </article>
+          <button
+            v-if="rewardModal.kind !== 'bulk'"
+            type="button"
+            class="reward-modal-confirm reward-modal-confirm-outside"
+            @click="closeRewardModal"
+          >
+            확인
+          </button>
+        </div>
+      </div>
+    </Transition>
   </section>
 </template>
 
 <style scoped>
+ .page-back-button {
+   display: inline-flex;
+   flex: 0 0 38px;
+   width: 38px;
+   height: 38px;
+   align-items: center;
+   justify-content: center;
+   padding: 0;
+   border: 0;
+   border-radius: 12px;
+   background: #f1efff;
+   color: #6b64e8;
+   text-decoration: none;
+   transform: translateX(-8px);
+   transition: background-color 160ms ease, color 160ms ease, transform 160ms ease;
+ }
+
+ .page-back-button:hover,
+ .page-back-button:focus-visible {
+   background: #e8e5ff;
+   color: #574fd2;
+   transform: translateX(-8px) translateY(-1px);
+ }
+
+ .page-back-button:focus-visible {
+   outline: 3px solid rgb(107 100 232 / 22%);
+   outline-offset: 2px;
+ }
+
+ .page-back-button i {
+   font-size: 16px;
+   line-height: 1;
+ }
+
 .point-shop-page {
   width: 100%;
   color: #27304f;
@@ -265,15 +758,6 @@ onMounted(loadPointShop)
 .page-heading h1 {
   font-size: 28px;
   font-weight: 800;
-}
-
-.back-button {
-  border: 1px solid #e4e7f2;
-  border-radius: 999px;
-  background: #fff;
-  color: #6d7594;
-  font-size: 14px;
-  font-weight: 700;
 }
 
 .point-summary-card {
@@ -417,7 +901,7 @@ onMounted(loadPointShop)
 .open-box-button {
   display: block;
   width: 100%;
-  margin: 12px 0 8px;
+  margin: 0;
   padding: 10px 14px;
   border: 0;
   border-radius: 10px;
@@ -432,6 +916,605 @@ onMounted(loadPointShop)
   cursor: not-allowed;
 }
 
+.open-box-actions {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 8px;
+}
+
+.bulk-open-box-button {
+  display: block;
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid #c8c2ff;
+  border-radius: 10px;
+  background: #eeecff;
+  color: #5648c4;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.bulk-open-box-button:hover:not(:disabled),
+.bulk-open-box-button:focus-visible:not(:disabled) {
+  border-color: #7565ed;
+  background: #e4e0ff;
+}
+
+.bulk-open-box-button:disabled {
+  border-color: #d9d9e8;
+  background: #f0f0f5;
+  color: #aaaec0;
+  cursor: not-allowed;
+}
+
+.reward-modal-backdrop {
+  position: fixed;
+  z-index: 1100;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  overflow: auto;
+  background: rgb(0 0 0 / 84%);
+}
+
+.reward-modal-backdrop.bulk-backdrop {
+  background: rgb(0 0 0 / 90%);
+}
+
+.reward-modal-shell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: min(100%, 260px);
+}
+
+.reward-modal-shell.bulk-modal-shell {
+  width: min(100%, 1180px);
+}
+
+.reward-modal-card {
+  position: relative;
+  width: min(100%, 260px);
+  min-height: 180px;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  padding: 24px 20px 17px;
+  border: 1px solid rgb(255 255 255 / 70%);
+  border-radius: 17px;
+  background: #fff;
+  color: #27304f;
+  box-shadow: 0 24px 70px rgb(0 0 0 / 38%);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+}
+
+.reward-modal-card.single-modal-card {
+  display: block;
+  align-self: center;
+  width: 260px;
+  min-width: 260px;
+  min-height: 0;
+  max-height: none;
+  overflow: visible;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.single-draw-panel {
+  display: block;
+  width: 260px;
+  min-width: 260px;
+  padding: 0;
+}
+
+.single-draw-grid {
+  width: 260px;
+  min-width: 260px;
+  grid-template-columns: minmax(0, 260px);
+  gap: 0;
+}
+
+.single-draw-card {
+  width: 260px;
+  min-width: 260px;
+}
+
+.reward-modal-card.single-modal-card > .reward-modal-close {
+  display: none;
+}
+
+.reward-modal-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  width: 25px;
+  height: 25px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: #f1f2f7;
+  color: #8189a3;
+  font-size: 10px;
+}
+
+.reward-modal-close:hover,
+.reward-modal-close:focus-visible {
+  background: #e7e8f1;
+  color: #424b6d;
+}
+
+.reward-modal-icon {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  margin: 0 auto 10px;
+  place-items: center;
+  border-radius: 17px;
+  background: linear-gradient(145deg, #eeeaff, #ddd8ff);
+  font-size: 30px;
+  animation: reward-icon-bounce 240ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.reward-modal-point-icon {
+  background: linear-gradient(145deg, #eaf3ff, #cfe2ff);
+}
+
+.reward-modal-point-icon img {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+}
+
+.result-point h2,
+.result-point .reward-point-card,
+.result-point .reward-point-card strong {
+  color: #2f6fed;
+}
+
+.reward-modal-kicker {
+  display: block;
+  margin-bottom: 5px;
+  color: #786de9;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.reward-modal-card h2 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 850;
+}
+
+.reward-modal-message {
+  margin: 6px 0 14px;
+  color: #8d96b0;
+  font-size: 11px;
+}
+
+.reward-prize-card,
+.reward-point-card {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  margin-bottom: 14px;
+  padding: 13px;
+  border-radius: 12px;
+  background: #f7f6ff;
+}
+
+.reward-prize-icon {
+  font-size: 22px;
+}
+
+.reward-prize-card strong {
+  color: #5546ca;
+  font-size: 14px;
+}
+
+.reward-prize-card small {
+  color: #9ca4bd;
+  font-size: 10px;
+}
+
+.reward-point-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: #db9600;
+}
+
+.reward-point-icon {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+.reward-point-card strong {
+  font-size: 18px;
+}
+
+.reward-modal-card.result-bulk {
+  box-sizing: border-box;
+  width: min(100%, 1180px);
+  min-height: 0;
+  max-height: none;
+  overflow: visible;
+  padding: 0 0 24px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.bulk-result-heading {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  margin-bottom: 28px;
+  color: #fff;
+}
+
+.bulk-result-icon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 12px;
+  background: #e9e6ff;
+  font-size: 25px;
+  line-height: 1;
+}
+
+.bulk-result-heading h2 {
+  margin: 0;
+  font-size: 23px;
+  font-weight: 700;
+}
+
+.bulk-draw-panel {
+  box-sizing: border-box;
+  padding: 24px 26px 10px;
+  background: transparent;
+  overflow: visible;
+}
+
+.bulk-draw-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 28px;
+  padding: 0 0;
+  margin-bottom: 0;
+  overflow: visible;
+}
+
+.bulk-draw-panel.single-draw-panel {
+  width: 260px;
+  min-width: 260px;
+  margin: 0 auto;
+  padding: 0 !important;
+}
+
+.bulk-draw-grid.single-draw-grid {
+  width: 260px;
+  min-width: 260px;
+  grid-template-columns: 260px;
+  gap: 0;
+}
+
+.bulk-draw-card.single-draw-card {
+  width: 260px;
+  min-width: 260px;
+}
+
+.bulk-draw-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  min-height: 188px;
+  box-sizing: border-box;
+  gap: 7px;
+  padding: 22px 10px 14px;
+  border: 1px solid #ebeaff;
+  border-radius: 17px;
+  background: #fff;
+  text-align: center;
+}
+
+.bulk-draw-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  width: 25px;
+  height: 25px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: #f1f2f7;
+  color: #8189a3;
+  font-size: 10px;
+}
+
+.bulk-draw-close:hover,
+.bulk-draw-close:focus-visible {
+  background: #e7e8f1;
+  color: #424b6d;
+}
+
+.bulk-draw-result-icon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 14px;
+  background: #fff;
+  font-size: 27px;
+  line-height: 1;
+}
+
+.bulk-draw-point-icon {
+  width: 48px;
+  height: 48px;
+  padding: 8px;
+  background: #fff;
+  object-fit: contain;
+}
+
+.bulk-draw-title {
+  display: -webkit-box;
+  width: 100%;
+  overflow: hidden;
+  color: #4d5675;
+  font-size: 13px;
+  line-height: 1.25;
+  text-align: center;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  word-break: keep-all;
+}
+
+.bulk-draw-card.draw-win .bulk-draw-result-icon {
+  background: #fff;
+}
+
+.bulk-draw-card.draw-point .bulk-draw-result-icon {
+  background: #fff;
+}
+
+.bulk-draw-card.draw-lose .bulk-draw-result-icon {
+  background: #fff;
+  filter: none;
+}
+
+.bulk-draw-card.draw-win .bulk-draw-title {
+  color: #5546ca;
+}
+
+.bulk-draw-card.draw-point .bulk-draw-title {
+  color: #2f6fed;
+}
+
+.bulk-draw-card.draw-lose {
+  border-color: #ebeaff;
+  background: #fff;
+  opacity: 1;
+  justify-content: center;
+}
+
+.bulk-draw-card.draw-lose .bulk-draw-title {
+  color: #5546ca;
+}
+
+.bulk-draw-prize-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 48px;
+  box-sizing: border-box;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.bulk-draw-prize-icon {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  font-size: 20px;
+  line-height: 1;
+  object-fit: contain;
+}
+
+.bulk-draw-card.draw-win .bulk-draw-prize-icon {
+  transform: translateY(-1px);
+}
+
+.bulk-draw-prize-card strong {
+  display: -webkit-box;
+  max-width: 100%;
+  overflow: hidden;
+  color: #5546ca;
+  font-size: 13px;
+  line-height: 1.25;
+  text-align: center;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  word-break: keep-all;
+}
+
+.draw-point .bulk-draw-prize-card strong {
+  color: #2f6fed;
+}
+
+.draw-lose .bulk-draw-prize-card {
+  background: #fff;
+}
+
+.draw-lose .bulk-draw-prize-card strong {
+  color: #5546ca;
+}
+
+.bulk-draw-card.reward-effect-blue {
+  border-color: #5686ed;
+  border-width: 2px;
+  box-shadow:
+    0 0 0 3px rgb(86 134 237 / 30%),
+    0 0 20px 6px rgb(86 134 237 / 78%),
+    0 0 38px 11px rgb(86 134 237 / 34%),
+    inset 0 0 11px rgb(86 134 237 / 20%);
+}
+
+.bulk-draw-card.reward-effect-silver {
+  border-color: #9ea9b8;
+  border-width: 2px;
+  box-shadow:
+    0 0 0 3px rgb(158 169 184 / 32%),
+    0 0 24px 7px rgb(158 169 184 / 82%),
+    0 0 42px 12px rgb(158 169 184 / 36%),
+    inset 0 0 13px rgb(158 169 184 / 22%);
+}
+
+.bulk-draw-card.reward-effect-gold {
+  border-color: #e0a51b;
+  border-width: 2px;
+  box-shadow:
+    0 0 0 3px rgb(224 165 27 / 34%),
+    0 0 28px 8px rgb(224 165 27 / 86%),
+    0 0 46px 13px rgb(224 165 27 / 38%),
+    inset 0 0 15px rgb(224 165 27 / 24%);
+}
+
+.bulk-draw-card.reward-effect-emerald {
+  border-color: #1fa77a;
+  border-width: 2px;
+  box-shadow:
+    0 0 0 3px rgb(31 167 122 / 36%),
+    0 0 32px 9px rgb(31 167 122 / 90%),
+    0 0 50px 14px rgb(31 167 122 / 40%),
+    inset 0 0 17px rgb(31 167 122 / 26%);
+}
+
+.bulk-draw-card.reward-effect-sky {
+  border-color: #49b9ec;
+  border-width: 2px;
+  box-shadow:
+    0 0 0 3px rgb(73 185 236 / 38%),
+    0 0 36px 10px rgb(73 185 236 / 94%),
+    0 0 54px 15px rgb(73 185 236 / 42%),
+    inset 0 0 19px rgb(73 185 236 / 28%);
+}
+
+.bulk-result-confirm {
+  display: block;
+  width: min(100%, 188px);
+  margin: 14px auto 0;
+  padding: 8px 16px;
+  border: 0;
+  border-radius: 9px;
+  background: #6d5df0;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.bulk-result-confirm:hover,
+.bulk-result-confirm:focus-visible {
+  background: #5949df;
+}
+
+.result-lose .reward-modal-icon {
+  background: #f1f2f7;
+  filter: grayscale(0.25);
+}
+
+.result-error .reward-modal-icon {
+  background: #fff3dd;
+}
+
+.reward-modal-confirm {
+  width: 100%;
+  margin-top: auto;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: #6d5df0;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.reward-modal-confirm:hover,
+.reward-modal-confirm:focus-visible {
+  background: #5949df;
+}
+
+.reward-modal-confirm-outside {
+  box-sizing: border-box;
+  width: 260px;
+  max-width: 100%;
+  flex: 0 0 auto;
+  margin-top: 14px;
+}
+
+.reward-modal-card.result-bulk .reward-modal-confirm {
+  display: none;
+}
+
+.reward-modal-card.result-bulk > .reward-modal-close {
+  display: none;
+}
+
+.reward-modal-enter-active,
+.reward-modal-leave-active {
+  transition: opacity 120ms ease-out;
+}
+
+.reward-modal-enter-active .reward-modal-card,
+.reward-modal-leave-active .reward-modal-card {
+  will-change: transform, opacity;
+  transition: transform 160ms cubic-bezier(0.22, 0.8, 0.24, 1), opacity 120ms ease-out;
+}
+
+.reward-modal-enter-from,
+.reward-modal-leave-to {
+  opacity: 0;
+}
+
+.reward-modal-enter-from .reward-modal-card,
+.reward-modal-leave-to .reward-modal-card {
+  opacity: 0;
+  transform: scale(0.96) translateY(8px);
+}
+
+@keyframes reward-icon-bounce {
+  0% {
+    opacity: 0;
+    transform: scale(0.7) rotate(-8deg);
+  }
+
+  65% {
+    transform: scale(1.08) rotate(3deg);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
 .probability-button {
   border: 0;
   background: transparent;
@@ -440,12 +1523,21 @@ onMounted(loadPointShop)
   cursor: pointer;
 }
 
+.probability-control {
+  position: absolute;
+  z-index: 3;
+  top: 14px;
+  right: 18px;
+}
+
 .probability-popover {
   position: absolute;
   z-index: 2;
-  right: 18px;
-  bottom: 42px;
-  left: 18px;
+  top: calc(100% + 6px);
+  right: 0;
+  bottom: auto;
+  left: auto;
+  width: 260px;
   padding: 14px;
   border: 1px solid #e4e7f2;
   border-radius: 12px;
@@ -572,6 +1664,23 @@ onMounted(loadPointShop)
 }
 
 @media (max-width: 768px) {
+  .reward-modal-backdrop {
+    padding: 16px 12px;
+  }
+
+  .reward-modal-card.result-bulk {
+    width: 100%;
+  }
+
+  .bulk-draw-panel {
+    padding: 18px 16px;
+  }
+
+  .bulk-draw-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 26px 22px;
+  }
+
   .point-summary-card {
     padding-right: 26px;
   }
@@ -589,6 +1698,12 @@ onMounted(loadPointShop)
 
   .inventory-status {
     display: none;
+  }
+}
+
+@media (max-width: 420px) {
+  .bulk-draw-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

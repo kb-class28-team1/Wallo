@@ -160,7 +160,21 @@ const handleProfileImageError = (event) => {
 }
 
 // 썸네일이 없는 피드는 원본 미디어를 사용하고 모두 없으면 아이콘을 표시함
-const feedImage = (feed) => feed.thumbnailUrl || feed.mediaUrl || ""
+const isVideoFeed = (feed) => {
+  const mediaType = String(feed?.mediaType || "").toUpperCase()
+  if (mediaType) {
+    return mediaType === "VIDEO"
+  }
+
+  return /\.(mp4|webm|ogg|mov)(?:$|[?#])/i.test(String(feed?.mediaUrl || ""))
+}
+const feedImage = (feed) => {
+  if (isVideoFeed(feed)) {
+    return feed.thumbnailUrl || ""
+  }
+
+  return feed.thumbnailUrl || feed.mediaUrl || ""
+}
 const handleFeedImageError = (event) => {
   event.target.classList.add("d-none")
 }
@@ -297,8 +311,19 @@ onMounted(loadDashboard)
             <strong class="feed-rank">{{ index + 1 }}</strong>
             <div class="feed-thumbnail">
               <span aria-hidden="true">🐧</span>
+              <video
+                v-if="isVideoFeed(feed) && feed.mediaUrl"
+                :src="feed.mediaUrl"
+                autoplay
+                muted
+                loop
+                playsinline
+                preload="metadata"
+                aria-label="절약 인증 영상 미리보기"
+                @error="handleFeedImageError"
+              ></video>
               <img
-                v-if="feedImage(feed)"
+                v-else-if="feedImage(feed)"
                 :src="feedImage(feed)"
                 alt="인증 게시물 미리보기"
                 @error="handleFeedImageError"
@@ -630,7 +655,8 @@ onMounted(loadDashboard)
   background: #f3f1ff;
 }
 
-.feed-thumbnail img {
+.feed-thumbnail img,
+.feed-thumbnail video {
   position: absolute;
   width: 100%;
   height: 100%;

@@ -23,7 +23,7 @@ public class InventoryController {
         this.currentUserProvider = currentUserProvider;
     }
 
-    /** 로그인 사용자가 사용 완료한 상품을 보관함에서 소프트 삭제함. */
+    /** 로그인 사용자가 사용 완료한 상품을 보관함에서 실제로 삭제함. */
     @DeleteMapping("/{inventoryId}")
     public ResponseEntity<Void> deleteUsedInventoryItem(@PathVariable Long inventoryId) {
         Long currentUserId = currentUserProvider.getCurrentUserId();
