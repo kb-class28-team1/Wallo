@@ -3,6 +3,7 @@ import { onMounted, ref } from "vue"
 import { RouterLink } from "vue-router"
 import { getApiErrorMessage } from "@/commonUtils/apiError"
 import { disconnectConnection, getConnections } from "@/api/connectionApi"
+import { getLocalInstitutionLogo } from "@/features/asset/institutionLogos"
 
 const connections = ref([])
 const isLoading = ref(false)
@@ -31,11 +32,39 @@ const getAssetTypeLabel = (connection) => {
 
 const getLogoText = (connection) => {
   const name = connection.institutionName || "금융"
-  return name.slice(0, 2)
+  return name.replace(/\s/g, "").slice(0, 2)
 }
 
+const getConnectionLogoUrl = (connection) => (
+  connection.logoUrl
+  || getLocalInstitutionLogo(
+    connection.financialGroupCode,
+    connection.financialGroupName || connection.institutionName,
+  )
+)
+
+const getConnectionFallbackLogoUrl = (connection) => (
+  connection.logoUrl
+    ? getLocalInstitutionLogo(
+      connection.financialGroupCode,
+      connection.financialGroupName || connection.institutionName,
+    )
+    : ""
+)
+
+const getLogoFallbackClass = (logoUrl) => (logoUrl ? "d-none" : "")
+
 const handleLogoError = (event) => {
-  event.target.style.display = "none"
+  const fallbackSrc = event.target.dataset.fallbackSrc
+  const currentSrc = event.target.getAttribute("src")
+
+  if (fallbackSrc && currentSrc !== fallbackSrc) {
+    event.target.src = fallbackSrc
+    return
+  }
+
+  event.target.classList.add("d-none")
+  event.target.nextElementSibling?.classList.remove("d-none")
 }
 
 const loadConnections = async () => {
@@ -49,7 +78,7 @@ const loadConnections = async () => {
     connections.value = []
     errorMessage.value = getApiErrorMessage(
       error,
-      "연결된 계좌·카드 정보를 불러오지 못했습니다.",
+      "연결된 자산 정보를 불러오지 못했습니다.",
     )
   } finally {
     isLoading.value = false
@@ -92,7 +121,7 @@ const handleDisconnect = async () => {
   } catch (error) {
     disconnectModalError.value = getApiErrorMessage(
       error,
-      "계좌·카드 연결을 해제하지 못했습니다.",
+      "자산 연결을 해제하지 못했습니다.",
     )
   } finally {
     disconnectingId.value = null
@@ -108,11 +137,11 @@ onMounted(loadConnections)
       <div class="spinner-border text-primary" role="status">
         <span class="visually-hidden">연결 정보를 불러오는 중</span>
       </div>
-      <p class="text-secondary mb-0 mt-3">연결된 계좌·카드 정보를 불러오고 있습니다.</p>
+      <p class="text-secondary mb-0 mt-3">연결된 자산 정보를 불러오고 있습니다.</p>
     </div>
 
     <div v-else class="card-body p-4 p-md-5">
-      <h2 id="connection-settings-title" class="h5 fw-bold mb-4">연결된 계좌·카드</h2>
+      <h2 id="connection-settings-title" class="h5 fw-bold mb-4">연결된 자산</h2>
 
       <div v-if="errorMessage" class="alert alert-danger py-2" role="alert">
         <div class="d-flex align-items-center justify-content-between gap-3">
@@ -128,7 +157,6 @@ onMounted(loadConnections)
       </div>
 
       <div class="connection-section-heading d-flex align-items-center justify-content-between gap-3">
-        <span class="small fw-semibold text-secondary">연결된 계좌·카드</span>
         <span class="small text-secondary">{{ connections.length }}개</span>
       </div>
 
@@ -138,14 +166,18 @@ onMounted(loadConnections)
           :key="`${connection.connectionId}-${connection.assetKind}-${connection.assetId}`"
           class="connection-item d-flex align-items-center gap-3"
         >
-          <div class="connection-logo" aria-hidden="true">
-            <span class="connection-logo-fallback">{{ getLogoText(connection) }}</span>
+          <div class="asset-logo" aria-hidden="true">
             <img
-              v-if="connection.logoUrl"
-              :src="connection.logoUrl"
+              v-if="getConnectionLogoUrl(connection)"
+              :src="getConnectionLogoUrl(connection)"
               :alt="`${connection.institutionName} 로고`"
+              :data-fallback-src="getConnectionFallbackLogoUrl(connection)"
+              class="asset-logo-image"
               @error="handleLogoError"
             />
+            <span :class="getLogoFallbackClass(getConnectionLogoUrl(connection))">
+              {{ getLogoText(connection) }}
+            </span>
           </div>
 
           <div class="connection-information flex-grow-1 min-width-0">
@@ -183,7 +215,7 @@ onMounted(loadConnections)
 
       <div v-else class="connection-empty-state text-center">
         <i class="bi bi-wallet2 fs-2 text-secondary" aria-hidden="true"></i>
-        <p class="fw-semibold mb-1 mt-3">연결된 계좌·카드가 없습니다.</p>
+        <p class="fw-semibold mb-1 mt-3">연결된 자산이 없습니다.</p>
         <p class="small text-secondary mb-4">
           금융기관을 연동하면 계좌와 카드 정보를 이곳에서 관리할 수 있습니다.
         </p>
@@ -191,7 +223,7 @@ onMounted(loadConnections)
 
       <RouterLink to="/connections/mydata" class="connection-add-button">
         <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>
-        계좌·카드 연동 추가
+        자산 연동 추가
       </RouterLink>
     </div>
   </section>
@@ -293,30 +325,6 @@ onMounted(loadConnections)
   padding: 14px;
   border: 1px solid #e8edf4;
   border-radius: 14px;
-}
-
-.connection-logo {
-  position: relative;
-  display: grid;
-  width: 42px;
-  height: 42px;
-  flex: 0 0 42px;
-  place-items: center;
-  overflow: hidden;
-  border-radius: 50%;
-  background: #eef0ff;
-  color: #4f46c7;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.connection-logo img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  background: #ffffff;
 }
 
 .connection-information {

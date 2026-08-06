@@ -86,9 +86,7 @@ const changePassword = async () => {
     <div class="card-body p-4 p-md-5">
       <div class="password-form">
         <h2 id="password-settings-title" class="h5 fw-bold mb-2">비밀번호 변경</h2>
-        <p class="small text-secondary mb-4">
-          현재 비밀번호를 확인한 후 새 비밀번호로 변경합니다.
-        </p>
+        <br>
 
         <form @submit.prevent="changePassword">
           <div v-for="field in passwordFields" :key="field.id" class="mb-3">

@@ -5,7 +5,7 @@ const route = useRoute()
 
 const tabs = [
   { name: "user-profile", label: "프로필 편집" },
-  { name: "connection-management", label: "연결된 계좌·카드" },
+  { name: "connection-management", label: "연결된 자산" },
   { name: "password-settings", label: "비밀번호 변경" },
 ]
 

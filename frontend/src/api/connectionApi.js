@@ -7,7 +7,7 @@ export const getConnections = async () => {
     return response.data?.data ?? response.data
   } catch (error) {
     throw new Error(
-      getApiErrorMessage(error, "연결된 계좌·카드 정보를 불러오지 못했습니다."),
+      getApiErrorMessage(error, "연결된 자산 정보를 불러오지 못했습니다."),
     )
   }
 }
@@ -18,7 +18,7 @@ export const disconnectConnection = async (connectionId) => {
     return response.data?.data ?? response.data
   } catch (error) {
     throw new Error(
-      getApiErrorMessage(error, "계좌·카드 연결을 해제하지 못했습니다."),
+      getApiErrorMessage(error, "자산 연결을 해제하지 못했습니다."),
     )
   }
 }
