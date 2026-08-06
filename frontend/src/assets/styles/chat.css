@@ -21,6 +21,23 @@
   color: #59647f;
 }
 
+.conversation-select {
+  color: inherit;
+  border: 0;
+}
+
+.conversation-select:hover,
+.conversation-select:focus {
+  color: inherit;
+}
+
+.conversation-action {
+  flex: 0 0 auto;
+  padding: 4px 6px;
+  color: #7b849b;
+  text-decoration: none;
+}
+
 .conversation-item.active {
   color: #4f43b8;
   background: #f0eefe;

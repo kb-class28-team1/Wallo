@@ -17,6 +17,8 @@ DROP TABLE IF EXISTS NEWS_TERM;
 DROP TABLE IF EXISTS NEWS_REPORT;
 DROP TABLE IF EXISTS NEWS;
 DROP TABLE IF EXISTS FINANCIAL_TERM;
+DROP TABLE IF EXISTS FINANCIAL_GOALS;
+DROP TABLE IF EXISTS GOAL_INTERVIEW_SESSIONS;
 DROP TABLE IF EXISTS CHAT_MESSAGES;
 DROP TABLE IF EXISTS CONVERSATIONS;
 DROP TABLE IF EXISTS MESSAGE;
@@ -97,6 +99,59 @@ CREATE TABLE CHAT_MESSAGES (
   DEFAULT CHARSET=utf8mb4
   COLLATE=utf8mb4_unicode_ci
     COMMENT='AI 채팅 메시지';
+
+CREATE TABLE GOAL_INTERVIEW_SESSIONS (
+                                         session_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                                         user_id BIGINT NOT NULL,
+                                         conversation_id BIGINT NOT NULL,
+                                         status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+                                         goal_draft_json JSON NOT NULL,
+                                         last_question_field VARCHAR(50) NULL,
+                                         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                         updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+                                             ON UPDATE CURRENT_TIMESTAMP,
+                                         completed_at DATETIME NULL,
+                                         active_key VARCHAR(100) AS (
+                                             CASE
+                                                 WHEN status = 'ACTIVE'
+                                                     THEN CONCAT(user_id, ':', conversation_id)
+                                                 END
+                                             ) STORED,
+                                         UNIQUE KEY uk_goal_interview_active (active_key),
+                                         INDEX idx_goal_interview_conversation
+                                             (conversation_id, status, updated_at),
+                                         CONSTRAINT ck_goal_interview_status
+                                             CHECK (status IN ('ACTIVE', 'COMPLETED', 'CANCELLED'))
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_unicode_ci
+    COMMENT='대화방별 금융 목표 인터뷰 초안';
+
+CREATE TABLE FINANCIAL_GOALS (
+                                goal_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                                session_id BIGINT NOT NULL,
+                                user_id BIGINT NOT NULL,
+                                conversation_id BIGINT NOT NULL,
+                                title VARCHAR(100) NOT NULL,
+                                goal_type VARCHAR(30) NOT NULL,
+                                target_amount BIGINT NOT NULL,
+                                target_date DATE NOT NULL,
+                                motivation VARCHAR(500) NULL,
+                                priority VARCHAR(20) NULL,
+                                initial_amount BIGINT NOT NULL DEFAULT 0,
+                                monthly_contribution BIGINT NOT NULL DEFAULT 0,
+                                status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+                                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+                                    ON UPDATE CURRENT_TIMESTAMP,
+                                UNIQUE KEY uk_financial_goals_session (session_id),
+                                INDEX idx_financial_goals_user_status (user_id, status, target_date),
+                                CONSTRAINT ck_financial_goals_status
+                                    CHECK (status IN ('ACTIVE', 'ACHIEVED', 'CANCELLED'))
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_unicode_ci
+    COMMENT='사용자가 최종 확정한 금융 목표';
 
 CREATE TABLE INSTITUTIONS (
                               institution_id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -477,6 +532,9 @@ ALTER TABLE CONVERSATIONS
 ALTER TABLE CHAT_MESSAGES
     ADD CONSTRAINT fk_chat_messages_conversation
         FOREIGN KEY (conversation_id) REFERENCES CONVERSATIONS(conversation_id) ON DELETE CASCADE;
+
+-- 목표 인터뷰/목표 테이블은 로컬 MySQL 환경에 따른 외래 키 호환 문제를
+-- 피하기 위해 인덱스와 서비스 계층 검증으로 관계를 관리한다.
 
 ALTER TABLE CONNECTIONS
     ADD CONSTRAINT fk_connections_user
