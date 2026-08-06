@@ -46,6 +46,22 @@ const connectedAssets = [
     amount: 120000,
     currency: "KRW",
   },
+  {
+    connectionId: 10,
+    institutionId: 1,
+    institutionName: "국민은행",
+    financialGroupCode: "KB",
+    financialGroupName: "KB금융그룹",
+    logoUrl: "",
+    lastSyncAt: "2026-08-06T01:00:00",
+    assetKind: "ACCOUNT",
+    assetId: 103,
+    assetName: "일반 상환 학자금대출",
+    displayNumber: "STUDENT-LOAN-****-001",
+    assetType: "LOAN",
+    amount: -4800000,
+    currency: "KRW",
+  },
 ]
 
 describe("ConnectionManagementView", () => {
@@ -102,6 +118,7 @@ describe("ConnectionManagementView", () => {
     expect(wrapper.findAll(".connection-institution")).toHaveLength(1)
     expect(wrapper.findAll(".connection-institution .connection-disconnect")).toHaveLength(1)
     expect(wrapper.text()).toContain("마지막 동기화")
+    expect(wrapper.text()).toContain("-4,800,000원")
 
     await wrapper.find(".connection-disconnect").trigger("click")
     await flushPromises()
@@ -111,6 +128,7 @@ describe("ConnectionManagementView", () => {
     expect(dialog.textContent).toContain("국민은행 연결을 해제하시겠습니까?")
     expect(dialog.textContent).toContain("KB국민ONE통장 · 123456-**-***012")
     expect(dialog.textContent).toContain("국민카드 · 9876-****-****-3210")
+    expect(dialog.textContent).toContain("일반 상환 학자금대출 · STUDENT-LOAN-****-001")
     expect(dialog.textContent).not.toContain("입출금")
     expect(dialog.textContent).not.toContain("5,000,000원")
 
@@ -120,5 +138,6 @@ describe("ConnectionManagementView", () => {
     expect(disconnectConnection).toHaveBeenCalledWith(10)
     expect(assetStore.fetchAssets).toHaveBeenCalledWith({ notifyError: false })
     expect(document.body.querySelector('[role="dialog"]')).toBeNull()
+    expect(document.activeElement).toBe(wrapper.find('[role="tab"]').element)
   })
 })

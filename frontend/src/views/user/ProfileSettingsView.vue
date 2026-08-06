@@ -1,13 +1,10 @@
 <script setup>
 import { computed, onMounted, ref } from "vue"
 import { storeToRefs } from "pinia"
-import { useRoute, useRouter } from "vue-router"
 import { getApiErrorMessage } from "@/commonUtils/apiError"
 import { useUserStore } from "@/stores/userStore"
 
 const userStore = useUserStore()
-const route = useRoute()
-const router = useRouter()
 const { user, profileImageUrl } = storeToRefs(userStore)
 const isProfileLoading = ref(false)
 const profileError = ref("")
@@ -40,14 +37,7 @@ const loadProfile = async () => {
     nicknameInput.value = profile?.nickname || ""
   } catch (error) {
     if (error.status === 401) {
-      userStore.clearAuth()
-      await router.replace({
-        name: "login",
-        query: {
-          redirect: route.fullPath,
-          reason: "expired",
-        },
-      })
+      // 401은 Axios 전역 인터셉터가 인증 상태 초기화와 로그인 이동을 담당한다.
       return
     }
 

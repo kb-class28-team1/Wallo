@@ -270,7 +270,22 @@ const restoreModalFocus = () => {
   const elementToFocus = previousFocusedElement.value
   previousFocusedElement.value = null
 
-  nextTick(() => elementToFocus?.focus?.())
+  nextTick(() => {
+    const fallbackElement = categoryTabRefs.value[activeCategory.value]
+    const isFocusableTarget = (element) => (
+      element
+      && element !== document.body
+      && element.isConnected
+      && typeof element.focus === "function"
+    )
+    const focusTarget = isFocusableTarget(elementToFocus)
+      ? elementToFocus
+      : isFocusableTarget(fallbackElement)
+        ? fallbackElement
+        : null
+
+    focusTarget?.focus?.()
+  })
 }
 
 const closeDisconnectModal = () => {

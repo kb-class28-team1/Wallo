@@ -19,6 +19,7 @@ export const useUserStore = defineStore("user", () => {
   const user = ref(null)
   const isLoading = ref(false)
   const hasCheckedAuth = ref(false)
+  let profileRequest = null
 
   const isAuthenticated = computed(() => Boolean(user.value?.id))
   const nickname = computed(() => user.value?.nickname || "")
@@ -90,28 +91,37 @@ export const useUserStore = defineStore("user", () => {
     }
   }
 
-  const fetchProfile = async () => {
-    isLoading.value = true
-    try {
-      const profile = await getProfileRequest()
-
-      if (user.value) {
-        user.value = {
-          ...user.value,
-          ...profile,
-        }
-      } else {
-        setUser({
-          ...profile,
-          point: 0,
-          connectionCompleted: false,
-        })
-      }
-
-      return profile
-    } finally {
-      isLoading.value = false
+  const fetchProfile = () => {
+    if (profileRequest) {
+      return profileRequest
     }
+
+    profileRequest = (async () => {
+      isLoading.value = true
+      try {
+        const profile = await getProfileRequest()
+
+        if (user.value) {
+          user.value = {
+            ...user.value,
+            ...profile,
+          }
+        } else {
+          setUser({
+            ...profile,
+            point: 0,
+            connectionCompleted: false,
+          })
+        }
+
+        return profile
+      } finally {
+        isLoading.value = false
+        profileRequest = null
+      }
+    })()
+
+    return profileRequest
   }
 
   const updateNickname = async (nickname) => {
