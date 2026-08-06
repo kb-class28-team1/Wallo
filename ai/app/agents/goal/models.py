@@ -40,6 +40,16 @@ class GoalPriority(str, Enum):
     HIGH = "HIGH"
 
 
+class FeasibilityStatus(str, Enum):
+    """현재 목표 계획의 달성 가능성 판정."""
+
+    ACHIEVABLE = "ACHIEVABLE"
+    TIGHT = "TIGHT"
+    ADJUSTMENT_REQUIRED = "ADJUSTMENT_REQUIRED"
+    ALREADY_ACHIEVED = "ALREADY_ACHIEVED"
+    INSUFFICIENT_INFORMATION = "INSUFFICIENT_INFORMATION"
+
+
 class GoalField(str, Enum):
     """인터뷰 중 수집하거나 추가 확인할 수 있는 목표 필드."""
 
@@ -96,3 +106,47 @@ class GoalDraft(BaseModel):
         if any(not assumption for assumption in normalized):
             raise ValueError("assumptions에는 빈 내용을 지정할 수 없습니다.")
         return normalized
+
+
+class GoalExtraction(BaseModel):
+    """한 번의 사용자 답변에서 새롭게 추출한 목표 정보."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    title: str | None = Field(default=None, max_length=100)
+    goal_type: GoalType | None = None
+    target_amount: int | None = Field(default=None, gt=0)
+    target_date: date | None = None
+    motivation: str | None = Field(default=None, max_length=500)
+    priority: GoalPriority | None = None
+    current_amount: int | None = Field(default=None, ge=0)
+    monthly_contribution: int | None = Field(default=None, ge=0)
+    assumptions: list[str] = Field(default_factory=list)
+
+    @field_validator("title", "motivation")
+    @classmethod
+    def normalize_optional_text(cls, value: str | None) -> str | None:
+        return GoalDraft.normalize_optional_text(value)
+
+    @field_validator("assumptions")
+    @classmethod
+    def normalize_assumptions(cls, assumptions: list[str]) -> list[str]:
+        return GoalDraft.normalize_assumptions(assumptions)
+
+
+class FeasibilityResult(BaseModel):
+    """애플리케이션 코드로 계산한 목표 달성 가능성."""
+
+    status: FeasibilityStatus
+    remaining_amount: int | None = Field(default=None, ge=0)
+    remaining_months: int | None = Field(default=None, ge=0)
+    required_monthly_amount: int | None = Field(default=None, ge=0)
+    monthly_gap: int | None = None
+
+
+class GoalInterviewResult(BaseModel):
+    """한 차례의 목표 인터뷰 처리 결과."""
+
+    draft: GoalDraft
+    next_question: str
+    feasibility: FeasibilityResult | None = None
