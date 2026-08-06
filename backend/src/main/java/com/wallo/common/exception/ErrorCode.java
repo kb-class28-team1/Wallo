@@ -9,20 +9,20 @@ public enum ErrorCode {
             "AUTH_001",
             "로그인이 필요합니다."
     ),
+    INVALID_REQUEST(
+            HttpStatus.BAD_REQUEST,
+            "COMMON_003",
+            "요청 값이 올바르지 않습니다."
+    ),
+    AI_SERVER_ERROR(
+            HttpStatus.BAD_GATEWAY,
+            "COMMON_004",
+            "AI 서버 요청 처리에 실패했습니다."
+    ),
     CONNECTION_CONSENT_REQUIRED(
             HttpStatus.BAD_REQUEST,
             "CONNECTION_001",
             "개인신용정보 수집·이용 동의가 필요합니다."
-    ),
-    EXTERNAL_CONNECTION_API_FAILED(
-            HttpStatus.BAD_GATEWAY,
-            "CONNECTION_002",
-            "외부 자산 연동 API 호출에 실패했습니다."
-    ),
-    CONNECTION_SAVE_FAILED(
-            HttpStatus.INTERNAL_SERVER_ERROR,
-            "CONNECTION_003",
-            "연동 결과 저장에 실패했습니다. CONNECTIONS 테이블 스키마를 확인해주세요."
     ),
     CONNECTION_NOT_FOUND(
             HttpStatus.NOT_FOUND,

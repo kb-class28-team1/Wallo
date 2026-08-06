@@ -284,7 +284,7 @@ onMounted(loadProfile)
               class="form-control profile-readonly-field"
               disabled
             />
-            <div class="form-text">로그인에 사용하는 이메일은 수정할 수 없습니다.</div>
+            <div class="form-text">이메일은 수정할 수 없습니다.</div>
           </div>
         </div>
 
