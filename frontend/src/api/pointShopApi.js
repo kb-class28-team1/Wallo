@@ -23,6 +23,17 @@ export const openRandomBox = async (boxId) => {
   }
 }
 
+// 같은 랜덤박스 10개를 한 번에 열고 일괄 결과를 조회함
+export const openRandomBoxes = async (boxId) => {
+  try {
+    const response = await httpClient.post(`/api/point-shop/boxes/${boxId}/open-bulk`)
+    return response.data
+  } catch (error) {
+    const message = error.response?.data?.message || "랜덤박스 10개를 열지 못했습니다."
+    throw new Error(message)
+  }
+}
+
 // 로그인 사용자의 사용 완료 보관함 아이템을 서버에서 삭제함.
 export const deleteUsedInventoryItem = async (inventoryId) => {
   try {

@@ -2,6 +2,7 @@ package com.wallo.pointshop.controller;
 
 import com.wallo.auth.CurrentUserProvider;
 import com.wallo.pointshop.dto.response.OpenBoxResponse;
+import com.wallo.pointshop.dto.response.OpenBoxesResponse;
 import com.wallo.pointshop.dto.response.PointShopBoxDetailResponse;
 import com.wallo.pointshop.dto.response.PointShopResponse;
 import com.wallo.pointshop.service.PointShopService;
@@ -45,5 +46,12 @@ public class PointShopController {
     public ResponseEntity<OpenBoxResponse> openBox(@PathVariable Long boxId) {
         Long currentUserId = currentUserProvider.getCurrentUserId();
         return ResponseEntity.ok(pointShopService.openBox(currentUserId, boxId));
+    }
+
+    /** 기본 랜덤박스 10개를 한 번에 열고 포인트 및 보상을 일괄 처리함. */
+    @PostMapping("/boxes/{boxId}/open-bulk")
+    public ResponseEntity<OpenBoxesResponse> openBoxes(@PathVariable Long boxId) {
+        Long currentUserId = currentUserProvider.getCurrentUserId();
+        return ResponseEntity.ok(pointShopService.openBoxes(currentUserId, boxId));
     }
 }

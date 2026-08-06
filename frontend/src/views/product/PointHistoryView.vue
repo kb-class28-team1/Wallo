@@ -110,15 +110,18 @@ onMounted(loadHistory)
 
 <template>
   <section class="point-history-page">
-    <header class="page-heading mb-4">
+    <header class="page-heading d-flex align-items-start gap-3 mb-4">
+      <RouterLink
+        to="/point-shop"
+        class="page-back-button"
+        aria-label="포인트 샵으로 이동"
+      >
+        <i class="bi bi-chevron-left" aria-hidden="true"></i>
+      </RouterLink>
       <div>
         <h1 class="mb-1">포인트 내역</h1>
         <p class="mb-0">내가 얻고 사용한 포인트를 한눈에 확인해보세요.</p>
       </div>
-      <RouterLink to="/point-shop" class="back-link">
-        <i class="bi bi-chevron-left" aria-hidden="true"></i>
-        포인트샵
-      </RouterLink>
     </header>
 
     <div class="summary-grid">
@@ -262,7 +265,7 @@ onMounted(loadHistory)
   position: relative;
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: flex-start;
 }
 
 .page-heading h1 {
@@ -273,13 +276,6 @@ onMounted(loadHistory)
 .page-heading p {
   color: #8c95b0;
   font-size: 13px;
-}
-
-.back-link {
-  color: #68719a;
-  font-size: 13px;
-  font-weight: 700;
-  text-decoration: none;
 }
 
 .summary-grid {
@@ -597,12 +593,8 @@ onMounted(loadHistory)
   }
 
   .page-heading {
-    display: block;
-  }
-
-  .back-link {
-    display: inline-block;
-    margin-top: 10px;
+    display: flex;
+    gap: 12px !important;
   }
 }
 </style>
