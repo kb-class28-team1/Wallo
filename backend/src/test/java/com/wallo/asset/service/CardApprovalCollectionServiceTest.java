@@ -63,7 +63,8 @@ class CardApprovalCollectionServiceTest {
                 classifier,
                 new TransactionSourceKeyGenerator(),
                 assetSyncMapper,
-                clock
+                clock,
+                new ConsumptionInsightCache()
         );
         institution = new Institution(2L, "0311", "하나카드", "CARD", "card-logo");
     }

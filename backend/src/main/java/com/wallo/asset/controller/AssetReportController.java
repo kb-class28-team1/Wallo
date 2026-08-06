@@ -1,6 +1,6 @@
 package com.wallo.asset.controller;
 
-import com.wallo.asset.dto.ReportDto;
+import com.wallo.asset.dto.AssetReportDto;
 import com.wallo.asset.service.AssetReportService;
 import com.wallo.auth.CurrentUserProvider;
 import com.wallo.common.response.CommonResponse;
@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/reports")
+@RequestMapping("/api/asset-reports")
 public class AssetReportController {
 
     private final AssetReportService assetReportService;
@@ -24,15 +24,15 @@ public class AssetReportController {
         this.currentUserProvider = currentUserProvider;
     }
 
-    @GetMapping("/insights")
-    public CommonResponse<ReportDto.Insight> getConsumptionInsight() {
+    @GetMapping("/insights/")
+    public CommonResponse<AssetReportDto.Insight> getConsumptionInsight() {
         return CommonResponse.success(
                 assetReportService.getConsumptionInsight(currentUserProvider.getCurrentUserId())
         );
     }
 
     @GetMapping("/tax-settlement")
-    public CommonResponse<ReportDto.TaxSettlement> getTaxSettlement(
+    public CommonResponse<AssetReportDto.TaxSettlement> getTaxSettlement(
             @RequestParam(value = "year", required = false) Integer year
     ) {
         return CommonResponse.success(

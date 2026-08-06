@@ -7,6 +7,7 @@ import com.wallo.feed.analysis.FeedAnalysisClient;
 import com.wallo.feed.analysis.GeminiFeedAnalysisClient;
 import com.wallo.feed.analysis.MockFeedAnalysisClient;
 import java.time.Clock;
+import java.time.ZoneId;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
@@ -76,7 +77,7 @@ public class AppConfig {
 
     @Bean
     public Clock clock() {
-        return Clock.systemDefaultZone();
+        return Clock.system(ZoneId.of("Asia/Seoul"));
     }
 
     @Bean
