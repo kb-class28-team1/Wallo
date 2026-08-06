@@ -5,6 +5,7 @@ import {
   login as loginRequest,
   logout as logoutRequest,
 } from "@/api/authApi"
+import { updateNickname as updateNicknameRequest } from "@/api/userApi"
 
 const DEFAULT_PROFILE_IMAGE = "/images/profiles/default-profile.svg"
 
@@ -83,6 +84,25 @@ export const useUserStore = defineStore("user", () => {
     }
   }
 
+  const updateNickname = async (nickname) => {
+    isLoading.value = true
+    try {
+      const updatedProfile = await updateNicknameRequest(nickname)
+      const updatedNickname = updatedProfile?.nickname || nickname
+
+      if (user.value) {
+        user.value = {
+          ...user.value,
+          nickname: updatedNickname,
+        }
+      }
+
+      return updatedNickname
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   const fetchUserProfile = async () => {
     try {
       await restoreSession()
@@ -107,6 +127,7 @@ export const useUserStore = defineStore("user", () => {
     isAuthenticated,
     login,
     logout,
+    updateNickname,
     restoreSession,
     clearAuth,
     updatePointBalance,

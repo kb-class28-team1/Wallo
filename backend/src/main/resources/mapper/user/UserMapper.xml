@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wallo.user.mapper.UserMapper">
+
+    <select id="countByNicknameExceptUserId" resultType="int">
+        SELECT COUNT(*)
+        FROM users
+        WHERE nickname = #{nickname}
+          AND id &lt;&gt; #{userId}
+    </select>
+
+    <update id="updateNickname">
+        UPDATE users
+        SET nickname = #{nickname},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{userId}
+    </update>
+
+</mapper>
