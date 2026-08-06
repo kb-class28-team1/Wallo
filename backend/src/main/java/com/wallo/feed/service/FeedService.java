@@ -85,6 +85,7 @@ public class FeedService {
         requireMember(userId, challengeId);
         String normalizedCategory = normalizeCategory(category);
         validate(media, spendingType, normalizedCategory);
+        validateCaption(caption);
         String mediaType = media.getContentType() != null
                 && media.getContentType().toLowerCase(Locale.ROOT).startsWith("video/")
                 ? "VIDEO" : "IMAGE";
@@ -199,6 +200,12 @@ public class FeedService {
         if (!SPENDING_TYPES.contains(spendingType)) throw new IllegalArgumentException("소비 종류를 선택해 주세요.");
         if (category == null || category.isBlank()) throw new IllegalArgumentException("카테고리를 선택해 주세요.");
         if (!FEED_CATEGORIES.contains(category)) throw new IllegalArgumentException("지원하지 않는 카테고리입니다.");
+    }
+
+    private void validateCaption(String caption) {
+        if (caption == null || caption.isBlank()) {
+            throw new IllegalArgumentException("한줄요약을 작성해주세요");
+        }
     }
 
     private String normalizeCategory(String category) {

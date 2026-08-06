@@ -1,6 +1,7 @@
 package com.wallo.feed.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -84,6 +85,15 @@ class FeedServiceTest {
         assertEquals(0, result.estimatedSavingAmount());
         verify(feedMapper, never()).findCategoryExpenseAverage(
                 eq(7L), eq("CAFE"), any(LocalDate.class), any(LocalDate.class));
+    }
+
+    @Test
+    void rejectsFeedWithoutCaption() {
+        assertThrows(IllegalArgumentException.class, () -> feedService.create(
+                7L, 10L, media(), "REDUCED", "CAFE", null,
+                "   ", 1_000, "분석 완료", 0.8));
+
+        verify(feedMapper, never()).insertFeed(any());
     }
 
     private MultipartFile media() {
