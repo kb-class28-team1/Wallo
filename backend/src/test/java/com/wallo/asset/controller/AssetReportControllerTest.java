@@ -65,7 +65,8 @@ class AssetReportControllerTest {
                 .thenReturn(new AssetReportDto.Insight(
                         "카페 지출이 가장 많아요",
                         "이번 달은 카페 지출이 가장 많아요.",
-                        AssetReportDto.GenerationMode.AI
+                        AssetReportDto.GenerationMode.AI,
+                        "CAFE"
                 ));
         MockMvc mockMvc = MockMvcBuilders
                 .standaloneSetup(new AssetReportController(assetReportService, currentUserProvider))
@@ -81,6 +82,7 @@ class AssetReportControllerTest {
         assertTrue(responseBody.contains("\"success\":true"));
         assertTrue(responseBody.contains("\"reportTitle\":\"카페 지출이 가장 많아요\""));
         assertTrue(responseBody.contains("\"generationMode\":\"AI\""));
+        assertTrue(responseBody.contains("\"category\":\"CAFE\""));
         verify(assetReportService).getConsumptionInsight(eq(7L));
     }
 

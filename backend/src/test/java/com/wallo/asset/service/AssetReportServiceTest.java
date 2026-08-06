@@ -130,6 +130,7 @@ class AssetReportServiceTest {
                 insight.getReportContent()
         );
         assertEquals(AssetReportDto.GenerationMode.AI, insight.getGenerationMode());
+        assertEquals("CAFE", insight.getCategory());
         verify(assetReportAiClient).generate(new AssetReportAiDto.Request(
                 "CAFE",
                 "카페",
@@ -352,6 +353,7 @@ class AssetReportServiceTest {
         );
         assertEquals(insight.getReportTitle(), secondInsight.getReportTitle());
         assertEquals(AssetReportDto.GenerationMode.FALLBACK, insight.getGenerationMode());
+        assertEquals("CAFE", insight.getCategory());
         verify(assetReportAiClient, times(2)).generate(any(AssetReportAiDto.Request.class));
     }
 }

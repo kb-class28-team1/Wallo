@@ -2,15 +2,31 @@
 import { computed, onMounted } from "vue";
 import { storeToRefs } from "pinia";
 import { useReportStore } from "@/stores/assetReportStore.js";
+import {
+  getConsumptionReportImage,
+  getConsumptionReportImageAlt,
+} from "@/features/asset/consumptionReportImages.js";
 
 const reportStore = useReportStore();
 const { insight, isInsightLoading, insightError } = storeToRefs(reportStore);
 
+const reportImage = computed(() =>
+  getConsumptionReportImage(insight.value?.category),
+);
+const reportImageAlt = computed(() =>
+  getConsumptionReportImageAlt(insight.value?.category),
+);
+
+const REPORT_CALLOUTS = [
+  "가벼운 점검 해보세요 😊",
+  "소비 내역을 확인해 보세요!",
+];
+
 const reportDescription = computed(() => {
   const content = insight.value?.reportContent ?? "";
-  const callout = "소비 내역을 확인해 보세요!";
+  const callout = REPORT_CALLOUTS.find((item) => content.endsWith(item));
 
-  if (!content.endsWith(callout)) {
+  if (!callout) {
     return { summary: content, callout: "" };
   }
 
@@ -64,7 +80,18 @@ onMounted(loadInsight);
         </button>
       </div>
 
-      <div v-else-if="insight" class="report-content">
+      <div
+        v-else-if="insight"
+        class="report-content"
+        :class="{ 'has-report-image': reportImage }"
+      >
+        <img
+          v-if="reportImage"
+          :src="reportImage"
+          :alt="reportImageAlt"
+          class="report-category-image"
+        />
+
         <div class="report-alert d-flex align-items-start gap-2">
           <i
             class="bi bi-exclamation-triangle-fill report-warning-icon"
@@ -109,10 +136,24 @@ onMounted(loadInsight);
 }
 
 .report-content {
+  position: relative;
   display: flex;
   flex: 1;
   flex-direction: column;
-  padding-top: 30px;
+  padding-top: 48px;
+}
+
+.report-content.has-report-image {
+  padding-right: 240px;
+}
+
+.report-category-image {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 230px;
+  height: 210px;
+  object-fit: contain;
 }
 
 .report-alert {
@@ -131,6 +172,10 @@ onMounted(loadInsight);
   padding-top: 18px;
   color: #555b6e;
   line-height: 1.7;
+}
+
+.report-content.has-report-image .report-description {
+  max-width: none;
 }
 
 .report-detail-link {
@@ -167,7 +212,23 @@ onMounted(loadInsight);
 
 @media (max-width: 575.98px) {
   .consumption-report-body {
+    min-height: auto;
     padding: 26px 22px;
+  }
+
+  .report-category-image {
+    right: 0;
+    bottom: 0;
+    width: 160px;
+    height: 145px;
+  }
+
+  .report-content.has-report-image .report-description {
+    max-width: none;
+  }
+
+  .report-content.has-report-image {
+    padding-right: 160px;
   }
 }
 </style>

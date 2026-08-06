@@ -6,11 +6,12 @@ class ConsumptionInsightGenerateRequest(BaseModel):
 
     category: str = Field(min_length=1, max_length=50)
     categoryLabel: str = Field(min_length=1, max_length=50)
-    currentAmount: int = Field(gt=0)
     previousAmount: int = Field(ge=0)
-    currentTotalAmount: int = Field(default=0, ge=0)
     previousTotalAmount: int = Field(default=0, ge=0)
     monthlyBudget: int = Field(default=0, ge=0)
+    categoryChangeRate: float
+    totalChangeRate: float
+    withinBudget: bool = False
 
     @field_validator("category", "categoryLabel")
     @classmethod

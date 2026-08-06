@@ -25,6 +25,15 @@ public final class AssetReportDto {
         private String reportTitle;
         private String reportContent;
         private GenerationMode generationMode;
+        private String category;
+
+        public Insight(
+                String reportTitle,
+                String reportContent,
+                GenerationMode generationMode
+        ) {
+            this(reportTitle, reportContent, generationMode, null);
+        }
     }
 
     @Getter

@@ -219,11 +219,12 @@ public class AssetReportService {
         AssetReportAiDto.Request request = new AssetReportAiDto.Request(
                 candidate.category,
                 categoryLabel,
-                candidate.currentAmount,
                 candidate.previousAmount,
-                currentTotalExpense,
                 previousTotalExpense,
-                monthlyBudget
+                monthlyBudget,
+                calculateChangeRate(candidate.currentAmount, candidate.previousAmount),
+                calculateChangeRate(currentTotalExpense, previousTotalExpense),
+                monthlyBudget > 0 && currentTotalExpense <= monthlyBudget
         );
 
         try {
@@ -231,7 +232,8 @@ public class AssetReportService {
             AssetReportDto.Insight insight = new AssetReportDto.Insight(
                     response.reportTitle(),
                     response.reportContent(),
-                    AssetReportDto.GenerationMode.AI
+                    AssetReportDto.GenerationMode.AI,
+                    candidate.category
             );
             consumptionInsightCache.putIfAbsent(
                     new ConsumptionInsightCacheKey(userId, currentMonth),
@@ -244,7 +246,8 @@ public class AssetReportService {
             return new AssetReportDto.Insight(
                     AI_FALLBACK_REPORT_TITLE,
                     AI_FALLBACK_REPORT_CONTENT,
-                    AssetReportDto.GenerationMode.FALLBACK
+                    AssetReportDto.GenerationMode.FALLBACK,
+                    candidate.category
             );
         }
     }
@@ -253,8 +256,17 @@ public class AssetReportService {
         return new AssetReportDto.Insight(
                 insight.getReportTitle(),
                 insight.getReportContent(),
-                insight.getGenerationMode()
+                insight.getGenerationMode(),
+                insight.getCategory()
         );
+    }
+
+    private double calculateChangeRate(long currentAmount, long previousAmount) {
+        if (previousAmount <= 0) {
+            return 0.0;
+        }
+
+        return ((double) currentAmount - previousAmount) / previousAmount * 100;
     }
 
     private List<AssetReportDto.CategoryExpense> values(

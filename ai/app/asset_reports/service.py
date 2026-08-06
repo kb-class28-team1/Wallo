@@ -21,23 +21,11 @@ class InvalidConsumptionInsightResponseError(ValueError):
     """Groq 응답이 소비 리포트 응답 계약을 벗어난 경우."""
 
 
-def _build_response_format() -> dict[str, object]:
-    return {
-        "type": "json_schema",
-        "json_schema": {
-            "name": "consumption_insight",
-            "strict": True,
-            "schema": {
-                "type": "object",
-                "properties": {
-                    "reportTitle": {"type": "string"},
-                    "reportContent": {"type": "string"},
-                },
-                "required": ["reportTitle", "reportContent"],
-                "additionalProperties": False,
-            },
-        },
-    }
+def _build_response_format() -> dict[str, str]:
+    # gpt-oss-20b에서 json_schema 강제 응답은 Groq의 사전 JSON 검증 오류를
+    # 발생시킬 수 있으므로, 모델 공통 지원 형식인 json_object를 사용한다.
+    # 응답 필드와 길이는 _parse_response의 Pydantic 검증으로 보장한다.
+    return {"type": "json_object"}
 
 
 def _call_groq(client: Groq, request: ConsumptionInsightGenerateRequest, model: str):
