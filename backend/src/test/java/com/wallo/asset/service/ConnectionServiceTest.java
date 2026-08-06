@@ -4,6 +4,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -127,13 +128,19 @@ public class ConnectionServiceTest {
         connectionService.disconnect(7L, 42L);
 
         verify(connectionMapper).softDeleteConnection(7L, 42L);
+        verify(assetSyncService).refreshCurrentMonthSnapshot(7L);
     }
 
-    @Test(expected = ConnectionNotFoundException.class)
+    @Test
     public void rejectsDisconnectForMissingConnection() {
         when(connectionMapper.softDeleteConnection(7L, 404L)).thenReturn(0);
 
-        connectionService.disconnect(7L, 404L);
+        try {
+            connectionService.disconnect(7L, 404L);
+            fail("Missing connections must be rejected.");
+        } catch (ConnectionNotFoundException expected) {
+            verify(assetSyncService, never()).refreshCurrentMonthSnapshot(7L);
+        }
     }
 
     private void givenConnectionTargets() {

@@ -4,7 +4,9 @@ import { RouterLink } from "vue-router"
 import { getApiErrorMessage } from "@/commonUtils/apiError"
 import { disconnectConnection, getConnections } from "@/api/connectionApi"
 import { getLocalInstitutionLogo } from "@/features/asset/institutionLogos"
+import { useAssetStore } from "@/stores/assetStore"
 
+const assetStore = useAssetStore()
 const connections = ref([])
 const isLoading = ref(false)
 const errorMessage = ref("")
@@ -162,6 +164,16 @@ const handleDisconnect = async () => {
       (item) => item.connectionId !== connection.connectionId,
     )
     pendingDisconnectConnection.value = null
+
+    try {
+      await assetStore.fetchAssets({ notifyError: false })
+    } catch (refreshError) {
+      errorMessage.value = getApiErrorMessage(
+        refreshError,
+        "연결은 해제되었지만 자산 요약을 갱신하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+      )
+    }
+
     successMessage.value = `${institutionName} 연결이 해제되었습니다.`
   } catch (error) {
     disconnectModalError.value = getApiErrorMessage(

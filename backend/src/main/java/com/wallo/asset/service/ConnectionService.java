@@ -99,6 +99,8 @@ public class ConnectionService {
         if (connectionMapper.softDeleteConnection(userId, connectionId) == 0) {
             throw new ConnectionNotFoundException();
         }
+
+        assetSyncService.refreshCurrentMonthSnapshot(userId);
     }
 
     private void syncAssets(long userId, List<ConnectionAttempt> attempts) {
