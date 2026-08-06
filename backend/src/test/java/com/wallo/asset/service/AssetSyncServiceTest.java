@@ -13,8 +13,10 @@ import com.wallo.asset.domain.Institution;
 import com.wallo.asset.dto.AssetSyncDto;
 import com.wallo.asset.mapper.AssetSyncMapper;
 import com.wallo.external.dto.CodefDto;
+import java.time.Clock;
 import java.util.List;
 import java.util.Map;
+import java.time.ZoneId;
 import org.junit.jupiter.api.Test;
 
 class AssetSyncServiceTest {
@@ -28,7 +30,9 @@ class AssetSyncServiceTest {
             assetSyncMapper,
             new ObjectMapper(),
             cardApprovalCollectionService,
-            bankTransactionCollectionService
+            bankTransactionCollectionService,
+            new ConsumptionInsightCache(),
+            Clock.system(ZoneId.of("Asia/Seoul"))
     );
 
     @Test

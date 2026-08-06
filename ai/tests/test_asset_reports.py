@@ -63,7 +63,7 @@ def _sample_request() -> ConsumptionInsightGenerateRequest:
 def _valid_response() -> ConsumptionInsightGenerateResponse:
     return ConsumptionInsightGenerateResponse(
         reportTitle="카페 지출이 가장 많아요",
-        reportContent="카페 지출이 지난달보다 50% 늘었어요! 가벼운 점검 해보세요 😊",
+        reportContent="카페 지출이 지난달보다 50% 늘었어요! 지출 내역을 점검해보세요.",
     )
 
 
@@ -77,7 +77,7 @@ def test_generates_short_structured_consumption_insight():
     )
 
     assert result.reportTitle == "카페 지출이 가장 많아요"
-    assert result.reportContent.endswith("😊")
+    assert result.reportContent.endswith("지출 내역을 점검해보세요.")
     assert client.chat.completions.kwargs["model"] == "openai/gpt-oss-20b"
     assert client.chat.completions.kwargs["response_format"] == {
         "type": "json_object",
@@ -99,6 +99,7 @@ def test_prompt_contains_only_aggregated_spending_data_and_derived_rate():
     assert '"withinBudget": true' in prompt
     assert "이번 달과 지난달의 원 단위 절대 금액은 출력하지 말고" in CONSUMPTION_INSIGHT_INSTRUCTIONS
     assert '증가율은 반드시 "지난달보다"와 함께' in CONSUMPTION_INSIGHT_INSTRUCTIONS
+    assert '"지출 내역을 점검해보세요."로 작성합니다' in CONSUMPTION_INSIGHT_INSTRUCTIONS
     assert '"↑" 기호는 사용하지 않습니다' in CONSUMPTION_INSIGHT_INSTRUCTIONS
     assert "merchantName" not in prompt
 

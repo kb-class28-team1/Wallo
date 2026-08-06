@@ -9,13 +9,12 @@ import com.wallo.asset.mapper.BudgetMapper;
 import com.wallo.chat.client.AiServerException;
 import com.wallo.common.exception.CustomException;
 import com.wallo.common.exception.ErrorCode;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Logger;
 import org.springframework.stereotype.Service;
 
@@ -53,25 +52,29 @@ public class AssetReportService {
     private final AssetReportMapper assetReportMapper;
     private final BudgetMapper budgetMapper;
     private final AssetReportAiClient assetReportAiClient;
-    private final ConcurrentMap<ConsumptionInsightCacheKey, AssetReportDto.Insight>
-            consumptionInsightCache = new ConcurrentHashMap<>();
+    private final ConsumptionInsightCache consumptionInsightCache;
+    private final Clock clock;
 
     public AssetReportService(
             AssetReportMapper assetReportMapper,
             AssetReportAiClient assetReportAiClient,
-            BudgetMapper budgetMapper
+            BudgetMapper budgetMapper,
+            ConsumptionInsightCache consumptionInsightCache,
+            Clock clock
     ) {
         this.assetReportMapper = assetReportMapper;
         this.assetReportAiClient = assetReportAiClient;
         this.budgetMapper = budgetMapper;
+        this.consumptionInsightCache = consumptionInsightCache;
+        this.clock = clock;
     }
 
     public AssetReportDto.Insight getConsumptionInsight(long userId) {
-        return getConsumptionInsight(userId, LocalDate.now());
+        return getConsumptionInsight(userId, LocalDate.now(clock));
     }
 
     public AssetReportDto.TaxSettlement getTaxSettlement(long userId, Integer year) {
-        return getTaxSettlement(userId, year, LocalDate.now());
+        return getTaxSettlement(userId, year, LocalDate.now(clock));
     }
 
     AssetReportDto.TaxSettlement getTaxSettlement(
@@ -154,11 +157,11 @@ public class AssetReportService {
         }
 
         YearMonth currentMonth = YearMonth.from(today);
-        AssetReportDto.Insight cachedInsight = consumptionInsightCache.get(
-                new ConsumptionInsightCacheKey(userId, currentMonth)
-        );
+        ConsumptionInsightCache.Key cacheKey =
+                new ConsumptionInsightCache.Key(userId, currentMonth);
+        AssetReportDto.Insight cachedInsight = consumptionInsightCache.get(cacheKey);
         if (cachedInsight != null) {
-            return copyInsight(cachedInsight);
+            return cachedInsight;
         }
 
         BudgetDto.Budget budget = budgetMapper.selectBudget(userId, currentMonth.toString());
@@ -215,6 +218,25 @@ public class AssetReportService {
             long previousTotalExpense,
             long monthlyBudget
     ) {
+        ConsumptionInsightCache.Key cacheKey =
+                new ConsumptionInsightCache.Key(userId, currentMonth);
+        return consumptionInsightCache.getOrGenerate(
+                cacheKey,
+                () -> generateInsight(
+                        candidate,
+                        currentTotalExpense,
+                        previousTotalExpense,
+                        monthlyBudget
+                )
+        );
+    }
+
+    private AssetReportDto.Insight generateInsight(
+            InsightCandidate candidate,
+            long currentTotalExpense,
+            long previousTotalExpense,
+            long monthlyBudget
+    ) {
         String categoryLabel = CATEGORY_LABELS.getOrDefault(candidate.category, "기타");
         AssetReportAiDto.Request request = new AssetReportAiDto.Request(
                 candidate.category,
@@ -235,11 +257,7 @@ public class AssetReportService {
                     AssetReportDto.GenerationMode.AI,
                     candidate.category
             );
-            consumptionInsightCache.putIfAbsent(
-                    new ConsumptionInsightCacheKey(userId, currentMonth),
-                    insight
-            );
-            return copyInsight(insight);
+            return insight;
         } catch (AiServerException exception) {
             LOGGER.warning("AI consumption insight failed; using fallback response. type="
                     + exception.getClass().getSimpleName());
@@ -250,15 +268,6 @@ public class AssetReportService {
                     candidate.category
             );
         }
-    }
-
-    private AssetReportDto.Insight copyInsight(AssetReportDto.Insight insight) {
-        return new AssetReportDto.Insight(
-                insight.getReportTitle(),
-                insight.getReportContent(),
-                insight.getGenerationMode(),
-                insight.getCategory()
-        );
     }
 
     private double calculateChangeRate(long currentAmount, long previousAmount) {
@@ -314,6 +323,4 @@ public class AssetReportService {
         }
     }
 
-    private record ConsumptionInsightCacheKey(long userId, YearMonth currentMonth) {
-    }
 }

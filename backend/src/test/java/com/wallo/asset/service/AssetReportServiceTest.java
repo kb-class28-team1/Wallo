@@ -20,7 +20,9 @@ import com.wallo.asset.mapper.BudgetMapper;
 import com.wallo.chat.client.AiServerException;
 import com.wallo.common.exception.CustomException;
 import com.wallo.common.exception.ErrorCode;
+import java.time.Clock;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 
@@ -32,7 +34,9 @@ class AssetReportServiceTest {
     private final AssetReportService assetReportService = new AssetReportService(
             assetReportMapper,
             assetReportAiClient,
-            budgetMapper
+            budgetMapper,
+            new ConsumptionInsightCache(),
+            Clock.system(ZoneId.of("Asia/Seoul"))
     );
 
     @Test

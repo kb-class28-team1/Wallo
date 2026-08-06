@@ -12,11 +12,14 @@ import com.wallo.asset.dto.AssetReportDto;
 import com.wallo.asset.client.AssetReportAiClient;
 import com.wallo.asset.mapper.AssetReportMapper;
 import com.wallo.asset.mapper.BudgetMapper;
+import com.wallo.asset.service.ConsumptionInsightCache;
 import com.wallo.asset.service.AssetReportService;
 import com.wallo.auth.CurrentUserProvider;
 import com.wallo.auth.SessionCurrentUserProvider;
 import com.wallo.common.exception.GlobalExceptionHandler;
+import java.time.Clock;
 import java.nio.charset.StandardCharsets;
+import java.time.ZoneId;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -91,7 +94,9 @@ class AssetReportControllerTest {
         AssetReportService assetReportService = new AssetReportService(
                 mock(AssetReportMapper.class),
                 mock(AssetReportAiClient.class),
-                mock(BudgetMapper.class)
+                mock(BudgetMapper.class),
+                new ConsumptionInsightCache(),
+                Clock.system(ZoneId.of("Asia/Seoul"))
         );
         AssetReportController assetReportController = new AssetReportController(
                 assetReportService,

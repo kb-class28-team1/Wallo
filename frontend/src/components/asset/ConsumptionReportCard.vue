@@ -3,6 +3,7 @@ import { computed, onMounted } from "vue";
 import { storeToRefs } from "pinia";
 import { useReportStore } from "@/stores/assetReportStore.js";
 import {
+  CONSUMPTION_REPORT_FALLBACK_IMAGE,
   getConsumptionReportImage,
   getConsumptionReportImageAlt,
 } from "@/features/asset/consumptionReportImages.js";
@@ -18,6 +19,7 @@ const reportImageAlt = computed(() =>
 );
 
 const REPORT_CALLOUTS = [
+  "지출 내역을 점검해보세요.",
   "가벼운 점검 해보세요 😊",
   "소비 내역을 확인해 보세요!",
 ];
@@ -72,6 +74,11 @@ onMounted(loadInsight);
       </div>
 
       <div v-else-if="insightError" class="report-state">
+        <img
+          :src="CONSUMPTION_REPORT_FALLBACK_IMAGE"
+          alt="소비 리포트를 불러오지 못함"
+          class="report-state-image"
+        />
         <i class="bi bi-exclamation-circle text-danger fs-2" aria-hidden="true"></i>
         <p class="fw-semibold mb-1 mt-3">소비 리포트를 불러오지 못했습니다.</p>
         <p class="small text-secondary text-center mb-3">{{ insightError }}</p>
@@ -201,6 +208,13 @@ onMounted(loadInsight);
   flex-direction: column;
   align-items: center;
   justify-content: center;
+}
+
+.report-state-image {
+  width: 80px;
+  height: 80px;
+  margin-bottom: 4px;
+  object-fit: contain;
 }
 
 @media (max-width: 991.98px) {

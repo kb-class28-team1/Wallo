@@ -5,6 +5,7 @@ import com.wallo.asset.domain.Institution;
 import com.wallo.asset.dto.AssetSyncDto;
 import com.wallo.asset.mapper.AssetSyncMapper;
 import com.wallo.external.dto.CodefDto;
+import java.time.Clock;
 import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -24,17 +25,23 @@ public class AssetSyncService {
     private final ObjectMapper objectMapper;
     private final CardApprovalCollectionService cardApprovalCollectionService;
     private final BankTransactionCollectionService bankTransactionCollectionService;
+    private final ConsumptionInsightCache consumptionInsightCache;
+    private final Clock clock;
 
     public AssetSyncService(
             AssetSyncMapper assetSyncMapper,
             ObjectMapper objectMapper,
             CardApprovalCollectionService cardApprovalCollectionService,
-            BankTransactionCollectionService bankTransactionCollectionService
+            BankTransactionCollectionService bankTransactionCollectionService,
+            ConsumptionInsightCache consumptionInsightCache,
+            Clock clock
     ) {
         this.assetSyncMapper = assetSyncMapper;
         this.objectMapper = objectMapper;
         this.cardApprovalCollectionService = cardApprovalCollectionService;
         this.bankTransactionCollectionService = bankTransactionCollectionService;
+        this.consumptionInsightCache = consumptionInsightCache;
+        this.clock = clock;
     }
 
     public void sync(long userId, long connectionId, Institution institution, CodefDto.Response response) {
@@ -81,6 +88,7 @@ public class AssetSyncService {
                 syncTransaction(userId, connectionId, source);
             }
         }
+        consumptionInsightCache.invalidateAfterCommit(userId, YearMonth.from(LocalDate.now(clock)));
         LOGGER.info(String.format(
                 Locale.ROOT,
                 "asset-sync-service organization=%s type=%s snapshots=%d accounts=%d loans=%d cards=%d "

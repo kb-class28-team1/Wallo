@@ -8,6 +8,9 @@ const CONSUMPTION_REPORT_IMAGE_PATHS = Object.freeze({
   DELIVERY: "/images/asset-reports/wallow-delivery.png",
 });
 
+export const CONSUMPTION_REPORT_FALLBACK_IMAGE =
+  "/images/asset-reports/questionMark.svg";
+
 export const getConsumptionReportImage = (category) => {
   const normalizedCategory = normalizeExpenseCategory(category);
 
