@@ -11,11 +11,18 @@ import {
 const reportStore = useReportStore();
 const { insight, isInsightLoading, insightError } = storeToRefs(reportStore);
 
+const isFallbackInsight = computed(
+  () => insight.value?.generationMode === "FALLBACK",
+);
 const reportImage = computed(() =>
-  getConsumptionReportImage(insight.value?.category),
+  isFallbackInsight.value
+    ? CONSUMPTION_REPORT_FALLBACK_IMAGE
+    : getConsumptionReportImage(insight.value?.category),
 );
 const reportImageAlt = computed(() =>
-  getConsumptionReportImageAlt(insight.value?.category),
+  isFallbackInsight.value
+    ? "소비 리포트를 준비 중인 이미지"
+    : getConsumptionReportImageAlt(insight.value?.category),
 );
 
 const REPORT_CALLOUTS = [
@@ -151,15 +158,15 @@ onMounted(loadInsight);
 }
 
 .report-content.has-report-image {
-  padding-right: 240px;
+  padding-right: clamp(175px, 24vw, 220px);
 }
 
 .report-category-image {
   position: absolute;
   right: 0;
   bottom: 0;
-  width: 230px;
-  height: 210px;
+  width: clamp(150px, 24vw, 210px);
+  height: clamp(150px, 24vw, 210px);
   object-fit: contain;
 }
 
@@ -179,6 +186,8 @@ onMounted(loadInsight);
   padding-top: 18px;
   color: #555b6e;
   line-height: 1.7;
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 .report-content.has-report-image .report-description {
@@ -233,7 +242,7 @@ onMounted(loadInsight);
   .report-category-image {
     right: 0;
     bottom: 0;
-    width: 160px;
+    width: 145px;
     height: 145px;
   }
 
@@ -242,7 +251,8 @@ onMounted(loadInsight);
   }
 
   .report-content.has-report-image {
-    padding-right: 160px;
+    padding-right: 0;
+    padding-bottom: 150px;
   }
 }
 </style>

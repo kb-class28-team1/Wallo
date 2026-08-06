@@ -15,6 +15,7 @@ from .schemas import (
 
 
 logger = logging.getLogger("uvicorn.error")
+CONSUMPTION_INSIGHT_MAX_COMPLETION_TOKENS = 2000
 
 
 class InvalidConsumptionInsightResponseError(ValueError):
@@ -28,6 +29,16 @@ def _build_response_format() -> dict[str, str]:
     return {"type": "json_object"}
 
 
+def _build_completion_options(model: str) -> dict:
+    options = {
+        "response_format": _build_response_format(),
+        "max_completion_tokens": CONSUMPTION_INSIGHT_MAX_COMPLETION_TOKENS,
+    }
+    if model.startswith("openai/gpt-oss-"):
+        options["reasoning_effort"] = "low"
+    return options
+
+
 def _call_groq(client: Groq, request: ConsumptionInsightGenerateRequest, model: str):
     try:
         return client.chat.completions.create(
@@ -36,8 +47,7 @@ def _call_groq(client: Groq, request: ConsumptionInsightGenerateRequest, model: 
                 {"role": "system", "content": CONSUMPTION_INSIGHT_INSTRUCTIONS},
                 {"role": "user", "content": build_consumption_insight_input(request)},
             ],
-            response_format=_build_response_format(),
-            max_completion_tokens=1000,
+            **_build_completion_options(model),
         )
     except GroqError as error:
         status_code = getattr(error, "status_code", "unknown")

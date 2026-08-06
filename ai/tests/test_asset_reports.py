@@ -82,7 +82,8 @@ def test_generates_short_structured_consumption_insight():
     assert client.chat.completions.kwargs["response_format"] == {
         "type": "json_object",
     }
-    assert client.chat.completions.kwargs["max_completion_tokens"] == 1000
+    assert client.chat.completions.kwargs["reasoning_effort"] == "low"
+    assert client.chat.completions.kwargs["max_completion_tokens"] == 2000
 
 
 def test_prompt_contains_only_aggregated_spending_data_and_derived_rate():
