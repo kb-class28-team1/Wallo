@@ -1,6 +1,7 @@
 package com.wallo.asset.dto;
 
 import java.util.List;
+import java.util.ArrayList;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -33,6 +34,40 @@ public final class ConnectionDto {
     @AllArgsConstructor
     public static class Response {
         private List<Result> results;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    public static class ConnectedAssetsResponse {
+
+        private List<ConnectedAsset> connections;
+
+        public ConnectedAssetsResponse(List<ConnectedAsset> connections) {
+            this.connections = connections == null
+                    ? new ArrayList<>()
+                    : new ArrayList<>(connections);
+        }
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ConnectedAsset {
+
+        private Long connectionId;
+        private Long assetId;
+        private Long institutionId;
+        private String institutionName;
+        private String institutionType;
+        private String logoUrl;
+        private String assetKind;
+        private String assetName;
+        private String displayNumber;
+        private String assetType;
+        private Long amount;
+        private String currency;
     }
 
     @Getter

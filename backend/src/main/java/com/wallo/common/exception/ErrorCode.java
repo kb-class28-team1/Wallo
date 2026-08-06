@@ -24,6 +24,11 @@ public enum ErrorCode {
             "CONNECTION_003",
             "연동 결과 저장에 실패했습니다. CONNECTIONS 테이블 스키마를 확인해주세요."
     ),
+    CONNECTION_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "CONNECTION_004",
+            "연결된 계좌 또는 카드를 찾을 수 없습니다."
+    ),
     INVALID_DASHBOARD_REQUEST(
             HttpStatus.BAD_REQUEST,
             "DASHBOARD_001",

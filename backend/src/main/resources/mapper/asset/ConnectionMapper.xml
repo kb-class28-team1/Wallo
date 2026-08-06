@@ -45,5 +45,89 @@
           AND institution_id = #{institutionId}
           AND deleted_at IS NULL
     </select>
+
+    <select id="findConnectedAssets"
+            resultType="com.wallo.asset.dto.ConnectionDto$ConnectedAsset">
+        SELECT
+            c.connection_id AS connectionId,
+            a.account_id AS assetId,
+            c.institution_id AS institutionId,
+            i.name AS institutionName,
+            i.type AS institutionType,
+            i.logo_url AS logoUrl,
+            'ACCOUNT' AS assetKind,
+            a.account_name AS assetName,
+            COALESCE(NULLIF(a.account_display_number, ''), a.account_number) AS displayNumber,
+            a.account_type AS assetType,
+            CASE
+                WHEN a.account_type = 'STOCK' THEN COALESCE(a.eval_amount, 0)
+                ELSE COALESCE(a.balance, 0)
+            END AS amount,
+            a.currency AS currency
+        FROM CONNECTIONS c
+        INNER JOIN INSTITUTIONS i ON i.institution_id = c.institution_id
+        INNER JOIN ACCOUNTS a ON a.connection_id = c.connection_id
+        WHERE c.user_id = #{userId}
+          AND c.status = 'ACTIVE'
+          AND c.deleted_at IS NULL
+          AND a.status = 'ACTIVE'
+
+        UNION ALL
+
+        SELECT
+            c.connection_id AS connectionId,
+            card.card_id AS assetId,
+            c.institution_id AS institutionId,
+            i.name AS institutionName,
+            i.type AS institutionType,
+            i.logo_url AS logoUrl,
+            'CARD' AS assetKind,
+            card.card_name AS assetName,
+            CASE
+                WHEN LENGTH(REPLACE(card.card_number, '-', '')) >= 8 THEN CONCAT(
+                    LEFT(REPLACE(card.card_number, '-', ''), 4),
+                    '-****-****-',
+                    RIGHT(REPLACE(card.card_number, '-', ''), 4)
+                )
+                ELSE card.card_number
+            END AS displayNumber,
+            card.card_type AS assetType,
+            COALESCE(SUM(t.amount), 0) AS amount,
+            'KRW' AS currency
+        FROM CONNECTIONS c
+        INNER JOIN INSTITUTIONS i ON i.institution_id = c.institution_id
+        INNER JOIN CARDS card ON card.connection_id = c.connection_id
+        LEFT JOIN TRANSACTIONS t
+            ON t.card_id = card.card_id
+           AND t.type = 'EXPENSE'
+           AND t.transaction_date >= DATE_FORMAT(CURRENT_DATE, '%Y-%m-01')
+           AND t.transaction_date &lt;= CURRENT_DATE
+        WHERE c.user_id = #{userId}
+          AND c.status = 'ACTIVE'
+          AND c.deleted_at IS NULL
+          AND card.status = 'ACTIVE'
+        GROUP BY
+            c.connection_id,
+            card.card_id,
+            c.institution_id,
+            i.name,
+            i.type,
+            i.logo_url,
+            card.card_name,
+            card.card_number,
+            card.card_type
+
+        ORDER BY institutionName, assetKind, assetId
+    </select>
+
+    <update id="softDeleteConnection">
+        UPDATE CONNECTIONS
+        SET status = 'INACTIVE',
+            deleted_at = CURRENT_TIMESTAMP
+        WHERE connection_id = #{connectionId}
+          AND user_id = #{userId}
+          AND status = 'ACTIVE'
+          AND deleted_at IS NULL
+    </update>
 </mapper>
 

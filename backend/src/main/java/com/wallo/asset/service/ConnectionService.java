@@ -3,6 +3,7 @@ package com.wallo.asset.service;
 import com.wallo.asset.domain.Institution;
 import com.wallo.asset.dto.ConnectionDto;
 import com.wallo.asset.exception.ConnectionConsentRequiredException;
+import com.wallo.asset.exception.ConnectionNotFoundException;
 import com.wallo.asset.mapper.ConnectionMapper;
 import com.wallo.external.client.CodefClient;
 import com.wallo.external.dto.CodefDto;
@@ -84,6 +85,20 @@ public class ConnectionService {
                 elapsedMillis(totalStartedAt)
         ));
         return new ConnectionDto.Response(results);
+    }
+
+    @Transactional(readOnly = true)
+    public ConnectionDto.ConnectedAssetsResponse getConnectedAssets(long userId) {
+        return new ConnectionDto.ConnectedAssetsResponse(
+                connectionMapper.findConnectedAssets(userId)
+        );
+    }
+
+    @Transactional
+    public void disconnect(long userId, long connectionId) {
+        if (connectionMapper.softDeleteConnection(userId, connectionId) == 0) {
+            throw new ConnectionNotFoundException();
+        }
     }
 
     private void syncAssets(long userId, List<ConnectionAttempt> attempts) {

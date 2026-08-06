@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 import com.wallo.asset.domain.Institution;
 import com.wallo.asset.dto.ConnectionDto;
 import com.wallo.asset.exception.ConnectionConsentRequiredException;
+import com.wallo.asset.exception.ConnectionNotFoundException;
 import com.wallo.asset.mapper.ConnectionMapper;
 import com.wallo.common.exception.ErrorCode;
 import com.wallo.external.client.CodefClient;
@@ -92,6 +93,47 @@ public class ConnectionServiceTest {
         assertEquals(ConnectionDto.Status.FAILED, response.getResults().get(1).getStatus());
         assertEquals("External service failed", response.getResults().get(1).getMessage());
         assertEquals(ConnectionDto.Status.SUCCESS, response.getResults().get(2).getStatus());
+    }
+
+    @Test
+    public void getConnectedAssetsReturnsMapperResults() {
+        ConnectionDto.ConnectedAsset connectedAsset = new ConnectionDto.ConnectedAsset(
+                42L,
+                100L,
+                1L,
+                "국민은행",
+                "BANK",
+                "logo",
+                "ACCOUNT",
+                "입출금통장",
+                "123456-**-***012",
+                "BANK",
+                5000000L,
+                "KRW"
+        );
+        when(connectionMapper.findConnectedAssets(7L)).thenReturn(List.of(connectedAsset));
+
+        ConnectionDto.ConnectedAssetsResponse response = connectionService.getConnectedAssets(7L);
+
+        assertEquals(1, response.getConnections().size());
+        assertEquals(42L, response.getConnections().get(0).getConnectionId().longValue());
+        verify(connectionMapper).findConnectedAssets(7L);
+    }
+
+    @Test
+    public void disconnectsOnlyTheCurrentUsersConnection() {
+        when(connectionMapper.softDeleteConnection(7L, 42L)).thenReturn(1);
+
+        connectionService.disconnect(7L, 42L);
+
+        verify(connectionMapper).softDeleteConnection(7L, 42L);
+    }
+
+    @Test(expected = ConnectionNotFoundException.class)
+    public void rejectsDisconnectForMissingConnection() {
+        when(connectionMapper.softDeleteConnection(7L, 404L)).thenReturn(0);
+
+        connectionService.disconnect(7L, 404L);
     }
 
     private void givenConnectionTargets() {
