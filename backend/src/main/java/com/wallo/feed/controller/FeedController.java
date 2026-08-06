@@ -46,7 +46,7 @@ public class FeedController {
             @PathVariable Long challengeId, @RequestParam MultipartFile media,
             @RequestParam String spendingType, @RequestParam String category,
             @RequestParam(required = false) String customCategory,
-            @RequestParam(required = false) String caption,
+            @RequestParam String caption,
             @RequestParam(defaultValue = "0") int savingAmount,
             @RequestParam(defaultValue = "") String analysisSummary,
             @RequestParam(defaultValue = "0") double confidenceScore) {

@@ -316,9 +316,10 @@ const handleFile = async (event) => {
   previewUrl.value = URL.createObjectURL(file)
   form.analysisSummary = ''
 }
-const validationMessage = () => {
+const validationMessage = ({ requireCaption = false } = {}) => {
   if (!form.file) return '사진이나 영상을 선택해 주세요.'
   if (!form.category) return '세부 카테고리를 선택해 주세요.'
+  if (requireCaption && !form.caption.trim()) return '한줄요약을 작성해주세요'
   return ''
 }
 const makeFormData = () => {
@@ -344,7 +345,7 @@ const requestAnalysis = async () => {
   }
 }
 const uploadFeed = async () => {
-  const invalid = validationMessage()
+  const invalid = validationMessage({ requireCaption: true })
   if (invalid) return openDialog({ message: invalid })
   if (!form.analysisSummary) return openDialog({ message: '먼저 AI 분석을 진행해 주세요.' })
   isUploading.value = true
@@ -497,9 +498,14 @@ onBeforeUnmount(() => {
             <div class="feed-media-wrap">
               <video
                 v-if="feed.mediaType === 'VIDEO'"
+                class="feed-media"
                 :src="feed.mediaUrl"
-                controls
+                autoplay
+                muted
+                loop
+                playsinline
                 preload="metadata"
+                :aria-label="feed.caption || '절약 인증 영상'"
               ></video>
               <img
                 v-else
@@ -569,7 +575,16 @@ onBeforeUnmount(() => {
               >
                 <strong>{{ item.nickname }}</strong>
                 <button v-if="item.referenceFeedId" class="shared-feed" @click="mentionFeed(item)">
-                  <video v-if="item.mediaType === 'VIDEO'" :src="item.mediaUrl" muted></video>
+                  <video
+                    v-if="item.mediaType === 'VIDEO'"
+                    :src="item.mediaUrl"
+                    autoplay
+                    muted
+                    loop
+                    playsinline
+                    preload="metadata"
+                    aria-label="공유 피드 영상"
+                  ></video>
                   <img v-else :src="item.thumbnailUrl || item.mediaUrl" alt="공유 피드 썸네일" />
                   <span
                     ><b>피드 #{{ item.referenceFeedId }}</b
@@ -620,7 +635,16 @@ onBeforeUnmount(() => {
           />
           <button class="upload-zone" type="button" @click="chooseFile">
             <template v-if="previewUrl">
-              <video v-if="isVideoFile" :src="previewUrl" muted></video>
+              <video
+                v-if="isVideoFile"
+                :src="previewUrl"
+                autoplay
+                muted
+                loop
+                playsinline
+                preload="metadata"
+                aria-label="업로드할 영상 미리보기"
+              ></video>
               <img v-else :src="previewUrl" alt="업로드 미리보기" />
             </template>
             <template v-else
@@ -663,11 +687,13 @@ onBeforeUnmount(() => {
               /><b>원</b>
             </div>
           </div>
-          <label class="section-label" for="feed-caption">문구</label>
+          <label class="section-label" for="feed-caption">한줄요약 (필수)</label>
           <textarea
             id="feed-caption"
             v-model="form.caption"
             maxlength="500"
+            required
+            aria-required="true"
             placeholder="예) 퇴근길 편의점 대신 집에서 커피 ☕ 굿!"
           ></textarea>
           <p class="share-notice">💬 업로드하면 {{ roomTitle }}에도 자동으로 공유돼요.</p>
@@ -756,10 +782,11 @@ onBeforeUnmount(() => {
   min-width: 0;
 }
 .feed-sidebar {
-  position: sticky;
+  position: fixed;
   top: 100px;
+  right: max(32px, calc((100vw - 1453px) / 2));
   display: flex;
-  width: 100%;
+  width: 330px;
   height: calc(100vh - 124px);
   min-width: 0;
   flex-direction: column;
