@@ -3,6 +3,7 @@ package com.wallo.asset.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wallo.asset.domain.Institution;
 import com.wallo.asset.dto.AssetSyncDto;
+import com.wallo.asset.mapper.AssetMapper;
 import com.wallo.asset.mapper.AssetSyncMapper;
 import com.wallo.external.dto.CodefDto;
 import java.time.Clock;
@@ -22,6 +23,7 @@ public class AssetSyncService {
     private static final Logger LOGGER = Logger.getLogger(AssetSyncService.class.getName());
 
     private final AssetSyncMapper assetSyncMapper;
+    private final AssetMapper assetMapper;
     private final ObjectMapper objectMapper;
     private final CardApprovalCollectionService cardApprovalCollectionService;
     private final BankTransactionCollectionService bankTransactionCollectionService;
@@ -30,6 +32,7 @@ public class AssetSyncService {
 
     public AssetSyncService(
             AssetSyncMapper assetSyncMapper,
+            AssetMapper assetMapper,
             ObjectMapper objectMapper,
             CardApprovalCollectionService cardApprovalCollectionService,
             BankTransactionCollectionService bankTransactionCollectionService,
@@ -37,6 +40,7 @@ public class AssetSyncService {
             Clock clock
     ) {
         this.assetSyncMapper = assetSyncMapper;
+        this.assetMapper = assetMapper;
         this.objectMapper = objectMapper;
         this.cardApprovalCollectionService = cardApprovalCollectionService;
         this.bankTransactionCollectionService = bankTransactionCollectionService;
@@ -47,10 +51,15 @@ public class AssetSyncService {
     public void sync(long userId, long connectionId, Institution institution, CodefDto.Response response) {
         long startedAt = System.nanoTime();
         CodefDto.AssetData data = objectMapper.convertValue(response.getData(), CodefDto.AssetData.class);
+        YearMonth currentMonth = YearMonth.from(LocalDate.now(clock));
 
         for (CodefDto.AssetSnapshot snapshot : values(data.getAssetSnapshots())) {
+            String snapshotMonth = snapshotMonth(snapshot.getSnapshotMonth());
+            if (currentMonth.toString().equals(snapshotMonth)) {
+                continue;
+            }
             assetSyncMapper.upsertAssetSnapshot(userId, new AssetSyncDto.AssetSnapshot(
-                    snapshotMonth(snapshot.getSnapshotMonth()), amount(snapshot.getTotalAssets())
+                    snapshotMonth, amount(snapshot.getTotalAssets())
             ));
         }
 
@@ -88,7 +97,15 @@ public class AssetSyncService {
                 syncTransaction(userId, connectionId, source);
             }
         }
-        consumptionInsightCache.invalidateAfterCommit(userId, YearMonth.from(LocalDate.now(clock)));
+        Long currentTotalAssets = assetMapper.selectTotalAssets(userId);
+        assetSyncMapper.upsertAssetSnapshot(
+                userId,
+                new AssetSyncDto.AssetSnapshot(
+                        currentMonth.toString(),
+                        currentTotalAssets == null ? 0L : currentTotalAssets
+                )
+        );
+        consumptionInsightCache.invalidateAfterCommit(userId, currentMonth);
         LOGGER.info(String.format(
                 Locale.ROOT,
                 "asset-sync-service organization=%s type=%s snapshots=%d accounts=%d loans=%d cards=%d "
