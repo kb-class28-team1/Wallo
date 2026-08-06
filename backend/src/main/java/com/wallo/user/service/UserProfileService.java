@@ -15,6 +15,8 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 import javax.imageio.ImageIO;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,10 +38,34 @@ public class UserProfileService {
 
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
+    private final Path profileImageStorageDirectory;
 
-    public UserProfileService(UserMapper userMapper, PasswordEncoder passwordEncoder) {
+    @Autowired
+    public UserProfileService(
+            UserMapper userMapper,
+            PasswordEncoder passwordEncoder,
+            @Value("${profile.image.storage-dir:${user.home}/Documents/Wallo-data/profile-images}")
+            String profileImageStorageDirectory
+    ) {
         this.userMapper = userMapper;
         this.passwordEncoder = passwordEncoder;
+        this.profileImageStorageDirectory = Path.of(profileImageStorageDirectory)
+                .toAbsolutePath()
+                .normalize();
+    }
+
+    // 단위 테스트와 스프링 외부에서 서비스를 생성하는 코드를 위한 기본 경로다.
+    public UserProfileService(UserMapper userMapper, PasswordEncoder passwordEncoder) {
+        this(
+                userMapper,
+                passwordEncoder,
+                Path.of(
+                        System.getProperty("user.home"),
+                        "Documents",
+                        "Wallo-data",
+                        "profile-images"
+                ).toString()
+        );
     }
 
     @Transactional
@@ -189,7 +215,7 @@ public class UserProfileService {
     }
 
     private Path profileImageDirectory() {
-        return Path.of(System.getProperty("java.io.tmpdir"), "wallo-profile-images");
+        return profileImageStorageDirectory;
     }
 
     private void deleteStoredImage(String imageUrl) {

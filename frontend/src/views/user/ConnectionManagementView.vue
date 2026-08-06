@@ -29,6 +29,35 @@ const getConnectionCategory = (connection) => {
   return connection.assetType === "STOCK" ? "STOCK" : "ACCOUNT"
 }
 
+const connectionGroups = computed(() => {
+  const groupedConnections = new Map()
+
+  connections.value.forEach((asset) => {
+    const groupKey = asset.connectionId
+      ?? `institution-${asset.institutionId ?? "unknown"}-${asset.institutionName ?? "unknown"}`
+    const existingGroup = groupedConnections.get(groupKey)
+
+    if (existingGroup) {
+      existingGroup.assets.push(asset)
+      return
+    }
+
+    groupedConnections.set(groupKey, {
+      groupKey,
+      connectionId: asset.connectionId,
+      institutionId: asset.institutionId,
+      institutionName: asset.institutionName,
+      institutionType: asset.institutionType,
+      logoUrl: asset.logoUrl,
+      financialGroupCode: asset.financialGroupCode,
+      financialGroupName: asset.financialGroupName,
+      assets: [asset],
+    })
+  })
+
+  return [...groupedConnections.values()]
+})
+
 const categorizedConnections = computed(() => {
   const groupedConnections = {
     ACCOUNT: [],
@@ -36,8 +65,19 @@ const categorizedConnections = computed(() => {
     STOCK: [],
   }
 
-  connections.value.forEach((connection) => {
-    groupedConnections[getConnectionCategory(connection)].push(connection)
+  connectionGroups.value.forEach((group) => {
+    Object.keys(groupedConnections).forEach((categoryKey) => {
+      const visibleAssets = group.assets.filter(
+        (asset) => getConnectionCategory(asset) === categoryKey,
+      )
+
+      if (visibleAssets.length > 0) {
+        groupedConnections[categoryKey].push({
+          ...group,
+          visibleAssets,
+        })
+      }
+    })
   })
 
   return groupedConnections
@@ -59,6 +99,13 @@ const activeCategoryEmptyMessage = computed(() => (
 const getCategoryCount = (categoryKey) => (
   categorizedConnections.value[categoryKey]?.length || 0
 )
+
+const activeCategoryAssetCount = computed(() => (
+  visibleConnections.value.reduce(
+    (total, group) => total + group.visibleAssets.length,
+    0,
+  )
+))
 
 const formatAmount = (amount) =>
   `${new Intl.NumberFormat("ko-KR").format(Number(amount) || 0)}원`
@@ -231,7 +278,9 @@ onMounted(loadConnections)
       </div>
 
       <div class="connection-section-heading d-flex align-items-center justify-content-between gap-3">
-        <span class="small text-secondary">{{ activeCategoryLabel }} {{ visibleConnections.length }}개</span>
+        <span class="small text-secondary">
+          {{ activeCategoryLabel }} 연결 기관 {{ visibleConnections.length }}곳 · 자산 {{ activeCategoryAssetCount }}개
+        </span>
       </div>
 
       <div
@@ -242,54 +291,71 @@ onMounted(loadConnections)
         tabindex="0"
       >
         <article
-          v-for="connection in visibleConnections"
-          :key="`${connection.connectionId}-${connection.assetKind}-${connection.assetId}`"
-          class="connection-item d-flex align-items-center gap-3"
+          v-for="group in visibleConnections"
+          :key="group.groupKey"
+          class="connection-institution"
         >
-          <div class="asset-logo" aria-hidden="true">
-            <img
-              v-if="getConnectionLogoUrl(connection)"
-              :src="getConnectionLogoUrl(connection)"
-              :alt="`${connection.institutionName} 로고`"
-              :data-fallback-src="getConnectionFallbackLogoUrl(connection)"
-              class="asset-logo-image"
-              @error="handleLogoError"
-            />
-            <span :class="getLogoFallbackClass(getConnectionLogoUrl(connection))">
-              {{ getLogoText(connection) }}
-            </span>
-          </div>
+          <div class="connection-institution-header d-flex align-items-center gap-3">
+            <div class="asset-logo" aria-hidden="true">
+              <img
+                v-if="getConnectionLogoUrl(group)"
+                :src="getConnectionLogoUrl(group)"
+                :alt="`${group.institutionName} 로고`"
+                :data-fallback-src="getConnectionFallbackLogoUrl(group)"
+                class="asset-logo-image"
+                @error="handleLogoError"
+              />
+              <span :class="getLogoFallbackClass(getConnectionLogoUrl(group))">
+                {{ getLogoText(group) }}
+              </span>
+            </div>
 
-          <div class="connection-information flex-grow-1 min-width-0">
-            <strong class="d-block text-truncate">{{ connection.institutionName }}</strong>
-            <small
-              class="d-block text-secondary text-truncate"
-              :title="connection.assetName || connection.displayNumber"
+            <div class="connection-information flex-grow-1 min-width-0">
+              <strong class="d-block text-truncate">{{ group.institutionName }}</strong>
+              <small class="d-block text-secondary">
+                연결된 {{ group.assets.length }}개 자산
+              </small>
+            </div>
+
+            <button
+              type="button"
+              class="btn btn-link connection-disconnect text-nowrap"
+              :disabled="disconnectingId !== null"
+              @click="openDisconnectModal(group)"
             >
-              {{ getAssetTypeLabel(connection) }} · {{ connection.displayNumber || "번호 정보 없음" }}
-            </small>
+              <span
+                v-if="disconnectingId === group.connectionId"
+                class="spinner-border spinner-border-sm me-1"
+                aria-hidden="true"
+              ></span>
+              연결 해제
+            </button>
           </div>
 
-          <strong class="connection-amount text-nowrap">
-            <span v-if="connection.assetKind === 'CARD'" class="connection-amount-label">
-              이번 달
-            </span>
-            {{ formatAmount(connection.amount) }}
-          </strong>
+          <ul class="connection-asset-list mb-0">
+            <li
+              v-for="asset in group.visibleAssets"
+              :key="`${asset.connectionId}-${asset.assetKind}-${asset.assetId}`"
+              class="connection-asset d-flex align-items-center gap-3"
+            >
+              <div class="connection-information flex-grow-1 min-width-0">
+                <strong class="d-block text-truncate">{{ getAssetTypeLabel(asset) }}</strong>
+                <small
+                  class="d-block text-secondary text-truncate"
+                  :title="asset.assetName || asset.displayNumber"
+                >
+                  {{ asset.assetName || "자산" }} · {{ asset.displayNumber || "번호 정보 없음" }}
+                </small>
+              </div>
 
-          <button
-            type="button"
-            class="btn btn-link connection-disconnect text-nowrap"
-            :disabled="disconnectingId !== null"
-            @click="openDisconnectModal(connection)"
-          >
-            <span
-              v-if="disconnectingId === connection.connectionId"
-              class="spinner-border spinner-border-sm me-1"
-              aria-hidden="true"
-            ></span>
-            연결 해제
-          </button>
+              <strong class="connection-amount text-nowrap">
+                <span v-if="asset.assetKind === 'CARD'" class="connection-amount-label">
+                  이번 달
+                </span>
+                {{ formatAmount(asset.amount) }}
+              </strong>
+            </li>
+          </ul>
         </article>
       </div>
 
@@ -342,9 +408,28 @@ onMounted(loadConnections)
           <p class="fw-semibold mb-2">
             {{ pendingDisconnectConnection.institutionName }} 연결을 해제하시겠습니까?
           </p>
-          <p class="small text-secondary mb-0">
-            {{ getAssetTypeLabel(pendingDisconnectConnection) }} 정보와 연결된 자산 조회가 중단됩니다.
+          <p class="small text-secondary mb-2">
+            연결을 해제하면 아래 계좌·카드·증권이 현재 자산에서 제외됩니다.
           </p>
+
+          <ul class="connection-modal-assets mb-0">
+            <li
+              v-for="asset in pendingDisconnectConnection.assets"
+              :key="`${asset.connectionId}-${asset.assetKind}-${asset.assetId}`"
+              class="connection-modal-asset d-flex align-items-center justify-content-between gap-3"
+            >
+              <div class="min-width-0">
+                <small class="d-block text-body text-truncate">
+                  {{ asset.assetName || "연결 자산" }} · {{ asset.displayNumber || "번호 정보 없음" }}
+                </small>
+              </div>
+            </li>
+          </ul>
+
+          <p class="small text-secondary mt-3 mb-0">
+            거래 내역과 과거 자산 기록은 유지됩니다. 현재 자산에서는 제외되며, 이번 달 자산 총액과 스냅샷은 해제 후 금액으로 갱신됩니다.
+          </p>
+
           <div v-if="disconnectModalError" class="alert alert-danger py-2 mt-3 mb-0" role="alert">
             {{ disconnectModalError }}
           </div>
@@ -444,15 +529,43 @@ onMounted(loadConnections)
   padding: 24px 0 20px;
 }
 
-.connection-item {
+.connection-institution {
   min-width: 0;
   padding: 14px;
   border: 1px solid #e8edf4;
   border-radius: 14px;
 }
 
+.connection-institution-header {
+  min-width: 0;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #eef0f5;
+}
+
 .connection-information {
   min-width: 0;
+}
+
+.connection-asset-list,
+.connection-modal-assets {
+  padding-left: 0;
+  list-style: none;
+}
+
+.connection-asset-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 8px;
+}
+
+.connection-asset {
+  min-width: 0;
+  padding: 10px 0 6px 62px;
+}
+
+.connection-asset + .connection-asset {
+  border-top: 1px solid #f0f2f6;
 }
 
 .connection-amount {
@@ -477,6 +590,22 @@ onMounted(loadConnections)
 
 .connection-disconnect:hover {
   color: #4f46c7;
+}
+
+.connection-modal-assets {
+  max-height: 220px;
+  margin-right: -4px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.connection-modal-asset {
+  padding: 10px 0;
+  border-bottom: 1px solid #eef0f5;
+}
+
+.connection-modal-asset:last-child {
+  border-bottom: 0;
 }
 
 .connection-empty-state {
@@ -538,12 +667,21 @@ onMounted(loadConnections)
 }
 
 @media (max-width: 576px) {
-  .connection-item {
+  .connection-institution-header {
     flex-wrap: wrap;
   }
 
-  .connection-amount {
-    margin-left: 54px;
+  .connection-institution-header .connection-disconnect {
+    margin-left: auto;
+  }
+
+  .connection-asset {
+    flex-wrap: wrap;
+    padding-left: 0;
+  }
+
+  .connection-asset .connection-amount {
+    margin-left: auto;
   }
 
   .connection-disconnect {
