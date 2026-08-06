@@ -47,7 +47,8 @@ class BankTransactionCollectionServiceTest {
                 categoryClassifier,
                 new TransactionSourceKeyGenerator(),
                 assetSyncMapper,
-                clock
+                clock,
+                new ConsumptionInsightCache()
         );
         when(categoryClassifier.classify(any())).thenReturn(
                 new ExpenseCategoryClassifier.Result(

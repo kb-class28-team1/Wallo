@@ -7,28 +7,38 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wallo.asset.domain.Institution;
 import com.wallo.asset.dto.AssetSyncDto;
+import com.wallo.asset.mapper.AssetMapper;
 import com.wallo.asset.mapper.AssetSyncMapper;
 import com.wallo.external.dto.CodefDto;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.time.ZoneId;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 class AssetSyncServiceTest {
 
     private final AssetSyncMapper assetSyncMapper = mock(AssetSyncMapper.class);
+    private final AssetMapper assetMapper = mock(AssetMapper.class);
     private final CardApprovalCollectionService cardApprovalCollectionService =
             mock(CardApprovalCollectionService.class);
     private final BankTransactionCollectionService bankTransactionCollectionService =
             mock(BankTransactionCollectionService.class);
     private final AssetSyncService assetSyncService = new AssetSyncService(
             assetSyncMapper,
+            assetMapper,
             new ObjectMapper(),
             cardApprovalCollectionService,
-            bankTransactionCollectionService
+            bankTransactionCollectionService,
+            new ConsumptionInsightCache(),
+            Clock.fixed(Instant.parse("2026-08-06T00:00:00Z"), ZoneId.of("Asia/Seoul"))
     );
 
     @Test
@@ -101,5 +111,41 @@ class AssetSyncServiceTest {
         );
         verify(assetSyncMapper, never()).updateTransactionByApproval(any());
         verify(assetSyncMapper, never()).insertTransaction(any());
+    }
+
+    @Test
+    void storesLoanAsActiveLoanAndUsesLiveTotalForCurrentSnapshot() {
+        Institution institution = new Institution(1L, "0004", "국민은행", "BANK", "bank-logo");
+        Map<String, Object> data = Map.of(
+                "loans", List.of(Map.of(
+                        "resLoanName", "일반 상환 학자금대출",
+                        "resLoanAccount", "STUDENT-LOAN-2021-001",
+                        "resLoanDisplay", "STUDENT-LOAN-****-001",
+                        "resLoanBalance", "4800000",
+                        "resLoanStatus", "1",
+                        "resLoanCurrency", "KRW"
+                )),
+                "assetSnapshots", List.of(Map.of(
+                        "snapshotMonth", "2026-08",
+                        "totalAssets", "40100000"
+                ))
+        );
+        when(assetMapper.selectTotalAssets(7L)).thenReturn(53_400_000L);
+
+        assetSyncService.sync(7L, 11L, institution, CodefDto.Response.success(data));
+
+        ArgumentCaptor<AssetSyncDto.Account> accountCaptor =
+                ArgumentCaptor.forClass(AssetSyncDto.Account.class);
+        verify(assetSyncMapper).upsertAccount(eq(11L), accountCaptor.capture());
+        AssetSyncDto.Account loan = accountCaptor.getValue();
+        assertEquals("LOAN", loan.getType());
+        assertEquals(4_800_000L, loan.getBalance());
+        assertEquals("ACTIVE", loan.getStatus());
+
+        ArgumentCaptor<AssetSyncDto.AssetSnapshot> snapshotCaptor =
+                ArgumentCaptor.forClass(AssetSyncDto.AssetSnapshot.class);
+        verify(assetSyncMapper).upsertAssetSnapshot(eq(7L), snapshotCaptor.capture());
+        assertEquals("2026-08", snapshotCaptor.getValue().getMonth());
+        assertEquals(53_400_000L, snapshotCaptor.getValue().getTotalAssets());
     }
 }

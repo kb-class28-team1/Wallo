@@ -11,6 +11,27 @@ public final class FeedDtos {
             String spendingType, String category, int estimatedSavingAmount,
             String summary, double confidenceScore) {}
 
+    public static class CategoryExpenseAverage {
+        private long transactionCount;
+        private long averageAmount;
+
+        public long getTransactionCount() {
+            return transactionCount;
+        }
+
+        public void setTransactionCount(long transactionCount) {
+            this.transactionCount = transactionCount;
+        }
+
+        public long getAverageAmount() {
+            return averageAmount;
+        }
+
+        public void setAverageAmount(long averageAmount) {
+            this.averageAmount = averageAmount;
+        }
+    }
+
     public record FeedListResponse(
             String challengeName, String inviteCode, long mySavingTotal, List<Feed> feeds) {}
 

@@ -2,6 +2,7 @@
 import { computed, ref, watch } from "vue"
 import { RouterLink, useRoute, useRouter } from "vue-router"
 import { getCurrentChallenge } from "@/api/challengeApi"
+import AppDialog from "@/components/common/AppDialog.vue"
 
 // public 폴더의 이미지는 루트 절대 경로로 참조함.
 const brandPenguin = "/images/profiles/penguin-coins.svg"
@@ -25,6 +26,8 @@ const router = useRouter()
 // 챌린지 하위 메뉴 열림 여부를 관리함
 const isChallengeOpen = ref(false)
 const isChallengeChecking = ref(false)
+const dialogVisible = ref(false)
+const dialogMessage = ref("")
 
 // 챌린지 관련 페이지에 접속 중인지 현재 URL로 판단함
 const isChallengeRoute = computed(
@@ -69,6 +72,15 @@ const useDefaultBrandLogo = () => {
   brandLogoSource.value = thinkingPenguin
 }
 
+const showChallengeDialog = (message) => {
+  dialogMessage.value = message
+  dialogVisible.value = true
+}
+
+const closeChallengeDialog = () => {
+  dialogVisible.value = false
+}
+
 // 챌린지 참여가 확인된 사용자만 랭킹과 내 챌린지 페이지로 이동함
 const moveToChallengeMemberPage = async (targetPath) => {
   if (isChallengeChecking.value) {
@@ -81,13 +93,13 @@ const moveToChallengeMemberPage = async (targetPath) => {
     const response = await getCurrentChallenge()
 
     if (!response?.joined) {
-      alert("챌린지 참여가 확인되지 않습니다.")
+      showChallengeDialog("챌린지 참여가 확인되지 않습니다.")
       return
     }
 
     await router.push(targetPath)
   } catch (error) {
-    alert("챌린지 참여가 확인되지 않습니다.")
+    showChallengeDialog("챌린지 참여가 확인되지 않습니다.")
   } finally {
     isChallengeChecking.value = false
   }
@@ -111,7 +123,7 @@ const moveToChallengeFeed = async () => {
     }
     await router.push(`/challenges/${challenge.id}/feeds`)
   } catch (error) {
-    alert(error.message || "챌린지 정보를 확인하지 못했습니다.")
+    showChallengeDialog(error.message || "챌린지 정보를 확인하지 못했습니다.")
   } finally {
     isChallengeChecking.value = false
   }
@@ -231,6 +243,13 @@ const moveToMyChallenge = () => {
       <p class="sidebar-card-text mb-0">뭔가 넣을 공간</p>
     </div>
   </aside>
+  <AppDialog
+    :visible="dialogVisible"
+    title="챌린지 안내"
+    :message="dialogMessage"
+    @confirm="closeChallengeDialog"
+    @close="closeChallengeDialog"
+  />
 </template>
 
 <style scoped>
