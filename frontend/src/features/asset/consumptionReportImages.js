@@ -3,6 +3,9 @@ import {
   normalizeExpenseCategory,
 } from "@/features/financial/financialCategories.js";
 
+export const CONSUMPTION_REPORT_FALLBACK_IMAGE =
+  "/images/asset-reports/questionMark.svg";
+
 const CONSUMPTION_REPORT_IMAGE_PATHS = Object.freeze({
   FOOD: "/images/asset-reports/wallow-food.png",
   CAFE: "/images/asset-reports/wallow-cafe.png",
@@ -16,13 +19,13 @@ const CONSUMPTION_REPORT_IMAGE_PATHS = Object.freeze({
   EDUCATION: "/images/asset-reports/wallow-education.png",
 });
 
-export const CONSUMPTION_REPORT_FALLBACK_IMAGE =
-  "/images/asset-reports/questionMark.svg";
-
 export const getConsumptionReportImage = (category) => {
   const normalizedCategory = normalizeExpenseCategory(category);
 
-  return CONSUMPTION_REPORT_IMAGE_PATHS[normalizedCategory] ?? "";
+  return (
+    CONSUMPTION_REPORT_IMAGE_PATHS[normalizedCategory] ??
+    CONSUMPTION_REPORT_FALLBACK_IMAGE
+  );
 };
 
 export const getConsumptionReportImageAlt = (category) => {

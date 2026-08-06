@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { useReportStore } from "@/stores/assetReportStore.js";
 import {
@@ -10,22 +10,40 @@ import {
 
 const reportStore = useReportStore();
 const { insight, isInsightLoading, insightError } = storeToRefs(reportStore);
+const reportImageLoadFailed = ref(false);
 
 const isFallbackInsight = computed(
   () => insight.value?.generationMode === "FALLBACK",
 );
+const categoryReportImage = computed(() =>
+  getConsumptionReportImage(insight.value?.category),
+);
 const usesFallbackImage = computed(
-  () => isFallbackInsight.value || insight.value?.category === "ETC",
+  () =>
+    isFallbackInsight.value ||
+    reportImageLoadFailed.value ||
+    categoryReportImage.value === CONSUMPTION_REPORT_FALLBACK_IMAGE,
 );
 const reportImage = computed(() =>
   usesFallbackImage.value
     ? CONSUMPTION_REPORT_FALLBACK_IMAGE
-    : getConsumptionReportImage(insight.value?.category),
+    : categoryReportImage.value,
 );
 const reportImageAlt = computed(() =>
   usesFallbackImage.value
     ? "소비 리포트를 준비 중인 이미지"
     : getConsumptionReportImageAlt(insight.value?.category),
+);
+
+const handleReportImageError = () => {
+  reportImageLoadFailed.value = true;
+};
+
+watch(
+  () => [insight.value?.category, insight.value?.generationMode],
+  () => {
+    reportImageLoadFailed.value = false;
+  },
 );
 
 const REPORT_CALLOUTS = [
@@ -88,6 +106,7 @@ onMounted(loadInsight);
           :src="CONSUMPTION_REPORT_FALLBACK_IMAGE"
           alt="소비 리포트를 불러오지 못함"
           class="report-state-image"
+          @error="handleReportImageError"
         />
         <i class="bi bi-exclamation-circle text-danger fs-2" aria-hidden="true"></i>
         <p class="fw-semibold mb-1 mt-3">소비 리포트를 불러오지 못했습니다.</p>
@@ -107,6 +126,7 @@ onMounted(loadInsight);
           :src="reportImage"
           :alt="reportImageAlt"
           class="report-category-image"
+          @error="handleReportImageError"
         />
 
         <div class="report-alert d-flex align-items-start gap-2">

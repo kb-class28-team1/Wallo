@@ -86,6 +86,93 @@ class PythonAssetReportAiClientTest {
     }
 
     @Test
+    void rejectsResponseThatExceedsTextContract() {
+        AssetReportAiDto.Request request = new AssetReportAiDto.Request(
+                "FOOD",
+                "식비",
+                100_000L,
+                80_000L
+        );
+        AssetReportAiDto.Response invalid = new AssetReportAiDto.Response(
+                "1234567890123456",
+                "내용"
+        );
+        when(restTemplate.postForEntity(
+                eq(URI.create("http://localhost:8000/api/asset-reports/insights/generate")),
+                eq(request),
+                eq(AssetReportAiDto.Response.class)
+        )).thenReturn(ResponseEntity.ok(invalid));
+
+        assertThrows(AiServerException.class, () -> client.generate(request));
+    }
+
+    @Test
+    void rejectsMarkdownWrappedResponseText() {
+        AssetReportAiDto.Request request = new AssetReportAiDto.Request(
+                "FOOD",
+                "식비",
+                100_000L,
+                80_000L
+        );
+        AssetReportAiDto.Response invalid = new AssetReportAiDto.Response(
+                "```json",
+                "내용"
+        );
+        when(restTemplate.postForEntity(
+                eq(URI.create("http://localhost:8000/api/asset-reports/insights/generate")),
+                eq(request),
+                eq(AssetReportAiDto.Response.class)
+        )).thenReturn(ResponseEntity.ok(invalid));
+
+        assertThrows(AiServerException.class, () -> client.generate(request));
+    }
+
+    @Test
+    void rejectsJsonWrappedResponseText() {
+        AssetReportAiDto.Request request = new AssetReportAiDto.Request(
+                "FOOD",
+                "식비",
+                100_000L,
+                80_000L
+        );
+        AssetReportAiDto.Response invalid = new AssetReportAiDto.Response(
+                "제목",
+                "{\"report\":\"본문\"}"
+        );
+        when(restTemplate.postForEntity(
+                eq(URI.create("http://localhost:8000/api/asset-reports/insights/generate")),
+                eq(request),
+                eq(AssetReportAiDto.Response.class)
+        )).thenReturn(ResponseEntity.ok(invalid));
+
+        assertThrows(AiServerException.class, () -> client.generate(request));
+    }
+
+    @Test
+    void trimsValidResponseTextBeforeReturningIt() {
+        AssetReportAiDto.Request request = new AssetReportAiDto.Request(
+                "FOOD",
+                "식비",
+                100_000L,
+                80_000L
+        );
+        AssetReportAiDto.Response response = new AssetReportAiDto.Response(
+                " 제목 ",
+                " 본문 "
+        );
+        when(restTemplate.postForEntity(
+                eq(URI.create("http://localhost:8000/api/asset-reports/insights/generate")),
+                eq(request),
+                eq(AssetReportAiDto.Response.class)
+        )).thenReturn(ResponseEntity.ok(response));
+
+        assertEquals(
+                new AssetReportAiDto.Response("제목", "본문"),
+                client.generate(request)
+        );
+    }
+
+    @Test
     void convertsConnectionFailureToAiServerException() {
         AssetReportAiDto.Request request = new AssetReportAiDto.Request(
                 "SHOPPING",
