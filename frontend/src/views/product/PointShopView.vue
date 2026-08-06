@@ -716,6 +716,40 @@ onMounted(loadPointShop)
 </template>
 
 <style scoped>
+ .page-back-button {
+   display: inline-flex;
+   flex: 0 0 38px;
+   width: 38px;
+   height: 38px;
+   align-items: center;
+   justify-content: center;
+   padding: 0;
+   border: 0;
+   border-radius: 12px;
+   background: #f1efff;
+   color: #6b64e8;
+   text-decoration: none;
+   transform: translateX(-8px);
+   transition: background-color 160ms ease, color 160ms ease, transform 160ms ease;
+ }
+
+ .page-back-button:hover,
+ .page-back-button:focus-visible {
+   background: #e8e5ff;
+   color: #574fd2;
+   transform: translateX(-8px) translateY(-1px);
+ }
+
+ .page-back-button:focus-visible {
+   outline: 3px solid rgb(107 100 232 / 22%);
+   outline-offset: 2px;
+ }
+
+ .page-back-button i {
+   font-size: 16px;
+   line-height: 1;
+ }
+
 .point-shop-page {
   width: 100%;
   color: #27304f;
