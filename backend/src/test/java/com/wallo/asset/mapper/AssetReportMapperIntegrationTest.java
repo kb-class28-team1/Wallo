@@ -42,7 +42,7 @@ class AssetReportMapperIntegrationTest {
         SqlSessionFactoryBean factoryBean = new SqlSessionFactoryBean();
         factoryBean.setDataSource(dataSource);
         factoryBean.setMapperLocations(
-                new ClassPathResource("mapper/asset/ReportMapper.xml")
+                new ClassPathResource("mapper/asset/AssetReportMapper.xml")
         );
         sqlSession = factoryBean.getObject().openSession(true);
         assetReportMapper = sqlSession.getMapper(AssetReportMapper.class);
