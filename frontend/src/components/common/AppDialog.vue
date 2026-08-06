@@ -14,6 +14,14 @@ const props = defineProps({
     type: String,
     default: "",
   },
+  imageSrc: {
+    type: String,
+    default: "",
+  },
+  imageAlt: {
+    type: String,
+    default: "",
+  },
   confirmText: {
     type: String,
     default: "확인",
@@ -58,6 +66,7 @@ watch(
           ×
         </button>
       </header>
+      <img v-if="imageSrc" class="app-dialog-image" :src="imageSrc" :alt="imageAlt" />
       <p id="app-dialog-message" class="app-dialog-message">{{ message }}</p>
       <footer class="app-dialog-footer">
         <button v-if="showCancel" type="button" class="app-dialog-cancel" @click="emit('close')">
@@ -129,6 +138,13 @@ watch(
   color: #59647f;
   line-height: 1.6;
   white-space: pre-line;
+}
+
+.app-dialog-image {
+  display: block;
+  width: min(260px, 100%);
+  height: auto;
+  margin: 12px auto 16px;
 }
 
 .app-dialog-footer {
