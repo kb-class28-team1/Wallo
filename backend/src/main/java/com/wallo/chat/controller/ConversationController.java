@@ -1,5 +1,6 @@
 package com.wallo.chat.controller;
 
+import com.wallo.auth.CurrentUserProvider;
 import com.wallo.chat.dto.ConversationResponse;
 import com.wallo.chat.dto.CreateConversationRequest;
 import com.wallo.chat.dto.ChatMessageResponse;
@@ -27,13 +28,16 @@ public class ConversationController {
 
     private final ConversationService conversationService;
     private final ConversationMessageService conversationMessageService;
+    private final CurrentUserProvider currentUserProvider;
 
     public ConversationController(
             ConversationService conversationService,
-            ConversationMessageService conversationMessageService
+            ConversationMessageService conversationMessageService,
+            CurrentUserProvider currentUserProvider
     ) {
         this.conversationService = conversationService;
         this.conversationMessageService = conversationMessageService;
+        this.currentUserProvider = currentUserProvider;
     }
 
     @GetMapping
@@ -67,7 +71,11 @@ public class ConversationController {
             @RequestBody SendConversationMessageRequest request
     ) {
         return ResponseEntity.ok(
-                conversationMessageService.sendMessage(conversationId, request)
+                conversationMessageService.sendMessage(
+                        conversationId,
+                        currentUserProvider.getCurrentUserId(),
+                        request
+                )
         );
     }
 

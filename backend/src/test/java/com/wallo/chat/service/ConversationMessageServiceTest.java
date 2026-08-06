@@ -56,13 +56,13 @@ class ConversationMessageServiceTest {
         when(persistenceService.hasNoMessages(1L)).thenReturn(true);
         when(persistenceService.saveMessage(1L, "USER", request.getMessage()))
                 .thenReturn(userMessage);
-        when(chatService.chat(new ChatRequest(request.getMessage(), true)))
+        when(chatService.chat(new ChatRequest(request.getMessage(), true), 1L))
                 .thenReturn(new ChatResponse("답변", "맞춤 저축 계획"));
         when(persistenceService.saveMessage(1L, "ASSISTANT", "답변"))
                 .thenReturn(assistantMessage);
 
         SendConversationMessageResponse response =
-                conversationMessageService.sendMessage(1L, request);
+                conversationMessageService.sendMessage(1L, 1L, request);
 
         assertEquals(1L, response.getUserMessage().getMessageId());
         assertEquals(2L, response.getAssistantMessage().getMessageId());
@@ -77,7 +77,7 @@ class ConversationMessageServiceTest {
         order.verify(persistenceService)
                 .saveMessage(1L, "USER", request.getMessage());
         order.verify(chatService)
-                .chat(new ChatRequest(request.getMessage(), true));
+                .chat(new ChatRequest(request.getMessage(), true), 1L);
         order.verify(persistenceService)
                 .saveMessage(1L, "ASSISTANT", "답변");
         order.verify(conversationService)
@@ -89,12 +89,12 @@ class ConversationMessageServiceTest {
         SendConversationMessageRequest request = request(1L, "질문");
         when(persistenceService.saveMessage(1L, "USER", "질문"))
                 .thenReturn(message(1L, "USER", "질문"));
-        when(chatService.chat(new ChatRequest("질문")))
+        when(chatService.chat(new ChatRequest("질문"), 1L))
                 .thenThrow(new AiServerException("AI 호출 실패"));
 
         assertThrows(
                 AiServerException.class,
-                () -> conversationMessageService.sendMessage(1L, request)
+                () -> conversationMessageService.sendMessage(1L, 1L, request)
         );
 
         verify(persistenceService)
@@ -119,14 +119,14 @@ class ConversationMessageServiceTest {
                 .thenReturn(List.of(previousUser, previousAssistant));
         when(persistenceService.saveMessage(1L, "USER", request.getMessage()))
                 .thenReturn(message(3L, "USER", request.getMessage()));
-        when(chatService.chat(expectedRequest))
+        when(chatService.chat(expectedRequest, 1L))
                 .thenReturn(new ChatResponse("자동이체를 설명할게요.", null));
         when(persistenceService.saveMessage(1L, "ASSISTANT", "자동이체를 설명할게요."))
                 .thenReturn(message(4L, "ASSISTANT", "자동이체를 설명할게요."));
 
-        conversationMessageService.sendMessage(1L, request);
+        conversationMessageService.sendMessage(1L, 1L, request);
 
-        verify(chatService).chat(expectedRequest);
+        verify(chatService).chat(expectedRequest, 1L);
     }
 
     @Test
@@ -157,20 +157,42 @@ class ConversationMessageServiceTest {
                 .thenReturn(new SummarizeConversationResponse("갱신된 장기 기억"));
         when(persistenceService.saveMessage(1L, "USER", request.getMessage()))
                 .thenReturn(message(23L, "USER", request.getMessage()));
-        when(chatService.chat(org.mockito.ArgumentMatchers.any(ChatRequest.class)))
+        when(chatService.chat(
+                org.mockito.ArgumentMatchers.any(ChatRequest.class),
+                org.mockito.ArgumentMatchers.eq(1L)
+        ))
                 .thenReturn(new ChatResponse("답변", null));
         when(persistenceService.saveMessage(1L, "ASSISTANT", "답변"))
                 .thenReturn(message(24L, "ASSISTANT", "답변"));
 
-        conversationMessageService.sendMessage(1L, request);
+        conversationMessageService.sendMessage(1L, 1L, request);
 
         verify(chatService).summarize(summaryRequest);
         verify(conversationService).updateSummary(1L, "갱신된 장기 기억", 2L);
-        verify(chatService).chat(org.mockito.ArgumentMatchers.argThat(chatRequest ->
-                "갱신된 장기 기억".equals(chatRequest.summary())
-                        && chatRequest.history().size() == 20
-                        && "메시지 3".equals(chatRequest.history().get(0).content())
-        ));
+        verify(chatService).chat(
+                org.mockito.ArgumentMatchers.argThat(chatRequest ->
+                        "갱신된 장기 기억".equals(chatRequest.summary())
+                                && chatRequest.history().size() == 20
+                                && "메시지 3".equals(chatRequest.history().get(0).content())
+                ),
+                org.mockito.ArgumentMatchers.eq(1L)
+        );
+    }
+
+    @Test
+    void usesAuthenticatedUserInsteadOfClientProvidedUserId() {
+        SendConversationMessageRequest request = request(999L, "목표를 만들고 싶어");
+        when(persistenceService.saveMessage(1L, "USER", request.getMessage()))
+                .thenReturn(message(1L, "USER", request.getMessage()));
+        when(chatService.chat(new ChatRequest(request.getMessage()), 7L))
+                .thenReturn(new ChatResponse("목표를 알려주세요.", null));
+        when(persistenceService.saveMessage(1L, "ASSISTANT", "목표를 알려주세요."))
+                .thenReturn(message(2L, "ASSISTANT", "목표를 알려주세요."));
+
+        conversationMessageService.sendMessage(1L, 7L, request);
+
+        verify(conversationService).validateOwnership(1L, 7L);
+        verify(chatService).chat(new ChatRequest(request.getMessage()), 7L);
     }
 
     private SendConversationMessageRequest request(Long userId, String content) {

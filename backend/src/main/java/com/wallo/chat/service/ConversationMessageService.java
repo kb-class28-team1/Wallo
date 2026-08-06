@@ -48,18 +48,19 @@ public class ConversationMessageService {
 
     public SendConversationMessageResponse sendMessage(
             Long conversationId,
+            Long currentUserId,
             SendConversationMessageRequest request
     ) {
-        validateRequest(request);
+        validateRequest(currentUserId, request);
         conversationService.validateOwnership(
                 conversationId,
-                request.getUserId()
+                currentUserId
         );
         boolean isFirstMessage = persistenceService.hasNoMessages(conversationId);
 
         String content = request.getMessage().trim();
         Conversation memory = conversationService.getConversationMemory(
-                conversationId, request.getUserId());
+                conversationId, currentUserId);
         List<ChatMessage> storedMessages = persistenceService.getMessages(conversationId);
         String summary = refreshSummary(conversationId, memory, storedMessages);
         List<ChatHistoryMessage> history = buildRecentHistory(storedMessages);
@@ -69,7 +70,8 @@ public class ConversationMessageService {
                 content
         );
         ChatResponse aiResponse = chatService.chat(
-                new ChatRequest(content, isFirstMessage, summary, history)
+                new ChatRequest(content, isFirstMessage, summary, history),
+                currentUserId
         );
         ChatMessage assistantMessage = persistenceService.saveMessage(
                 conversationId,
@@ -143,13 +145,15 @@ public class ConversationMessageService {
         );
     }
 
-    private void validateRequest(SendConversationMessageRequest request) {
-        if (request == null
-                || request.getUserId() == null
-                || request.getUserId() < 1) {
+    private void validateRequest(
+            Long currentUserId,
+            SendConversationMessageRequest request
+    ) {
+        if (currentUserId == null || currentUserId < 1) {
             throw new IllegalArgumentException("올바른 사용자 ID가 필요합니다.");
         }
-        if (request.getMessage() == null
+        if (request == null
+                || request.getMessage() == null
                 || request.getMessage().isBlank()) {
             throw new IllegalArgumentException("메시지를 입력해 주세요.");
         }
