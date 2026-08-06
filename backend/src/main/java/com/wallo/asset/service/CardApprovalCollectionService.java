@@ -178,7 +178,8 @@ public class CardApprovalCollectionService {
             throw new IllegalArgumentException("카드 승인내역이 비어 있습니다.");
         }
 
-        Long cardId = resolveCardId(connectionId, approval.getResCardNo());
+        String cardNumber = required(approval.getResCardNo(), "카드번호");
+        Long cardId = resolveCardId(connectionId, cardNumber);
         String approvalNo = required(approval.getResApprovalNo(), "카드 승인번호");
         String merchantName = defaultValue(approval.getResMemberName(), "카드 결제");
         long amount = parsePositiveAmount(approval.getResUsedAmount());
@@ -191,7 +192,7 @@ public class CardApprovalCollectionService {
         );
         String sourceDedupKey = sourceKeyGenerator.forCardApproval(
                 institution.getCodefOrganizationCode(),
-                cardId,
+                cardNumber,
                 approvalNo
         );
         return new PreparedApproval(
