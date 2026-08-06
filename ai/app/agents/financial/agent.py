@@ -6,6 +6,7 @@ from groq import Groq
 
 from app.agents.financial.prompts import SYSTEM_PROMPT
 from app.agents.financial.tools.registry import TOOL_SCHEMAS, execute_tool
+from app.chat.schemas import FinancialContext
 from app.core.config import get_groq_model
 
 logger = logging.getLogger("wallo_ai")
@@ -29,6 +30,7 @@ class FinancialAgent:
         user_message: str,
         history: list[dict[str, str]] | None = None,
         summary: str | None = None,
+        financial_context: FinancialContext | None = None,
     ) -> str:
         messages: list[dict[str, Any]] = [
             {"role": "system", "content": SYSTEM_PROMPT},

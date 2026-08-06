@@ -3,7 +3,14 @@
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from app.chat.schemas import ChatRequest
+import pytest
+from pydantic import ValidationError
+
+from app.chat.schemas import (
+    AccountSubtype,
+    ChatRequest,
+    GoalFundAvailability,
+)
 from app.chat.service import ChatService
 
 
@@ -39,6 +46,7 @@ def test_chat_passes_conversation_history_to_financial_agent():
             {"role": "assistant", "content": "예산 설정, 자동이체, 소비 점검이 있어요."},
         ],
         None,
+        None,
     )
 
 
@@ -57,7 +65,91 @@ def test_chat_passes_long_term_summary_to_financial_agent():
         "목표까지 얼마나 남았어?",
         [],
         "사용자는 여행 자금 840만 원을 목표로 한다.",
+        None,
     )
+
+
+def test_chat_parses_and_passes_financial_context_to_financial_agent():
+    client = Mock()
+    service = ChatService(client)
+    request = ChatRequest.model_validate({
+        "message": "여행 목표를 만들고 싶어",
+        "financialContext": {
+            "hasConnectedAccounts": True,
+            "readyAmount": 7_000_000,
+            "conditionalAmount": 15_000_000,
+            "riskAssetAmount": 14_500_000,
+            "excludedAmount": 13_200_000,
+            "unknownAmount": 0,
+            "debtAmount": 4_800_000,
+            "accounts": [
+                {
+                    "subtype": "CMA",
+                    "sourceSubtype": "CMA",
+                    "amount": 2_000_000,
+                    "availability": "READY",
+                }
+            ],
+        },
+    })
+
+    with patch(
+        "app.chat.service.FinancialAgent.run",
+        return_value="목표를 구체화해 볼게요.",
+    ) as run_mock:
+        service.chat(request)
+
+    context = request.financial_context
+    assert context is not None
+    assert context.ready_amount == 7_000_000
+    assert context.accounts[0].subtype == AccountSubtype.CMA
+    assert context.accounts[0].availability == GoalFundAvailability.READY
+    run_mock.assert_called_once_with(
+        "여행 목표를 만들고 싶어",
+        [],
+        None,
+        context,
+    )
+
+
+@pytest.mark.parametrize(
+    "financial_context",
+    [
+        {
+            "hasConnectedAccounts": True,
+            "readyAmount": -1,
+            "conditionalAmount": 0,
+            "riskAssetAmount": 0,
+            "excludedAmount": 0,
+            "unknownAmount": 0,
+            "debtAmount": 0,
+            "accounts": [],
+        },
+        {
+            "hasConnectedAccounts": True,
+            "readyAmount": 0,
+            "conditionalAmount": 0,
+            "riskAssetAmount": 0,
+            "excludedAmount": 0,
+            "unknownAmount": 0,
+            "debtAmount": 0,
+            "accounts": [
+                {
+                    "subtype": "ISA",
+                    "sourceSubtype": "ISA",
+                    "amount": 1_000_000,
+                    "availability": "READY",
+                }
+            ],
+        },
+    ],
+)
+def test_chat_rejects_invalid_financial_context(financial_context):
+    with pytest.raises(ValidationError):
+        ChatRequest.model_validate({
+            "message": "목표를 만들고 싶어",
+            "financialContext": financial_context,
+        })
 
 
 def test_chat_generates_title_when_requested():

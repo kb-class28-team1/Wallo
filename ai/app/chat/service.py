@@ -15,6 +15,7 @@ class ChatService:
             request.message,
             history,
             request.summary,
+            request.financial_context,
         )
         title = (
             generate_conversation_title(self.client, request.message, answer)
