@@ -32,7 +32,7 @@ public class CodefMockService {
             "0081", "bank-accounts-0081.json"
     );
     private static final Map<String, String> CARD_ACCOUNT_FIXTURE_BY_ORGANIZATION = Map.of(
-            "0311", "card-list.json",
+            "0311", "card-list-0311.json",
             "0301", "card-list-0301.json"
     );
     private static final Map<String, Set<String>> MOCK_BANK_ACCOUNTS_BY_ORGANIZATION = Map.of(
