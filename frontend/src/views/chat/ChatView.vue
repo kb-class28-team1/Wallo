@@ -28,6 +28,8 @@ const { user } = storeToRefs(userStore)
 
 const errorMessage = ref("")
 const messageList = ref(null)
+const editingConversationId = ref(null)
+const editingTitle = ref("")
 const userId = computed(() => user.value?.id ?? null)
 const displayMessages = computed(() =>
   messages.value.length ? messages.value : [{ ...WELCOME_MESSAGE }],
@@ -68,6 +70,41 @@ async function scrollToBottom(behavior = "smooth") {
     top: messageList.value.scrollHeight,
     behavior,
   })
+}
+
+const startEditingTitle = (conversation) => {
+  editingConversationId.value = conversation.conversationId
+  editingTitle.value = conversation.title
+}
+
+const cancelEditingTitle = () => {
+  editingConversationId.value = null
+  editingTitle.value = ""
+}
+
+const saveConversationTitle = async (conversationId) => {
+  const title = editingTitle.value.trim()
+  if (!userId.value || !title) return
+
+  const updated = await conversationStore.renameConversation(
+    conversationId,
+    userId.value,
+    title,
+  )
+  if (updated) cancelEditingTitle()
+}
+
+const deleteConversation = async (conversation) => {
+  if (!userId.value) return
+  if (!window.confirm(`'${conversation.title}' 채팅방을 삭제할까요?`)) return
+
+  if (editingConversationId.value === conversation.conversationId) {
+    cancelEditingTitle()
+  }
+  await conversationStore.removeConversation(
+    conversation.conversationId,
+    userId.value,
+  )
 }
 
 const followTypingMessage = () => scrollToBottom("auto")
@@ -182,24 +219,70 @@ onMounted(async () => {
             </div>
 
             <div v-else class="conversation-list list-group list-group-flush">
-              <button
+              <div
                 v-for="conversation in conversations"
                 :key="conversation.conversationId"
-                type="button"
-                class="conversation-item list-group-item list-group-item-action rounded-3 border-0"
+                class="conversation-item list-group-item rounded-3 border-0"
                 :class="{
                   active:
                     conversation.conversationId === activeConversationId,
                 }"
-                @click="selectConversation(conversation.conversationId)"
               >
-                <span class="d-block text-truncate fw-semibold">
-                  {{ conversation.title }}
-                </span>
-                <small class="conversation-date">
-                  {{ formatUpdatedAt(conversation.updatedAt) }}
-                </small>
-              </button>
+                <form
+                  v-if="editingConversationId === conversation.conversationId"
+                  class="d-flex align-items-center gap-1"
+                  @submit.prevent="saveConversationTitle(conversation.conversationId)"
+                >
+                  <input
+                    v-model="editingTitle"
+                    class="form-control form-control-sm"
+                    maxlength="100"
+                    aria-label="채팅방 제목"
+                  />
+                  <button type="submit" class="btn btn-sm btn-link" aria-label="제목 저장">
+                    <i class="bi bi-check-lg"></i>
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-link text-secondary"
+                    aria-label="제목 변경 취소"
+                    @click="cancelEditingTitle"
+                  >
+                    <i class="bi bi-x-lg"></i>
+                  </button>
+                </form>
+
+                <div v-else class="d-flex align-items-center gap-1">
+                  <button
+                    type="button"
+                    class="conversation-select btn flex-grow-1 overflow-hidden p-0 text-start"
+                    @click="selectConversation(conversation.conversationId)"
+                  >
+                    <span class="d-block text-truncate fw-semibold">
+                      {{ conversation.title }}
+                    </span>
+                    <small class="conversation-date">
+                      {{ formatUpdatedAt(conversation.updatedAt) }}
+                    </small>
+                  </button>
+                  <button
+                    type="button"
+                    class="conversation-action btn btn-sm btn-link"
+                    aria-label="채팅방 제목 변경"
+                    @click="startEditingTitle(conversation)"
+                  >
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                  <button
+                    type="button"
+                    class="conversation-action btn btn-sm btn-link text-danger"
+                    aria-label="채팅방 삭제"
+                    @click="deleteConversation(conversation)"
+                  >
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </section>

@@ -7,6 +7,8 @@ public class Conversation {
     private Long conversationId;
     private Long userId;
     private String title;
+    private String summary;
+    private Long summarizedMessageId;
     private String status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -33,6 +35,22 @@ public class Conversation {
 
     public void setTitle(String title) {
         this.title = title;
+    }
+
+    public String getSummary() {
+        return summary;
+    }
+
+    public void setSummary(String summary) {
+        this.summary = summary;
+    }
+
+    public Long getSummarizedMessageId() {
+        return summarizedMessageId;
+    }
+
+    public void setSummarizedMessageId(Long summarizedMessageId) {
+        this.summarizedMessageId = summarizedMessageId;
     }
 
     public String getStatus() {

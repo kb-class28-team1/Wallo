@@ -6,6 +6,7 @@ from groq import Groq
 
 from app.agents.financial.prompts import SYSTEM_PROMPT
 from app.agents.financial.tools.registry import TOOL_SCHEMAS, execute_tool
+from app.agents.goal.context import FinancialContext
 from app.core.config import get_groq_model
 
 logger = logging.getLogger("wallo_ai")
@@ -23,12 +24,30 @@ class FinancialAgent:
     def __init__(self, client: Groq, model: str | None = None):
         self.client = client
         self.model = model or get_groq_model()
+        self.selected_tool: str | None = None
 
-    def run(self, user_message: str) -> str:
+    def run(
+        self,
+        user_message: str,
+        history: list[dict[str, str]] | None = None,
+        summary: str | None = None,
+        financial_context: FinancialContext | None = None,
+    ) -> str:
+        self.selected_tool = None
         messages: list[dict[str, Any]] = [
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_message},
         ]
+        if summary and summary.strip():
+            messages.append({
+                "role": "system",
+                "content": (
+                    "다음은 이 채팅방의 오래된 대화를 누적 요약한 장기 기억입니다. "
+                    "현재 질문과 관련 있을 때만 활용하고, 최근 대화와 충돌하면 최근 대화를 우선하세요.\n\n"
+                    + summary.strip()
+                ),
+            })
+        messages.extend(history or [])
+        messages.append({"role": "user", "content": user_message})
         completion = self.client.chat.completions.create(
             model=self.model,
             messages=messages,
@@ -42,6 +61,10 @@ class FinancialAgent:
             return assistant_message.content or "답변을 생성하지 못했습니다."
 
         tool_call = assistant_message.tool_calls[0]
+        self.selected_tool = tool_call.function.name
+        if self.selected_tool == "set_financial_goal":
+            logger.info("[AI ROUTING] goal_interview")
+            return "목표 설정을 시작할게요."
         tool_result = execute_tool(
             tool_call.function.name,
             parse_tool_arguments(tool_call.function.arguments),

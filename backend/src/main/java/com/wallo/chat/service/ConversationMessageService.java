@@ -1,11 +1,17 @@
 package com.wallo.chat.service;
 
 import com.wallo.chat.domain.ChatMessage;
+import com.wallo.chat.domain.Conversation;
+import com.wallo.chat.dto.ChatHistoryMessage;
 import com.wallo.chat.dto.ChatMessageResponse;
 import com.wallo.chat.dto.ChatRequest;
 import com.wallo.chat.dto.ChatResponse;
 import com.wallo.chat.dto.SendConversationMessageRequest;
 import com.wallo.chat.dto.SendConversationMessageResponse;
+import com.wallo.chat.dto.SummarizeConversationRequest;
+import com.wallo.chat.dto.SummarizeConversationResponse;
+import com.wallo.goal.dto.GoalInterviewDto;
+import com.wallo.goal.service.GoalPersistenceService;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -13,21 +19,25 @@ import org.springframework.stereotype.Service;
 @Service
 public class ConversationMessageService {
 
+    private static final int MAX_CONTEXT_MESSAGES = 20;
     private static final String USER_ROLE = "USER";
     private static final String ASSISTANT_ROLE = "ASSISTANT";
 
     private final ConversationService conversationService;
     private final ChatMessagePersistenceService persistenceService;
     private final ChatService chatService;
+    private final GoalPersistenceService goalPersistenceService;
 
     public ConversationMessageService(
             ConversationService conversationService,
             ChatMessagePersistenceService persistenceService,
-            ChatService chatService
+            ChatService chatService,
+            GoalPersistenceService goalPersistenceService
     ) {
         this.conversationService = conversationService;
         this.persistenceService = persistenceService;
         this.chatService = chatService;
+        this.goalPersistenceService = goalPersistenceService;
     }
 
     public List<ChatMessageResponse> getMessages(
@@ -43,23 +53,40 @@ public class ConversationMessageService {
 
     public SendConversationMessageResponse sendMessage(
             Long conversationId,
+            Long currentUserId,
             SendConversationMessageRequest request
     ) {
-        validateRequest(request);
+        validateRequest(currentUserId, request);
         conversationService.validateOwnership(
                 conversationId,
-                request.getUserId()
+                currentUserId
         );
         boolean isFirstMessage = persistenceService.hasNoMessages(conversationId);
 
         String content = request.getMessage().trim();
+        Conversation memory = conversationService.getConversationMemory(
+                conversationId, currentUserId);
+        List<ChatMessage> storedMessages = persistenceService.getMessages(conversationId);
+        String summary = refreshSummary(conversationId, memory, storedMessages);
+        List<ChatHistoryMessage> history = buildRecentHistory(storedMessages);
+        GoalInterviewDto.Draft goalDraft = goalPersistenceService.getActiveDraft(
+                currentUserId,
+                conversationId
+        );
         ChatMessage userMessage = persistenceService.saveMessage(
                 conversationId,
                 USER_ROLE,
                 content
         );
         ChatResponse aiResponse = chatService.chat(
-                new ChatRequest(content, isFirstMessage)
+                new ChatRequest(content, isFirstMessage, summary, history)
+                        .withGoalDraft(goalDraft),
+                currentUserId
+        );
+        goalPersistenceService.applyResult(
+                currentUserId,
+                conversationId,
+                aiResponse.goalInterview()
         );
         ChatMessage assistantMessage = persistenceService.saveMessage(
                 conversationId,
@@ -82,13 +109,66 @@ public class ConversationMessageService {
         );
     }
 
-    private void validateRequest(SendConversationMessageRequest request) {
-        if (request == null
-                || request.getUserId() == null
-                || request.getUserId() < 1) {
+    private String refreshSummary(
+            Long conversationId,
+            Conversation memory,
+            List<ChatMessage> messages
+    ) {
+        String existingSummary = memory == null ? null : memory.getSummary();
+        Long summarizedMessageId = memory == null
+                ? null : memory.getSummarizedMessageId();
+        int overflowCount = Math.max(0, messages.size() - MAX_CONTEXT_MESSAGES);
+        if (overflowCount == 0) {
+            return existingSummary;
+        }
+
+        List<ChatMessage> unsummarizedMessages = messages.subList(0, overflowCount)
+                .stream()
+                .filter(message -> summarizedMessageId == null
+                        || message.getMessageId() > summarizedMessageId)
+                .collect(Collectors.toList());
+        if (unsummarizedMessages.isEmpty()) {
+            return existingSummary;
+        }
+
+        List<ChatHistoryMessage> summaryTargets = unsummarizedMessages.stream()
+                .map(this::toHistoryMessage)
+                .collect(Collectors.toList());
+        SummarizeConversationResponse response = chatService.summarize(
+                new SummarizeConversationRequest(existingSummary, summaryTargets)
+        );
+        Long lastSummarizedMessageId = unsummarizedMessages
+                .get(unsummarizedMessages.size() - 1)
+                .getMessageId();
+        conversationService.updateSummary(
+                conversationId, response.summary(), lastSummarizedMessageId);
+        return response.summary();
+    }
+
+    private List<ChatHistoryMessage> buildRecentHistory(List<ChatMessage> messages) {
+        int fromIndex = Math.max(0, messages.size() - MAX_CONTEXT_MESSAGES);
+        return messages.subList(fromIndex, messages.size())
+                .stream()
+                .map(this::toHistoryMessage)
+                .collect(Collectors.toList());
+    }
+
+    private ChatHistoryMessage toHistoryMessage(ChatMessage message) {
+        return new ChatHistoryMessage(
+                message.getRole().toLowerCase(),
+                message.getContent()
+        );
+    }
+
+    private void validateRequest(
+            Long currentUserId,
+            SendConversationMessageRequest request
+    ) {
+        if (currentUserId == null || currentUserId < 1) {
             throw new IllegalArgumentException("올바른 사용자 ID가 필요합니다.");
         }
-        if (request.getMessage() == null
+        if (request == null
+                || request.getMessage() == null
                 || request.getMessage().isBlank()) {
             throw new IllegalArgumentException("메시지를 입력해 주세요.");
         }

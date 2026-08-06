@@ -21,4 +21,21 @@ public interface ConversationMapper {
     );
 
     int touch(@Param("conversationId") Long conversationId);
+
+    int updateSummary(
+            @Param("conversationId") Long conversationId,
+            @Param("summary") String summary,
+            @Param("summarizedMessageId") Long summarizedMessageId
+    );
+
+    int updateTitle(
+            @Param("conversationId") Long conversationId,
+            @Param("userId") Long userId,
+            @Param("title") String title
+    );
+
+    int softDelete(
+            @Param("conversationId") Long conversationId,
+            @Param("userId") Long userId
+    );
 }
