@@ -14,13 +14,16 @@ const { insight, isInsightLoading, insightError } = storeToRefs(reportStore);
 const isFallbackInsight = computed(
   () => insight.value?.generationMode === "FALLBACK",
 );
+const usesFallbackImage = computed(
+  () => isFallbackInsight.value || insight.value?.category === "ETC",
+);
 const reportImage = computed(() =>
-  isFallbackInsight.value
+  usesFallbackImage.value
     ? CONSUMPTION_REPORT_FALLBACK_IMAGE
     : getConsumptionReportImage(insight.value?.category),
 );
 const reportImageAlt = computed(() =>
-  isFallbackInsight.value
+  usesFallbackImage.value
     ? "소비 리포트를 준비 중인 이미지"
     : getConsumptionReportImageAlt(insight.value?.category),
 );

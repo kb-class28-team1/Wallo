@@ -193,6 +193,80 @@ class AssetReportServiceTest {
     }
 
     @Test
+    void returnsRuleMessageAndEtcCategoryWhenEtcIsLargest() {
+        when(assetReportMapper.selectCategoryExpenses(
+                7L,
+                "2026-07-01",
+                "2026-07-20",
+                "2026-06-01",
+                "2026-06-20"
+        )).thenReturn(Arrays.asList(
+                new AssetReportDto.CategoryExpense("ETC", 500_000L, 100_000L),
+                new AssetReportDto.CategoryExpense("CAFE", 120_000L, 100_000L)
+        ));
+
+        AssetReportDto.Insight insight = assetReportService.getConsumptionInsight(
+                7L,
+                LocalDate.of(2026, 7, 20)
+        );
+
+        assertEquals("기타 지출이 눈에 띄어요", insight.getReportTitle());
+        assertEquals(
+                "여러 소비가 기타로 모여 있어요. 지출 내역을 한 번 확인해보세요.",
+                insight.getReportContent()
+        );
+        assertEquals(AssetReportDto.GenerationMode.RULE, insight.getGenerationMode());
+        assertEquals("ETC", insight.getCategory());
+        verifyNoInteractions(assetReportAiClient);
+    }
+
+    @Test
+    void excludesLoanRepaymentAndSelectsNextLargestConsumptionCategory() {
+        when(assetReportMapper.selectCategoryExpenses(
+                7L,
+                "2026-07-01",
+                "2026-07-20",
+                "2026-06-01",
+                "2026-06-20"
+        )).thenReturn(Arrays.asList(
+                new AssetReportDto.CategoryExpense("LOAN_REPAYMENT", 800_000L, 300_000L),
+                new AssetReportDto.CategoryExpense("CAFE", 200_000L, 100_000L)
+        ));
+        when(budgetMapper.selectBudget(7L, "2026-07"))
+                .thenReturn(new BudgetDto.Budget(1L, "2026-07", 2_000_000L));
+        when(assetReportAiClient.generate(new AssetReportAiDto.Request(
+                "CAFE",
+                "카페",
+                200_000L,
+                100_000L,
+                1_000_000L,
+                400_000L,
+                2_000_000L
+        ))).thenReturn(new AssetReportAiDto.Response(
+                "카페 지출을 확인해요",
+                "카페 지출 내역을 한 번 점검해보세요."
+        ));
+
+        AssetReportDto.Insight insight = assetReportService.getConsumptionInsight(
+                7L,
+                LocalDate.of(2026, 7, 20)
+        );
+
+        assertEquals("카페 지출을 확인해요", insight.getReportTitle());
+        assertEquals(AssetReportDto.GenerationMode.AI, insight.getGenerationMode());
+        assertEquals("CAFE", insight.getCategory());
+        verify(assetReportAiClient).generate(new AssetReportAiDto.Request(
+                "CAFE",
+                "카페",
+                200_000L,
+                100_000L,
+                1_000_000L,
+                400_000L,
+                2_000_000L
+        ));
+    }
+
+    @Test
     void cachesAiInsightByUserAndCurrentMonth() {
         when(assetReportMapper.selectCategoryExpenses(
                 anyLong(),
