@@ -14,6 +14,7 @@ import java.time.Clock;
 import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.temporal.ChronoField;
@@ -56,6 +57,7 @@ public class BankTransactionCollectionService {
     private final TransactionSourceKeyGenerator sourceKeyGenerator;
     private final AssetSyncMapper assetSyncMapper;
     private final Clock clock;
+    private final ConsumptionInsightCache consumptionInsightCache;
 
     public BankTransactionCollectionService(
             BankTransactionClient bankTransactionClient,
@@ -63,7 +65,8 @@ public class BankTransactionCollectionService {
             ExpenseCategoryClassifier categoryClassifier,
             TransactionSourceKeyGenerator sourceKeyGenerator,
             AssetSyncMapper assetSyncMapper,
-            Clock clock
+            Clock clock,
+            ConsumptionInsightCache consumptionInsightCache
     ) {
         this.bankTransactionClient = bankTransactionClient;
         this.objectMapper = objectMapper;
@@ -71,6 +74,7 @@ public class BankTransactionCollectionService {
         this.sourceKeyGenerator = sourceKeyGenerator;
         this.assetSyncMapper = assetSyncMapper;
         this.clock = clock;
+        this.consumptionInsightCache = consumptionInsightCache;
     }
 
     public int collectInitial(
@@ -150,6 +154,9 @@ public class BankTransactionCollectionService {
             }
             savedCount++;
         }
+        if (savedCount > 0) {
+            invalidateConsumptionInsightCache(userId, startDate, endDate);
+        }
         long processingElapsedMs = elapsedMillis(processingStartedAt);
         LOGGER.info(String.format(
                 Locale.ROOT,
@@ -168,6 +175,21 @@ public class BankTransactionCollectionService {
                 elapsedMillis(startedAt)
         ));
         return savedCount;
+    }
+
+    private void invalidateConsumptionInsightCache(
+            long userId,
+            LocalDate startDate,
+            LocalDate endDate
+    ) {
+        YearMonth currentMonth = YearMonth.from(LocalDate.now(clock));
+        LocalDate reportDataStart = currentMonth.minusMonths(1).atDay(1);
+        LocalDate reportDataEnd = currentMonth.atEndOfMonth();
+        boolean affectsCurrentReport = !endDate.isBefore(reportDataStart)
+                && !startDate.isAfter(reportDataEnd);
+        if (affectsCurrentReport) {
+            consumptionInsightCache.invalidateAfterCommit(userId, currentMonth);
+        }
     }
 
     private PreparedBankTransaction prepareTransaction(

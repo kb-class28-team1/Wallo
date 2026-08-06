@@ -33,6 +33,11 @@ app/
 │  ├─ schemas.py               # 카테고리 분류 Pydantic 요청·응답 모델
 │  ├─ service.py               # Groq 호출과 분류 결과 검증
 │  └─ prompts.py               # 단건·배치 분류 프롬프트
+├─ asset_reports/
+│  ├─ router.py                # `/api/asset-reports/insights` HTTP 요청·응답
+│  ├─ schemas.py               # 소비 리포트 Pydantic 요청·응답 모델
+│  ├─ service.py               # Groq 호출과 응답 검증
+│  └─ prompts.py               # 집계 소비 데이터 기반 생성 프롬프트
 ├─ clients/
 │  ├─ groq_client.py           # Groq 클라이언트 생성
 ├─ core/
@@ -258,6 +263,36 @@ app.include_router(category_router)
 카테고리 테스트는 실제 Groq API를 호출하지 않고 `create_groq_client`를 Fake Client로
 대체한다. 경로, 입력 검증, 정상 응답, 배치 순서, AI 오류 상태 코드를
 `tests/test_category.py`에서 확인한다.
+
+### 소비 리포트 생성 API
+
+소비 리포트 생성은 `app/asset_reports/` 패키지에서 관리한다. Spring 백엔드가
+선정한 카테고리와 지난달 동일 기간의 집계 금액, 계산된 변화율, 예산 상태만
+전달하며, 이번 달·전체 지출의 절대 금액과 거래처명·원본 거래내역은 AI 서버로 전달하지 않는다.
+
+| Method | Path | 역할 |
+| --- | --- | --- |
+| `POST` | `/api/asset-reports/insights/generate` | 카테고리별 집계 금액을 짧은 소비 리포트 문구로 생성 |
+
+요청 예시는 다음과 같다.
+
+```json
+{
+  "category": "CAFE",
+  "categoryLabel": "카페",
+  "previousAmount": 200000,
+  "previousTotalAmount": 600000,
+  "monthlyBudget": 700000,
+  "categoryChangeRate": 50.0,
+  "totalChangeRate": -16.7,
+  "withinBudget": true
+}
+```
+
+응답은 Spring `AssetReportDto.Insight`의 `reportTitle`·`reportContent`와 호환되는
+두 필드만 반환한다. 제목은 15자 이내, 본문은 50자 이내로 검증한다.
+`generationMode`는 AI 호출 성공 여부를 알고 있는 Spring 백엔드가 `AI`, `FALLBACK`,
+`RULE` 중 하나로 설정한다.
 
 ## 테스트 규칙
 

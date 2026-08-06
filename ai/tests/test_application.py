@@ -41,6 +41,10 @@ def test_financial_report_generate_endpoint_is_registered():
     assert "/api/reports/generate" in _registered_paths_with_method("POST")
 
 
+def test_consumption_insight_generate_endpoint_is_registered():
+    assert "/api/asset-reports/insights/generate" in _registered_paths_with_method("POST")
+
+
 def test_health_endpoint_is_registered():
     assert "/api/health" in _registered_paths_with_method("GET")
 

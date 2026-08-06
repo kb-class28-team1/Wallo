@@ -6,7 +6,7 @@
   },
   "data": [
     {
-      "resCardNo": "9876-0000-0000-4321",
+      "resCardNo": "2468-0000-0000-1357",
       "resUsedDate": "20260724",
       "resUsedTime": "120500",
       "resApprovalNo": "93000001",
@@ -16,7 +16,7 @@
       "resCardType": "1"
     },
     {
-      "resCardNo": "9876-0000-0000-4321",
+      "resCardNo": "2468-0000-0000-1357",
       "resUsedDate": "20260803",
       "resUsedTime": "091500",
       "resApprovalNo": "93000002",
@@ -26,7 +26,7 @@
       "resCardType": "1"
     },
     {
-      "resCardNo": "4321-0000-0000-8765",
+      "resCardNo": "1357-0000-0000-2468",
       "resUsedDate": "20260804",
       "resUsedTime": "181000",
       "resApprovalNo": "93000003",

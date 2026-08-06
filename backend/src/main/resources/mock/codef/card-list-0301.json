@@ -1,0 +1,27 @@
+{
+  "result": {
+    "code": "CF-00000",
+    "message": "success",
+    "extraMessage": ""
+  },
+  "data": {
+    "cards": [
+      {
+        "resCardName": "KB One Card",
+        "resCardNo": "1357-0000-0000-2468",
+        "resCardDisplay": "1357-****-****-2468",
+        "resCardType": "CREDIT",
+        "resCardState": "1",
+        "resValidPeriod": "11/29"
+      },
+      {
+        "resCardName": "KB Check Card",
+        "resCardNo": "2468-0000-0000-1357",
+        "resCardDisplay": "2468-****-****-1357",
+        "resCardType": "CHECK",
+        "resCardState": "1",
+        "resValidPeriod": "07/28"
+      }
+    ]
+  }
+}
