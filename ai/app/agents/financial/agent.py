@@ -6,7 +6,7 @@ from groq import Groq
 
 from app.agents.financial.prompts import SYSTEM_PROMPT
 from app.agents.financial.tools.registry import TOOL_SCHEMAS, execute_tool
-from app.chat.schemas import FinancialContext
+from app.agents.goal.context import FinancialContext
 from app.core.config import get_groq_model
 
 logger = logging.getLogger("wallo_ai")
@@ -24,6 +24,7 @@ class FinancialAgent:
     def __init__(self, client: Groq, model: str | None = None):
         self.client = client
         self.model = model or get_groq_model()
+        self.selected_tool: str | None = None
 
     def run(
         self,
@@ -32,6 +33,7 @@ class FinancialAgent:
         summary: str | None = None,
         financial_context: FinancialContext | None = None,
     ) -> str:
+        self.selected_tool = None
         messages: list[dict[str, Any]] = [
             {"role": "system", "content": SYSTEM_PROMPT},
         ]
@@ -59,6 +61,10 @@ class FinancialAgent:
             return assistant_message.content or "답변을 생성하지 못했습니다."
 
         tool_call = assistant_message.tool_calls[0]
+        self.selected_tool = tool_call.function.name
+        if self.selected_tool == "set_financial_goal":
+            logger.info("[AI ROUTING] goal_interview")
+            return "목표 설정을 시작할게요."
         tool_result = execute_tool(
             tool_call.function.name,
             parse_tool_arguments(tool_call.function.arguments),

@@ -1,7 +1,8 @@
 from datetime import date
 from math import ceil
 
-from app.agents.goal.extractor import GoalExtractor
+from app.agents.goal.context import FinancialContext
+from app.agents.goal.extractor import GoalExtractionError, GoalExtractor
 from app.agents.goal.models import (
     FeasibilityResult,
     FeasibilityStatus,
@@ -11,7 +12,6 @@ from app.agents.goal.models import (
     GoalInterviewResult,
     InterviewState,
 )
-from app.chat.schemas import FinancialContext
 
 
 REQUIRED_FIELD_ORDER = (
@@ -50,7 +50,26 @@ class GoalInterviewService:
     ) -> GoalInterviewResult:
         today = reference_date or date.today()
         current_draft = draft or GoalDraft()
-        extraction = self.extractor.extract(user_message, current_draft, today)
+        try:
+            extraction = self.extractor.extract(user_message, current_draft, today)
+        except GoalExtractionError:
+            missing_fields = find_missing_fields(current_draft)
+            recovered = GoalDraft.model_validate({
+                **current_draft.model_dump(),
+                "missing_fields": missing_fields,
+                "state": interview_state_for(missing_fields),
+            })
+            next_question = (
+                question_for(missing_fields[0], financial_context)
+                if missing_fields
+                else "입력하신 내용을 이해하지 못했습니다. 변경할 내용을 다시 알려주세요."
+            )
+            return GoalInterviewResult(
+                draft=recovered,
+                next_question=(
+                    "답변을 정확히 이해하지 못했어요. " + next_question
+                ),
+            )
         updated = merge_goal_draft(current_draft, extraction)
         missing_fields = find_missing_fields(updated)
         updated = GoalDraft.model_validate({

@@ -1,6 +1,7 @@
 package com.wallo.chat.dto;
 
 import com.wallo.asset.dto.GoalAssetContextDto;
+import com.wallo.goal.dto.GoalInterviewDto;
 import java.util.List;
 
 public record ChatRequest(
@@ -8,7 +9,8 @@ public record ChatRequest(
         boolean generateTitle,
         String summary,
         List<ChatHistoryMessage> history,
-        GoalAssetContextDto.Response financialContext
+        GoalAssetContextDto.Response financialContext,
+        GoalInterviewDto.Draft goalDraft
 ) {
 
     public ChatRequest {
@@ -16,11 +18,11 @@ public record ChatRequest(
     }
 
     public ChatRequest(String message) {
-        this(message, false, null, List.of(), null);
+        this(message, false, null, List.of(), null, null);
     }
 
     public ChatRequest(String message, boolean generateTitle) {
-        this(message, generateTitle, null, List.of(), null);
+        this(message, generateTitle, null, List.of(), null, null);
     }
 
     public ChatRequest(
@@ -28,7 +30,7 @@ public record ChatRequest(
             boolean generateTitle,
             List<ChatHistoryMessage> history
     ) {
-        this(message, generateTitle, null, history, null);
+        this(message, generateTitle, null, history, null, null);
     }
 
     public ChatRequest(
@@ -37,10 +39,14 @@ public record ChatRequest(
             String summary,
             List<ChatHistoryMessage> history
     ) {
-        this(message, generateTitle, summary, history, null);
+        this(message, generateTitle, summary, history, null, null);
     }
 
     public ChatRequest withFinancialContext(GoalAssetContextDto.Response context) {
-        return new ChatRequest(message, generateTitle, summary, history, context);
+        return new ChatRequest(message, generateTitle, summary, history, context, goalDraft);
+    }
+
+    public ChatRequest withGoalDraft(GoalInterviewDto.Draft draft) {
+        return new ChatRequest(message, generateTitle, summary, history, financialContext, draft);
     }
 }

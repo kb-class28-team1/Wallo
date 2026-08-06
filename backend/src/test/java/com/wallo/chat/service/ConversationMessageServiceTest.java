@@ -16,6 +16,9 @@ import com.wallo.chat.dto.SendConversationMessageRequest;
 import com.wallo.chat.dto.SendConversationMessageResponse;
 import com.wallo.chat.dto.SummarizeConversationRequest;
 import com.wallo.chat.dto.SummarizeConversationResponse;
+import com.wallo.goal.service.GoalPersistenceService;
+import com.wallo.goal.dto.GoalInterviewDto;
+import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
@@ -35,6 +38,9 @@ class ConversationMessageServiceTest {
     @Mock
     private ChatService chatService;
 
+    @Mock
+    private GoalPersistenceService goalPersistenceService;
+
     private ConversationMessageService conversationMessageService;
 
     @BeforeEach
@@ -43,7 +49,8 @@ class ConversationMessageServiceTest {
         conversationMessageService = new ConversationMessageService(
                 conversationService,
                 persistenceService,
-                chatService
+                chatService,
+                goalPersistenceService
         );
     }
 
@@ -195,6 +202,35 @@ class ConversationMessageServiceTest {
         verify(chatService).chat(new ChatRequest(request.getMessage()), 7L);
     }
 
+    @Test
+    void continuesStoredGoalInterviewAndPersistsTheAiResult() {
+        SendConversationMessageRequest request = request(7L, "천만 원이 필요해");
+        GoalInterviewDto.Draft storedDraft = goalDraft("COLLECTING", false);
+        GoalInterviewDto.Draft updatedDraft = goalDraft("COLLECTING", false);
+        updatedDraft.setMissingFields(List.of("targetDate"));
+        GoalInterviewDto.Result goalResult = new GoalInterviewDto.Result(
+                GoalInterviewDto.Action.CONTINUE,
+                true,
+                updatedDraft,
+                null
+        );
+        ChatRequest expectedRequest = new ChatRequest(request.getMessage())
+                .withGoalDraft(storedDraft);
+
+        when(goalPersistenceService.getActiveDraft(7L, 1L)).thenReturn(storedDraft);
+        when(persistenceService.saveMessage(1L, "USER", request.getMessage()))
+                .thenReturn(message(1L, "USER", request.getMessage()));
+        when(chatService.chat(expectedRequest, 7L))
+                .thenReturn(new ChatResponse("목표 시점은 언제인가요?", null, goalResult));
+        when(persistenceService.saveMessage(1L, "ASSISTANT", "목표 시점은 언제인가요?"))
+                .thenReturn(message(2L, "ASSISTANT", "목표 시점은 언제인가요?"));
+
+        conversationMessageService.sendMessage(1L, 7L, request);
+
+        verify(chatService).chat(expectedRequest, 7L);
+        verify(goalPersistenceService).applyResult(7L, 1L, goalResult);
+    }
+
     private SendConversationMessageRequest request(Long userId, String content) {
         SendConversationMessageRequest request =
                 new SendConversationMessageRequest();
@@ -210,5 +246,22 @@ class ConversationMessageServiceTest {
         message.setRole(role);
         message.setContent(content);
         return message;
+    }
+
+    private GoalInterviewDto.Draft goalDraft(String state, boolean confirmed) {
+        return new GoalInterviewDto.Draft(
+                state,
+                "유럽 여행 자금",
+                "TRAVEL",
+                10_000_000L,
+                LocalDate.of(2027, 8, 1),
+                "가족과 여행",
+                "MEDIUM",
+                2_000_000L,
+                600_000L,
+                List.of(),
+                List.of(),
+                confirmed
+        );
     }
 }

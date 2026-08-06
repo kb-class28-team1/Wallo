@@ -10,13 +10,17 @@ import com.wallo.asset.domain.AccountSubtype;
 import com.wallo.asset.domain.GoalFundAvailability;
 import com.wallo.asset.dto.GoalAssetContextDto;
 import com.wallo.asset.mapper.AssetMapper;
+import java.time.Clock;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class AssetServiceTest {
 
     private final AssetMapper assetMapper = mock(AssetMapper.class);
-    private final AssetService assetService = new AssetService(assetMapper);
+    private final AssetService assetService = new AssetService(
+            assetMapper,
+            Clock.systemDefaultZone()
+    );
 
     @Test
     void buildsGoalAssetContextUsingBalanceAndInvestmentEvaluationAmount() {

@@ -4,6 +4,7 @@ from datetime import date
 from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic.alias_generators import to_camel
 
 
 class InterviewState(str, Enum):
@@ -15,6 +16,13 @@ class InterviewState(str, Enum):
     FEASIBILITY_REVIEW = "FEASIBILITY_REVIEW"
     CONFIRMATION = "CONFIRMATION"
     COMPLETED = "COMPLETED"
+    CANCELLED = "CANCELLED"
+
+
+class GoalInterviewAction(str, Enum):
+    CONTINUE = "CONTINUE"
+    CONFIRM = "CONFIRM"
+    CANCEL = "CANCEL"
 
 
 class GoalType(str, Enum):
@@ -66,7 +74,12 @@ class GoalField(str, Enum):
 class GoalDraft(BaseModel):
     """사용자가 확정하기 전까지 점진적으로 채워지는 목표 초안."""
 
-    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+        populate_by_name=True,
+        alias_generator=to_camel,
+    )
 
     state: InterviewState = InterviewState.DISCOVERY
     title: str | None = Field(default=None, max_length=100)
@@ -137,6 +150,8 @@ class GoalExtraction(BaseModel):
 class FeasibilityResult(BaseModel):
     """애플리케이션 코드로 계산한 목표 달성 가능성."""
 
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+
     status: FeasibilityStatus
     remaining_amount: int | None = Field(default=None, ge=0)
     remaining_months: int | None = Field(default=None, ge=0)
@@ -146,6 +161,8 @@ class FeasibilityResult(BaseModel):
 
 class GoalInterviewResult(BaseModel):
     """한 차례의 목표 인터뷰 처리 결과."""
+
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 
     draft: GoalDraft
     next_question: str

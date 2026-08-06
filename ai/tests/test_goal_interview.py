@@ -3,8 +3,11 @@
 import json
 from datetime import date
 from types import SimpleNamespace
+from unittest.mock import Mock
 
+import httpx
 import pytest
+from groq import BadRequestError
 
 from app.agents.goal.extractor import GoalExtractionError, GoalExtractor
 from app.agents.goal.models import (
@@ -113,6 +116,56 @@ def test_extractor_rejects_invalid_model_response():
 
     with pytest.raises(GoalExtractionError):
         GoalExtractor(client).extract("여행 가고 싶어", GoalDraft(), date(2026, 8, 6))
+
+
+def test_extractor_retries_groq_json_validation_failure():
+    client = Mock()
+    response = httpx.Response(
+        400,
+        request=httpx.Request("POST", "https://api.groq.com/openai/v1/chat/completions"),
+    )
+    json_error = BadRequestError(
+        "Failed to validate JSON",
+        response=response,
+        body={"error": {"code": "json_validate_failed"}},
+    )
+    client.chat.completions.create.side_effect = [
+        json_error,
+        completion('{"target_amount":13000000}'),
+    ]
+
+    result = GoalExtractor(client).extract(
+        "1300만 원 정도 필요해",
+        GoalDraft(title="유럽 여행 자금", goal_type=GoalType.TRAVEL),
+        date(2026, 8, 6),
+    )
+
+    assert result.target_amount == 13_000_000
+    assert client.chat.completions.create.call_count == 2
+    assert client.chat.completions.create.call_args.kwargs["temperature"] == 0
+
+
+def test_interview_preserves_draft_when_json_extraction_keeps_failing():
+    extractor = Mock()
+    extractor.extract.side_effect = GoalExtractionError("추출 실패")
+    draft = GoalDraft(
+        title="유럽 여행 자금",
+        goal_type=GoalType.TRAVEL,
+        target_amount=13_000_000,
+        target_date=date(2026, 11, 1),
+    )
+
+    result = GoalInterviewService(extractor).process(
+        "그게 무슨 말이야",
+        draft,
+        financial_context(),
+        date(2026, 8, 6),
+    )
+
+    assert result.draft.title == "유럽 여행 자금"
+    assert result.draft.target_amount == 13_000_000
+    assert result.draft.missing_fields[0] == GoalField.MOTIVATION
+    assert "정확히 이해하지 못했어요" in result.next_question
 
 
 def test_merges_new_information_and_user_correction_without_duplicate_assumptions():

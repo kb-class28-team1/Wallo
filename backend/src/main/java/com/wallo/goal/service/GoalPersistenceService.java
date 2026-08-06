@@ -1,0 +1,161 @@
+package com.wallo.goal.service;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.wallo.goal.domain.FinancialGoal;
+import com.wallo.goal.domain.GoalInterviewSession;
+import com.wallo.goal.dto.GoalInterviewDto;
+import com.wallo.goal.mapper.GoalMapper;
+import java.util.List;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class GoalPersistenceService {
+
+    private static final String ACTIVE = "ACTIVE";
+    private static final String COMPLETED = "COMPLETED";
+    private static final String CANCELLED = "CANCELLED";
+
+    private final GoalMapper goalMapper;
+    private final ObjectMapper objectMapper;
+
+    public GoalPersistenceService(GoalMapper goalMapper, ObjectMapper objectMapper) {
+        this.goalMapper = goalMapper;
+        this.objectMapper = objectMapper;
+    }
+
+    public GoalInterviewDto.Draft getActiveDraft(Long userId, Long conversationId) {
+        GoalInterviewSession session = goalMapper.findActiveSession(userId, conversationId);
+        if (session == null) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(
+                    session.getGoalDraftJson(),
+                    GoalInterviewDto.Draft.class
+            );
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("저장된 목표 인터뷰 초안을 읽을 수 없습니다.", exception);
+        }
+    }
+
+    @Transactional
+    public void applyResult(
+            Long userId,
+            Long conversationId,
+            GoalInterviewDto.Result result
+    ) {
+        if (result == null || result.getDraft() == null || result.getAction() == null) {
+            return;
+        }
+        switch (result.getAction()) {
+            case CONTINUE -> saveDraft(userId, conversationId, result.getDraft());
+            case CONFIRM -> confirmGoal(userId, conversationId, result.getDraft());
+            case CANCEL -> finishSession(userId, conversationId, CANCELLED);
+        }
+    }
+
+    private void saveDraft(
+            Long userId,
+            Long conversationId,
+            GoalInterviewDto.Draft draft
+    ) {
+        String draftJson = serialize(draft);
+        String lastQuestionField = firstMissingField(draft.getMissingFields());
+        GoalInterviewSession session = goalMapper.findActiveSession(userId, conversationId);
+        if (session == null) {
+            session = new GoalInterviewSession();
+            session.setUserId(userId);
+            session.setConversationId(conversationId);
+            session.setStatus(ACTIVE);
+            session.setGoalDraftJson(draftJson);
+            session.setLastQuestionField(lastQuestionField);
+            goalMapper.insertSession(session);
+            return;
+        }
+        int updated = goalMapper.updateSessionDraft(
+                session.getSessionId(),
+                draftJson,
+                lastQuestionField
+        );
+        if (updated != 1) {
+            throw new IllegalStateException("목표 인터뷰 초안을 갱신하지 못했습니다.");
+        }
+    }
+
+    private void confirmGoal(
+            Long userId,
+            Long conversationId,
+            GoalInterviewDto.Draft draft
+    ) {
+        validateConfirmedDraft(draft);
+        GoalInterviewSession session = goalMapper.findActiveSession(userId, conversationId);
+        if (session == null) {
+            throw new IllegalStateException("확정할 목표 인터뷰가 없습니다.");
+        }
+
+        FinancialGoal goal = new FinancialGoal();
+        goal.setSessionId(session.getSessionId());
+        goal.setUserId(userId);
+        goal.setConversationId(conversationId);
+        goal.setTitle(draft.getTitle());
+        goal.setGoalType(draft.getGoalType());
+        goal.setTargetAmount(draft.getTargetAmount());
+        goal.setTargetDate(draft.getTargetDate());
+        goal.setMotivation(draft.getMotivation());
+        goal.setPriority(draft.getPriority());
+        goal.setInitialAmount(draft.getCurrentAmount());
+        goal.setMonthlyContribution(draft.getMonthlyContribution());
+        goal.setStatus(ACTIVE);
+        goalMapper.insertGoal(goal);
+
+        if (goalMapper.completeSession(session.getSessionId(), COMPLETED) != 1) {
+            throw new IllegalStateException("목표 인터뷰를 완료 처리하지 못했습니다.");
+        }
+    }
+
+    private void finishSession(Long userId, Long conversationId, String status) {
+        GoalInterviewSession session = goalMapper.findActiveSession(userId, conversationId);
+        if (session != null) {
+            goalMapper.completeSession(session.getSessionId(), status);
+        }
+    }
+
+    private void validateConfirmedDraft(GoalInterviewDto.Draft draft) {
+        boolean invalid = !draft.isConfirmed()
+                || !"COMPLETED".equals(draft.getState())
+                || blank(draft.getTitle())
+                || blank(draft.getGoalType())
+                || draft.getTargetAmount() == null
+                || draft.getTargetAmount() <= 0
+                || draft.getTargetDate() == null
+                || blank(draft.getMotivation())
+                || blank(draft.getPriority())
+                || draft.getCurrentAmount() == null
+                || draft.getCurrentAmount() < 0
+                || draft.getMonthlyContribution() == null
+                || draft.getMonthlyContribution() < 0;
+        if (invalid) {
+            throw new IllegalArgumentException("완성되지 않은 목표는 확정할 수 없습니다.");
+        }
+    }
+
+    private String serialize(GoalInterviewDto.Draft draft) {
+        try {
+            return objectMapper.writeValueAsString(draft);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("목표 인터뷰 초안을 저장할 수 없습니다.", exception);
+        }
+    }
+
+    private String firstMissingField(List<String> missingFields) {
+        return missingFields == null || missingFields.isEmpty()
+                ? null
+                : missingFields.get(0);
+    }
+
+    private boolean blank(String value) {
+        return value == null || value.isBlank();
+    }
+}

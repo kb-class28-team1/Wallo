@@ -10,6 +10,8 @@ import com.wallo.chat.dto.SendConversationMessageRequest;
 import com.wallo.chat.dto.SendConversationMessageResponse;
 import com.wallo.chat.dto.SummarizeConversationRequest;
 import com.wallo.chat.dto.SummarizeConversationResponse;
+import com.wallo.goal.dto.GoalInterviewDto;
+import com.wallo.goal.service.GoalPersistenceService;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -24,15 +26,18 @@ public class ConversationMessageService {
     private final ConversationService conversationService;
     private final ChatMessagePersistenceService persistenceService;
     private final ChatService chatService;
+    private final GoalPersistenceService goalPersistenceService;
 
     public ConversationMessageService(
             ConversationService conversationService,
             ChatMessagePersistenceService persistenceService,
-            ChatService chatService
+            ChatService chatService,
+            GoalPersistenceService goalPersistenceService
     ) {
         this.conversationService = conversationService;
         this.persistenceService = persistenceService;
         this.chatService = chatService;
+        this.goalPersistenceService = goalPersistenceService;
     }
 
     public List<ChatMessageResponse> getMessages(
@@ -64,14 +69,24 @@ public class ConversationMessageService {
         List<ChatMessage> storedMessages = persistenceService.getMessages(conversationId);
         String summary = refreshSummary(conversationId, memory, storedMessages);
         List<ChatHistoryMessage> history = buildRecentHistory(storedMessages);
+        GoalInterviewDto.Draft goalDraft = goalPersistenceService.getActiveDraft(
+                currentUserId,
+                conversationId
+        );
         ChatMessage userMessage = persistenceService.saveMessage(
                 conversationId,
                 USER_ROLE,
                 content
         );
         ChatResponse aiResponse = chatService.chat(
-                new ChatRequest(content, isFirstMessage, summary, history),
+                new ChatRequest(content, isFirstMessage, summary, history)
+                        .withGoalDraft(goalDraft),
                 currentUserId
+        );
+        goalPersistenceService.applyResult(
+                currentUserId,
+                conversationId,
+                aiResponse.goalInterview()
         );
         ChatMessage assistantMessage = persistenceService.saveMessage(
                 conversationId,
