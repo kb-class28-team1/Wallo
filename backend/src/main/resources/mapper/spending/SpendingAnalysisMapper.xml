@@ -29,4 +29,34 @@
         ORDER BY category ASC
     </select>
 
+    <select id="selectWeekdayAggregates" resultType="com.wallo.spending.dto.SpendingWeekdayAggregate">
+        SELECT
+            CASE DAYOFWEEK(transaction_date)
+                WHEN 1 THEN 'SUNDAY'
+                WHEN 2 THEN 'MONDAY'
+                WHEN 3 THEN 'TUESDAY'
+                WHEN 4 THEN 'WEDNESDAY'
+                WHEN 5 THEN 'THURSDAY'
+                WHEN 6 THEN 'FRIDAY'
+                WHEN 7 THEN 'SATURDAY'
+            END AS weekday,
+            SUM(amount) AS amount,
+            COUNT(*) AS transactionCount
+        FROM TRANSACTIONS
+        WHERE user_id = #{userId}
+          AND type = 'EXPENSE'
+          AND category NOT IN ('INCOME', 'SEND', 'CARD_WITHDRAWAL')
+          AND transaction_date BETWEEN #{startDate} AND #{endDate}
+        GROUP BY DAYOFWEEK(transaction_date)
+        ORDER BY CASE DAYOFWEEK(transaction_date)
+            WHEN 2 THEN 1
+            WHEN 3 THEN 2
+            WHEN 4 THEN 3
+            WHEN 5 THEN 4
+            WHEN 6 THEN 5
+            WHEN 7 THEN 6
+            WHEN 1 THEN 7
+        END
+    </select>
+
 </mapper>

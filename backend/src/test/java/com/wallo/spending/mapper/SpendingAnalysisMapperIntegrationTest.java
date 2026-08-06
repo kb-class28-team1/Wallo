@@ -6,9 +6,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.wallo.spending.dto.SpendingCategoryAggregate;
 import com.wallo.spending.dto.SpendingExpenseAggregate;
+import com.wallo.spending.dto.SpendingWeekdayAggregate;
 import java.sql.Connection;
 import java.sql.Statement;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 import java.util.UUID;
 import javax.sql.DataSource;
@@ -31,6 +34,21 @@ class SpendingAnalysisMapperIntegrationTest {
 
     private SqlSession sqlSession;
     private SpendingAnalysisMapper spendingAnalysisMapper;
+
+    // 요일 집계 전용 테스트 데이터. 실제 요일을 추측하지 않고 TemporalAdjusters로 월요일임을
+    // 코드 스스로 보장한 뒤, 나머지 요일은 여기서 plusDays로 파생시킨다.
+    private static final long WEEKDAY_GROUPING_USER_ID = 77L;
+    private static final long WEEKDAY_FULL_WEEK_USER_ID = 78L;
+    private static final LocalDate WEEK_MONDAY =
+            LocalDate.of(2026, 1, 1).with(TemporalAdjusters.nextOrSame(DayOfWeek.MONDAY));
+    private static final LocalDate WEEK_TUESDAY = WEEK_MONDAY.plusDays(1);
+    private static final LocalDate WEEK_WEDNESDAY = WEEK_MONDAY.plusDays(2);
+    private static final LocalDate WEEK_THURSDAY = WEEK_MONDAY.plusDays(3);
+    private static final LocalDate WEEK_FRIDAY = WEEK_MONDAY.plusDays(4);
+    private static final LocalDate WEEK_SATURDAY = WEEK_MONDAY.plusDays(5);
+    private static final LocalDate WEEK_SUNDAY = WEEK_MONDAY.plusDays(6);
+    private static final LocalDate WEEK_BEFORE_MONDAY = WEEK_MONDAY.minusDays(1);
+    private static final LocalDate WEEK_AFTER_SUNDAY = WEEK_SUNDAY.plusDays(1);
 
     @BeforeEach
     void setUp() throws Exception {
@@ -259,6 +277,89 @@ class SpendingAnalysisMapperIntegrationTest {
         assertEquals(1L, comparison.get(0).getTransactionCount());
     }
 
+    // ---------- selectWeekdayAggregates ----------
+
+    @Test
+    void mapsAllSevenWeekdayCodesInMondayToSundayOrder() {
+        // userId=78: 월~일 각 요일에 정확히 1건씩, 서로 다른 금액으로 넣어
+        // DAYOFWEEK() 1~7 값이 전부 올바른 영문 코드로 매핑되고
+        // MONDAY부터 SUNDAY 순서로 반환되는지 검증한다.
+        List<SpendingWeekdayAggregate> result = spendingAnalysisMapper.selectWeekdayAggregates(
+                WEEKDAY_FULL_WEEK_USER_ID, WEEK_MONDAY, WEEK_SUNDAY
+        );
+
+        assertEquals(7, result.size());
+        assertEquals("MONDAY", result.get(0).getWeekday());
+        assertEquals(100L, result.get(0).getAmount());
+        assertEquals("TUESDAY", result.get(1).getWeekday());
+        assertEquals(200L, result.get(1).getAmount());
+        assertEquals("WEDNESDAY", result.get(2).getWeekday());
+        assertEquals(300L, result.get(2).getAmount());
+        assertEquals("THURSDAY", result.get(3).getWeekday());
+        assertEquals(400L, result.get(3).getAmount());
+        assertEquals("FRIDAY", result.get(4).getWeekday());
+        assertEquals(500L, result.get(4).getAmount());
+        assertEquals("SATURDAY", result.get(5).getWeekday());
+        assertEquals(600L, result.get(5).getAmount());
+        assertEquals("SUNDAY", result.get(6).getWeekday());
+        assertEquals(700L, result.get(6).getAmount());
+        result.forEach(item -> assertEquals(1L, item.getTransactionCount()));
+    }
+
+    @Test
+    void groupsSameWeekdayAndOmitsWeekdaysWithOnlyExcludedOrMissingTransactions() {
+        // userId=77: 월요일에 2건(합산 확인), 수/토/일은 제외 대상 거래만 존재(INCOME/SEND/
+        // CARD_WITHDRAWAL/비-EXPENSE TRANSFER), 목요일은 거래 자체가 없음. 범위 하루 전/후에도
+        // 유효 EXPENSE를 심어뒀는데 만약 날짜 필터가 새면 각각 SUNDAY/MONDAY 금액이 달라지므로
+        // 기간 밖 제외까지 이 한 테스트로 함께 증명된다.
+        List<SpendingWeekdayAggregate> result = spendingAnalysisMapper.selectWeekdayAggregates(
+                WEEKDAY_GROUPING_USER_ID, WEEK_MONDAY, WEEK_SUNDAY
+        );
+
+        assertEquals(3, result.size());
+        assertEquals("MONDAY", result.get(0).getWeekday());
+        assertEquals(1500L, result.get(0).getAmount());
+        assertEquals(2L, result.get(0).getTransactionCount());
+        assertEquals("TUESDAY", result.get(1).getWeekday());
+        assertEquals(2000L, result.get(1).getAmount());
+        assertEquals(1L, result.get(1).getTransactionCount());
+        assertEquals("FRIDAY", result.get(2).getWeekday());
+        assertEquals(3000L, result.get(2).getAmount());
+        assertEquals(1L, result.get(2).getTransactionCount());
+    }
+
+    @Test
+    void includesWeekdayTransactionOnStartDateBoundary() {
+        List<SpendingWeekdayAggregate> result = spendingAnalysisMapper.selectWeekdayAggregates(
+                WEEKDAY_FULL_WEEK_USER_ID, WEEK_MONDAY, WEEK_MONDAY
+        );
+
+        assertEquals(1, result.size());
+        assertEquals("MONDAY", result.get(0).getWeekday());
+        assertEquals(100L, result.get(0).getAmount());
+    }
+
+    @Test
+    void includesWeekdayTransactionOnEndDateBoundary() {
+        List<SpendingWeekdayAggregate> result = spendingAnalysisMapper.selectWeekdayAggregates(
+                WEEKDAY_FULL_WEEK_USER_ID, WEEK_SUNDAY, WEEK_SUNDAY
+        );
+
+        assertEquals(1, result.size());
+        assertEquals("SUNDAY", result.get(0).getWeekday());
+        assertEquals(700L, result.get(0).getAmount());
+    }
+
+    @Test
+    void returnsEmptyListNotNullWhenNoWeekdayTransactionsMatch() {
+        List<SpendingWeekdayAggregate> result = spendingAnalysisMapper.selectWeekdayAggregates(
+                WEEKDAY_GROUPING_USER_ID, LocalDate.of(2020, 1, 1), LocalDate.of(2020, 1, 31)
+        );
+
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+    }
+
     private void createTransactions(DataSource dataSource) throws Exception {
         try (Connection connection = dataSource.getConnection();
              Statement statement = connection.createStatement()) {
@@ -292,6 +393,41 @@ class SpendingAnalysisMapperIntegrationTest {
                         (11, 8, 'EXPENSE', 'SHOPPING', 50000, '다른사용자상점', '2026-07-15', '09:00:00'),
                         (12, 7, 'EXPENSE', 'FOOD', 1500, '식당2', '2026-07-05', '08:00:00')
                     """);
+            statement.execute(String.format("""
+                    INSERT INTO TRANSACTIONS (
+                        transaction_id, user_id, type, category, amount,
+                        merchant_name, transaction_date, transaction_time
+                    ) VALUES
+                        (101, %2$d, 'EXPENSE', 'FOOD', 100, '월요일가게', '%3$s', '09:00:00'),
+                        (102, %2$d, 'EXPENSE', 'CAFE', 200, '화요일가게', '%4$s', '09:00:00'),
+                        (103, %2$d, 'EXPENSE', 'FOOD', 300, '수요일가게', '%5$s', '09:00:00'),
+                        (104, %2$d, 'EXPENSE', 'FOOD', 400, '목요일가게', '%6$s', '09:00:00'),
+                        (105, %2$d, 'EXPENSE', 'FOOD', 500, '금요일가게', '%7$s', '09:00:00'),
+                        (106, %2$d, 'EXPENSE', 'FOOD', 600, '토요일가게', '%8$s', '09:00:00'),
+                        (107, %2$d, 'EXPENSE', 'FOOD', 700, '일요일가게', '%9$s', '09:00:00'),
+                        (111, %1$d, 'EXPENSE', 'FOOD', 1000, '월요일가게1', '%3$s', '09:00:00'),
+                        (112, %1$d, 'EXPENSE', 'CAFE', 500, '월요일가게2', '%3$s', '10:00:00'),
+                        (113, %1$d, 'EXPENSE', 'FOOD', 2000, '화요일가게', '%4$s', '09:00:00'),
+                        (114, %1$d, 'INCOME', 'INCOME', 100000, '수요일급여', '%5$s', '09:00:00'),
+                        (115, %1$d, 'EXPENSE', 'FOOD', 3000, '금요일가게', '%7$s', '09:00:00'),
+                        (116, %1$d, 'TRANSFER', 'SEND', 5000, '토요일송금', '%8$s', '12:00:00'),
+                        (117, %1$d, 'TRANSFER', 'CARD_WITHDRAWAL', 7000, '일요일카드출금', '%9$s', '13:00:00'),
+                        (118, %1$d, 'TRANSFER', 'ETC', 999, '일요일기타이체', '%9$s', '14:00:00'),
+                        (119, %1$d, 'EXPENSE', 'FOOD', 8000, '범위이전거래', '%10$s', '09:00:00'),
+                        (120, %1$d, 'EXPENSE', 'FOOD', 9000, '범위이후거래', '%11$s', '09:00:00')
+                    """,
+                    WEEKDAY_GROUPING_USER_ID,
+                    WEEKDAY_FULL_WEEK_USER_ID,
+                    WEEK_MONDAY,
+                    WEEK_TUESDAY,
+                    WEEK_WEDNESDAY,
+                    WEEK_THURSDAY,
+                    WEEK_FRIDAY,
+                    WEEK_SATURDAY,
+                    WEEK_SUNDAY,
+                    WEEK_BEFORE_MONDAY,
+                    WEEK_AFTER_SUNDAY
+            ));
         }
     }
 }
