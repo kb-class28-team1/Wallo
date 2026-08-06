@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref } from "vue"
+import { computed, onMounted, ref } from "vue"
 import { RouterLink } from "vue-router"
 import { getApiErrorMessage } from "@/commonUtils/apiError"
 import { disconnectConnection, getConnections } from "@/api/connectionApi"
@@ -12,6 +12,51 @@ const successMessage = ref("")
 const disconnectingId = ref(null)
 const pendingDisconnectConnection = ref(null)
 const disconnectModalError = ref("")
+const connectionCategories = Object.freeze([
+  { key: "ACCOUNT", label: "계좌", emptyMessage: "연결된 계좌가 없습니다." },
+  { key: "CARD", label: "카드", emptyMessage: "연결된 카드가 없습니다." },
+  { key: "STOCK", label: "증권", emptyMessage: "연결된 증권이 없습니다." },
+])
+const activeCategory = ref("ACCOUNT")
+
+const getConnectionCategory = (connection) => {
+  if (connection.assetKind === "CARD") {
+    return "CARD"
+  }
+
+  return connection.assetType === "STOCK" ? "STOCK" : "ACCOUNT"
+}
+
+const categorizedConnections = computed(() => {
+  const groupedConnections = {
+    ACCOUNT: [],
+    CARD: [],
+    STOCK: [],
+  }
+
+  connections.value.forEach((connection) => {
+    groupedConnections[getConnectionCategory(connection)].push(connection)
+  })
+
+  return groupedConnections
+})
+
+const visibleConnections = computed(() => (
+  categorizedConnections.value[activeCategory.value] || []
+))
+
+const activeCategoryLabel = computed(() => (
+  connectionCategories.find(({ key }) => key === activeCategory.value)?.label || "계좌"
+))
+
+const activeCategoryEmptyMessage = computed(() => (
+  connectionCategories.find(({ key }) => key === activeCategory.value)?.emptyMessage
+    || "연결된 계좌가 없습니다."
+))
+
+const getCategoryCount = (categoryKey) => (
+  categorizedConnections.value[categoryKey]?.length || 0
+)
 
 const formatAmount = (amount) =>
   `${new Intl.NumberFormat("ko-KR").format(Number(amount) || 0)}원`
@@ -156,13 +201,36 @@ onMounted(loadConnections)
         {{ successMessage }}
       </div>
 
-      <div class="connection-section-heading d-flex align-items-center justify-content-between gap-3">
-        <span class="small text-secondary">{{ connections.length }}개</span>
+      <div class="connection-category-tabs" role="tablist" aria-label="연결된 자산 유형">
+        <button
+          v-for="category in connectionCategories"
+          :key="category.key"
+          type="button"
+          class="connection-category-tab"
+          :class="{ 'connection-category-tab-active': activeCategory === category.key }"
+          role="tab"
+          :aria-selected="activeCategory === category.key"
+          aria-controls="connection-category-panel"
+          @click="activeCategory = category.key"
+        >
+          {{ category.label }}
+          <span class="connection-category-count">{{ getCategoryCount(category.key) }}</span>
+        </button>
       </div>
 
-      <div v-if="connections.length > 0" class="connection-list">
+      <div class="connection-section-heading d-flex align-items-center justify-content-between gap-3">
+        <span class="small text-secondary">{{ activeCategoryLabel }} {{ visibleConnections.length }}개</span>
+      </div>
+
+      <div
+        v-if="visibleConnections.length > 0"
+        id="connection-category-panel"
+        class="connection-list"
+        role="tabpanel"
+        tabindex="0"
+      >
         <article
-          v-for="connection in connections"
+          v-for="connection in visibleConnections"
           :key="`${connection.connectionId}-${connection.assetKind}-${connection.assetId}`"
           class="connection-item d-flex align-items-center gap-3"
         >
@@ -213,11 +281,17 @@ onMounted(loadConnections)
         </article>
       </div>
 
-      <div v-else class="connection-empty-state text-center">
+      <div
+        v-else
+        id="connection-category-panel"
+        class="connection-empty-state text-center"
+        role="tabpanel"
+        tabindex="0"
+      >
         <i class="bi bi-wallet2 fs-2 text-secondary" aria-hidden="true"></i>
-        <p class="fw-semibold mb-1 mt-3">연결된 자산이 없습니다.</p>
+        <p class="fw-semibold mb-1 mt-3">{{ activeCategoryEmptyMessage }}</p>
         <p class="small text-secondary mb-4">
-          금융기관을 연동하면 계좌와 카드 정보를 이곳에서 관리할 수 있습니다.
+          금융기관을 연동하면 {{ activeCategoryLabel }} 정보를 이곳에서 관리할 수 있습니다.
         </p>
       </div>
 
@@ -311,6 +385,44 @@ onMounted(loadConnections)
 .connection-section-heading {
   padding: 0 0 12px;
   border-bottom: 1px solid #eef0f5;
+}
+
+.connection-category-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 4px;
+  border-radius: 12px;
+  background: #f7f8fc;
+}
+
+.connection-category-tab {
+  flex: 1;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #7f8ba0;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.connection-category-tab:hover,
+.connection-category-tab:focus-visible,
+.connection-category-tab-active {
+  background: #ffffff;
+  color: #4f46c7;
+}
+
+.connection-category-tab-active {
+  box-shadow: 0 2px 8px rgb(28 35 52 / 8%);
+}
+
+.connection-category-count {
+  margin-left: 4px;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .connection-list {
