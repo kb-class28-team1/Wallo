@@ -17,6 +17,7 @@ import com.wallo.asset.mapper.ConnectionMapper;
 import com.wallo.common.exception.ErrorCode;
 import com.wallo.external.client.CodefClient;
 import com.wallo.external.dto.CodefDto;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import org.junit.Test;
@@ -105,6 +106,9 @@ public class ConnectionServiceTest {
                 "국민은행",
                 "BANK",
                 "logo",
+                "KB",
+                "KB국민은행",
+                LocalDateTime.of(2026, 8, 6, 1, 0),
                 "ACCOUNT",
                 "입출금통장",
                 "123456-**-***012",

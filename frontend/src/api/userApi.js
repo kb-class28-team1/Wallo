@@ -8,6 +8,15 @@ const createUserError = (error, fallbackMessage) => {
   return userError
 }
 
+export const getProfile = async () => {
+  try {
+    const response = await httpClient.get("/api/users/profile")
+    return response.data?.data ?? response.data
+  } catch (error) {
+    throw createUserError(error, "프로필 정보를 불러오지 못했습니다.")
+  }
+}
+
 export const updateNickname = async (nickname) => {
   try {
     const response = await httpClient.patch("/api/users/profile/nickname", {

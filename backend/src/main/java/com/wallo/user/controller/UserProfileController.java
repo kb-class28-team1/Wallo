@@ -5,10 +5,12 @@ import com.wallo.common.response.CommonResponse;
 import com.wallo.user.dto.NicknameDto;
 import com.wallo.user.dto.PasswordDto;
 import com.wallo.user.dto.ProfileImageDto;
+import com.wallo.user.dto.UserProfileDto;
 import com.wallo.user.service.UserProfileService;
 import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -28,6 +30,13 @@ public class UserProfileController {
     ) {
         this.userProfileService = userProfileService;
         this.currentUserProvider = currentUserProvider;
+    }
+
+    @GetMapping
+    public CommonResponse<UserProfileDto.Response> getProfile() {
+        return CommonResponse.success(
+                userProfileService.getProfile(currentUserProvider.getCurrentUserId())
+        );
     }
 
     @PatchMapping("/nickname")

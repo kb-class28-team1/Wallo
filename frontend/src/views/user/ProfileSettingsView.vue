@@ -36,9 +36,11 @@ const loadProfile = async () => {
   profileError.value = ""
 
   try {
-    const restored = await userStore.restoreSession(true)
-
-    if (!restored) {
+    const profile = await userStore.fetchProfile()
+    nicknameInput.value = profile?.nickname || ""
+  } catch (error) {
+    if (error.status === 401) {
+      userStore.clearAuth()
       await router.replace({
         name: "login",
         query: {
@@ -49,8 +51,6 @@ const loadProfile = async () => {
       return
     }
 
-    nicknameInput.value = user.value?.nickname || ""
-  } catch (error) {
     profileError.value = getApiErrorMessage(
       error,
       "프로필 정보를 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",

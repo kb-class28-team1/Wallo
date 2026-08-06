@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from "vue"
+import { computed, nextTick, onMounted, ref } from "vue"
 import { RouterLink } from "vue-router"
 import { getApiErrorMessage } from "@/commonUtils/apiError"
 import { disconnectConnection, getConnections } from "@/api/connectionApi"
@@ -14,12 +14,57 @@ const successMessage = ref("")
 const disconnectingId = ref(null)
 const pendingDisconnectConnection = ref(null)
 const disconnectModalError = ref("")
+const disconnectModalRef = ref(null)
+const categoryTabRefs = ref({})
+const previousFocusedElement = ref(null)
 const connectionCategories = Object.freeze([
   { key: "ACCOUNT", label: "계좌", emptyMessage: "연결된 계좌가 없습니다." },
   { key: "CARD", label: "카드", emptyMessage: "연결된 카드가 없습니다." },
   { key: "STOCK", label: "증권", emptyMessage: "연결된 증권이 없습니다." },
 ])
 const activeCategory = ref("ACCOUNT")
+
+const getCategoryTabId = (categoryKey) => `connection-category-tab-${categoryKey.toLowerCase()}`
+
+const setCategoryTabRef = (categoryKey, element) => {
+  if (element) {
+    categoryTabRefs.value[categoryKey] = element
+  } else {
+    delete categoryTabRefs.value[categoryKey]
+  }
+}
+
+const selectCategory = (categoryKey, shouldFocus = false) => {
+  activeCategory.value = categoryKey
+
+  if (shouldFocus) {
+    nextTick(() => categoryTabRefs.value[categoryKey]?.focus())
+  }
+}
+
+const handleCategoryKeydown = (event, currentIndex) => {
+  const navigationKeys = ["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp", "Home", "End"]
+  if (!navigationKeys.includes(event.key)) {
+    return
+  }
+
+  event.preventDefault()
+
+  const lastIndex = connectionCategories.length - 1
+  let nextIndex = currentIndex
+
+  if (event.key === "Home") {
+    nextIndex = 0
+  } else if (event.key === "End") {
+    nextIndex = lastIndex
+  } else if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+    nextIndex = currentIndex === lastIndex ? 0 : currentIndex + 1
+  } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+    nextIndex = currentIndex === 0 ? lastIndex : currentIndex - 1
+  }
+
+  selectCategory(connectionCategories[nextIndex].key, true)
+}
 
 const getConnectionCategory = (connection) => {
   if (connection.assetKind === "CARD") {
@@ -39,6 +84,9 @@ const connectionGroups = computed(() => {
 
     if (existingGroup) {
       existingGroup.assets.push(asset)
+      if (!existingGroup.lastSyncAt && asset.lastSyncAt) {
+        existingGroup.lastSyncAt = asset.lastSyncAt
+      }
       return
     }
 
@@ -51,6 +99,7 @@ const connectionGroups = computed(() => {
       logoUrl: asset.logoUrl,
       financialGroupCode: asset.financialGroupCode,
       financialGroupName: asset.financialGroupName,
+      lastSyncAt: asset.lastSyncAt,
       assets: [asset],
     })
   })
@@ -107,8 +156,38 @@ const activeCategoryAssetCount = computed(() => (
   )
 ))
 
-const formatAmount = (amount) =>
-  `${new Intl.NumberFormat("ko-KR").format(Number(amount) || 0)}원`
+const formatAmount = (amount, currency = "KRW") => {
+  const normalizedCurrency = currency || "KRW"
+  const amountText = new Intl.NumberFormat("ko-KR").format(Number(amount) || 0)
+  const currencyUnit = {
+    KRW: "원",
+    USD: "달러",
+    JPY: "엔",
+    EUR: "유로",
+  }[normalizedCurrency]
+
+  return currencyUnit
+    ? `${amountText}${currencyUnit}`
+    : `${amountText} ${normalizedCurrency}`
+}
+
+const formatLastSync = (lastSyncAt) => {
+  if (!lastSyncAt) {
+    return "최근 동기화 정보 없음"
+  }
+
+  const date = new Date(lastSyncAt)
+  if (Number.isNaN(date.getTime())) {
+    return "최근 동기화 정보 없음"
+  }
+
+  return `마지막 동기화 ${new Intl.DateTimeFormat("ko-KR", {
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date)}`
+}
 
 const getAssetTypeLabel = (connection) => {
   if (connection.assetKind === "CARD") {
@@ -180,8 +259,18 @@ const loadConnections = async () => {
 }
 
 const openDisconnectModal = (connection) => {
+  previousFocusedElement.value = document.activeElement
   pendingDisconnectConnection.value = connection
   disconnectModalError.value = ""
+
+  nextTick(() => disconnectModalRef.value?.focus())
+}
+
+const restoreModalFocus = () => {
+  const elementToFocus = previousFocusedElement.value
+  previousFocusedElement.value = null
+
+  nextTick(() => elementToFocus?.focus?.())
 }
 
 const closeDisconnectModal = () => {
@@ -191,6 +280,38 @@ const closeDisconnectModal = () => {
 
   pendingDisconnectConnection.value = null
   disconnectModalError.value = ""
+  restoreModalFocus()
+}
+
+const handleModalKeydown = (event) => {
+  if (event.key === "Escape") {
+    closeDisconnectModal()
+    return
+  }
+
+  if (event.key !== "Tab" || !disconnectModalRef.value) {
+    return
+  }
+
+  const focusableElements = [...disconnectModalRef.value.querySelectorAll(
+    "button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])",
+  )]
+
+  if (focusableElements.length === 0) {
+    event.preventDefault()
+    return
+  }
+
+  const firstElement = focusableElements[0]
+  const lastElement = focusableElements[focusableElements.length - 1]
+
+  if (event.shiftKey && document.activeElement === firstElement) {
+    event.preventDefault()
+    lastElement.focus()
+  } else if (!event.shiftKey && document.activeElement === lastElement) {
+    event.preventDefault()
+    firstElement.focus()
+  }
 }
 
 const handleDisconnect = async () => {
@@ -211,6 +332,7 @@ const handleDisconnect = async () => {
       (item) => item.connectionId !== connection.connectionId,
     )
     pendingDisconnectConnection.value = null
+    restoreModalFocus()
 
     try {
       await assetStore.fetchAssets({ notifyError: false })
@@ -267,10 +389,14 @@ onMounted(loadConnections)
           type="button"
           class="connection-category-tab"
           :class="{ 'connection-category-tab-active': activeCategory === category.key }"
+          :id="getCategoryTabId(category.key)"
           role="tab"
           :aria-selected="activeCategory === category.key"
-          aria-controls="connection-category-panel"
-          @click="activeCategory = category.key"
+          :aria-controls="`connection-category-panel-${category.key.toLowerCase()}`"
+          :tabindex="activeCategory === category.key ? 0 : -1"
+          :ref="(element) => setCategoryTabRef(category.key, element)"
+          @click="selectCategory(category.key)"
+          @keydown="handleCategoryKeydown($event, connectionCategories.indexOf(category))"
         >
           {{ category.label }}
           <span class="connection-category-count">{{ getCategoryCount(category.key) }}</span>
@@ -285,9 +411,10 @@ onMounted(loadConnections)
 
       <div
         v-if="visibleConnections.length > 0"
-        id="connection-category-panel"
+        :id="`connection-category-panel-${activeCategory.toLowerCase()}`"
         class="connection-list"
         role="tabpanel"
+        :aria-labelledby="getCategoryTabId(activeCategory)"
         tabindex="0"
       >
         <article
@@ -314,6 +441,9 @@ onMounted(loadConnections)
               <strong class="d-block text-truncate">{{ group.institutionName }}</strong>
               <small class="d-block text-secondary">
                 연결된 {{ group.assets.length }}개 자산
+              </small>
+              <small class="d-block text-secondary">
+                {{ formatLastSync(group.lastSyncAt) }}
               </small>
             </div>
 
@@ -352,7 +482,7 @@ onMounted(loadConnections)
                 <span v-if="asset.assetKind === 'CARD'" class="connection-amount-label">
                   이번 달
                 </span>
-                {{ formatAmount(asset.amount) }}
+                {{ formatAmount(asset.amount, asset.currency) }}
               </strong>
             </li>
           </ul>
@@ -361,9 +491,10 @@ onMounted(loadConnections)
 
       <div
         v-else
-        id="connection-category-panel"
+        :id="`connection-category-panel-${activeCategory.toLowerCase()}`"
         class="connection-empty-state text-center"
         role="tabpanel"
+        :aria-labelledby="getCategoryTabId(activeCategory)"
         tabindex="0"
       >
         <i class="bi bi-wallet2 fs-2 text-secondary" aria-hidden="true"></i>
@@ -388,10 +519,14 @@ onMounted(loadConnections)
       @click.self="closeDisconnectModal"
     >
       <section
+        ref="disconnectModalRef"
         class="connection-modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby="disconnect-modal-title"
+        aria-describedby="disconnect-modal-description"
+        tabindex="-1"
+        @keydown="handleModalKeydown"
       >
         <div class="connection-modal-header">
           <h3 id="disconnect-modal-title" class="h6 fw-bold mb-0">연결 해제</h3>
@@ -408,7 +543,7 @@ onMounted(loadConnections)
           <p class="fw-semibold mb-2">
             {{ pendingDisconnectConnection.institutionName }} 연결을 해제하시겠습니까?
           </p>
-          <p class="small text-secondary mb-2">
+          <p id="disconnect-modal-description" class="small text-secondary mb-2">
             연결을 해제하면 아래 계좌·카드·증권이 현재 자산에서 제외됩니다.
           </p>
 

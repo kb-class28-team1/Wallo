@@ -2,6 +2,7 @@ package com.wallo.asset.dto;
 
 import java.util.List;
 import java.util.ArrayList;
+import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -62,6 +63,9 @@ public final class ConnectionDto {
         private String institutionName;
         private String institutionType;
         private String logoUrl;
+        private String financialGroupCode;
+        private String financialGroupName;
+        private LocalDateTime lastSyncAt;
         private String assetKind;
         private String assetName;
         private String displayNumber;

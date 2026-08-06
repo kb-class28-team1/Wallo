@@ -7,6 +7,7 @@ import {
 } from "@/api/authApi"
 import {
   changePassword as changePasswordRequest,
+  getProfile as getProfileRequest,
   resetProfileImage as resetProfileImageRequest,
   updateNickname as updateNicknameRequest,
   updateProfileImage as updateProfileImageRequest,
@@ -89,6 +90,30 @@ export const useUserStore = defineStore("user", () => {
     }
   }
 
+  const fetchProfile = async () => {
+    isLoading.value = true
+    try {
+      const profile = await getProfileRequest()
+
+      if (user.value) {
+        user.value = {
+          ...user.value,
+          ...profile,
+        }
+      } else {
+        setUser({
+          ...profile,
+          point: 0,
+          connectionCompleted: false,
+        })
+      }
+
+      return profile
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   const updateNickname = async (nickname) => {
     isLoading.value = true
     try {
@@ -157,9 +182,14 @@ export const useUserStore = defineStore("user", () => {
 
   const fetchUserProfile = async () => {
     try {
-      await restoreSession()
+      return await fetchProfile()
     } catch (error) {
+      if (error.status === 401) {
+        clearAuth()
+        return false
+      }
       alert(error.message || "사용자 정보를 불러오지 못했습니다.")
+      return false
     }
   }
 
@@ -184,6 +214,7 @@ export const useUserStore = defineStore("user", () => {
     updateProfileImage,
     resetProfileImage,
     restoreSession,
+    fetchProfile,
     clearAuth,
     updatePointBalance,
     fetchUserProfile,

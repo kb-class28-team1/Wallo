@@ -3,6 +3,7 @@ package com.wallo.user.service;
 import com.wallo.user.dto.NicknameDto;
 import com.wallo.user.dto.PasswordDto;
 import com.wallo.user.dto.ProfileImageDto;
+import com.wallo.user.dto.UserProfileDto;
 import com.wallo.user.exception.UserErrorCode;
 import com.wallo.user.exception.UserException;
 import com.wallo.user.mapper.UserMapper;
@@ -66,6 +67,15 @@ public class UserProfileService {
                         "profile-images"
                 ).toString()
         );
+    }
+
+    @Transactional(readOnly = true)
+    public UserProfileDto.Response getProfile(long userId) {
+        UserProfileDto.Response profile = userMapper.findProfile(userId);
+        if (profile == null) {
+            throw new UserException(UserErrorCode.USER_NOT_FOUND);
+        }
+        return profile;
     }
 
     @Transactional

@@ -21,12 +21,14 @@ httpClient.interceptors.response.use(
     const isLoginRequest = requestUrl.includes("/api/auth/login")
     const isSignupRequest = requestUrl.includes("/api/auth/signup")
     const isSessionCheck = requestUrl.includes("/api/auth/me")
+    const isProfileCheck = /\/api\/users\/profile$/.test(requestUrl)
 
     if (
       error.response?.status === 401 &&
       !isLoginRequest &&
       !isSignupRequest &&
       !isSessionCheck &&
+      !isProfileCheck &&
       unauthorizedHandler
     ) {
       unauthorizedHandler()

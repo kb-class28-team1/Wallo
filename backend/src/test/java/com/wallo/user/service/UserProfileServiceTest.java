@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import com.wallo.user.dto.NicknameDto;
 import com.wallo.user.dto.PasswordDto;
+import com.wallo.user.dto.UserProfileDto;
 import com.wallo.user.exception.UserErrorCode;
 import com.wallo.user.exception.UserException;
 import com.wallo.user.mapper.UserMapper;
@@ -32,6 +33,37 @@ class UserProfileServiceTest {
         userMapper = mock(UserMapper.class);
         passwordEncoder = new BCryptPasswordEncoder();
         userProfileService = new UserProfileService(userMapper, passwordEncoder);
+    }
+
+    @Test
+    void returnsProfileForExistingUser() {
+        when(userMapper.findProfile(7L)).thenReturn(
+                new UserProfileDto.Response(
+                        7L,
+                        "김혜진",
+                        "저축왕 펭귄",
+                        "user@wallo.test",
+                        "/api/profile-images/profile.png"
+                )
+        );
+
+        UserProfileDto.Response response = userProfileService.getProfile(7L);
+
+        assertEquals(7L, response.getId());
+        assertEquals("김혜진", response.getName());
+        assertEquals("저축왕 펭귄", response.getNickname());
+        assertEquals("user@wallo.test", response.getEmail());
+        assertEquals("/api/profile-images/profile.png", response.getProfileImageUrl());
+    }
+
+    @Test
+    void rejectsProfileLookupWhenUserDoesNotExist() {
+        UserException exception = assertThrows(
+                UserException.class,
+                () -> userProfileService.getProfile(7L)
+        );
+
+        assertEquals(UserErrorCode.USER_NOT_FOUND, exception.getErrorCode());
     }
 
     @Test

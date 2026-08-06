@@ -1,6 +1,7 @@
 package com.wallo.asset.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyLong;
@@ -264,6 +265,34 @@ class AssetReportServiceTest {
                 400_000L,
                 2_000_000L
         ));
+    }
+
+    @Test
+    void returnsRuleMessageWhenNoAnalyzableCategoryRemains() {
+        when(assetReportMapper.selectCategoryExpenses(
+                7L,
+                "2026-07-01",
+                "2026-07-20",
+                "2026-06-01",
+                "2026-06-20"
+        )).thenReturn(Arrays.asList(
+                new AssetReportDto.CategoryExpense("LOAN_REPAYMENT", 800_000L, 300_000L)
+        ));
+
+        AssetReportDto.Insight insight = assetReportService.getConsumptionInsight(
+                7L,
+                LocalDate.of(2026, 7, 20)
+        );
+
+        assertEquals("분석할 소비가 없어요", insight.getReportTitle());
+        assertEquals(
+                "현재는 소비 습관을 분석할 수 있는 내역이 없어요."
+                        + " 다른 소비 내역이 쌓이면 알려드릴게요.",
+                insight.getReportContent()
+        );
+        assertEquals(AssetReportDto.GenerationMode.RULE, insight.getGenerationMode());
+        assertNull(insight.getCategory());
+        verifyNoInteractions(assetReportAiClient, budgetMapper);
     }
 
     @Test

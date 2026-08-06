@@ -1,0 +1,124 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { flushPromises, mount } from "@vue/test-utils"
+import ConnectionManagementView from "./ConnectionManagementView.vue"
+import { disconnectConnection, getConnections } from "@/api/connectionApi"
+import { useAssetStore } from "@/stores/assetStore"
+
+vi.mock("@/api/connectionApi", () => ({
+  disconnectConnection: vi.fn(),
+  getConnections: vi.fn(),
+}))
+
+vi.mock("@/stores/assetStore", () => ({
+  useAssetStore: vi.fn(),
+}))
+
+const connectedAssets = [
+  {
+    connectionId: 10,
+    institutionId: 1,
+    institutionName: "국민은행",
+    financialGroupCode: "KB",
+    financialGroupName: "KB금융그룹",
+    logoUrl: "",
+    lastSyncAt: "2026-08-06T01:00:00",
+    assetKind: "ACCOUNT",
+    assetId: 101,
+    assetName: "KB국민ONE통장",
+    displayNumber: "123456-**-***012",
+    assetType: "BANK",
+    amount: 5000000,
+    currency: "KRW",
+  },
+  {
+    connectionId: 10,
+    institutionId: 1,
+    institutionName: "국민은행",
+    financialGroupCode: "KB",
+    financialGroupName: "KB금융그룹",
+    logoUrl: "",
+    lastSyncAt: "2026-08-06T01:00:00",
+    assetKind: "CARD",
+    assetId: 102,
+    assetName: "국민카드",
+    displayNumber: "9876-****-****-3210",
+    assetType: "CREDIT",
+    amount: 120000,
+    currency: "KRW",
+  },
+]
+
+describe("ConnectionManagementView", () => {
+  let wrapper
+  let assetStore
+
+  beforeEach(() => {
+    getConnections.mockResolvedValue({ connections: connectedAssets })
+    disconnectConnection.mockResolvedValue({})
+    assetStore = { fetchAssets: vi.fn().mockResolvedValue({}) }
+    useAssetStore.mockReturnValue(assetStore)
+  })
+
+  afterEach(() => {
+    wrapper?.unmount()
+    document.body.innerHTML = ""
+    vi.clearAllMocks()
+  })
+
+  it("supports keyboard navigation for asset category tabs", async () => {
+    wrapper = mount(ConnectionManagementView, {
+      attachTo: document.body,
+      global: {
+        stubs: {
+          RouterLink: { template: "<a><slot /></a>" },
+        },
+      },
+    })
+    await flushPromises()
+
+    const tabs = wrapper.findAll('[role="tab"]')
+    expect(tabs[0].attributes("tabindex")).toBe("0")
+    expect(tabs[1].attributes("tabindex")).toBe("-1")
+
+    await tabs[0].trigger("keydown", { key: "ArrowRight" })
+    await flushPromises()
+
+    expect(tabs[1].attributes("aria-selected")).toBe("true")
+    expect(tabs[1].attributes("tabindex")).toBe("0")
+    expect(document.activeElement).toBe(tabs[1].element)
+  })
+
+  it("groups an institution into one disconnect modal and refreshes assets", async () => {
+    wrapper = mount(ConnectionManagementView, {
+      attachTo: document.body,
+      global: {
+        stubs: {
+          RouterLink: { template: "<a><slot /></a>" },
+        },
+      },
+    })
+    await flushPromises()
+
+    expect(wrapper.findAll(".connection-institution")).toHaveLength(1)
+    expect(wrapper.findAll(".connection-institution .connection-disconnect")).toHaveLength(1)
+    expect(wrapper.text()).toContain("마지막 동기화")
+
+    await wrapper.find(".connection-disconnect").trigger("click")
+    await flushPromises()
+
+    const dialog = document.body.querySelector('[role="dialog"]')
+    expect(dialog).not.toBeNull()
+    expect(dialog.textContent).toContain("국민은행 연결을 해제하시겠습니까?")
+    expect(dialog.textContent).toContain("KB국민ONE통장 · 123456-**-***012")
+    expect(dialog.textContent).toContain("국민카드 · 9876-****-****-3210")
+    expect(dialog.textContent).not.toContain("입출금")
+    expect(dialog.textContent).not.toContain("5,000,000원")
+
+    dialog.querySelector(".btn-danger").dispatchEvent(new MouseEvent("click", { bubbles: true }))
+    await flushPromises()
+
+    expect(disconnectConnection).toHaveBeenCalledWith(10)
+    expect(assetStore.fetchAssets).toHaveBeenCalledWith({ notifyError: false })
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull()
+  })
+})

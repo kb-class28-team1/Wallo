@@ -1,8 +1,11 @@
 package com.wallo.user.mapper;
 
+import com.wallo.user.dto.UserProfileDto;
 import org.apache.ibatis.annotations.Param;
 
 public interface UserMapper {
+
+    UserProfileDto.Response findProfile(@Param("userId") Long userId);
 
     int countByNicknameExceptUserId(
             @Param("nickname") String nickname,
