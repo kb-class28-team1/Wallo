@@ -18,6 +18,19 @@
         WHERE id = #{userId}
     </update>
 
+    <select id="findPasswordHash" resultType="string">
+        SELECT password_hash
+        FROM users
+        WHERE id = #{userId}
+    </select>
+
+    <update id="updatePasswordHash">
+        UPDATE users
+        SET password_hash = #{passwordHash},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{userId}
+    </update>
+
     <select id="findProfileImageUrl" resultType="string">
         SELECT profile_image_url
         FROM users

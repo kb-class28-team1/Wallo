@@ -2,26 +2,35 @@ package com.wallo.user.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.wallo.user.dto.NicknameDto;
+import com.wallo.user.dto.PasswordDto;
 import com.wallo.user.exception.UserErrorCode;
 import com.wallo.user.exception.UserException;
 import com.wallo.user.mapper.UserMapper;
+import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 class UserProfileServiceTest {
 
     private UserMapper userMapper;
     private UserProfileService userProfileService;
+    private PasswordEncoder passwordEncoder;
 
     @BeforeEach
     void setUp() {
         userMapper = mock(UserMapper.class);
-        userProfileService = new UserProfileService(userMapper);
+        passwordEncoder = new BCryptPasswordEncoder();
+        userProfileService = new UserProfileService(userMapper, passwordEncoder);
     }
 
     @Test
@@ -60,9 +69,78 @@ class UserProfileServiceTest {
         assertEquals(UserErrorCode.NICKNAME_ALREADY_EXISTS, exception.getErrorCode());
     }
 
+    @Test
+    void changesPasswordAfterVerifyingCurrentPassword() {
+        String currentPassword = "current123!";
+        String newPassword = "newPassword123!";
+        when(userMapper.findPasswordHash(7L)).thenReturn(passwordEncoder.encode(currentPassword));
+        when(userMapper.updatePasswordHash(eq(7L), anyString())).thenReturn(1);
+
+        userProfileService.changePassword(
+                7L,
+                passwordRequest(currentPassword, newPassword, newPassword)
+        );
+
+        ArgumentCaptor<String> passwordCaptor = ArgumentCaptor.forClass(String.class);
+        verify(userMapper).updatePasswordHash(eq(7L), passwordCaptor.capture());
+        assertTrue(passwordEncoder.matches(newPassword, passwordCaptor.getValue()));
+    }
+
+    @Test
+    void rejectsIncorrectCurrentPassword() {
+        when(userMapper.findPasswordHash(7L)).thenReturn(passwordEncoder.encode("current123!"));
+
+        UserException exception = assertThrows(
+                UserException.class,
+                () -> userProfileService.changePassword(
+                        7L,
+                        passwordRequest("wrong123!", "newPassword123!", "newPassword123!")
+                )
+        );
+
+        assertEquals(UserErrorCode.CURRENT_PASSWORD_MISMATCH, exception.getErrorCode());
+    }
+
+    @Test
+    void rejectsMismatchedNewPasswordConfirmation() {
+        UserException exception = assertThrows(
+                UserException.class,
+                () -> userProfileService.changePassword(
+                        7L,
+                        passwordRequest("current123!", "newPassword123!", "different123!")
+                )
+        );
+
+        assertEquals(UserErrorCode.PASSWORD_CONFIRMATION_MISMATCH, exception.getErrorCode());
+    }
+
+    @Test
+    void rejectsNewPasswordShorterThanEightCharacters() {
+        UserException exception = assertThrows(
+                UserException.class,
+                () -> userProfileService.changePassword(
+                        7L,
+                        passwordRequest("current123!", "short", "short")
+                )
+        );
+
+        assertEquals(UserErrorCode.INVALID_PASSWORD, exception.getErrorCode());
+    }
+
     private NicknameDto.UpdateRequest request(String nickname) {
         NicknameDto.UpdateRequest request = new NicknameDto.UpdateRequest();
         request.setNickname(nickname);
+        return request;
+    }
+
+    private PasswordDto.ChangeRequest passwordRequest(
+            String currentPassword,
+            String newPassword,
+            String newPasswordConfirm) {
+        PasswordDto.ChangeRequest request = new PasswordDto.ChangeRequest();
+        request.setCurrentPassword(currentPassword);
+        request.setNewPassword(newPassword);
+        request.setNewPasswordConfirm(newPasswordConfirm);
         return request;
     }
 }

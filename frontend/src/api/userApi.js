@@ -20,6 +20,15 @@ export const updateNickname = async (nickname) => {
   }
 }
 
+export const changePassword = async (passwords) => {
+  try {
+    const response = await httpClient.patch("/api/users/profile/password", passwords)
+    return response.data?.data ?? response.data
+  } catch (error) {
+    throw createUserError(error, "비밀번호를 변경하지 못했습니다.")
+  }
+}
+
 export const updateProfileImage = async (file) => {
   try {
     const formData = new FormData()

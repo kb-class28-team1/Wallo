@@ -12,6 +12,22 @@ public enum UserErrorCode {
             HttpStatus.CONFLICT,
             "USER_NICKNAME_ALREADY_EXISTS",
             "이미 사용 중인 닉네임입니다."),
+    INVALID_PASSWORD(
+            HttpStatus.BAD_REQUEST,
+            "USER_INVALID_PASSWORD",
+            "비밀번호는 8자 이상 72자 이하로 입력해주세요."),
+    CURRENT_PASSWORD_MISMATCH(
+            HttpStatus.UNAUTHORIZED,
+            "USER_CURRENT_PASSWORD_MISMATCH",
+            "현재 비밀번호가 올바르지 않습니다."),
+    PASSWORD_CONFIRMATION_MISMATCH(
+            HttpStatus.BAD_REQUEST,
+            "USER_PASSWORD_CONFIRMATION_MISMATCH",
+            "새 비밀번호가 일치하지 않습니다."),
+    PASSWORD_SAME_AS_CURRENT(
+            HttpStatus.BAD_REQUEST,
+            "USER_PASSWORD_SAME_AS_CURRENT",
+            "새 비밀번호는 현재 비밀번호와 달라야 합니다."),
     INVALID_PROFILE_IMAGE(
             HttpStatus.BAD_REQUEST,
             "USER_INVALID_PROFILE_IMAGE",

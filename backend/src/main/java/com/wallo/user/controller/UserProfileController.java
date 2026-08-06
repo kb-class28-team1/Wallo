@@ -3,6 +3,7 @@ package com.wallo.user.controller;
 import com.wallo.auth.CurrentUserProvider;
 import com.wallo.common.response.CommonResponse;
 import com.wallo.user.dto.NicknameDto;
+import com.wallo.user.dto.PasswordDto;
 import com.wallo.user.dto.ProfileImageDto;
 import com.wallo.user.service.UserProfileService;
 import org.springframework.http.MediaType;
@@ -39,6 +40,17 @@ public class UserProfileController {
                         request
                 )
         );
+    }
+
+    @PatchMapping("/password")
+    public CommonResponse<Void> changePassword(
+            @RequestBody(required = false) PasswordDto.ChangeRequest request
+    ) {
+        userProfileService.changePassword(
+                currentUserProvider.getCurrentUserId(),
+                request
+        );
+        return CommonResponse.success(null);
     }
 
     @PatchMapping(value = "/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

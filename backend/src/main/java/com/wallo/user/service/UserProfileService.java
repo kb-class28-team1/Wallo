@@ -1,6 +1,7 @@
 package com.wallo.user.service;
 
 import com.wallo.user.dto.NicknameDto;
+import com.wallo.user.dto.PasswordDto;
 import com.wallo.user.dto.ProfileImageDto;
 import com.wallo.user.exception.UserErrorCode;
 import com.wallo.user.exception.UserException;
@@ -17,11 +18,14 @@ import javax.imageio.ImageIO;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Service
 public class UserProfileService {
 
     private static final int MAX_NICKNAME_LENGTH = 50;
+    private static final int MIN_PASSWORD_LENGTH = 8;
+    private static final int MAX_PASSWORD_LENGTH = 72;
     private static final long MAX_PROFILE_IMAGE_SIZE = 5L * 1024 * 1024;
     private static final String DEFAULT_PROFILE_IMAGE_URL = "/images/profiles/default-profile.svg";
     private static final String PROFILE_IMAGE_URL_PREFIX = "/api/profile-images/";
@@ -31,9 +35,11 @@ public class UserProfileService {
     );
 
     private final UserMapper userMapper;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserProfileService(UserMapper userMapper) {
+    public UserProfileService(UserMapper userMapper, PasswordEncoder passwordEncoder) {
         this.userMapper = userMapper;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Transactional
@@ -56,6 +62,42 @@ public class UserProfileService {
         }
 
         return new NicknameDto.Response(nickname);
+    }
+
+    @Transactional
+    public void changePassword(long userId, PasswordDto.ChangeRequest request) {
+        if (request == null
+                || isBlank(request.getCurrentPassword())
+                || isBlank(request.getNewPassword())) {
+            throw new UserException(UserErrorCode.INVALID_PASSWORD);
+        }
+
+        String newPassword = request.getNewPassword();
+        if (newPassword.length() < MIN_PASSWORD_LENGTH
+                || newPassword.length() > MAX_PASSWORD_LENGTH) {
+            throw new UserException(UserErrorCode.INVALID_PASSWORD);
+        }
+
+        if (!newPassword.equals(request.getNewPasswordConfirm())) {
+            throw new UserException(UserErrorCode.PASSWORD_CONFIRMATION_MISMATCH);
+        }
+
+        String currentPasswordHash = userMapper.findPasswordHash(userId);
+        if (currentPasswordHash == null) {
+            throw new UserException(UserErrorCode.USER_NOT_FOUND);
+        }
+
+        if (!passwordMatches(request.getCurrentPassword(), currentPasswordHash)) {
+            throw new UserException(UserErrorCode.CURRENT_PASSWORD_MISMATCH);
+        }
+
+        if (passwordMatches(newPassword, currentPasswordHash)) {
+            throw new UserException(UserErrorCode.PASSWORD_SAME_AS_CURRENT);
+        }
+
+        if (userMapper.updatePasswordHash(userId, passwordEncoder.encode(newPassword)) == 0) {
+            throw new UserException(UserErrorCode.USER_NOT_FOUND);
+        }
     }
 
     @Transactional
@@ -120,6 +162,18 @@ public class UserProfileService {
         } catch (IOException exception) {
             throw new UserException(UserErrorCode.INVALID_PROFILE_IMAGE);
         }
+    }
+
+    private boolean passwordMatches(String rawPassword, String passwordHash) {
+        try {
+            return passwordEncoder.matches(rawPassword, passwordHash);
+        } catch (IllegalArgumentException exception) {
+            return false;
+        }
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     private Path storeProfileImage(MultipartFile image) throws IOException {

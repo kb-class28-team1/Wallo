@@ -6,6 +6,7 @@ import {
   logout as logoutRequest,
 } from "@/api/authApi"
 import {
+  changePassword as changePasswordRequest,
   resetProfileImage as resetProfileImageRequest,
   updateNickname as updateNicknameRequest,
   updateProfileImage as updateProfileImageRequest,
@@ -107,6 +108,15 @@ export const useUserStore = defineStore("user", () => {
     }
   }
 
+  const changePassword = async (passwords) => {
+    isLoading.value = true
+    try {
+      await changePasswordRequest(passwords)
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   const updateProfileImage = async (file) => {
     isLoading.value = true
     try {
@@ -170,6 +180,7 @@ export const useUserStore = defineStore("user", () => {
     login,
     logout,
     updateNickname,
+    changePassword,
     updateProfileImage,
     resetProfileImage,
     restoreSession,

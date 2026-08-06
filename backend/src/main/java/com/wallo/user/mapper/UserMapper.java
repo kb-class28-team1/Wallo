@@ -14,6 +14,13 @@ public interface UserMapper {
             @Param("nickname") String nickname
     );
 
+    String findPasswordHash(@Param("userId") Long userId);
+
+    int updatePasswordHash(
+            @Param("userId") Long userId,
+            @Param("passwordHash") String passwordHash
+    );
+
     String findProfileImageUrl(@Param("userId") Long userId);
 
     int updateProfileImageUrl(
