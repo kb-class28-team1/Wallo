@@ -3,6 +3,7 @@ package com.wallo.goal.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -45,6 +46,14 @@ class GoalServiceTest {
     }
 
     @Test
+    void doesNotReturnAnotherUsersGoals() {
+        when(goalMapper.findGoalsByUserId(8L)).thenReturn(List.of());
+
+        assertTrue(goalService.getGoals(8L).isEmpty());
+        verify(goalMapper).findGoalsByUserId(8L);
+    }
+
+    @Test
     void findsTheGoalForAConversationOwnedByTheUser() {
         when(goalMapper.findGoalByConversationId(7L, 11L)).thenReturn(goal());
 
@@ -59,6 +68,14 @@ class GoalServiceTest {
         when(goalMapper.findGoalByConversationId(7L, 11L)).thenReturn(null);
 
         assertNull(goalService.getGoalByConversationId(7L, 11L));
+    }
+
+    @Test
+    void doesNotReturnAnotherUsersConversationGoal() {
+        when(goalMapper.findGoalByConversationId(8L, 11L)).thenReturn(null);
+
+        assertNull(goalService.getGoalByConversationId(8L, 11L));
+        verify(goalMapper).findGoalByConversationId(8L, 11L);
     }
 
     @Test

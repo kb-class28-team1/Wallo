@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.wallo.goal.domain.FinancialGoal;
 import com.wallo.goal.domain.GoalInterviewSession;
@@ -95,6 +96,7 @@ class GoalMapperIntegrationTest {
                 goal.getGoalId(),
                 goalMapper.findGoalByConversationId(7L, 11L).getGoalId()
         );
+        assertTrue(goalMapper.findGoalsByUserId(8L).isEmpty());
         assertNull(goalMapper.findGoalByConversationId(8L, 11L));
 
         GoalInterviewSession secondSession = new GoalInterviewSession();
@@ -107,6 +109,12 @@ class GoalMapperIntegrationTest {
         assertThrows(
                 RuntimeException.class,
                 () -> goalMapper.insertGoal(financialGoal(secondSession.getSessionId()))
+        );
+        assertEquals(1, goalMapper.countFinancialGoals(7L, 11L));
+        assertEquals(1, goalMapper.findGoalsByUserId(7L).size());
+        assertEquals(
+                goal.getGoalId(),
+                goalMapper.findGoalByConversationId(7L, 11L).getGoalId()
         );
     }
 
