@@ -298,11 +298,7 @@ const moveToMyChallenge = () => {
 
     <div class="sidebar-card mt-auto text-center">
       <img :src="thinkingPenguin" class="sidebar-card-image" alt="생각하는 왈로 캐릭터" />
-      <p
-        class="sidebar-card-text mb-0"
-        :title="`절약 꿀팁 · ${dailySavingsTip}`"
-        aria-live="polite"
-      >
+      <p class="sidebar-card-text mb-0" :title="dailySavingsTip" aria-live="polite">
         {{ dailySavingsTip }}
       </p>
     </div>
@@ -545,11 +541,6 @@ const moveToMyChallenge = () => {
   font-size: 12px;
   font-weight: 500;
   line-height: 1.5;
-}
-
-.sidebar-card-tip-label {
-  color: #7062de;
-  font-weight: 700;
 }
 
 @media (max-width: 767.98px) {
