@@ -3,9 +3,11 @@ package com.wallo.pointshop.service;
 import com.wallo.pointshop.domain.PointShopInventoryItem;
 import com.wallo.pointshop.domain.PointShopReward;
 import com.wallo.pointshop.dto.response.OpenBoxResponse;
+import com.wallo.pointshop.dto.response.OpenBoxesResponse;
 import com.wallo.pointshop.dto.response.PointShopBoxDetailResponse;
 import com.wallo.pointshop.dto.response.PointShopResponse;
 import com.wallo.pointshop.mapper.PointShopMapper;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -19,6 +21,7 @@ public class PointShopServiceImpl implements PointShopService {
 
     private static final long BASIC_BOX_ID = 1L;
     private static final int BASIC_BOX_PRICE = 500;
+    private static final int BULK_OPEN_COUNT = 10;
 
     private final PointShopMapper pointShopMapper;
 
@@ -107,6 +110,79 @@ public class PointShopServiceImpl implements PointShopService {
                 reward);
     }
 
+    /** 10개 가격을 한 번에 차감하고 모든 추첨 및 보상 처리를 하나의 트랜잭션으로 수행함. */
+    @Override
+    @Transactional
+    public OpenBoxesResponse openBoxes(Long userId, Long boxId) {
+        validateUserId(userId);
+        validateBoxId(boxId);
+
+        int totalPrice = BASIC_BOX_PRICE * BULK_OPEN_COUNT;
+        int updatedRows = pointShopMapper.deductPoints(userId, totalPrice);
+        if (updatedRows == 0) {
+            throw new IllegalArgumentException("보유 포인트가 부족합니다.");
+        }
+
+        String bulkRequestKey = UUID.randomUUID().toString();
+        pointShopMapper.insertPointHistory(
+                userId,
+                -totalPrice,
+                "BOX_OPEN",
+                "BOX-BULK-" + bulkRequestKey,
+                "기본 절약 상자 " + BULK_OPEN_COUNT + "개 일괄 개봉");
+
+        List<PointShopReward> rewards = new ArrayList<>();
+        List<OpenBoxesResponse.DrawResult> drawResults = new ArrayList<>();
+        int itemRewardCount = 0;
+        int pointRewardCount = 0;
+        int loseCount = 0;
+        int totalRewardPoint = 0;
+
+        for (int index = 0; index < BULK_OPEN_COUNT; index++) {
+            String requestKey = bulkRequestKey + "-" + (index + 1);
+            int drawNumber = ThreadLocalRandom.current().nextInt(100);
+            PointShopReward reward = drawReward(userId, requestKey, drawNumber);
+            int rewardPoint = drawRewardPoint(drawNumber);
+
+            if (reward != null) {
+                pointShopMapper.insertInventoryReward(reward);
+                rewards.add(reward);
+                drawResults.add(OpenBoxesResponse.DrawResult.item(reward));
+                itemRewardCount++;
+            } else if (rewardPoint > 0) {
+                pointRewardCount++;
+                totalRewardPoint += rewardPoint;
+                drawResults.add(OpenBoxesResponse.DrawResult.point(rewardPoint));
+            } else {
+                loseCount++;
+                drawResults.add(OpenBoxesResponse.DrawResult.lose());
+            }
+        }
+
+        if (totalRewardPoint > 0) {
+            pointShopMapper.addPoints(userId, totalRewardPoint);
+            pointShopMapper.insertPointHistory(
+                    userId,
+                    totalRewardPoint,
+                    "BOX_REWARD",
+                    "BOX-BULK-REWARD-" + bulkRequestKey,
+                    "랜덤박스 " + BULK_OPEN_COUNT + "개 포인트 보상");
+        }
+
+        Integer remainingPoint = pointShopMapper.findPointBalance(userId);
+        return OpenBoxesResponse.of(
+                boxId,
+                BULK_OPEN_COUNT,
+                totalPrice,
+                remainingPoint,
+                itemRewardCount,
+                pointRewardCount,
+                loseCount,
+                totalRewardPoint,
+                rewards,
+                drawResults);
+    }
+
     @Override
     @Transactional
     public void deleteUsedInventoryItem(Long userId, Long inventoryId) {
@@ -115,8 +191,8 @@ public class PointShopServiceImpl implements PointShopService {
             throw new IllegalArgumentException("보관함 상품 ID가 올바르지 않습니다.");
         }
 
-        int updatedRows = pointShopMapper.softDeleteUsedInventoryItem(userId, inventoryId);
-        if (updatedRows == 0) {
+        int deletedRows = pointShopMapper.deleteUsedInventoryItem(userId, inventoryId);
+        if (deletedRows == 0) {
             throw new IllegalArgumentException("삭제할 수 있는 사용 완료 상품을 찾지 못했습니다.");
         }
     }

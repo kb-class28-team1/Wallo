@@ -16,6 +16,7 @@
         <result property="commentCount" column="comment_count" />
         <result property="thumbnailUrl" column="thumbnail_url" />
         <result property="mediaUrl" column="media_url" />
+        <result property="mediaType" column="media_type" />
         <result property="createdAt" column="created_at" />
     </resultMap>
 
@@ -42,6 +43,7 @@
             COALESCE(comment_stats.comment_count, 0) AS comment_count,
             feed.thumbnail_url,
             feed.media_url,
+            feed.media_type,
             feed.created_at
         FROM FEED feed
         LEFT JOIN (

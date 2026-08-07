@@ -1,5 +1,6 @@
 package com.wallo.chat.controller;
 
+import com.wallo.auth.CurrentUserProvider;
 import com.wallo.chat.dto.ChatRequest;
 import com.wallo.chat.dto.ChatResponse;
 import com.wallo.chat.service.ChatService;
@@ -14,9 +15,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/chat")
 public class ChatController {
     private final ChatService chatService;
+    private final CurrentUserProvider currentUserProvider;
 
-    public ChatController(ChatService chatService) {
+    public ChatController(
+            ChatService chatService,
+            CurrentUserProvider currentUserProvider
+    ) {
         this.chatService = chatService;
+        this.currentUserProvider = currentUserProvider;
     }
 
     @PostMapping(
@@ -26,6 +32,8 @@ public class ChatController {
     public ResponseEntity<ChatResponse> chat(
             @RequestBody ChatRequest request
     ) {
-        return ResponseEntity.ok(chatService.chat(request));
+        return ResponseEntity.ok(
+                chatService.chat(request, currentUserProvider.getCurrentUserId())
+        );
     }
 }

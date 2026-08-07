@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /** 금융 리포트(뉴스) 조회 및 생성 API. */
-@RestController
+@RestController("financialReportController")
 @RequestMapping("/api/reports")
 public class ReportController {
 

@@ -73,7 +73,21 @@ const getCategoryLabel = (feed) =>
   feed.customCategory || EXPENSE_CATEGORY_META[feed.category]?.label || feed.category || "기타"
 
 const getCategoryIcon = (feed) => EXPENSE_CATEGORY_META[feed.category]?.icon || "bi-receipt"
-const getFeedImage = (feed) => feed.thumbnailUrl || feed.mediaUrl || ""
+const isVideoFeed = (feed) => {
+  const mediaType = String(feed?.mediaType || "").toUpperCase()
+  if (mediaType) {
+    return mediaType === "VIDEO"
+  }
+
+  return /\.(mp4|webm|ogg|mov)(?:$|[?#])/i.test(String(feed?.mediaUrl || ""))
+}
+const getFeedImage = (feed) => {
+  if (isVideoFeed(feed)) {
+    return feed.thumbnailUrl || ""
+  }
+
+  return feed.thumbnailUrl || feed.mediaUrl || ""
+}
 
 // 이미지가 만료되었거나 불러오기 실패하면 카테고리 아이콘을 대신 표시함.
 const handleImageError = (event) => {
@@ -104,11 +118,11 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
     <header class="page-heading d-flex align-items-center gap-3 mb-4">
       <button
         type="button"
-        class="btn back-button"
+        class="btn page-back-button"
+        aria-label="내 챌린지로 이동"
         @click="router.push({ name: &quot;my-challenge&quot; })"
       >
         <i class="bi bi-chevron-left" aria-hidden="true"></i>
-        내 챌린지
       </button>
       <h1 class="mb-0">내 게시물</h1>
     </header>
@@ -193,8 +207,19 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
 
           <div class="feed-thumbnail">
             <span aria-hidden="true"><i :class="['bi', getCategoryIcon(feed)]"></i></span>
+            <video
+              v-if="isVideoFeed(feed) && feed.mediaUrl"
+              :src="feed.mediaUrl"
+              autoplay
+              muted
+              loop
+              playsinline
+              preload="metadata"
+              aria-label="절약 인증 영상 미리보기"
+              @error="handleImageError"
+            ></video>
             <img
-              v-if="getFeedImage(feed)"
+              v-else-if="getFeedImage(feed)"
               :src="getFeedImage(feed)"
               alt="게시물 미리보기"
               @error="handleImageError"
@@ -242,6 +267,40 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
 </template>
 
 <style scoped>
+ .page-back-button {
+   display: inline-flex;
+   flex: 0 0 38px;
+   width: 38px;
+   height: 38px;
+   align-items: center;
+   justify-content: center;
+   padding: 0;
+   border: 0;
+   border-radius: 12px;
+   background: #f1efff;
+   color: #6b64e8;
+   text-decoration: none;
+   transform: translateX(-8px);
+   transition: background-color 160ms ease, color 160ms ease, transform 160ms ease;
+ }
+
+ .page-back-button:hover,
+ .page-back-button:focus-visible {
+   background: #e8e5ff;
+   color: #574fd2;
+   transform: translateX(-8px) translateY(-1px);
+ }
+
+ .page-back-button:focus-visible {
+   outline: 3px solid rgb(107 100 232 / 22%);
+   outline-offset: 2px;
+ }
+
+ .page-back-button i {
+   font-size: 16px;
+   line-height: 1;
+ }
+
 .my-feed-page {
   width: 100%;
   color: #27304f;
@@ -250,23 +309,6 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
 .page-heading h1 {
   font-size: 28px;
   font-weight: 800;
-}
-
-.back-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  border: 1px solid #e4e7f2;
-  border-radius: 999px;
-  background: #fff;
-  color: #6d7594;
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.back-button:hover {
-  border-color: #8b80f6;
-  color: #7166ed;
 }
 
 .overview-card,
@@ -408,7 +450,8 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
   font-size: 25px;
 }
 
-.feed-thumbnail img {
+.feed-thumbnail img,
+.feed-thumbnail video {
   position: absolute;
   width: 100%;
   height: 100%;

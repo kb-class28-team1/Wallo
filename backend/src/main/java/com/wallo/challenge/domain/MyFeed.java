@@ -15,6 +15,7 @@ public class MyFeed {
     private Integer commentCount;
     private String thumbnailUrl;
     private String mediaUrl;
+    private String mediaType;
     private LocalDateTime createdAt;
 
     public Long getFeedId() {
@@ -95,6 +96,14 @@ public class MyFeed {
 
     public void setMediaUrl(String mediaUrl) {
         this.mediaUrl = mediaUrl;
+    }
+
+    public String getMediaType() {
+        return mediaType;
+    }
+
+    public void setMediaType(String mediaType) {
+        this.mediaType = mediaType;
     }
 
     public LocalDateTime getCreatedAt() {
