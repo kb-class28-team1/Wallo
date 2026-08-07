@@ -1,8 +1,8 @@
 package com.wallo.goal.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -84,6 +84,30 @@ class GoalPersistenceServiceTest {
 
         assertEquals("유럽 여행 자금", restored.getTitle());
         assertEquals(10_000_000L, restored.getTargetAmount());
+    }
+
+    @Test
+    void detectsAnExistingFinancialGoalInTheConversation() {
+        when(goalMapper.countFinancialGoals(7L, 11L)).thenReturn(1);
+
+        assertTrue(service.hasFinancialGoal(7L, 11L));
+    }
+
+    @Test
+    void cannotStartAnotherInterviewAfterAConversationHasAFinancialGoal() {
+        when(goalMapper.countFinancialGoals(7L, 11L)).thenReturn(1);
+
+        IllegalStateException exception = assertThrows(
+                IllegalStateException.class,
+                () -> service.applyResult(
+                        7L,
+                        11L,
+                        result(GoalInterviewDto.Action.CONTINUE, draft(false))
+                )
+        );
+
+        assertTrue(exception.getMessage().contains("이미 금융 목표"));
+        verify(goalMapper, never()).insertSession(any());
     }
 
     @Test

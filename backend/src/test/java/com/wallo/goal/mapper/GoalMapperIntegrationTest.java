@@ -3,6 +3,7 @@ package com.wallo.goal.mapper;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.wallo.goal.domain.FinancialGoal;
 import com.wallo.goal.domain.GoalInterviewSession;
@@ -84,6 +85,19 @@ class GoalMapperIntegrationTest {
         assertEquals(1, goalMapper.completeSession(session.getSessionId(), "COMPLETED"));
         assertNull(goalMapper.findActiveSession(7L, 11L));
         assertEquals("ACTIVE", selectGoalStatus(goal.getGoalId()));
+        assertEquals(1, goalMapper.countFinancialGoals(7L, 11L));
+
+        GoalInterviewSession secondSession = new GoalInterviewSession();
+        secondSession.setUserId(7L);
+        secondSession.setConversationId(11L);
+        secondSession.setStatus("ACTIVE");
+        secondSession.setGoalDraftJson("{}");
+        goalMapper.insertSession(secondSession);
+
+        assertThrows(
+                RuntimeException.class,
+                () -> goalMapper.insertGoal(financialGoal(secondSession.getSessionId()))
+        );
     }
 
     private FinancialGoal financialGoal(Long sessionId) {
@@ -135,7 +149,8 @@ class GoalMapperIntegrationTest {
                         monthly_contribution BIGINT NOT NULL,
                         status VARCHAR(20) NOT NULL,
                         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE (conversation_id)
                     )
                     """);
         }

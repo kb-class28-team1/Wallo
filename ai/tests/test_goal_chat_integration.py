@@ -132,6 +132,33 @@ def test_ui_confirmation_phrase_is_confirmed_without_another_llm_call():
     client.chat.completions.create.assert_not_called()
 
 
+def test_confirmation_without_active_goal_does_not_start_an_empty_interview():
+    client = Mock()
+
+    response = ChatService(client).chat(
+        ChatRequest(message="확정할게", goalAlreadyExists=True),
+    )
+
+    assert response.goal_interview is None
+    assert "이미 금융 목표가 설정되어 있습니다" in response.answer
+    client.chat.completions.create.assert_not_called()
+
+
+def test_existing_goal_blocks_a_second_goal_interview():
+    client = Mock()
+
+    response = ChatService(client).chat(
+        ChatRequest(
+            message="새로운 여행 목표를 만들고 싶어",
+            goalAlreadyExists=True,
+        ),
+    )
+
+    assert response.goal_interview is None
+    assert "새 채팅방" in response.answer
+    client.chat.completions.create.assert_not_called()
+
+
 def test_active_goal_interview_can_be_cancelled_without_another_llm_call():
     client = Mock()
 

@@ -36,6 +36,13 @@
         LIMIT 1
     </select>
 
+    <select id="countFinancialGoals" resultType="int">
+        SELECT COUNT(*)
+        FROM FINANCIAL_GOALS
+        WHERE user_id = #{userId}
+          AND conversation_id = #{conversationId}
+    </select>
+
     <insert id="insertSession"
             parameterType="com.wallo.goal.domain.GoalInterviewSession"
             useGeneratedKeys="true"

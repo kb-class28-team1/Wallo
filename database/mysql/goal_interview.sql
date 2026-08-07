@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS FINANCIAL_GOALS (
     status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_financial_goals_conversation (conversation_id),
     UNIQUE KEY uk_financial_goals_session (session_id),
     INDEX idx_financial_goals_user_status (user_id, status, target_date),
     CONSTRAINT ck_financial_goals_status
@@ -54,3 +55,21 @@ CREATE TABLE IF NOT EXISTS FINANCIAL_GOALS (
 ALTER TABLE FINANCIAL_GOALS
     MODIFY motivation VARCHAR(500) NULL,
     MODIFY priority VARCHAR(20) NULL;
+
+-- 기존 FINANCIAL_GOALS 테이블에도 대화방당 목표 1개 제약을 적용한다.
+-- 이미 같은 conversation_id가 여러 건이면 아래 ALTER 전에 중복을 정리해야 한다.
+SET @goal_conversation_unique_exists = (
+    SELECT COUNT(*)
+    FROM information_schema.statistics
+    WHERE table_schema = DATABASE()
+      AND table_name = 'FINANCIAL_GOALS'
+      AND index_name = 'uk_financial_goals_conversation'
+);
+SET @goal_conversation_unique_sql = IF(
+    @goal_conversation_unique_exists = 0,
+    'ALTER TABLE FINANCIAL_GOALS ADD UNIQUE KEY uk_financial_goals_conversation (conversation_id)',
+    'SELECT 1'
+);
+PREPARE goal_conversation_unique_statement FROM @goal_conversation_unique_sql;
+EXECUTE goal_conversation_unique_statement;
+DEALLOCATE PREPARE goal_conversation_unique_statement;

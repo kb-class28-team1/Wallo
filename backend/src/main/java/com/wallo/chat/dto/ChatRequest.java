@@ -10,7 +10,8 @@ public record ChatRequest(
         String summary,
         List<ChatHistoryMessage> history,
         GoalAssetContextDto.Response financialContext,
-        GoalInterviewDto.Draft goalDraft
+        GoalInterviewDto.Draft goalDraft,
+        boolean goalAlreadyExists
 ) {
 
     public ChatRequest {
@@ -18,11 +19,11 @@ public record ChatRequest(
     }
 
     public ChatRequest(String message) {
-        this(message, false, null, List.of(), null, null);
+        this(message, false, null, List.of(), null, null, false);
     }
 
     public ChatRequest(String message, boolean generateTitle) {
-        this(message, generateTitle, null, List.of(), null, null);
+        this(message, generateTitle, null, List.of(), null, null, false);
     }
 
     public ChatRequest(
@@ -30,7 +31,7 @@ public record ChatRequest(
             boolean generateTitle,
             List<ChatHistoryMessage> history
     ) {
-        this(message, generateTitle, null, history, null, null);
+        this(message, generateTitle, null, history, null, null, false);
     }
 
     public ChatRequest(
@@ -39,14 +40,42 @@ public record ChatRequest(
             String summary,
             List<ChatHistoryMessage> history
     ) {
-        this(message, generateTitle, summary, history, null, null);
+        this(message, generateTitle, summary, history, null, null, false);
     }
 
     public ChatRequest withFinancialContext(GoalAssetContextDto.Response context) {
-        return new ChatRequest(message, generateTitle, summary, history, context, goalDraft);
+        return new ChatRequest(
+                message,
+                generateTitle,
+                summary,
+                history,
+                context,
+                goalDraft,
+                goalAlreadyExists
+        );
     }
 
     public ChatRequest withGoalDraft(GoalInterviewDto.Draft draft) {
-        return new ChatRequest(message, generateTitle, summary, history, financialContext, draft);
+        return new ChatRequest(
+                message,
+                generateTitle,
+                summary,
+                history,
+                financialContext,
+                draft,
+                goalAlreadyExists
+        );
+    }
+
+    public ChatRequest withGoalAlreadyExists(boolean exists) {
+        return new ChatRequest(
+                message,
+                generateTitle,
+                summary,
+                history,
+                financialContext,
+                goalDraft,
+                exists
+        );
     }
 }

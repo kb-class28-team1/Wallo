@@ -11,6 +11,11 @@ public interface GoalMapper {
             @Param("conversationId") Long conversationId
     );
 
+    int countFinancialGoals(
+            @Param("userId") Long userId,
+            @Param("conversationId") Long conversationId
+    );
+
     int insertSession(GoalInterviewSession session);
 
     int updateSessionDraft(

@@ -58,6 +58,9 @@ public class ConversationMessageService {
             Long currentUserId
     ) {
         conversationService.validateOwnership(conversationId, currentUserId);
+        if (goalPersistenceService.hasFinancialGoal(currentUserId, conversationId)) {
+            return new GoalInterviewDto.ActiveDraftResponse(false, null, null);
+        }
         GoalInterviewDto.Draft draft = goalPersistenceService.getActiveDraft(
                 currentUserId,
                 conversationId
@@ -91,6 +94,13 @@ public class ConversationMessageService {
                 currentUserId,
                 conversationId
         );
+        boolean goalAlreadyExists = goalPersistenceService.hasFinancialGoal(
+                currentUserId,
+                conversationId
+        );
+        if (goalAlreadyExists) {
+            goalDraft = null;
+        }
         ChatMessage userMessage = persistenceService.saveMessage(
                 conversationId,
                 USER_ROLE,
@@ -98,7 +108,8 @@ public class ConversationMessageService {
         );
         ChatResponse aiResponse = chatService.chat(
                 new ChatRequest(content, isFirstMessage, summary, history)
-                        .withGoalDraft(goalDraft),
+                        .withGoalDraft(goalDraft)
+                        .withGoalAlreadyExists(goalAlreadyExists),
                 currentUserId
         );
         goalPersistenceService.applyResult(

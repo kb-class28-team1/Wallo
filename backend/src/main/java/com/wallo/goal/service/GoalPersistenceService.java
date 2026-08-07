@@ -40,6 +40,10 @@ public class GoalPersistenceService {
         }
     }
 
+    public boolean hasFinancialGoal(Long userId, Long conversationId) {
+        return goalMapper.countFinancialGoals(userId, conversationId) > 0;
+    }
+
     @Transactional
     public void applyResult(
             Long userId,
@@ -61,6 +65,11 @@ public class GoalPersistenceService {
             Long conversationId,
             GoalInterviewDto.Draft draft
     ) {
+        if (hasFinancialGoal(userId, conversationId)) {
+            throw new IllegalStateException(
+                    "이 채팅방에는 이미 금융 목표가 설정되어 있습니다."
+            );
+        }
         String draftJson = serialize(draft);
         String lastQuestionField = firstMissingField(draft.getMissingFields());
         GoalInterviewSession session = goalMapper.findActiveSession(userId, conversationId);
@@ -90,6 +99,11 @@ public class GoalPersistenceService {
             GoalInterviewDto.Draft draft
     ) {
         validateConfirmedDraft(draft);
+        if (hasFinancialGoal(userId, conversationId)) {
+            throw new IllegalStateException(
+                    "이 채팅방에는 이미 금융 목표가 설정되어 있습니다."
+            );
+        }
         GoalInterviewSession session = goalMapper.findActiveSession(userId, conversationId);
         if (session == null) {
             throw new IllegalStateException("확정할 목표 인터뷰가 없습니다.");

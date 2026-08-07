@@ -19,16 +19,33 @@ class ChatService:
         if request.goal_draft is not None:
             answer, goal_interview = self._continue_goal_interview(request)
         else:
-            financial_agent = FinancialAgent(self.client)
-            answer = financial_agent.run(
-                request.message,
-                history,
-                request.summary,
-                request.financial_context,
-            )
-            goal_interview = None
-            if financial_agent.selected_tool == FINANCIAL_GOAL_TOOL:
-                answer, goal_interview = self._run_goal_agent(request, None)
+            normalized_message = self._normalize_message(request.message)
+            if self._is_confirmation(normalized_message):
+                answer = self._no_active_goal_message(request.goal_already_exists)
+                goal_interview = None
+            elif self._is_cancellation(normalized_message):
+                answer = "현재 진행 중인 목표 설정이 없습니다."
+                goal_interview = None
+            elif (
+                request.goal_already_exists
+                and self._is_goal_creation_request(normalized_message)
+            ):
+                answer = self._existing_goal_message()
+                goal_interview = None
+            else:
+                financial_agent = FinancialAgent(self.client)
+                answer = financial_agent.run(
+                    request.message,
+                    history,
+                    request.summary,
+                    request.financial_context,
+                )
+                goal_interview = None
+                if financial_agent.selected_tool == FINANCIAL_GOAL_TOOL:
+                    if request.goal_already_exists:
+                        answer = self._existing_goal_message()
+                    else:
+                        answer, goal_interview = self._run_goal_agent(request, None)
         title = (
             generate_conversation_title(self.client, request.message, answer)
             if request.generate_title
@@ -46,8 +63,8 @@ class ChatService:
     ) -> tuple[str, GoalInterviewResponse]:
         draft = request.goal_draft
         assert draft is not None
-        normalized_message = re.sub(r"[\s.!?~]+", "", request.message).lower()
-        if "취소" in normalized_message or normalized_message in {"그만", "그만할래"}:
+        normalized_message = self._normalize_message(request.message)
+        if self._is_cancellation(normalized_message):
             cancelled = draft.model_copy(
                 update={"state": InterviewState.CANCELLED, "confirmed": False},
             )
@@ -78,6 +95,28 @@ class ChatService:
                 ),
             )
         return self._run_goal_agent(request, draft)
+
+    def _normalize_message(self, message: str) -> str:
+        return re.sub(r"[\s.!?~]+", "", message).lower()
+
+    def _is_cancellation(self, normalized_message: str) -> bool:
+        return "취소" in normalized_message or normalized_message in {"그만", "그만할래"}
+
+    def _is_goal_creation_request(self, normalized_message: str) -> bool:
+        if "목표" not in normalized_message:
+            return False
+        return any(
+            term in normalized_message
+            for term in ("새", "다른", "추가", "만들", "설정", "세우", "바꾸")
+        )
+
+    def _existing_goal_message(self) -> str:
+        return "이 채팅방에는 이미 금융 목표가 설정되어 있습니다. 새 목표를 설정하려면 새 채팅방을 만들어 주세요."
+
+    def _no_active_goal_message(self, goal_already_exists: bool) -> str:
+        if goal_already_exists:
+            return self._existing_goal_message()
+        return "현재 확정할 진행 중인 목표가 없습니다. 새 목표를 설정하려면 목표 내용을 말씀해 주세요."
 
     def _run_goal_agent(
         self,
