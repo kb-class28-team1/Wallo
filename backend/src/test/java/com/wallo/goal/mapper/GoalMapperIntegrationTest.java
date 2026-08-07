@@ -99,7 +99,13 @@ class GoalMapperIntegrationTest {
                 goalMapper.findGoalsByUserId(7L).get(0).getRequiredMonthlyAmount()
         );
         assertEquals(
-                3_250_000L,
+                2_000_000L,
+                goalMapper.findGoalsByUserId(7L).get(0).getCurrentAmount()
+        );
+        updateInitialAmount(goal.getGoalId(), 0L);
+        sqlSession.clearCache();
+        assertEquals(
+                0L,
                 goalMapper.findGoalsByUserId(7L).get(0).getCurrentAmount()
         );
         assertEquals(
@@ -230,6 +236,16 @@ class GoalMapperIntegrationTest {
              )) {
             resultSet.next();
             return resultSet.getString("status");
+        }
+    }
+
+    private void updateInitialAmount(Long goalId, long initialAmount) throws Exception {
+        try (Connection connection = dataSource.getConnection();
+             Statement statement = connection.createStatement()) {
+            statement.executeUpdate(
+                    "UPDATE FINANCIAL_GOALS SET initial_amount = " + initialAmount
+                            + " WHERE goal_id = " + goalId
+            );
         }
     }
 }

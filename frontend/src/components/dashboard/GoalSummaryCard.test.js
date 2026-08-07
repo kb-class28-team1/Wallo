@@ -39,7 +39,7 @@ describe("GoalSummaryCard", () => {
     expect(wrapper.text()).toContain("5,000,000원");
     expect(wrapper.text()).toContain("3,250,000원");
     expect(wrapper.text()).toContain("65%");
-    expect(wrapper.text()).toContain("연결 계좌 현재 잔액 기준");
+    expect(wrapper.text()).toContain("목표 설정 당시 준비금 기준");
     expect(wrapper.text()).toContain("월 필요 납입액");
     expect(wrapper.text()).not.toContain("진행 중");
     expect(wrapper.find(".goal-progress-bar").attributes("style")).toContain("width: 65%");

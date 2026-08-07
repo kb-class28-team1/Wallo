@@ -187,7 +187,7 @@ const submitAccountSelection = () => {
           class="goal-item"
         >
           <div class="goal-progress-summary mb-4">
-            <p class="goal-progress-caption mb-1">연결 계좌 현재 잔액 기준</p>
+            <p class="goal-progress-caption mb-1">목표 설정 당시 준비금 기준</p>
             <div class="d-flex align-items-baseline justify-content-between gap-3">
               <div class="goal-progress-amount">
                 <strong>{{ formatWon(getCurrentAmount(selectedGoal)) }}</strong>
