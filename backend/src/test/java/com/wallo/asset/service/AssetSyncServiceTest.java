@@ -148,4 +148,17 @@ class AssetSyncServiceTest {
         assertEquals("2026-08", snapshotCaptor.getValue().getMonth());
         assertEquals(53_400_000L, snapshotCaptor.getValue().getTotalAssets());
     }
+
+    @Test
+    void refreshesCurrentMonthSnapshotFromLiveTotal() {
+        when(assetMapper.selectTotalAssets(7L)).thenReturn(12_300_000L);
+
+        assetSyncService.refreshCurrentMonthSnapshot(7L);
+
+        ArgumentCaptor<AssetSyncDto.AssetSnapshot> snapshotCaptor =
+                ArgumentCaptor.forClass(AssetSyncDto.AssetSnapshot.class);
+        verify(assetSyncMapper).upsertAssetSnapshot(eq(7L), snapshotCaptor.capture());
+        assertEquals("2026-08", snapshotCaptor.getValue().getMonth());
+        assertEquals(12_300_000L, snapshotCaptor.getValue().getTotalAssets());
+    }
 }
