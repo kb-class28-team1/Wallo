@@ -4,8 +4,10 @@ import { useRouter } from "vue-router"
 
 const loadingDots = [0, 1, 2, 3, 4]
 const activeDot = ref(0)
+const canLogin = ref(false)
 const router = useRouter()
 let dotTimer
+let loginButtonTimer
 
 const goToLogin = () => {
   router.replace({ name: "login" })
@@ -15,10 +17,15 @@ onMounted(() => {
   dotTimer = window.setInterval(() => {
     activeDot.value = (activeDot.value + 1) % loadingDots.length
   }, 650)
+
+  loginButtonTimer = window.setTimeout(() => {
+    canLogin.value = true
+  }, 3000)
 })
 
 onUnmounted(() => {
   window.clearInterval(dotTimer)
+  window.clearTimeout(loginButtonTimer)
 })
 </script>
 
@@ -75,7 +82,7 @@ onUnmounted(() => {
         ></span>
       </div>
 
-      <button class="landing-login-button" type="button" @click="goToLogin">
+      <button v-if="canLogin" class="landing-login-button" type="button" @click="goToLogin">
         로그인하러 가기(삭제 예정)
       </button>
     </section>
