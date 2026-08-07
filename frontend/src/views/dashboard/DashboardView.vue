@@ -22,6 +22,10 @@ const {
   goals,
   isLoading: isGoalLoading,
   error: goalError,
+  availableAccounts,
+  isAccountLoading,
+  isAccountSaving,
+  accountError,
 } = storeToRefs(goalStore);
 const { assetTrendChartData, expenseChartData } = useDashboardCharts(assets, expenses);
 
@@ -42,9 +46,22 @@ const handleGoalRetry = () => {
   goalStore.fetchGoals();
 };
 
+const handleAccountRetry = () => {
+  goalStore.fetchAvailableAccounts();
+};
+
+const handleAccountSelect = async ({ goalId, accountId }) => {
+  try {
+    await goalStore.saveGoalAccount(goalId, accountId);
+  } catch {
+    // The store already exposes and alerts the API error; keep the component event handler settled.
+  }
+};
+
 onMounted(() => {
   dashboardStore.fetchDashboardSummary();
   goalStore.fetchGoals();
+  goalStore.fetchAvailableAccounts({ notifyError: false });
 });
 </script>
 
@@ -81,7 +98,13 @@ onMounted(() => {
           :goals="goals"
           :loading="isGoalLoading"
           :error="goalError"
+          :available-accounts="availableAccounts"
+          :account-loading="isAccountLoading"
+          :account-saving="isAccountSaving"
+          :account-error="accountError"
           @retry="handleGoalRetry"
+          @retry-accounts="handleAccountRetry"
+          @select-account="handleAccountSelect"
         />
       </div>
     </div>

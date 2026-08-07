@@ -11,7 +11,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.wallo.auth.CurrentUserProvider;
+import com.wallo.goal.dto.GoalAccountDto;
 import com.wallo.goal.dto.GoalDto;
+import com.wallo.goal.service.GoalAccountService;
 import com.wallo.goal.service.GoalService;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -20,12 +22,14 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 class GoalControllerTest {
 
     private final GoalService goalService = mock(GoalService.class);
+    private final GoalAccountService goalAccountService = mock(GoalAccountService.class);
     private final CurrentUserProvider currentUserProvider = mock(CurrentUserProvider.class);
     private MockMvc mockMvc;
 
@@ -36,7 +40,7 @@ class GoalControllerTest {
         objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
         mockMvc = MockMvcBuilders.standaloneSetup(
-                new GoalController(goalService, currentUserProvider)
+                new GoalController(goalService, goalAccountService, currentUserProvider)
         ).setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper)).build();
         when(currentUserProvider.getCurrentUserId()).thenReturn(7L);
     }
@@ -66,6 +70,36 @@ class GoalControllerTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data").isArray())
                 .andExpect(jsonPath("$.data").isEmpty());
+    }
+
+    @Test
+    void getAvailableAccountsReturnsOnlyGoalAccountCandidates() throws Exception {
+        when(goalAccountService.getAvailableAccounts(7L)).thenReturn(List.of(account()));
+
+        mockMvc.perform(get("/api/goals/available-accounts"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data[0].accountId").value(101))
+                .andExpect(jsonPath("$.data[0].bankName").value("Wallo Bank"))
+                .andExpect(jsonPath("$.data[0].accountType").value("입출금"))
+                .andExpect(jsonPath("$.data[0].selected").value(false));
+
+        verify(goalAccountService).getAvailableAccounts(7L);
+    }
+
+    @Test
+    void selectAccountPassesAuthenticatedUserGoalAndAccountIds() throws Exception {
+        when(goalAccountService.selectAccount(7L, 31L, 101L)).thenReturn(account());
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .put("/api/goals/31/account")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"accountId\":101}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.accountId").value(101));
+
+        verify(goalAccountService).selectAccount(7L, 31L, 101L);
     }
 
     @Test
@@ -110,6 +144,19 @@ class GoalControllerTest {
                 "ACTIVE",
                 LocalDateTime.of(2026, 8, 7, 12, 30),
                 LocalDateTime.of(2026, 8, 7, 12, 30)
+        );
+    }
+
+    private GoalAccountDto.AvailableAccount account() {
+        return new GoalAccountDto.AvailableAccount(
+                101L,
+                "Wallo Bank",
+                "생활비 통장",
+                "1234-****-7890",
+                "입출금",
+                2_500_000L,
+                "KRW",
+                false
         );
     }
 }

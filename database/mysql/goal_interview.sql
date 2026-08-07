@@ -49,6 +49,20 @@ CREATE TABLE IF NOT EXISTS FINANCIAL_GOALS (
   DEFAULT CHARSET=utf8mb4
   COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS FINANCIAL_GOAL_ACCOUNTS (
+    goal_id BIGINT NOT NULL PRIMARY KEY,
+    account_id BIGINT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_financial_goal_accounts_account (account_id),
+    CONSTRAINT fk_financial_goal_accounts_goal
+        FOREIGN KEY (goal_id) REFERENCES FINANCIAL_GOALS(goal_id) ON DELETE CASCADE,
+    CONSTRAINT fk_financial_goal_accounts_account
+        FOREIGN KEY (account_id) REFERENCES ACCOUNTS(account_id) ON DELETE CASCADE
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_unicode_ci;
+
 -- 기존 로컬 DB는 생성 시점에 따라 부모 테이블의 엔진이나 외래 키 메타데이터가
 -- 다를 수 있다. 이 마이그레이션은 데이터 보존을 우선하여 테이블과 인덱스만
 -- 추가한다. 깨끗한 초기화 환경에서는 dbInit.sql이 모든 외래 키를 구성한다.

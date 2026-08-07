@@ -1,10 +1,16 @@
 import { createPinia, setActivePinia } from "pinia";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getGoals } from "@/api/goalApi";
+import {
+  getAvailableGoalAccounts,
+  getGoals,
+  selectGoalAccount,
+} from "@/api/goalApi";
 import { useGoalStore } from "./goalStore";
 
 vi.mock("@/api/goalApi", () => ({
+  getAvailableGoalAccounts: vi.fn(),
   getGoals: vi.fn(),
+  selectGoalAccount: vi.fn(),
 }));
 
 describe("goalStore", () => {
@@ -51,5 +57,40 @@ describe("goalStore", () => {
     expect(store.error).toBe("goal request failed");
     expect(store.isLoading).toBe(false);
     expect(alert).toHaveBeenCalledWith("goal request failed");
+  });
+
+  it("stores eligible accounts and their selected state", async () => {
+    const accounts = [
+      { accountId: 101, bankName: "Wallo Bank", accountType: "입출금", selected: true },
+      { accountId: 102, bankName: "Wallo Securities", accountType: "CMA", selected: false },
+    ];
+    getAvailableGoalAccounts.mockResolvedValue({ success: true, data: accounts });
+
+    const store = useGoalStore();
+
+    await expect(store.fetchAvailableAccounts()).resolves.toEqual(accounts);
+    expect(store.availableAccounts).toEqual(accounts);
+    expect(store.isAccountLoading).toBe(false);
+  });
+
+  it("updates the selected account after saving", async () => {
+    const store = useGoalStore();
+    store.availableAccounts = [
+      { accountId: 101, selected: true },
+      { accountId: 102, selected: false },
+    ];
+    selectGoalAccount.mockResolvedValue({
+      success: true,
+      data: { accountId: 102, selected: true },
+    });
+
+    await expect(store.saveGoalAccount(31, 102)).resolves.toEqual({
+      accountId: 102,
+      selected: true,
+    });
+
+    expect(store.availableAccounts[0].selected).toBe(false);
+    expect(store.availableAccounts[1].selected).toBe(true);
+    expect(store.isAccountSaving).toBe(false);
   });
 });

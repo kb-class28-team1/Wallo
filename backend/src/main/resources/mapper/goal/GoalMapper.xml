@@ -92,6 +92,30 @@
         LIMIT 1
     </select>
 
+    <select id="findGoalById"
+            resultMap="financialGoalMap">
+        SELECT
+            goal_id,
+            session_id,
+            user_id,
+            conversation_id,
+            title,
+            goal_type,
+            target_amount,
+            target_date,
+            motivation,
+            priority,
+            initial_amount,
+            required_monthly_amount,
+            status,
+            created_at,
+            updated_at
+        FROM FINANCIAL_GOALS
+        WHERE user_id = #{userId}
+          AND goal_id = #{goalId}
+        LIMIT 1
+    </select>
+
     <select id="findGoalByConversationId"
             resultMap="financialGoalMap">
         SELECT
