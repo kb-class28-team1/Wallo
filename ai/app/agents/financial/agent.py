@@ -4,12 +4,20 @@ from typing import Any
 
 from groq import Groq
 
+from app.agents.financial.asset_analysis_cache import (
+    build_cache_key,
+    cache_answer,
+    get_cached_answer,
+)
 from app.agents.financial.prompts import SYSTEM_PROMPT
 from app.agents.financial.tools.registry import TOOL_SCHEMAS, execute_tool
 from app.agents.goal.context import FinancialContext
 from app.core.config import get_groq_model
 
 logger = logging.getLogger("wallo_ai")
+ASSET_ANALYSIS_TOOL = "analyze_assets"
+DEFAULT_FINAL_COMPLETION_TOKENS = 500
+ASSET_ANALYSIS_FINAL_COMPLETION_TOKENS = 1200
 
 
 def parse_tool_arguments(raw_arguments: str) -> dict[str, Any]:
@@ -70,6 +78,20 @@ class FinancialAgent:
             parse_tool_arguments(tool_call.function.arguments),
         )
         logger.info("[AI TOOL] selected=%s status=%s", tool_call.function.name, tool_result.status)
+        asset_cache_key = None
+        if (
+            self.selected_tool == ASSET_ANALYSIS_TOOL
+            and tool_result.status == "success"
+            and isinstance(tool_result.data, dict)
+        ):
+            asset_cache_key = build_cache_key(tool_result.data, self.model)
+            cached_answer = get_cached_answer(asset_cache_key)
+            if cached_answer is not None:
+                logger.info(
+                    "[AI ASSET CACHE] hit profileId=%s",
+                    tool_result.data.get("profileId"),
+                )
+                return cached_answer
         messages.extend([
             {
                 "role": "assistant",
@@ -82,12 +104,21 @@ class FinancialAgent:
                 "content": json.dumps(tool_result.to_dict(), ensure_ascii=False),
             },
         ])
-        final_completion = self.client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            max_completion_tokens=500,
-        )
-        return final_completion.choices[0].message.content or "도구 호출 결과를 정리하지 못했습니다."
+        final_options: dict[str, Any] = {
+            "model": self.model,
+            "messages": messages,
+            "max_completion_tokens": DEFAULT_FINAL_COMPLETION_TOKENS,
+        }
+        if self.selected_tool == ASSET_ANALYSIS_TOOL:
+            final_options.update({
+                "reasoning_effort": "low",
+                "max_completion_tokens": ASSET_ANALYSIS_FINAL_COMPLETION_TOKENS,
+            })
+        final_completion = self.client.chat.completions.create(**final_options)
+        answer = final_completion.choices[0].message.content or "도구 호출 결과를 정리하지 못했습니다."
+        if self.selected_tool == ASSET_ANALYSIS_TOOL:
+            cache_answer(asset_cache_key, answer)
+        return answer
 
 
 def generate_answer(client: Groq, user_message: str) -> str:

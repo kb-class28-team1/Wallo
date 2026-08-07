@@ -21,6 +21,9 @@ public interface ChallengeService {
     /** 초대 코드로 기존 챌린지에 참여하고 사용자의 현재 챌린지를 연결한다. */
     JoinChallengeResponse joinChallenge(Long userId, JoinChallengeRequest request);
 
+    /** 로그인 사용자를 현재 챌린지에서 탈퇴시키고 사용자 연결을 해제한다. */
+    void leaveChallenge(Long userId, Long challengeId);
+
     /** 로그인 사용자의 현재 챌린지 참여 상태와 챌린지 정보를 조회한다. */
     CurrentChallengeResponse getCurrentChallenge(Long userId);
 

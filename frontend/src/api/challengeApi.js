@@ -31,8 +31,7 @@ export const grantWeeklyRankingRewardsForTest = async () => {
     const response = await httpClient.post("/api/challenges/rankings/weekly/reward/test")
     return response.data
   } catch (error) {
-    const message =
-      error.response?.data?.message || "주간 랭킹 보상을 지급하지 못했습니다."
+    const message = error.response?.data?.message || "주간 랭킹 보상을 지급하지 못했습니다."
     throw new Error(message)
   }
 }
@@ -67,6 +66,14 @@ export const joinChallenge = async (inviteCode) => {
     return response.data
   } catch (error) {
     throw new Error(getApiErrorMessage(error, "챌린지에 참여하지 못했습니다."))
+  }
+}
+
+export const leaveChallenge = async (challengeId) => {
+  try {
+    await httpClient.delete(`/api/challenges/${challengeId}/membership`)
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error, "챌린지에서 탈퇴하지 못했습니다."))
   }
 }
 

@@ -35,6 +35,11 @@ public interface ChallengeMapper {
             @Param("userId") Long userId,
             @Param("challengeId") Long challengeId);
 
+    /** 사용자의 현재 챌린지 연결을 탈퇴 요청 챌린지에 한해 해제한다. */
+    int clearCurrentChallengeId(
+            @Param("userId") Long userId,
+            @Param("challengeId") Long challengeId);
+
     /** 초대 코드 생성 시 중복 여부를 확인한다. */
     // countByInviteCode - 초대 코드 중복 확인
     int countByInviteCode(@Param("inviteCode") String inviteCode);

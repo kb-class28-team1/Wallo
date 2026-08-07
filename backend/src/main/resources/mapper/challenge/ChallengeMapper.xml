@@ -133,6 +133,13 @@
           AND current_challenge_id IS NULL
     </update>
 
+    <update id="clearCurrentChallengeId">
+        UPDATE users
+        SET current_challenge_id = NULL
+        WHERE id = #{userId}
+          AND current_challenge_id = #{challengeId}
+    </update>
+
     <select id="countByInviteCode" resultType="int">
         SELECT COUNT(*)
         FROM challenge

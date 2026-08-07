@@ -1,0 +1,14 @@
+<svg width="360" height="230" viewBox="0 0 360 230" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Wallo 펭귄 주변의 별과 이동선</title>
+  <desc>보라색 점과 반짝이는 별, 부드러운 이동선 장식</desc>
+  <g opacity="0.78">
+    <path d="M22 82H139" stroke="#EEF0FF" stroke-width="3" stroke-linecap="round"/>
+    <path d="M49 207H156" stroke="#F0F1FF" stroke-width="3" stroke-linecap="round"/>
+    <path d="M246 114H333" stroke="#F5F5FF" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="75" cy="117" r="4" fill="#B9B3FF"/>
+    <circle cx="20" cy="160" r="4" fill="#B6B1FF"/>
+    <circle cx="117" cy="214" r="4" fill="#C5BCFF"/>
+    <circle cx="302" cy="179" r="3" fill="#D4CCFF"/>
+    <path d="M123 164L128 175L139 180L128 185L123 196L118 185L107 180L118 175L123 164Z" fill="#AAA5FF"/>
+  </g>
+</svg>
