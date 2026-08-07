@@ -58,8 +58,15 @@ import json
 import unittest
 from types import SimpleNamespace
 from unittest.mock import Mock
+from unittest.mock import patch
 
 from app.agents.financial.agent import generate_answer
+from app.agents.financial.asset_analysis_cache import clear_asset_analysis_cache
+from app.agents.financial.tools.asset_analysis import (
+    build_metrics,
+    execute as execute_asset_analysis,
+    load_selected_profiles,
+)
 from app.chat.title_service import generate_conversation_title
 from app.demo.repository import load_demo_profiles
 from app.demo.service import (
@@ -75,6 +82,12 @@ def _completion(message):
 
 
 class GenerateAnswerTest(unittest.TestCase):
+    def setUp(self):
+        clear_asset_analysis_cache()
+
+    def tearDown(self):
+        clear_asset_analysis_cache()
+
     def test_returns_direct_answer_when_model_does_not_select_tool(self):
         client = Mock()
         client.chat.completions.create.return_value = _completion(
@@ -115,14 +128,51 @@ class GenerateAnswerTest(unittest.TestCase):
             _completion(final_message),
         ]
 
-        answer = generate_answer(client, "내 자산을 분석해줘")
+        with patch.dict("os.environ", {"DEMO_ASSET_PROFILE_ID": "7"}):
+            answer = generate_answer(client, "내 자산을 분석해줘")
 
         self.assertEqual("자산 분석 기능을 선택했습니다.", answer)
         self.assertEqual(2, client.chat.completions.create.call_count)
         second_messages = client.chat.completions.create.call_args_list[1].kwargs["messages"]
         tool_result = json.loads(second_messages[-1]["content"])
         self.assertEqual("analyze_assets", tool_result["tool"])
-        self.assertEqual("pending_integration", tool_result["status"])
+        self.assertEqual("success", tool_result["status"])
+        self.assertEqual("demo_json", tool_result["data"]["dataMode"])
+        self.assertEqual(7, tool_result["data"]["profileId"])
+        final_call = client.chat.completions.create.call_args_list[1].kwargs
+        self.assertEqual(1200, final_call["max_completion_tokens"])
+        self.assertEqual("low", final_call["reasoning_effort"])
+
+    def test_reuses_cached_asset_report_for_same_profile(self):
+        client = Mock()
+        tool_call = SimpleNamespace(
+            id="call-asset",
+            function=SimpleNamespace(
+                name="analyze_assets",
+                arguments=json.dumps({"request": "내 자산을 분석해줘"}),
+            ),
+            model_dump=Mock(return_value={
+                "id": "call-asset",
+                "type": "function",
+                "function": {
+                    "name": "analyze_assets",
+                    "arguments": '{"request": "내 자산을 분석해줘"}',
+                },
+            }),
+        )
+        selected_tool_message = SimpleNamespace(content=None, tool_calls=[tool_call])
+        client.chat.completions.create.side_effect = [
+            _completion(selected_tool_message),
+            _completion(SimpleNamespace(content="캐시할 자산분석 보고서")),
+            _completion(selected_tool_message),
+        ]
+
+        first_answer = generate_answer(client, "내 자산을 분석해줘")
+        second_answer = generate_answer(client, "자산 상태를 다시 알려줘")
+
+        self.assertEqual("캐시할 자산분석 보고서", first_answer)
+        self.assertEqual(first_answer, second_answer)
+        self.assertEqual(3, client.chat.completions.create.call_count)
 
     def test_generates_title_through_required_tool_call(self):
         client = Mock()
@@ -199,6 +249,34 @@ class DemoAssetAnalysisTest(unittest.TestCase):
         self.assertNotIn("raw_user_content", compacted)
         self.assertNotIn("total_assets_evidence", compacted["assets"])
         self.assertEqual(106010000, compacted["assets"]["total_assets_krw"])
+
+
+class ChatAssetAnalysisToolTest(unittest.TestCase):
+    def test_loads_default_profile_from_selected_json(self):
+        profiles = load_selected_profiles()
+
+        self.assertEqual({3, 5, 7, 12}, set(profiles))
+        self.assertEqual("시금치커리", profiles[7]["nickname"])
+
+    def test_returns_calculated_demo_profile_for_asset_analysis(self):
+        with patch.dict("os.environ", {"DEMO_ASSET_PROFILE_ID": "12"}):
+            result = execute_asset_analysis(
+                "analyze_assets",
+                {"request": "내 자산을 분석해줘"},
+            )
+
+        self.assertEqual("success", result.status)
+        self.assertEqual(12, result.data["profileId"])
+        self.assertEqual("demo_json", result.data["dataMode"])
+        self.assertEqual(182600000, result.data["calculatedMetrics"]["netAssetsKrw"])
+
+    def test_calculates_metrics_without_llm_arithmetic(self):
+        metrics = build_metrics(load_selected_profiles()[7])
+
+        self.assertEqual(1560000, metrics["monthlySurplusKrw"])
+        self.assertEqual(18720000, metrics["annualSavingKrw"])
+        self.assertEqual(65.0, metrics["savingRatePercent"])
+        self.assertEqual(27000000, metrics["netAssetsKrw"])
 
 
 if __name__ == "__main__":

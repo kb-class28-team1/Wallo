@@ -1,0 +1,225 @@
+{
+  "selection_metadata": {
+    "source_file": "money_log_agent_inputs.json",
+    "selected_profile_count": 4,
+    "selection_method": "총자산, 월 순소득, 월 저축액, 월 지출액을 비교하고 원문에 나타난 고용·거주·자산 구성의 희소성을 함께 검토",
+    "unusual_profile_count": 3,
+    "ordinary_profile_count": 1,
+    "amount_unit": "KRW",
+    "notes": [
+      "원본 구조화 데이터에서 누락된 자산은 raw_user_content와 total_assets_evidence를 근거로 보완했다.",
+      "범위 또는 비율로만 제공된 값은 임의의 단일 금액으로 확정하지 않았다.",
+      "이 파일은 비교·테스트용 선별 데이터이며 실제 금융정보가 아니다."
+    ]
+  },
+  "profiles": [
+    {
+      "selection_type": "unusual",
+      "selection_rank": 1,
+      "profile_id": 5,
+      "nickname": "소영",
+      "title": "투자해야 한다는 것은 알지만 막상 시작하려니 어려워요",
+      "selection_reason": "현재 월소득은 낮지만 총자산은 2억 8천만 원으로 매우 높고 자산의 약 80%가 예금에 집중된 저소득·고자산 사례",
+      "employment": "16년 차 마케터 퇴직 후 프리랜서·파트타임",
+      "housing_type": "family_home",
+      "income": {
+        "annual_gross_income_krw": 65000000,
+        "annual_gross_income_context": "과거 직장 연봉",
+        "current_monthly_net_income_krw": 1500000,
+        "current_monthly_income_range_krw": {
+          "min": 1000000,
+          "max": 2000000
+        }
+      },
+      "cashflow": {
+        "monthly_saving_krw": 1000000,
+        "monthly_expense_krw": 500000
+      },
+      "assets": {
+        "total_assets_krw": 280000000,
+        "items": [
+          {
+            "name": "예적금",
+            "category": "saving_cash",
+            "share_percent_approx": 80,
+            "amount_krw_derived_approx": 224000000
+          },
+          {
+            "name": "주식",
+            "category": "investment",
+            "amount_range_krw": {
+              "min": 10000000,
+              "max": 20000000
+            }
+          },
+          {
+            "name": "기타 미분류 자산",
+            "category": "other",
+            "amount_krw": null
+          }
+        ]
+      },
+      "total_debt_krw": 0,
+      "data_quality_notes": [
+        "예적금 80%는 사용자 원문에 기재된 비율이며 금액은 총자산에 비율을 적용한 근사값이다.",
+        "주식 금액은 1천만~2천만 원 범위로만 제공됐다."
+      ]
+    },
+    {
+      "selection_type": "unusual",
+      "selection_rank": 2,
+      "profile_id": 12,
+      "nickname": "사막여우",
+      "title": "일을 그만두고 재테크도 방향을 잃었어요",
+      "selection_reason": "현재 소득과 저축이 모두 0원이지만 총자산은 1억 8,260만 원이며 생활비와 비정기 지출이 계속 발생하는 무소득·고자산 사례",
+      "employment": "7년 차 마케터 퇴직 후 이직 준비 중",
+      "housing_type": "monthly_rent",
+      "income": {
+        "annual_gross_income_krw": 0,
+        "previous_annual_gross_income_krw": 55000000,
+        "current_monthly_net_income_krw": 0
+      },
+      "cashflow": {
+        "monthly_saving_krw": 0,
+        "monthly_fixed_expense_krw": 550000,
+        "monthly_variable_expense_krw": 1030000,
+        "annual_irregular_expense_range_krw": {
+          "min": 3500000,
+          "max": 7000000
+        }
+      },
+      "assets": {
+        "total_assets_krw": 182600000,
+        "items": [
+          {
+            "name": "비상금",
+            "category": "saving_cash",
+            "amount_krw": 10000000
+          },
+          {
+            "name": "예적금",
+            "category": "saving_cash",
+            "amount_krw": 121800000
+          },
+          {
+            "name": "청약금",
+            "category": "saving_cash",
+            "amount_krw": 7000000
+          },
+          {
+            "name": "개인연금",
+            "category": "financial_account",
+            "amount_krw": 16000000
+          },
+          {
+            "name": "주식",
+            "category": "investment",
+            "amount_krw": 17800000,
+            "included_sub_items": [
+              {
+                "name": "미국 주식",
+                "amount_krw": 4100000
+              }
+            ]
+          },
+          {
+            "name": "월세 보증금",
+            "category": "real_estate",
+            "amount_krw": 10000000
+          }
+        ]
+      },
+      "total_debt_krw": 0,
+      "data_quality_notes": [
+        "미국 주식 410만 원은 전체 주식 1,780만 원에 포함된 하위 항목으로 중복 합산하지 않는다.",
+        "자산 항목 합계는 총자산 1억 8,260만 원과 일치한다."
+      ]
+    },
+    {
+      "selection_type": "unusual",
+      "selection_rank": 3,
+      "profile_id": 3,
+      "nickname": "행복한 쿼카",
+      "title": "장기 목표로 가기 전 잡고 갈 중간 목표가 필요해요",
+      "selection_reason": "만 25세에 총자산 1억 원 이상을 보유하고 호주 소득·예금과 국내 청약·예금·주식을 함께 관리하는 해외 거주 고저축 사례",
+      "employment": "호주 이탈리아 레스토랑 5년 차 셰프",
+      "housing_type": "monthly_rent",
+      "income": {
+        "annual_gross_income_krw": 73150000,
+        "current_monthly_net_income_krw": 5500000
+      },
+      "cashflow": {
+        "monthly_saving_krw": 3000000,
+        "monthly_expense_krw": 2500000
+      },
+      "assets": {
+        "total_assets_krw": 106010000,
+        "items": [
+          {
+            "name": "주택청약",
+            "category": "saving_cash",
+            "amount_krw": 7420000
+          },
+          {
+            "name": "국내 예금",
+            "category": "saving_cash",
+            "amount_krw": 20000000
+          },
+          {
+            "name": "호주 은행 예금",
+            "category": "saving_cash",
+            "amount_krw": 62230000
+          },
+          {
+            "name": "주식",
+            "category": "investment",
+            "amount_krw": 16360000
+          }
+        ]
+      },
+      "total_debt_krw": 0,
+      "data_quality_notes": [
+        "원본 구조화 items에서 누락된 호주 은행 예금 6,223만 원을 자산 근거 문장으로 보완했다.",
+        "보완 후 자산 항목 합계는 총자산 1억 601만 원과 일치한다."
+      ]
+    },
+    {
+      "selection_type": "ordinary",
+      "selection_rank": 1,
+      "profile_id": 7,
+      "nickname": "시금치커리",
+      "title": "초보 다음 단계의 공부법과 자산 운용 방법이 궁금해요",
+      "selection_reason": "월소득 240만 원, 월세 거주, 총자산 2,700만 원으로 비교 가능한 완전 데이터 중 중앙 수준에 가깝고 저축과 투자를 병행하는 기준 사례",
+      "employment": "5년 차 스포츠 마케터",
+      "housing_type": "monthly_rent",
+      "income": {
+        "annual_gross_income_krw": 32400000,
+        "current_monthly_net_income_krw": 2400000
+      },
+      "cashflow": {
+        "monthly_saving_krw": 1560000,
+        "monthly_expense_krw": 840000
+      },
+      "assets": {
+        "total_assets_krw": 27000000,
+        "items": [
+          {
+            "name": "주식 투자",
+            "category": "investment",
+            "amount_krw": 15900000
+          },
+          {
+            "name": "현금·적금 등 나머지 자산",
+            "category": "saving_cash",
+            "amount_krw_derived": 11100000
+          }
+        ]
+      },
+      "total_debt_krw": 0,
+      "data_quality_notes": [
+        "나머지 자산 1,110만 원은 총자산에서 주식 투자액을 차감해 계산했다.",
+        "과거 부채와 투자 손실 경험은 현재 부채에 포함하지 않았다."
+      ]
+    }
+  ]
+}

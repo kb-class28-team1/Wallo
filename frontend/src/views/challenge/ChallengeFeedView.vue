@@ -1,9 +1,10 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue"
-import { useRoute } from "vue-router"
+import { useRoute, useRouter } from "vue-router"
 import { useUserStore } from "@/stores/userStore"
 import { formatWon } from "@/commonUtils/formatters"
 import AppDialog from "@/components/common/AppDialog.vue"
+import { leaveChallenge as leaveChallengeRequest } from "@/api/challengeApi"
 import {
   analyzeFeed,
   createFeed,
@@ -11,40 +12,45 @@ import {
   getFeeds,
   getRoomMessages,
   addFeedLike,
-} from '@/api/feedApi'
-import { EXPENSE_CATEGORY_META, FEED_CATEGORY_CODES } from '@/features/financial/financialCategories'
+} from "@/api/feedApi"
+import {
+  EXPENSE_CATEGORY_META,
+  FEED_CATEGORY_CODES,
+} from "@/features/financial/financialCategories"
 
 const route = useRoute()
+const router = useRouter()
 const userStore = useUserStore()
 const challengeId = computed(() => Number(route.params.challengeId))
-const focusedFeedId = computed(() => String(route.query.focusFeedId || ''))
+const focusedFeedId = computed(() => String(route.query.focusFeedId || ""))
 const feeds = ref([])
 const messages = ref([])
-const challengeName = ref('챌린지')
-const inviteCode = ref('')
+const challengeName = ref("챌린지")
+const inviteCode = ref("")
 const mySavingTotal = ref(0)
-const activeTab = ref(String(route.query.scope || 'ALL').toUpperCase() === 'ME' ? 'mine' : 'all')
+const activeTab = ref(String(route.query.scope || "ALL").toUpperCase() === "ME" ? "mine" : "all")
 const isLoading = ref(true)
-const errorMessage = ref('')
+const errorMessage = ref("")
 const modalOpen = ref(false)
 const isAnalyzing = ref(false)
 const isUploading = ref(false)
 const likingFeedId = ref(null)
 const likeBursts = ref([])
 const deletingFeedId = ref(null)
-const chatInput = ref('')
+const chatInput = ref("")
 const chatInputElement = ref(null)
 const mentionedFeed = ref(null)
 const fileInput = ref(null)
-const previewUrl = ref('')
+const previewUrl = ref("")
 const focusedFeedElement = ref(null)
 const messagesElement = ref(null)
 const isSendingMessage = ref(false)
 const dialogVisible = ref(false)
-const dialogTitle = ref('알림')
-const dialogMessage = ref('')
-const dialogConfirmText = ref('확인')
+const dialogTitle = ref("알림")
+const dialogMessage = ref("")
+const dialogConfirmText = ref("확인")
 const dialogShowCancel = ref(false)
+const isLeavingChallenge = ref(false)
 let chatSocket = null
 let chatReconnectTimer = null
 let chatReconnectAttempts = 0
@@ -55,17 +61,17 @@ let dialogResolver = null
 
 const form = reactive({
   file: null,
-  category: '',
-  caption: '',
+  category: "",
+  caption: "",
   savingAmount: 0,
-  analysisSummary: '',
+  analysisSummary: "",
   confidenceScore: 0,
 })
 
 const spendingTypes = [
-  { value: 'SPENT', label: '💸 썼다' },
-  { value: 'REDUCED', label: '✂️ 줄였다' },
-  { value: 'SAVED', label: '🐷 모았다' },
+  { value: "SPENT", label: "💸 썼다" },
+  { value: "REDUCED", label: "✂️ 줄였다" },
+  { value: "SAVED", label: "🐷 모았다" },
 ]
 const categories = FEED_CATEGORY_CODES.map((value) => ({
   value,
@@ -73,18 +79,12 @@ const categories = FEED_CATEGORY_CODES.map((value) => ({
 }))
 const categoryLabel = (value, custom) =>
   custom || EXPENSE_CATEGORY_META[value]?.label || value || "기타"
-const spendingLabel = (value) =>
-  spendingTypes.find((item) => item.value === value)?.label || value
+const spendingLabel = (value) => spendingTypes.find((item) => item.value === value)?.label || value
 const isVideoFile = computed(() => form.file?.type?.startsWith("video/"))
 const roomTitle = computed(() => `${challengeName.value} 채팅방`)
-const DEFAULT_SPENDING_TYPE = 'REDUCED'
+const DEFAULT_SPENDING_TYPE = "REDUCED"
 
-const openDialog = ({
-  title = '알림',
-  message,
-  confirmText = '확인',
-  showCancel = false,
-}) =>
+const openDialog = ({ title = "알림", message, confirmText = "확인", showCancel = false }) =>
   new Promise((resolve) => {
     dialogTitle.value = title
     dialogMessage.value = message
@@ -105,7 +105,7 @@ const isMyFeed = (feed) => Number(feed.userId) === Number(userStore.user?.id)
 
 // 내 게시물에서 전달한 feedId와 현재 피드의 id가 같은지 확인함.
 const isFocusedFeed = (feed) => String(feed.id) === focusedFeedId.value
-const getFeedCardClass = (feed) => (isFocusedFeed(feed) ? 'focused-feed' : '')
+const getFeedCardClass = (feed) => (isFocusedFeed(feed) ? "focused-feed" : "")
 const setFocusedFeedElement = (element, feed) => {
   if (isFocusedFeed(feed)) {
     focusedFeedElement.value = element
@@ -120,16 +120,16 @@ const scrollToFocusedFeed = async () => {
 
   await nextTick()
   focusedFeedElement.value?.scrollIntoView({
-    behavior: 'smooth',
-    block: 'center',
+    behavior: "smooth",
+    block: "center",
   })
 }
 
 const loadFeeds = async () => {
-  const data = await getFeeds(challengeId.value, activeTab.value === 'mine')
+  const data = await getFeeds(challengeId.value, activeTab.value === "mine")
   feeds.value = data.feeds
   challengeName.value = data.challengeName
-  inviteCode.value = data.inviteCode || ''
+  inviteCode.value = data.inviteCode || ""
   mySavingTotal.value = data.mySavingTotal
 }
 const isNearMessagesBottom = () => {
@@ -151,7 +151,7 @@ const loadMessages = async ({ forceScroll = false } = {}) => {
 }
 
 const chatWebSocketUrl = () => {
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:"
   return `${protocol}//${window.location.host}/ws/challenges/${challengeId.value}`
 }
 
@@ -163,12 +163,12 @@ const handleChatSocketMessage = async (event) => {
     return
   }
 
-  if (payload.type === 'ERROR') {
-    openDialog({ message: payload.message || '메시지를 보내지 못했습니다.' })
+  if (payload.type === "ERROR") {
+    openDialog({ message: payload.message || "메시지를 보내지 못했습니다." })
     return
   }
 
-  if (payload.type !== 'MESSAGE' || !payload.message?.id) return
+  if (payload.type !== "MESSAGE" || !payload.message?.id) return
   const incomingMessage = payload.message
   if (messages.value.some((item) => Number(item.id) === Number(incomingMessage.id))) return
 
@@ -218,7 +218,7 @@ const disconnectChatSocket = () => {
 }
 const loadPage = async () => {
   isLoading.value = true
-  errorMessage.value = ''
+  errorMessage.value = ""
   try {
     await Promise.all([loadFeeds(), loadMessages()])
   } catch (error) {
@@ -239,27 +239,51 @@ const copyInviteCode = async () => {
   if (!inviteCode.value) return
   try {
     await navigator.clipboard.writeText(inviteCode.value)
-    await openDialog({ message: '초대 코드가 복사되었습니다.' })
+    await openDialog({ message: "초대 코드가 복사되었습니다." })
   } catch {
     await openDialog({ message: `초대 코드: ${inviteCode.value}` })
   }
 }
+
+const leaveCurrentChallenge = async () => {
+  if (isLeavingChallenge.value) return
+
+  const confirmed = await openDialog({
+    title: "챌린지 탈퇴",
+    message: `${challengeName.value}에서 탈퇴할까요?\n탈퇴하면 이 챌린지의 피드와 채팅을 더 이상 이용할 수 없습니다.`,
+    confirmText: "탈퇴하기",
+    showCancel: true,
+  })
+  if (!confirmed) return
+
+  isLeavingChallenge.value = true
+  try {
+    await leaveChallengeRequest(challengeId.value)
+    disconnectChatSocket()
+    await router.replace({ name: "current-challenge" })
+  } catch (error) {
+    openDialog({ message: error.message })
+  } finally {
+    isLeavingChallenge.value = false
+  }
+}
+
 const openModal = () => {
   modalOpen.value = true
 }
 const closeModal = () => {
   modalOpen.value = false
   if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
-  previewUrl.value = ''
+  previewUrl.value = ""
   Object.assign(form, {
     file: null,
-    category: '',
-    caption: '',
+    category: "",
+    caption: "",
     savingAmount: 0,
-    analysisSummary: '',
+    analysisSummary: "",
     confidenceScore: 0,
   })
-  if (fileInput.value) fileInput.value.value = ''
+  if (fileInput.value) fileInput.value.value = ""
 }
 const addLike = async (feed) => {
   if (likingFeedId.value !== null) return
@@ -287,9 +311,9 @@ const addLike = async (feed) => {
 const removeFeed = async (feed) => {
   if (!isMyFeed(feed) || deletingFeedId.value !== null) return
   const confirmed = await openDialog({
-    title: '피드 삭제',
-    message: '이 피드를 삭제할까요?',
-    confirmText: '삭제',
+    title: "피드 삭제",
+    message: "이 피드를 삭제할까요?",
+    confirmText: "삭제",
     showCancel: true,
   })
   if (!confirmed) return
@@ -307,26 +331,26 @@ const chooseFile = () => fileInput.value?.click()
 const handleFile = async (event) => {
   const file = event.target.files?.[0]
   if (!file) return
-  if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
-    await openDialog({ message: '사진 또는 영상 파일을 선택해 주세요.' })
+  if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
+    await openDialog({ message: "사진 또는 영상 파일을 선택해 주세요." })
     return
   }
   if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
   form.file = file
   previewUrl.value = URL.createObjectURL(file)
-  form.analysisSummary = ''
+  form.analysisSummary = ""
 }
 const validationMessage = ({ requireCaption = false } = {}) => {
-  if (!form.file) return '사진이나 영상을 선택해 주세요.'
-  if (!form.category) return '세부 카테고리를 선택해 주세요.'
-  if (requireCaption && !form.caption.trim()) return '한줄요약을 작성해주세요'
-  return ''
+  if (!form.file) return "사진이나 영상을 선택해 주세요."
+  if (!form.category) return "세부 카테고리를 선택해 주세요."
+  if (requireCaption && !form.caption.trim()) return "한줄요약을 작성해주세요"
+  return ""
 }
 const makeFormData = () => {
   const data = new FormData()
-  data.append('media', form.file)
-  data.append('spendingType', DEFAULT_SPENDING_TYPE)
-  data.append('category', form.category)
+  data.append("media", form.file)
+  data.append("spendingType", DEFAULT_SPENDING_TYPE)
+  data.append("category", form.category)
   return data
 }
 const requestAnalysis = async () => {
@@ -347,14 +371,14 @@ const requestAnalysis = async () => {
 const uploadFeed = async () => {
   const invalid = validationMessage({ requireCaption: true })
   if (invalid) return openDialog({ message: invalid })
-  if (!form.analysisSummary) return openDialog({ message: '먼저 AI 분석을 진행해 주세요.' })
+  if (!form.analysisSummary) return openDialog({ message: "먼저 AI 분석을 진행해 주세요." })
   isUploading.value = true
   try {
     const data = makeFormData()
-    data.append('caption', form.caption)
-    data.append('savingAmount', String(form.savingAmount))
-    data.append('analysisSummary', form.analysisSummary)
-    data.append('confidenceScore', String(form.confidenceScore))
+    data.append("caption", form.caption)
+    data.append("savingAmount", String(form.savingAmount))
+    data.append("analysisSummary", form.analysisSummary)
+    data.append("confidenceScore", String(form.confidenceScore))
     await createFeed(challengeId.value, data)
     closeModal()
     await Promise.all([loadFeeds(), loadMessages({ forceScroll: true })])
@@ -384,32 +408,34 @@ const handleChatInput = () => {
   const mention = chatInput.value.match(/@(피드)?(\d+)/i)
   if (!mention || !setMentionedFeed(mention[2])) return
   chatInput.value = chatInput.value
-    .replace(mention[0], '')
-    .replace(/\s{2,}/g, ' ')
+    .replace(mention[0], "")
+    .replace(/\s{2,}/g, " ")
     .trimStart()
 }
 const mentionFeed = (message) => {
   setMentionedFeed(message.referenceFeedId)
-  chatInput.value = ''
+  chatInput.value = ""
 }
 const sendMessage = async () => {
   const content = chatInput.value.trim()
   if ((!content && !mentionedFeed.value) || isSendingMessage.value) return
   if (!chatSocket || chatSocket.readyState !== WebSocket.OPEN) {
-    openDialog({ message: '채팅 서버에 연결 중입니다. 잠시 후 다시 시도해 주세요.' })
+    openDialog({ message: "채팅 서버에 연결 중입니다. 잠시 후 다시 시도해 주세요." })
     return
   }
   isSendingMessage.value = true
   try {
-    chatSocket.send(JSON.stringify({
-      content: content || null,
-      referenceFeedId: mentionedFeed.value?.id || null,
-    }))
-    chatInput.value = ''
+    chatSocket.send(
+      JSON.stringify({
+        content: content || null,
+        referenceFeedId: mentionedFeed.value?.id || null,
+      }),
+    )
+    chatInput.value = ""
     mentionedFeed.value = null
     await scrollMessagesToBottom()
   } catch (error) {
-    openDialog({ message: error.message || '메시지를 보내지 못했습니다.' })
+    openDialog({ message: error.message || "메시지를 보내지 못했습니다." })
   } finally {
     isSendingMessage.value = false
     await nextTick()
@@ -417,7 +443,7 @@ const sendMessage = async () => {
   }
 }
 
-watch([focusedFeedId, feeds, isLoading], scrollToFocusedFeed, { flush: 'post' })
+watch([focusedFeedId, feeds, isLoading], scrollToFocusedFeed, { flush: "post" })
 
 onMounted(async () => {
   await loadPage()
@@ -443,9 +469,11 @@ onBeforeUnmount(() => {
     </div>
     <template v-else>
       <header class="feed-header">
-        <div>
+        <div class="feed-heading-content">
           <span>MY SAVING FEED</span>
-          <h1>{{ challengeName }}</h1>
+          <div class="feed-title-row">
+            <h1>{{ challengeName }}</h1>
+          </div>
           <p>함께 남긴 절약 기록을 확인하고 응원해 보세요.</p>
         </div>
       </header>
@@ -538,14 +566,14 @@ onBeforeUnmount(() => {
             </div>
             <footer>
               <div class="feed-caption-row">
-                <p>{{ feed.caption || '오늘의 절약 기록을 공유했어요.' }}</p>
+                <p>{{ feed.caption || "오늘의 절약 기록을 공유했어요." }}</p>
                 <div v-if="isMyFeed(feed)" class="feed-owner-actions">
                   <button
                     type="button"
                     :disabled="deletingFeedId === feed.id"
                     @click.stop="removeFeed(feed)"
                   >
-                    {{ deletingFeedId === feed.id ? '삭제 중...' : '삭제' }}
+                    {{ deletingFeedId === feed.id ? "삭제 중..." : "삭제" }}
                   </button>
                 </div>
               </div>
@@ -555,6 +583,16 @@ onBeforeUnmount(() => {
         </main>
 
         <aside class="feed-sidebar">
+          <button
+            type="button"
+            class="feed-leave-button"
+            title="챌린지 탈퇴"
+            aria-label="챌린지 탈퇴"
+            :disabled="isLeavingChallenge"
+            @click="leaveCurrentChallenge"
+          >
+            <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+          </button>
           <div class="saving-total">
             <small>나의 누적 절약 금액</small><strong>{{ formatWon(mySavingTotal) }}</strong>
           </div>
@@ -591,7 +629,7 @@ onBeforeUnmount(() => {
                     ><small>눌러서 언급하기</small></span
                   >
                 </button>
-              <p v-if="item.content">{{ item.content }}</p>
+                <p v-if="item.content">{{ item.content }}</p>
               </div>
             </div>
             <div v-if="mentionedFeed" class="mention-preview">
@@ -599,9 +637,9 @@ onBeforeUnmount(() => {
               <button @click="mentionedFeed = null">×</button>
             </div>
             <form class="chat-form" @submit.prevent="sendMessage">
-      <input
-        ref="chatInputElement"
-        v-model="chatInput"
+              <input
+                ref="chatInputElement"
+                v-model="chatInput"
                 placeholder="메시지 보내기..."
                 :disabled="isSendingMessage"
                 @input="handleChatInput"
@@ -672,12 +710,12 @@ onBeforeUnmount(() => {
               <b>🤖 AI 분석</b><span>선택 정보와 미디어를 외부 AI 분석기로 전달합니다.</span>
             </div>
             <button type="button" :disabled="isAnalyzing" @click="requestAnalysis">
-              {{ isAnalyzing ? '분석 중...' : '✨ AI에게 분석 맡기기' }}
+              {{ isAnalyzing ? "분석 중..." : "✨ AI에게 분석 맡기기" }}
             </button>
           </div>
           <div class="result-box" :class="{ ready: form.analysisSummary }">
             <span>🤖 AI 추정</span
-            ><small>{{ form.analysisSummary || '분석하면 예상 절약 금액을 알려드려요.' }}</small>
+            ><small>{{ form.analysisSummary || "분석하면 예상 절약 금액을 알려드려요." }}</small>
             <div>
               <input
                 v-model.number="form.savingAmount"
@@ -701,7 +739,7 @@ onBeforeUnmount(() => {
         <footer>
           <button class="cancel" @click="closeModal">취소</button
           ><button class="submit" :disabled="isUploading" @click="uploadFeed">
-            {{ isUploading ? '올리는 중...' : '피드 올리기' }}
+            {{ isUploading ? "올리는 중..." : "피드 올리기" }}
           </button>
         </footer>
       </section>
@@ -716,7 +754,6 @@ onBeforeUnmount(() => {
       @confirm="resolveDialog(true)"
       @close="resolveDialog(false)"
     />
-
   </section>
 </template>
 
@@ -733,16 +770,19 @@ onBeforeUnmount(() => {
   gap: 18px;
 }
 .feed-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: end;
   margin-bottom: 24px;
 }
-.feed-header > div > span {
+.feed-heading-content > span {
   color: #7164de;
   font-size: 0.76rem;
   font-weight: 900;
   letter-spacing: 0.14em;
+}
+.feed-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
 }
 .feed-header h1 {
   margin: 8px 0 4px;
@@ -752,6 +792,37 @@ onBeforeUnmount(() => {
 .feed-header p {
   margin: 0;
   color: #939bad;
+}
+.feed-leave-button {
+  display: inline-flex !important;
+  visibility: visible !important;
+  position: absolute;
+  top: 20px;
+  left: -58px;
+  z-index: 2;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: #ff6b6b;
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  font-size: 2rem;
+  line-height: 1;
+  transition:
+    color 0.2s ease,
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+.feed-leave-button:hover:not(:disabled) {
+  color: #f05252;
+  background: #fff0ef;
+}
+.feed-leave-button:disabled {
+  cursor: wait;
+  opacity: 0.6;
 }
 .saving-total {
   width: 100%;
@@ -1424,6 +1495,11 @@ textarea {
     width: auto;
     height: auto;
   }
+  .feed-leave-button {
+    position: static;
+    align-self: flex-end;
+    margin-bottom: -8px;
+  }
   .chat-room {
     flex: none;
     height: 600px;
@@ -1436,9 +1512,12 @@ textarea {
 }
 @media (max-width: 650px) {
   .feed-header {
-    align-items: start;
-    flex-direction: column;
-    gap: 15px;
+    margin-bottom: 20px;
+  }
+  .feed-title-row {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 8px 14px;
   }
   .feed-toolbar {
     align-items: stretch;

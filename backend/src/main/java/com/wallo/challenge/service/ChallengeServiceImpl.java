@@ -124,6 +124,15 @@ public class ChallengeServiceImpl implements ChallengeService {
         return JoinChallengeResponse.from(challenge);
     }
 
+    /** 요청한 챌린지에 현재 참여 중인 사용자만 연결을 해제한다. */
+    @Override
+    @Transactional
+    public void leaveChallenge(Long userId, Long challengeId) {
+        if (challengeId == null || challengeMapper.clearCurrentChallengeId(userId, challengeId) != 1) {
+            throw new NotChallengeMemberException();
+        }
+    }
+
     /** 참여 중이 아니면 오류 대신 joined가 false인 정상 응답을 반환한다. */
     @Override
     public CurrentChallengeResponse getCurrentChallenge(Long userId) {
