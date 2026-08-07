@@ -18,6 +18,13 @@ public interface ConnectionMapper {
             @Param("userId") long userId,
             @Param("institutionId") Long institutionId
     );
+
+    List<ConnectionDto.ConnectedAsset> findConnectedAssets(@Param("userId") long userId);
+
+    int softDeleteConnection(
+            @Param("userId") long userId,
+            @Param("connectionId") long connectionId
+    );
 }
 
 

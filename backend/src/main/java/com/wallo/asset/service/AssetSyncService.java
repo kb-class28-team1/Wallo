@@ -97,14 +97,7 @@ public class AssetSyncService {
                 syncTransaction(userId, connectionId, source);
             }
         }
-        Long currentTotalAssets = assetMapper.selectTotalAssets(userId);
-        assetSyncMapper.upsertAssetSnapshot(
-                userId,
-                new AssetSyncDto.AssetSnapshot(
-                        currentMonth.toString(),
-                        currentTotalAssets == null ? 0L : currentTotalAssets
-                )
-        );
+        upsertCurrentMonthSnapshot(userId, currentMonth);
         consumptionInsightCache.invalidateAfterCommit(userId, currentMonth);
         LOGGER.info(String.format(
                 Locale.ROOT,
@@ -120,6 +113,22 @@ public class AssetSyncService {
                 elapsedMillis(transactionStageStartedAt),
                 elapsedMillis(startedAt)
         ));
+    }
+
+    public void refreshCurrentMonthSnapshot(long userId) {
+        YearMonth currentMonth = YearMonth.from(LocalDate.now(clock));
+        upsertCurrentMonthSnapshot(userId, currentMonth);
+    }
+
+    private void upsertCurrentMonthSnapshot(long userId, YearMonth currentMonth) {
+        Long currentTotalAssets = assetMapper.selectTotalAssets(userId);
+        assetSyncMapper.upsertAssetSnapshot(
+                userId,
+                new AssetSyncDto.AssetSnapshot(
+                        currentMonth.toString(),
+                        currentTotalAssets == null ? 0L : currentTotalAssets
+                )
+        );
     }
 
     private long elapsedMillis(long startedAt) {

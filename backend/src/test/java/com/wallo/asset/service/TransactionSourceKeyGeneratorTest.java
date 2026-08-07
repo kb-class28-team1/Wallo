@@ -11,26 +11,26 @@ class TransactionSourceKeyGeneratorTest {
 
     @Test
     void sameSourceIdentityProducesSameSha256Key() {
-        String firstKey = generator.forCardApproval("0311", 25L, "87654321");
-        String secondKey = generator.forCardApproval("0311", 25L, "87654321");
+        String firstKey = generator.forCardApproval("0311", "4321-0000-0000-8765", "87654321");
+        String secondKey = generator.forCardApproval("0311", "4321-0000-0000-8765", "87654321");
 
         assertEquals(firstKey, secondKey);
         assertEquals(64, firstKey.length());
     }
 
     @Test
-    void differentCardsProduceDifferentKeysForSameApprovalNumber() {
-        String firstKey = generator.forCardApproval("0311", 25L, "87654321");
-        String secondKey = generator.forCardApproval("0311", 26L, "87654321");
+    void sameCardNumberProducesSameKeyAfterReconnection() {
+        String firstKey = generator.forCardApproval("0311", "4321-0000-0000-8765", "87654321");
+        String secondKey = generator.forCardApproval("0311", "4321000000008765", "87654321");
 
-        assertNotEquals(firstKey, secondKey);
+        assertEquals(firstKey, secondKey);
     }
 
     @Test
-    void bankTransactionKeyIncludesAccountIdentity() {
-        String firstKey = generator.forBankTransaction("0004", 17L, "BANK-202607-0001");
-        String sameKey = generator.forBankTransaction("0004", 17L, "BANK-202607-0001");
-        String otherAccountKey = generator.forBankTransaction("0004", 18L, "BANK-202607-0001");
+    void bankTransactionKeyUsesStableAccountIdentity() {
+        String firstKey = generator.forBankTransaction("0004", "123456-01-789012", "BANK-202607-0001");
+        String sameKey = generator.forBankTransaction("0004", "12345601789012", "BANK-202607-0001");
+        String otherAccountKey = generator.forBankTransaction("0004", "987654-01-321098", "BANK-202607-0001");
 
         assertEquals(firstKey, sameKey);
         assertNotEquals(firstKey, otherAccountKey);

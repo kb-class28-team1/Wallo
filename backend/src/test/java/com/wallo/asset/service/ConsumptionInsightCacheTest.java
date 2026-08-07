@@ -5,7 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.wallo.asset.dto.AssetReportDto;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.YearMonth;
+import java.time.ZoneId;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -77,6 +81,64 @@ class ConsumptionInsightCacheTest {
         assertEquals(2, generationCount.get());
     }
 
+    @Test
+    void expiresAiInsightAfterTwentyFourHours() {
+        MutableClock clock = new MutableClock(Instant.parse("2026-08-06T00:00:00Z"));
+        ConsumptionInsightCache timedCache = new ConsumptionInsightCache(clock);
+        AtomicInteger generationCount = new AtomicInteger();
+
+        timedCache.getOrGenerate(key, () -> {
+            generationCount.incrementAndGet();
+            return aiInsight();
+        });
+
+        clock.advance(Duration.ofHours(24));
+
+        assertNull(timedCache.get(key));
+        timedCache.getOrGenerate(key, () -> {
+            generationCount.incrementAndGet();
+            return aiInsight();
+        });
+        assertEquals(2, generationCount.get());
+    }
+
+    @Test
+    void servesFallbackDuringCooldownAndRetriesAfterFiveMinutes() {
+        MutableClock clock = new MutableClock(Instant.parse("2026-08-06T00:00:00Z"));
+        ConsumptionInsightCache timedCache = new ConsumptionInsightCache(clock);
+        AtomicInteger generationCount = new AtomicInteger();
+        AssetReportDto.Insight fallbackInsight = new AssetReportDto.Insight(
+                "소비 리포트를 준비 중이에요",
+                "잠시 후 다시 시도해 주세요.",
+                AssetReportDto.GenerationMode.FALLBACK,
+                "CAFE"
+        );
+
+        AssetReportDto.Insight first = timedCache.getOrGenerate(key, () -> {
+            generationCount.incrementAndGet();
+            return fallbackInsight;
+        });
+        AssetReportDto.Insight duringCooldown = timedCache.getOrGenerate(key, () -> {
+            generationCount.incrementAndGet();
+            return aiInsight();
+        });
+
+        assertEquals(AssetReportDto.GenerationMode.FALLBACK, first.getGenerationMode());
+        assertEquals(AssetReportDto.GenerationMode.FALLBACK, duringCooldown.getGenerationMode());
+        assertEquals(1, generationCount.get());
+
+        clock.advance(Duration.ofMinutes(5));
+
+        AssetReportDto.Insight afterCooldown = timedCache.getOrGenerate(key, () -> {
+            generationCount.incrementAndGet();
+            return aiInsight();
+        });
+
+        assertEquals(AssetReportDto.GenerationMode.AI, afterCooldown.getGenerationMode());
+        assertEquals(2, generationCount.get());
+        assertEquals(AssetReportDto.GenerationMode.AI, timedCache.get(key).getGenerationMode());
+    }
+
     private AssetReportDto.Insight aiInsight() {
         return new AssetReportDto.Insight(
                 "제목",
@@ -92,6 +154,35 @@ class ConsumptionInsightCacheTest {
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException(exception);
+        }
+    }
+
+    private static final class MutableClock extends Clock {
+
+        private Instant instant;
+        private final ZoneId zone = ZoneId.of("UTC");
+
+        private MutableClock(Instant instant) {
+            this.instant = instant;
+        }
+
+        @Override
+        public ZoneId getZone() {
+            return zone;
+        }
+
+        @Override
+        public Clock withZone(ZoneId zone) {
+            return new MutableClock(instant);
+        }
+
+        @Override
+        public Instant instant() {
+            return instant;
+        }
+
+        private void advance(Duration duration) {
+            instant = instant.plus(duration);
         }
     }
 }
