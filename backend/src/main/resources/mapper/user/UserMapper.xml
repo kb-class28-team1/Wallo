@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wallo.user.mapper.UserMapper">
+
+    <select id="findProfile"
+            resultType="com.wallo.user.dto.UserProfileDto$Response">
+        SELECT
+            id,
+            name,
+            nickname,
+            email,
+            profile_image_url AS profileImageUrl
+        FROM users
+        WHERE id = #{userId}
+    </select>
+
+    <select id="countByNicknameExceptUserId" resultType="int">
+        SELECT COUNT(*)
+        FROM users
+        WHERE nickname = #{nickname}
+          AND id &lt;&gt; #{userId}
+    </select>
+
+    <update id="updateNickname">
+        UPDATE users
+        SET nickname = #{nickname},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{userId}
+    </update>
+
+    <select id="findPasswordHash" resultType="string">
+        SELECT password_hash
+        FROM users
+        WHERE id = #{userId}
+    </select>
+
+    <update id="updatePasswordHash">
+        UPDATE users
+        SET password_hash = #{passwordHash},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{userId}
+    </update>
+
+    <select id="findProfileImageUrl" resultType="string">
+        SELECT profile_image_url
+        FROM users
+        WHERE id = #{userId}
+    </select>
+
+    <update id="updateProfileImageUrl">
+        UPDATE users
+        SET profile_image_url = #{profileImageUrl},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{userId}
+    </update>
+
+</mapper>

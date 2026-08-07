@@ -314,6 +314,7 @@ const moveToMyChallenge = () => {
 }
 
 .menu-link:hover,
+.menu-link.router-link-active,
 .menu-link.router-link-exact-active {
   color: #7062de;
 }

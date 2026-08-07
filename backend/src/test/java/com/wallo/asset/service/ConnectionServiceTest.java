@@ -4,6 +4,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -11,10 +12,12 @@ import static org.mockito.Mockito.when;
 import com.wallo.asset.domain.Institution;
 import com.wallo.asset.dto.ConnectionDto;
 import com.wallo.asset.exception.ConnectionConsentRequiredException;
+import com.wallo.asset.exception.ConnectionNotFoundException;
 import com.wallo.asset.mapper.ConnectionMapper;
 import com.wallo.common.exception.ErrorCode;
 import com.wallo.external.client.CodefClient;
 import com.wallo.external.dto.CodefDto;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import org.junit.Test;
@@ -92,6 +95,56 @@ public class ConnectionServiceTest {
         assertEquals(ConnectionDto.Status.FAILED, response.getResults().get(1).getStatus());
         assertEquals("External service failed", response.getResults().get(1).getMessage());
         assertEquals(ConnectionDto.Status.SUCCESS, response.getResults().get(2).getStatus());
+    }
+
+    @Test
+    public void getConnectedAssetsReturnsMapperResults() {
+        ConnectionDto.ConnectedAsset connectedAsset = new ConnectionDto.ConnectedAsset(
+                42L,
+                100L,
+                1L,
+                "국민은행",
+                "BANK",
+                "logo",
+                "KB",
+                "KB국민은행",
+                LocalDateTime.of(2026, 8, 6, 1, 0),
+                "ACCOUNT",
+                "입출금통장",
+                "123456-**-***012",
+                "BANK",
+                5000000L,
+                "KRW"
+        );
+        when(connectionMapper.findConnectedAssets(7L)).thenReturn(List.of(connectedAsset));
+
+        ConnectionDto.ConnectedAssetsResponse response = connectionService.getConnectedAssets(7L);
+
+        assertEquals(1, response.getConnections().size());
+        assertEquals(42L, response.getConnections().get(0).getConnectionId().longValue());
+        verify(connectionMapper).findConnectedAssets(7L);
+    }
+
+    @Test
+    public void disconnectsOnlyTheCurrentUsersConnection() {
+        when(connectionMapper.softDeleteConnection(7L, 42L)).thenReturn(1);
+
+        connectionService.disconnect(7L, 42L);
+
+        verify(connectionMapper).softDeleteConnection(7L, 42L);
+        verify(assetSyncService).refreshCurrentMonthSnapshot(7L);
+    }
+
+    @Test
+    public void rejectsDisconnectForMissingConnection() {
+        when(connectionMapper.softDeleteConnection(7L, 404L)).thenReturn(0);
+
+        try {
+            connectionService.disconnect(7L, 404L);
+            fail("Missing connections must be rejected.");
+        } catch (ConnectionNotFoundException expected) {
+            verify(assetSyncService, never()).refreshCurrentMonthSnapshot(7L);
+        }
     }
 
     private void givenConnectionTargets() {

@@ -133,6 +133,21 @@ class AssetSyncMapperIntegrationTest {
     }
 
     @Test
+    void snapshotMonthInsertsNewSnapshot() throws Exception {
+        assetSyncMapper.upsertAssetSnapshot(7L, new AssetSyncDto.AssetSnapshot("2026-08", 39_000_000L));
+
+        try (Connection connection = dataSource.getConnection();
+             Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(
+                     "SELECT COUNT(*) AS row_count, MAX(total_assets) AS total_assets FROM ASSET_SNAPSHOTS"
+             )) {
+            resultSet.next();
+            assertEquals(1, resultSet.getInt("row_count"));
+            assertEquals(39_000_000L, resultSet.getLong("total_assets"));
+        }
+    }
+
+    @Test
     void snapshotMonthMakesRepeatedSnapshotAnUpdate() throws Exception {
         assetSyncMapper.upsertAssetSnapshot(7L, new AssetSyncDto.AssetSnapshot("2026-08", 39_000_000L));
         assetSyncMapper.upsertAssetSnapshot(7L, new AssetSyncDto.AssetSnapshot("2026-08", 40_100_000L));

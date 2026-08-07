@@ -30,6 +30,13 @@ public class AssetReportService {
     private static final String INSUFFICIENT_DATA_REPORT_CONTENT =
             "현재까지의 소비 데이터가 아직 충분하지 않아요."
                     + " 조금 더 지출 내역이 쌓이면 소비 패턴을 분석해드릴게요.";
+    private static final String ETC_REPORT_TITLE = "기타 지출이 눈에 띄어요";
+    private static final String ETC_REPORT_CONTENT =
+            "여러 소비가 기타로 모여 있어요. 지출 내역을 한 번 확인해보세요.";
+    private static final String NO_ANALYZABLE_EXPENSE_REPORT_TITLE = "분석할 소비가 없어요";
+    private static final String NO_ANALYZABLE_EXPENSE_REPORT_CONTENT =
+            "현재는 소비 습관을 분석할 수 있는 내역이 없어요."
+                    + " 다른 소비 내역이 쌓이면 알려드릴게요.";
     private static final String AI_FALLBACK_REPORT_TITLE = "소비 리포트를 준비 중이에요";
     private static final String AI_FALLBACK_REPORT_CONTENT =
             "현재 소비 내역은 확인했지만 맞춤 분석 문구를 생성하지 못했어요."
@@ -164,9 +171,6 @@ public class AssetReportService {
             return cachedInsight;
         }
 
-        BudgetDto.Budget budget = budgetMapper.selectBudget(userId, currentMonth.toString());
-        long monthlyBudget = budget == null ? 0L : budget.getTotalAmount();
-
         InsightCandidate selectedCandidate = null;
 
         for (AssetReportDto.CategoryExpense expense : values(categoryExpenses)) {
@@ -177,23 +181,41 @@ public class AssetReportService {
             }
         }
 
-        return selectedCandidate == null
-                ? null
-                : createInsight(
-                        userId,
-                        currentMonth,
-                        selectedCandidate,
-                        currentTotalExpense,
-                        previousTotalExpense,
-                        monthlyBudget
-                );
+        if (selectedCandidate == null) {
+            return new AssetReportDto.Insight(
+                    NO_ANALYZABLE_EXPENSE_REPORT_TITLE,
+                    NO_ANALYZABLE_EXPENSE_REPORT_CONTENT,
+                    AssetReportDto.GenerationMode.RULE
+            );
+        }
+        if ("ETC".equals(selectedCandidate.category)) {
+            return new AssetReportDto.Insight(
+                    ETC_REPORT_TITLE,
+                    ETC_REPORT_CONTENT,
+                    AssetReportDto.GenerationMode.RULE,
+                    "ETC"
+            );
+        }
+
+        BudgetDto.Budget budget = budgetMapper.selectBudget(userId, currentMonth.toString());
+        long monthlyBudget = budget == null ? 0L : budget.getTotalAmount();
+
+        return createInsight(
+                userId,
+                currentMonth,
+                selectedCandidate,
+                currentTotalExpense,
+                previousTotalExpense,
+                monthlyBudget
+        );
     }
 
     private InsightCandidate createCandidate(AssetReportDto.CategoryExpense expense) {
+        String category = expense.normalizedCategory();
         long previousAmount = expense.getPreviousAmount();
         long currentAmount = expense.getCurrentAmount();
 
-        if (currentAmount <= 0) {
+        if (currentAmount <= 0 || "LOAN_REPAYMENT".equals(category)) {
             return null;
         }
 
@@ -202,7 +224,7 @@ public class AssetReportService {
                 : 0;
 
         return new InsightCandidate(
-                expense.normalizedCategory(),
+                category,
                 previousAmount,
                 currentAmount,
                 currentAmount - previousAmount,
