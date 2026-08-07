@@ -97,7 +97,7 @@ class GoalServiceTest {
         goal.setTargetAmount(10_000_000L);
         goal.setTargetDate(LocalDate.of(2027, 8, 1));
         goal.setInitialAmount(2_000_000L);
-        goal.setMonthlyContribution(600_000L);
+        goal.setRequiredMonthlyAmount(600_000L);
         goal.setStatus("ACTIVE");
         goal.setCreatedAt(LocalDateTime.of(2026, 8, 7, 12, 30));
         goal.setUpdatedAt(LocalDateTime.of(2026, 8, 7, 12, 30));

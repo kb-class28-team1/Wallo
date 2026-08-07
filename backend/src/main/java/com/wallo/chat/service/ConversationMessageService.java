@@ -112,7 +112,7 @@ public class ConversationMessageService {
                         .withGoalAlreadyExists(goalAlreadyExists),
                 currentUserId
         );
-        goalPersistenceService.applyResult(
+        GoalInterviewDto.Result persistedGoalInterview = goalPersistenceService.applyResult(
                 currentUserId,
                 conversationId,
                 aiResponse.goalInterview()
@@ -135,7 +135,9 @@ public class ConversationMessageService {
         return new SendConversationMessageResponse(
                 ChatMessageResponse.from(userMessage),
                 ChatMessageResponse.from(assistantMessage),
-                aiResponse.goalInterview()
+                persistedGoalInterview == null
+                        ? aiResponse.goalInterview()
+                        : persistedGoalInterview
         );
     }
 

@@ -52,7 +52,6 @@ class GoalExtractor:
                         "enum": ["LOW", "MEDIUM", "HIGH"],
                     },
                     "current_amount": {"type": "integer", "minimum": 0},
-                    "monthly_contribution": {"type": "integer", "minimum": 0},
                     "assumptions": {
                         "type": "array",
                         "items": {"type": "string"},
@@ -61,7 +60,7 @@ class GoalExtractor:
                         "type": "string",
                         "enum": [
                             "goalType", "targetAmount", "targetDate",
-                            "currentAmount", "monthlyContribution",
+                            "currentAmount",
                         ],
                     },
                     "next_question": {"type": "string"},
@@ -141,7 +140,6 @@ def extract_explicit_goal_facts(
     """모델 장애 시 문장에 명시된 핵심 정보만 보존한다."""
     goal_type = infer_goal_type(user_message)
     current_amount = contextual_amount(user_message, r"현재(?:\s*준비금(?:은|이)?)?")
-    monthly_contribution = contextual_amount(user_message, r"(?:매달|매월|월마다)")
     target_amount = first_unqualified_amount(user_message)
     target_date, date_assumptions = explicit_target_date(user_message, reference_date)
     priority = explicit_priority(user_message)
@@ -157,7 +155,6 @@ def extract_explicit_goal_facts(
         motivation=motivation,
         priority=priority,
         current_amount=current_amount,
-        monthly_contribution=monthly_contribution,
         assumptions=date_assumptions,
     )
 

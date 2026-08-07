@@ -34,7 +34,6 @@ const fieldLabels = {
   targetAmount: "목표 금액",
   targetDate: "목표 날짜",
   currentAmount: "현재 준비금",
-  monthlyContribution: "월 납입 가능액",
 }
 
 const missingFieldLabels = computed(() =>
@@ -55,6 +54,7 @@ const formatDate = (date) => {
 
 const feasibilityLabel = computed(() => {
   const labels = {
+    CALCULATED: "월 필요액 계산 완료",
     ACHIEVABLE: "달성 가능",
     TIGHT: "여유가 적음",
     ADJUSTMENT_REQUIRED: "조정 필요",
@@ -65,6 +65,7 @@ const feasibilityLabel = computed(() => {
 })
 
 const feasibilityClass = computed(() => {
+  if (feasibility.value?.status === "CALCULATED") return "text-primary"
   if (feasibility.value?.status === "ACHIEVABLE") return "text-success"
   if (feasibility.value?.status === "ADJUSTMENT_REQUIRED") return "text-danger"
   return "text-warning-emphasis"
@@ -111,23 +112,19 @@ const feasibilityClass = computed(() => {
             <dt>현재 준비금</dt>
             <dd>{{ formatAmount(draft.currentAmount) }}</dd>
           </div>
-          <div class="col-6">
-            <dt>월 납입 가능액</dt>
-            <dd>{{ formatAmount(draft.monthlyContribution) }}</dd>
-          </div>
         </dl>
 
         <div v-if="feasibility" class="feasibility-box mt-3">
           <div class="d-flex justify-content-between align-items-center gap-2">
-            <span class="small text-secondary">달성 가능성</span>
+            <span class="small text-secondary">계산 상태</span>
             <strong :class="feasibilityClass">{{ feasibilityLabel }}</strong>
           </div>
           <div
             v-if="feasibility.requiredMonthlyAmount !== null && feasibility.requiredMonthlyAmount !== undefined"
-            class="small text-secondary mt-1"
+            class="d-flex justify-content-between align-items-center gap-2 small mt-2"
           >
-            목표일까지 매달 약
-            <strong class="text-dark">{{ formatAmount(feasibility.requiredMonthlyAmount) }}</strong>이 필요합니다.
+            <span class="text-secondary">월 필요 납입액</span>
+            <strong class="text-dark">{{ formatAmount(feasibility.requiredMonthlyAmount) }}</strong>
           </div>
         </div>
 

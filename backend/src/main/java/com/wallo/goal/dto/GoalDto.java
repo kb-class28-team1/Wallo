@@ -23,7 +23,7 @@ public final class GoalDto {
         private final String motivation;
         private final String priority;
         private final long initialAmount;
-        private final long monthlyContribution;
+        private final long requiredMonthlyAmount;
         private final String status;
         private final LocalDateTime createdAt;
         private final LocalDateTime updatedAt;
@@ -43,7 +43,7 @@ public final class GoalDto {
                     goal.getMotivation(),
                     goal.getPriority(),
                     goal.getInitialAmount(),
-                    goal.getMonthlyContribution(),
+                    goal.getRequiredMonthlyAmount(),
                     goal.getStatus(),
                     goal.getCreatedAt(),
                     goal.getUpdatedAt()

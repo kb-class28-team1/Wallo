@@ -106,8 +106,8 @@ const getStatusLabel = (status) => statusLabels[status] ?? status ?? "상태 미
               <dd>{{ formatGoalDate(goal.targetDate) }}</dd>
             </div>
             <div class="col-sm-4">
-              <dt>월 납입 가능액</dt>
-              <dd>{{ formatWon(goal.monthlyContribution) }}</dd>
+              <dt>월 필요 납입액</dt>
+              <dd>{{ formatWon(goal.requiredMonthlyAmount) }}</dd>
             </div>
           </dl>
         </section>

@@ -30,7 +30,7 @@
         <result property="motivation" column="motivation" />
         <result property="priority" column="priority" />
         <result property="initialAmount" column="initial_amount" />
-        <result property="monthlyContribution" column="monthly_contribution" />
+        <result property="requiredMonthlyAmount" column="required_monthly_amount" />
         <result property="status" column="status" />
         <result property="createdAt" column="created_at" />
         <result property="updatedAt" column="updated_at" />
@@ -76,7 +76,7 @@
             motivation,
             priority,
             initial_amount,
-            monthly_contribution,
+            required_monthly_amount,
             status,
             created_at,
             updated_at
@@ -99,7 +99,7 @@
             motivation,
             priority,
             initial_amount,
-            monthly_contribution,
+            required_monthly_amount,
             status,
             created_at,
             updated_at
@@ -162,7 +162,7 @@
             motivation,
             priority,
             initial_amount,
-            monthly_contribution,
+            required_monthly_amount,
             status
         ) VALUES (
             #{sessionId},
@@ -175,7 +175,7 @@
             #{motivation},
             #{priority},
             #{initialAmount},
-            #{monthlyContribution},
+            #{requiredMonthlyAmount},
             #{status}
         )
     </insert>

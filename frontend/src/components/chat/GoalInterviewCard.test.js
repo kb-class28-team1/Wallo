@@ -13,11 +13,10 @@ const confirmationInterview = {
     targetAmount: 10000000,
     targetDate: "2027-11-30",
     currentAmount: 2000000,
-    monthlyContribution: 500000,
     missingFields: [],
   },
   feasibility: {
-    status: "ACHIEVABLE",
+    status: "CALCULATED",
     requiredMonthlyAmount: 500000,
   },
 }
@@ -30,7 +29,8 @@ describe("GoalInterviewCard", () => {
 
     expect(wrapper.text()).toContain("비상금 마련")
     expect(wrapper.text()).toContain("10,000,000원")
-    expect(wrapper.text()).toContain("달성 가능")
+    expect(wrapper.text()).toContain("월 필요액 계산 완료")
+    expect(wrapper.text()).toContain("월 필요 납입액")
     expect(wrapper.findAll("button")).toHaveLength(2)
 
     await wrapper.find(".btn-primary").trigger("click")

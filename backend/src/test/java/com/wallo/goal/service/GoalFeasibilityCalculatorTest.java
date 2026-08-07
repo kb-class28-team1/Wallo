@@ -12,31 +12,30 @@ class GoalFeasibilityCalculatorTest {
     @Test
     void calculatesAchievableGoal() {
         GoalInterviewDto.Feasibility result = GoalFeasibilityCalculator.calculate(
-                draft(1_000_000L, LocalDate.of(2026, 12, 7), 0L, 300_000L),
+                draft(1_000_000L, LocalDate.of(2026, 12, 7), 0L),
                 LocalDate.of(2026, 8, 7)
         );
 
-        assertEquals("ACHIEVABLE", result.getStatus());
+        assertEquals("CALCULATED", result.getStatus());
         assertEquals(4, result.getRemainingMonths());
         assertEquals(250_000L, result.getRequiredMonthlyAmount());
-        assertEquals(50_000L, result.getMonthlyGap());
     }
 
     @Test
-    void marksGoalAsAdjustmentRequiredWhenMonthlyContributionIsInsufficient() {
+    void calculatesRequiredAmountWithoutMonthlyContributionInput() {
         GoalInterviewDto.Feasibility result = GoalFeasibilityCalculator.calculate(
-                draft(1_000_000L, LocalDate.of(2026, 12, 7), 0L, 100_000L),
+                draft(1_000_000L, LocalDate.of(2026, 12, 7), 0L),
                 LocalDate.of(2026, 8, 7)
         );
 
-        assertEquals("ADJUSTMENT_REQUIRED", result.getStatus());
-        assertEquals(-150_000L, result.getMonthlyGap());
+        assertEquals("CALCULATED", result.getStatus());
+        assertEquals(250_000L, result.getRequiredMonthlyAmount());
     }
 
     @Test
     void marksGoalAsAlreadyAchievedWhenCurrentAmountReachesTarget() {
         GoalInterviewDto.Feasibility result = GoalFeasibilityCalculator.calculate(
-                draft(1_000_000L, LocalDate.of(2026, 12, 31), 1_000_000L, 0L),
+                draft(1_000_000L, LocalDate.of(2026, 12, 31), 1_000_000L),
                 LocalDate.of(2026, 8, 7)
         );
 
@@ -47,8 +46,7 @@ class GoalFeasibilityCalculatorTest {
     private GoalInterviewDto.Draft draft(
             Long targetAmount,
             LocalDate targetDate,
-            Long currentAmount,
-            Long monthlyContribution
+            Long currentAmount
     ) {
         return new GoalInterviewDto.Draft(
                 "CONFIRMATION",
@@ -59,7 +57,6 @@ class GoalFeasibilityCalculatorTest {
                 null,
                 null,
                 currentAmount,
-                monthlyContribution,
                 List.of(),
                 List.of(),
                 false

@@ -105,7 +105,6 @@ class PythonAiClientTest {
                 null,
                 null,
                 null,
-                null,
                 List.of("motivation"),
                 List.of(),
                 false

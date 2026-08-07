@@ -1,12 +1,11 @@
 package com.wallo.goal.service;
 
 import com.wallo.goal.dto.GoalInterviewDto;
-import java.math.BigInteger;
 import java.time.LocalDate;
 
 /**
- * 저장된 목표 초안으로 달성 가능성을 계산한다.
- * Python 목표 인터뷰 서비스와 동일한 상태값과 계산 규칙을 사용한다.
+ * 저장된 목표 초안으로 목표 달성에 필요한 월 납입액을 계산한다.
+ * Python 목표 인터뷰 서비스와 동일한 계산 규칙을 사용한다.
  */
 public final class GoalFeasibilityCalculator {
 
@@ -23,11 +22,9 @@ public final class GoalFeasibilityCalculator {
 
         if (draft.getTargetAmount() == null
                 || draft.getTargetDate() == null
-                || draft.getCurrentAmount() == null
-                || draft.getMonthlyContribution() == null) {
+                || draft.getCurrentAmount() == null) {
             return new GoalInterviewDto.Feasibility(
                     "INSUFFICIENT_INFORMATION",
-                    null,
                     null,
                     null,
                     null
@@ -43,8 +40,7 @@ public final class GoalFeasibilityCalculator {
                     "ALREADY_ACHIEVED",
                     0L,
                     0,
-                    0L,
-                    draft.getMonthlyContribution()
+                    0L
             );
         }
 
@@ -55,31 +51,18 @@ public final class GoalFeasibilityCalculator {
                     "ADJUSTMENT_REQUIRED",
                     remainingAmount,
                     0,
-                    null,
                     null
             );
         }
 
         long requiredMonthlyAmount = (remainingAmount + remainingMonths - 1L)
                 / remainingMonths;
-        long monthlyGap = draft.getMonthlyContribution() - requiredMonthlyAmount;
-        String status;
-        if (draft.getMonthlyContribution() < requiredMonthlyAmount) {
-            status = "ADJUSTMENT_REQUIRED";
-        } else if (BigInteger.valueOf(draft.getMonthlyContribution())
-                .multiply(BigInteger.TEN)
-                .compareTo(BigInteger.valueOf(requiredMonthlyAmount).multiply(BigInteger.valueOf(11))) < 0) {
-            status = "TIGHT";
-        } else {
-            status = "ACHIEVABLE";
-        }
 
         return new GoalInterviewDto.Feasibility(
-                status,
+                "CALCULATED",
                 remainingAmount,
                 remainingMonths,
-                requiredMonthlyAmount,
-                monthlyGap
+                requiredMonthlyAmount
         );
     }
 

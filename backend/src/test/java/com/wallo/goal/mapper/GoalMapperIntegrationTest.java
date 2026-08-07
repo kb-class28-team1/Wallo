@@ -93,6 +93,10 @@ class GoalMapperIntegrationTest {
                 goalMapper.findGoalsByUserId(7L).get(0).getTitle()
         );
         assertEquals(
+                600_000L,
+                goalMapper.findGoalsByUserId(7L).get(0).getRequiredMonthlyAmount()
+        );
+        assertEquals(
                 goal.getGoalId(),
                 goalMapper.findGoalByConversationId(7L, 11L).getGoalId()
         );
@@ -130,7 +134,7 @@ class GoalMapperIntegrationTest {
         goal.setMotivation("가족과 여행");
         goal.setPriority("MEDIUM");
         goal.setInitialAmount(2_000_000L);
-        goal.setMonthlyContribution(600_000L);
+        goal.setRequiredMonthlyAmount(600_000L);
         goal.setStatus("ACTIVE");
         return goal;
     }
@@ -164,7 +168,7 @@ class GoalMapperIntegrationTest {
                         motivation VARCHAR(500) NULL,
                         priority VARCHAR(20) NULL,
                         initial_amount BIGINT NOT NULL,
-                        monthly_contribution BIGINT NOT NULL,
+                        required_monthly_amount BIGINT NOT NULL,
                         status VARCHAR(20) NOT NULL,
                         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                         updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

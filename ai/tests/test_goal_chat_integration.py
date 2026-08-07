@@ -28,7 +28,6 @@ def complete_draft(state=InterviewState.CONFIRMATION):
         motivation="취업 3주년 기념 여행",
         priority=GoalPriority.HIGH,
         current_amount=2_000_000,
-        monthly_contribution=700_000,
     )
 
 
@@ -99,7 +98,7 @@ def test_natural_emergency_goal_reaches_review_even_when_model_extraction_fails(
     assert response.goal_interview.draft.title == "비상금 마련"
     assert response.goal_interview.draft.state == InterviewState.CONFIRMATION
     assert response.goal_interview.draft.missing_fields == []
-    assert "현재 계획으로 확정" in response.answer
+    assert "이 계획으로 확정" in response.answer
 
 
 def test_active_confirmation_is_confirmed_without_another_llm_call():
@@ -184,4 +183,4 @@ def test_goal_response_serializes_with_spring_camel_case_contract():
 
     assert payload["goalInterview"]["draft"]["goalType"] == "TRAVEL"
     assert payload["goalInterview"]["draft"]["targetAmount"] == 8_000_000
-    assert payload["goalInterview"]["draft"]["monthlyContribution"] == 700_000
+    assert "monthlyContribution" not in payload["goalInterview"]["draft"]

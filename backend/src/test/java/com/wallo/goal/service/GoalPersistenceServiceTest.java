@@ -1,6 +1,7 @@
 package com.wallo.goal.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -57,6 +58,7 @@ class GoalPersistenceServiceTest {
         GoalInterviewDto.Draft restored = objectMapper.readValue(
                 session.getGoalDraftJson(), GoalInterviewDto.Draft.class);
         assertEquals("유럽 여행 자금", restored.getTitle());
+        assertFalse(session.getGoalDraftJson().contains("monthlyContribution"));
     }
 
     @Test
@@ -116,7 +118,11 @@ class GoalPersistenceServiceTest {
         when(goalMapper.completeSession(31L, "COMPLETED")).thenReturn(1);
         GoalInterviewDto.Draft draft = draft(true);
 
-        service.applyResult(7L, 11L, result(GoalInterviewDto.Action.CONFIRM, draft));
+        GoalInterviewDto.Result persisted = service.applyResult(
+                7L,
+                11L,
+                result(GoalInterviewDto.Action.CONFIRM, draft)
+        );
 
         ArgumentCaptor<FinancialGoal> captor = ArgumentCaptor.forClass(FinancialGoal.class);
         verify(goalMapper).insertGoal(captor.capture());
@@ -124,6 +130,15 @@ class GoalPersistenceServiceTest {
         assertEquals(31L, goal.getSessionId());
         assertEquals("유럽 여행 자금", goal.getTitle());
         assertEquals(10_000_000L, goal.getTargetAmount());
+        assertEquals(
+                GoalFeasibilityCalculator.calculate(draft, LocalDate.now())
+                        .getRequiredMonthlyAmount(),
+                goal.getRequiredMonthlyAmount()
+        );
+        assertEquals(
+                goal.getRequiredMonthlyAmount(),
+                persisted.getFeasibility().getRequiredMonthlyAmount()
+        );
         assertEquals("ACTIVE", goal.getStatus());
         verify(goalMapper).completeSession(31L, "COMPLETED");
     }
@@ -186,7 +201,6 @@ class GoalPersistenceServiceTest {
                 "가족과 여행",
                 "MEDIUM",
                 2_000_000L,
-                600_000L,
                 List.of(),
                 List.of(),
                 confirmed

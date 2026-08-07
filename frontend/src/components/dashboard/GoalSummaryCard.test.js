@@ -21,7 +21,7 @@ describe("GoalSummaryCard", () => {
             title: "Emergency fund",
             targetAmount: 10000000,
             targetDate: "2027-11-30",
-            monthlyContribution: 500000,
+            requiredMonthlyAmount: 500000,
             status: "ACTIVE",
           },
         ],
@@ -30,6 +30,7 @@ describe("GoalSummaryCard", () => {
 
     expect(wrapper.text()).toContain("Emergency fund");
     expect(wrapper.text()).toContain("10,000,000원");
+    expect(wrapper.text()).toContain("월 필요 납입액");
     expect(wrapper.text()).toContain("진행 중");
   });
 

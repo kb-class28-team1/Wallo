@@ -302,7 +302,6 @@ class ConversationMessageServiceTest {
                 "가족과 여행",
                 "MEDIUM",
                 2_000_000L,
-                600_000L,
                 List.of(),
                 List.of(),
                 confirmed
