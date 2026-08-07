@@ -117,6 +117,21 @@ def test_active_confirmation_is_confirmed_without_another_llm_call():
     client.chat.completions.create.assert_not_called()
 
 
+def test_ui_confirmation_phrase_is_confirmed_without_another_llm_call():
+    client = Mock()
+
+    response = ChatService(client).chat(
+        ChatRequest(message="이대로 확정할게", goal_draft=complete_draft()),
+    )
+
+    assert response.goal_interview is not None
+    assert response.goal_interview.action == GoalInterviewAction.CONFIRM
+    assert response.goal_interview.active is False
+    assert response.goal_interview.draft.state == InterviewState.COMPLETED
+    assert response.goal_interview.draft.confirmed is True
+    client.chat.completions.create.assert_not_called()
+
+
 def test_active_goal_interview_can_be_cancelled_without_another_llm_call():
     client = Mock()
 
