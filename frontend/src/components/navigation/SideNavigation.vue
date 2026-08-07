@@ -303,8 +303,7 @@ const moveToMyChallenge = () => {
         :title="`절약 꿀팁 · ${dailySavingsTip}`"
         aria-live="polite"
       >
-        <span class="sidebar-card-tip-label">절약 꿀팁</span>
-        <span aria-hidden="true"> · </span>{{ dailySavingsTip }}
+        {{ dailySavingsTip }}
       </p>
     </div>
   </aside>
