@@ -1,8 +1,18 @@
 package com.wallo.chat.dto;
 
-public record ChatResponse(String answer, String title) {
+import com.wallo.goal.dto.GoalInterviewDto;
+
+public record ChatResponse(
+        String answer,
+        String title,
+        GoalInterviewDto.Result goalInterview
+) {
 
     public ChatResponse(String answer) {
-        this(answer, null);
+        this(answer, null, null);
+    }
+
+    public ChatResponse(String answer, String title) {
+        this(answer, title, null);
     }
 }

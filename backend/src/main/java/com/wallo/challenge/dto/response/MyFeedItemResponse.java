@@ -17,6 +17,7 @@ public class MyFeedItemResponse {
     private final Integer commentCount;
     private final String thumbnailUrl;
     private final String mediaUrl;
+    private final String mediaType;
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private final LocalDateTime createdAt;
@@ -32,6 +33,7 @@ public class MyFeedItemResponse {
         this.commentCount = feed.getCommentCount();
         this.thumbnailUrl = feed.getThumbnailUrl();
         this.mediaUrl = feed.getMediaUrl();
+        this.mediaType = feed.getMediaType();
         this.createdAt = feed.getCreatedAt();
     }
 
@@ -78,6 +80,10 @@ public class MyFeedItemResponse {
 
     public String getMediaUrl() {
         return mediaUrl;
+    }
+
+    public String getMediaType() {
+        return mediaType;
     }
 
     public LocalDateTime getCreatedAt() {

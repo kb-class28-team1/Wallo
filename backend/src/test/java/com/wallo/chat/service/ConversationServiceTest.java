@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import com.wallo.chat.domain.Conversation;
 import com.wallo.chat.dto.ConversationResponse;
 import com.wallo.chat.dto.CreateConversationRequest;
+import com.wallo.chat.dto.UpdateConversationTitleRequest;
 import com.wallo.chat.mapper.ConversationMapper;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -72,6 +73,49 @@ class ConversationServiceTest {
                 IllegalArgumentException.class,
                 () -> conversationService.getConversations(0L)
         );
+    }
+
+    @Test
+    void updateTitleChangesOwnedActiveConversation() {
+        Conversation existing = conversation(1L, 7L, "AI가 만든 제목");
+        Conversation updated = conversation(1L, 7L, "직접 바꾼 제목");
+        UpdateConversationTitleRequest request = new UpdateConversationTitleRequest();
+        request.setUserId(7L);
+        request.setTitle("  직접 바꾼 제목  ");
+        when(conversationMapper.findByIdAndUserId(1L, 7L))
+                .thenReturn(existing, updated);
+        when(conversationMapper.updateTitle(1L, 7L, "직접 바꾼 제목"))
+                .thenReturn(1);
+
+        ConversationResponse result = conversationService.updateTitle(1L, request);
+
+        assertEquals("직접 바꾼 제목", result.getTitle());
+        verify(conversationMapper).updateTitle(1L, 7L, "직접 바꾼 제목");
+    }
+
+    @Test
+    void updateTitleRejectsBlankTitle() {
+        UpdateConversationTitleRequest request = new UpdateConversationTitleRequest();
+        request.setUserId(7L);
+        request.setTitle("  ");
+        when(conversationMapper.findByIdAndUserId(1L, 7L))
+                .thenReturn(conversation(1L, 7L, "기존 제목"));
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> conversationService.updateTitle(1L, request)
+        );
+    }
+
+    @Test
+    void deleteConversationSoftDeletesOwnedConversation() {
+        when(conversationMapper.findByIdAndUserId(1L, 7L))
+                .thenReturn(conversation(1L, 7L, "삭제할 채팅"));
+        when(conversationMapper.softDelete(1L, 7L)).thenReturn(1);
+
+        conversationService.deleteConversation(1L, 7L);
+
+        verify(conversationMapper).softDelete(1L, 7L);
     }
 
     private Conversation conversation(Long id, Long userId, String title) {

@@ -66,6 +66,7 @@
         <result property="caption" column="caption" />
         <result property="thumbnailUrl" column="thumbnail_url" />
         <result property="mediaUrl" column="media_url" />
+        <result property="mediaType" column="media_type" />
         <result property="likeCount" column="like_count" />
         <result property="createdAt" column="created_at" />
     </resultMap>
@@ -305,6 +306,7 @@
             feed.caption,
             feed.thumbnail_url,
             feed.media_url,
+            feed.media_type,
             feed.like_count,
             feed.created_at
         FROM feed

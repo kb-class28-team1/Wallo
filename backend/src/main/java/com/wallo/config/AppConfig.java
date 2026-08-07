@@ -7,8 +7,9 @@ import com.wallo.feed.analysis.FeedAnalysisClient;
 import com.wallo.feed.analysis.GeminiFeedAnalysisClient;
 import com.wallo.feed.analysis.MockFeedAnalysisClient;
 import java.time.Clock;
-import java.time.ZoneId;
 import org.springframework.beans.factory.annotation.Value;
+import java.time.Clock;
+import java.time.ZoneId;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
@@ -37,6 +38,8 @@ import org.springframework.web.client.RestTemplate;
 @PropertySource(value = "classpath:application-local.properties", ignoreResourceNotFound = true)
 public class AppConfig {
 
+    private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Seoul");
+
     /**
      * @Value("${...}") 형식의 설정값을 application.properties에서 치환한다.
      *
@@ -46,7 +49,6 @@ public class AppConfig {
     public static PropertySourcesPlaceholderConfigurer propertySourcesPlaceholderConfigurer() {
         return new PropertySourcesPlaceholderConfigurer();
     }
-
     @Bean
     public RestTemplate restTemplate() {
         return new RestTemplate();

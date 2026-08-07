@@ -4,7 +4,8 @@ import { onBeforeUnmount, onMounted } from 'vue'
 const handleModalEnter = (event) => {
   if (event.key !== 'Enter' || event.isComposing) return
 
-  const dialog = document.querySelector('[role="dialog"]')
+  const dialogs = Array.from(document.querySelectorAll('[role="dialog"]'))
+  const dialog = dialogs[dialogs.length - 1]
   if (!dialog) return
 
   const target = event.target
@@ -26,6 +27,6 @@ const handleModalEnter = (event) => {
 }
 
 export const useModalEnter = () => {
-  onMounted(() => window.addEventListener('keyup', handleModalEnter))
-  onBeforeUnmount(() => window.removeEventListener('keyup', handleModalEnter))
+  onMounted(() => window.addEventListener('keydown', handleModalEnter))
+  onBeforeUnmount(() => window.removeEventListener('keydown', handleModalEnter))
 }

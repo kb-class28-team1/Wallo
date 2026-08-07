@@ -110,6 +110,7 @@ class MyFeedMapperIntegrationTest {
                         like_count INT NOT NULL,
                         thumbnail_url VARCHAR(500),
                         media_url VARCHAR(500),
+                        media_type VARCHAR(20),
                         status VARCHAR(20) NOT NULL,
                         created_at TIMESTAMP NOT NULL,
                         file_deleted_at TIMESTAMP NULL

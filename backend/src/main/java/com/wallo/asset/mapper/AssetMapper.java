@@ -1,6 +1,7 @@
 package com.wallo.asset.mapper;
 
 import com.wallo.asset.dto.AssetDto;
+import com.wallo.asset.dto.GoalAssetContextDto;
 import java.util.List;
 import org.apache.ibatis.annotations.Param;
 
@@ -29,5 +30,9 @@ public interface AssetMapper {
             @Param("userId") long userId,
             @Param("startMonth") String startMonth,
             @Param("endMonth") String endMonth
+    );
+
+    List<GoalAssetContextDto.AccountRecord> selectGoalContextAccounts(
+            @Param("userId") long userId
     );
 }

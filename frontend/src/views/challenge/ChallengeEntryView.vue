@@ -14,6 +14,8 @@ const activeForm = ref('create')
 const dialogVisible = ref(false)
 const dialogMessage = ref('')
 const dialogNextRoute = ref(null)
+const dialogImageSrc = ref('')
+const dialogImageAlt = ref('')
 
 const createForm = reactive({
   name: '',
@@ -22,9 +24,11 @@ const inviteCode = ref('')
 
 const hasChallenge = computed(() => currentChallenge.value?.joined === true)
 
-const showDialog = (message, nextRoute = null) => {
+const showDialog = (message, nextRoute = null, imageSrc = '', imageAlt = '') => {
   dialogMessage.value = message
   dialogNextRoute.value = nextRoute
+  dialogImageSrc.value = imageSrc
+  dialogImageAlt.value = imageAlt
   dialogVisible.value = true
 }
 
@@ -32,6 +36,8 @@ const closeDialog = async () => {
   const nextRoute = dialogNextRoute.value
   dialogNextRoute.value = null
   dialogVisible.value = false
+  dialogImageSrc.value = ''
+  dialogImageAlt.value = ''
   if (nextRoute) await router.push(nextRoute)
 }
 
@@ -60,10 +66,15 @@ const submitCreate = async () => {
     const createdChallenge = await createChallenge({
       name,
     })
-    showDialog('챌린지가 만들어졌습니다.', {
-      name: 'challenge-feed',
-      params: { challengeId: createdChallenge.id },
-    })
+    showDialog(
+      '챌린지가 만들어졌습니다.',
+      {
+        name: 'challenge-feed',
+        params: { challengeId: createdChallenge.id },
+      },
+      '/images/profiles/challenge-make-complete.svg',
+      '챌린지가 만들어진 모습을 보여주는 펭귄과 로봇 이미지',
+    )
   } catch (error) {
     showDialog(error.message)
   } finally {
@@ -86,7 +97,13 @@ const submitJoin = async () => {
       params: { challengeId: joinedChallenge.id },
     })
   } catch (error) {
-    showDialog(error.message)
+    const isInvalidInviteCode = error.message === '유효하지 않은 초대 코드입니다.'
+    showDialog(
+      isInvalidInviteCode ? '코드가 맞는지 확인해주세요!' : error.message,
+      null,
+      isInvalidInviteCode ? '/images/profiles/challenge-missingcode.svg' : '',
+      isInvalidInviteCode ? '초대 코드가 일치하지 않아 당황한 펭귄 이미지' : '',
+    )
   } finally {
     isSubmitting.value = false
   }
@@ -234,6 +251,11 @@ onMounted(loadCurrentChallenge)
         </div>
 
         <form v-if="activeForm === 'create'" class="challenge-form" @submit.prevent="submitCreate">
+          <img
+            class="entry-form-image"
+            src="/images/profiles/challenge-make.svg"
+            alt="펭귄과 로봇이 챌린지를 만드는 모습"
+          />
           <div class="form-copy">
             <span class="form-step">01</span>
             <div>
@@ -260,6 +282,11 @@ onMounted(loadCurrentChallenge)
         </form>
 
         <form v-else class="challenge-form" @submit.prevent="submitJoin">
+          <img
+            class="entry-form-image"
+            src="/images/profiles/challenge-code.svg"
+            alt="초대 코드를 들고 있는 펭귄 이미지"
+          />
           <div class="form-copy">
             <span class="form-step">02</span>
             <div>
@@ -298,6 +325,8 @@ onMounted(loadCurrentChallenge)
       :visible="dialogVisible"
       title="챌린지 안내"
       :message="dialogMessage"
+      :image-src="dialogImageSrc"
+      :image-alt="dialogImageAlt"
       @confirm="closeDialog"
       @close="closeDialog"
     />
@@ -617,6 +646,13 @@ onMounted(loadCurrentChallenge)
 
 .challenge-form {
   padding: 36px;
+}
+
+.entry-form-image {
+  display: block;
+  width: min(230px, 100%);
+  height: auto;
+  margin: -10px auto 24px;
 }
 
 .form-copy {

@@ -46,8 +46,8 @@ public interface PointShopMapper {
             @Param("userId") Long userId,
             @Param("amount") Integer amount);
 
-    /** 로그인 사용자가 사용 완료한 상품에 삭제 시각을 기록함. */
-    int softDeleteUsedInventoryItem(
+    /** 로그인 사용자가 사용 완료한 상품을 실제로 삭제함. */
+    int deleteUsedInventoryItem(
             @Param("userId") Long userId,
             @Param("inventoryId") Long inventoryId);
 
