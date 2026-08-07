@@ -3,7 +3,9 @@ package com.wallo.asset.service;
 import com.wallo.asset.dto.BudgetDto;
 import com.wallo.asset.exception.InvalidDashboardRequestException;
 import com.wallo.asset.mapper.BudgetMapper;
+import java.time.Clock;
 import java.time.DateTimeException;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,9 +14,17 @@ import org.springframework.transaction.annotation.Transactional;
 public class BudgetService {
 
     private final BudgetMapper budgetMapper;
+    private final ConsumptionInsightCache consumptionInsightCache;
+    private final Clock clock;
 
-    public BudgetService(BudgetMapper budgetMapper) {
+    public BudgetService(
+            BudgetMapper budgetMapper,
+            ConsumptionInsightCache consumptionInsightCache,
+            Clock clock
+    ) {
         this.budgetMapper = budgetMapper;
+        this.consumptionInsightCache = consumptionInsightCache;
+        this.clock = clock;
     }
 
     public BudgetDto.Summary getBudgetSummary(long userId, String targetMonth) {
@@ -44,12 +54,17 @@ public class BudgetService {
                 new BudgetDto.UpsertRequest(yearMonth.toString(), request.getTotalAmount())
         );
 
+        YearMonth currentMonth = YearMonth.from(LocalDate.now(clock));
+        if (currentMonth.equals(yearMonth)) {
+            consumptionInsightCache.invalidateAfterCommit(userId, currentMonth);
+        }
+
         return getBudgetSummary(userId, yearMonth.toString());
     }
 
     private YearMonth resolveTargetMonth(String targetMonth) {
         if (targetMonth == null || targetMonth.isBlank()) {
-            return YearMonth.now();
+            return YearMonth.from(LocalDate.now(clock));
         }
 
         try {

@@ -28,6 +28,8 @@ import java.util.List;
         "com.wallo.asset.controller",
         "com.wallo.auth.controller",
         "com.wallo.auth.exception",
+        "com.wallo.user.controller",
+        "com.wallo.user.exception",
         "com.wallo.external.controller",
         "com.wallo.challenge.controller",
         "com.wallo.chat.controller",

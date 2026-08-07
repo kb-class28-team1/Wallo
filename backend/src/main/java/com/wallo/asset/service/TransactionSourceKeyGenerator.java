@@ -11,14 +11,14 @@ public class TransactionSourceKeyGenerator {
 
     public String forCardApproval(
             String organizationCode,
-            Long cardId,
+            String cardNumber,
             String approvalNo
     ) {
         String canonicalValue = String.join(
                 "|",
                 "CARD_APPROVAL",
                 required(organizationCode, "기관 코드"),
-                cardId == null ? "UNRESOLVED_CARD" : String.valueOf(cardId),
+                normalizeIdentity(cardNumber, "카드번호"),
                 required(approvalNo, "승인번호")
         );
         return sha256(canonicalValue);
@@ -26,18 +26,15 @@ public class TransactionSourceKeyGenerator {
 
     public String forBankTransaction(
             String organizationCode,
-            Long accountId,
+            String accountNumber,
             String transactionId
     ) {
-        if (accountId == null) {
-            throw new IllegalArgumentException("계좌 ID 값이 필요합니다.");
-        }
         String canonicalValue = String.join(
                 "|",
                 "BANK_TRANSACTION",
                 required(organizationCode, "기관 코드"),
-                String.valueOf(accountId),
-                required(transactionId, "은행 거래번호")
+                normalizeIdentity(accountNumber, "계좌번호"),
+                required(transactionId, "원천 거래번호")
         );
         return sha256(canonicalValue);
     }
@@ -56,5 +53,11 @@ public class TransactionSourceKeyGenerator {
             throw new IllegalArgumentException(fieldName + " 값이 필요합니다.");
         }
         return value.trim();
+    }
+
+    private String normalizeIdentity(String value, String fieldName) {
+        return required(value, fieldName)
+                .replace("-", "")
+                .replace(" ", "");
     }
 }

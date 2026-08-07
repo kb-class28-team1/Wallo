@@ -10,6 +10,7 @@ public class TopLikedFeed {
     private String caption;
     private String thumbnailUrl;
     private String mediaUrl;
+    private String mediaType;
     private Integer likeCount;
     private LocalDateTime createdAt;
 
@@ -51,6 +52,14 @@ public class TopLikedFeed {
 
     public void setMediaUrl(String mediaUrl) {
         this.mediaUrl = mediaUrl;
+    }
+
+    public String getMediaType() {
+        return mediaType;
+    }
+
+    public void setMediaType(String mediaType) {
+        this.mediaType = mediaType;
     }
 
     public Integer getLikeCount() {

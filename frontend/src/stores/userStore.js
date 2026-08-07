@@ -5,6 +5,13 @@ import {
   login as loginRequest,
   logout as logoutRequest,
 } from "@/api/authApi"
+import {
+  changePassword as changePasswordRequest,
+  getProfile as getProfileRequest,
+  resetProfileImage as resetProfileImageRequest,
+  updateNickname as updateNicknameRequest,
+  updateProfileImage as updateProfileImageRequest,
+} from "@/api/userApi"
 
 const DEFAULT_PROFILE_IMAGE = "/images/profiles/default-profile.svg"
 
@@ -12,6 +19,7 @@ export const useUserStore = defineStore("user", () => {
   const user = ref(null)
   const isLoading = ref(false)
   const hasCheckedAuth = ref(false)
+  let profileRequest = null
 
   const isAuthenticated = computed(() => Boolean(user.value?.id))
   const nickname = computed(() => user.value?.nickname || "")
@@ -83,11 +91,115 @@ export const useUserStore = defineStore("user", () => {
     }
   }
 
+  const fetchProfile = () => {
+    if (profileRequest) {
+      return profileRequest
+    }
+
+    profileRequest = (async () => {
+      isLoading.value = true
+      try {
+        const profile = await getProfileRequest()
+
+        if (user.value) {
+          user.value = {
+            ...user.value,
+            ...profile,
+          }
+        } else {
+          setUser({
+            ...profile,
+            point: 0,
+            connectionCompleted: false,
+          })
+        }
+
+        return profile
+      } finally {
+        isLoading.value = false
+        profileRequest = null
+      }
+    })()
+
+    return profileRequest
+  }
+
+  const updateNickname = async (nickname) => {
+    isLoading.value = true
+    try {
+      const updatedProfile = await updateNicknameRequest(nickname)
+      const updatedNickname = updatedProfile?.nickname || nickname
+
+      if (user.value) {
+        user.value = {
+          ...user.value,
+          nickname: updatedNickname,
+        }
+      }
+
+      return updatedNickname
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  const changePassword = async (passwords) => {
+    isLoading.value = true
+    try {
+      await changePasswordRequest(passwords)
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  const updateProfileImage = async (file) => {
+    isLoading.value = true
+    try {
+      const updatedProfile = await updateProfileImageRequest(file)
+      const updatedImageUrl = updatedProfile?.profileImageUrl || DEFAULT_PROFILE_IMAGE
+
+      if (user.value) {
+        user.value = {
+          ...user.value,
+          profileImageUrl: updatedImageUrl,
+        }
+      }
+
+      return updatedImageUrl
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  const resetProfileImage = async () => {
+    isLoading.value = true
+    try {
+      const updatedProfile = await resetProfileImageRequest()
+      const updatedImageUrl = updatedProfile?.profileImageUrl || DEFAULT_PROFILE_IMAGE
+
+      if (user.value) {
+        user.value = {
+          ...user.value,
+          profileImageUrl: updatedImageUrl,
+        }
+      }
+
+      return updatedImageUrl
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   const fetchUserProfile = async () => {
     try {
-      await restoreSession()
+      return await fetchProfile()
     } catch (error) {
+      if (error.status === 401) {
+        clearAuth()
+        return false
+      }
       alert(error.message || "사용자 정보를 불러오지 못했습니다.")
+      return false
     }
   }
 
@@ -107,7 +219,12 @@ export const useUserStore = defineStore("user", () => {
     isAuthenticated,
     login,
     logout,
+    updateNickname,
+    changePassword,
+    updateProfileImage,
+    resetProfileImage,
     restoreSession,
+    fetchProfile,
     clearAuth,
     updatePointBalance,
     fetchUserProfile,

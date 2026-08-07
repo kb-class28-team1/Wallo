@@ -214,7 +214,7 @@ public class BankTransactionCollectionService {
         String description = defaultValue(source.getResAccountDesc(), "계좌 거래");
         String sourceDedupKey = sourceKeyGenerator.forBankTransaction(
                 institution.getCodefOrganizationCode(),
-                accountId,
+                accountNumber,
                 transactionId
         );
         String normalizedKind = source.getTransactionKind() == null

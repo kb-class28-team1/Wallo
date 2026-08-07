@@ -4,6 +4,7 @@ import java.security.SecureRandom;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -39,6 +40,7 @@ public class ChallengeServiceImpl implements ChallengeService {
     private static final String INVITE_CODE_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     private static final int INVITE_CODE_LENGTH = 5;
     private static final int MAX_INVITE_CODE_GENERATION_ATTEMPTS = 10;
+    private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Seoul");
 
     private final ChallengeMapper challengeMapper;
     // secureRandom: 일반 Random 보다 더 예측하기 어려운 난수생성 메소드
@@ -175,7 +177,7 @@ public class ChallengeServiceImpl implements ChallengeService {
 
         // VIEW 결과가 비어 있어도 현재 주의 월요일부터 일요일까지를 응답하도록 처리함.
         LocalDate startDate = weeklyRankings.isEmpty()
-                ? LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+                ? LocalDate.now(BUSINESS_ZONE).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
                 : weeklyRankings.get(0).getWeekStartDate();
 
         return WeeklyRankingResponse.of(

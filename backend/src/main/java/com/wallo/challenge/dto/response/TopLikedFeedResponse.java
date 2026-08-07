@@ -12,6 +12,7 @@ public class TopLikedFeedResponse {
     private final String caption;
     private final String thumbnailUrl;
     private final String mediaUrl;
+    private final String mediaType;
     private final Integer likeCount;
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
@@ -23,6 +24,7 @@ public class TopLikedFeedResponse {
         this.caption = topLikedFeed.getCaption();
         this.thumbnailUrl = topLikedFeed.getThumbnailUrl();
         this.mediaUrl = topLikedFeed.getMediaUrl();
+        this.mediaType = topLikedFeed.getMediaType();
         this.likeCount = topLikedFeed.getLikeCount();
         this.createdAt = topLikedFeed.getCreatedAt();
     }
@@ -49,6 +51,10 @@ public class TopLikedFeedResponse {
 
     public String getMediaUrl() {
         return mediaUrl;
+    }
+
+    public String getMediaType() {
+        return mediaType;
     }
 
     public Integer getLikeCount() {
