@@ -150,6 +150,39 @@ def test_rejects_response_over_configured_lengths():
         generate_consumption_insight(client, _sample_request(), "openai/gpt-oss-20b")
 
 
+def test_rejects_response_with_extra_fields():
+    client = FakeGroqClient(json.dumps({
+        "reportTitle": "제목",
+        "reportContent": "본문",
+        "generationMode": "AI",
+    }))
+
+    with pytest.raises(InvalidConsumptionInsightResponseError):
+        generate_consumption_insight(client, _sample_request(), "openai/gpt-oss-20b")
+
+
+def test_rejects_embedded_markdown_code_block():
+    client = FakeGroqClient(json.dumps({
+        "reportTitle": "제목",
+        "reportContent": "본문 ```json",
+    }))
+
+    with pytest.raises(InvalidConsumptionInsightResponseError):
+        generate_consumption_insight(client, _sample_request(), "openai/gpt-oss-20b")
+
+
+def test_rejects_request_with_extra_fields():
+    with pytest.raises(ValidationError):
+        ConsumptionInsightGenerateRequest(
+            category="CAFE",
+            categoryLabel="카페",
+            previousAmount=0,
+            categoryChangeRate=0.0,
+            totalChangeRate=0.0,
+            unexpectedField="not allowed",
+        )
+
+
 def test_returns_bad_gateway_when_groq_fails():
     fake_client = FakeGroqClient(exception=GroqError("connection failed"))
 

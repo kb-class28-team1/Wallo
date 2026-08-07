@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -71,5 +72,28 @@ class ConnectionControllerTest {
                 .andExpect(jsonPath("$.data.results").isArray());
 
         verify(connectionService).connectAllAssets(eq(7L), any(ConnectionDto.Request.class));
+    }
+
+    @Test
+    void getConnectedAssetsReturnsConnectionList() throws Exception {
+        when(connectionService.getConnectedAssets(7L)).thenReturn(
+                new ConnectionDto.ConnectedAssetsResponse(Collections.emptyList())
+        );
+
+        mockMvc.perform(get("/api/connections"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.connections").isArray());
+
+        verify(connectionService).getConnectedAssets(7L);
+    }
+
+    @Test
+    void disconnectsConnectionForCurrentUser() throws Exception {
+        mockMvc.perform(delete("/api/connections/42"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        verify(connectionService).disconnect(7L, 42L);
     }
 }

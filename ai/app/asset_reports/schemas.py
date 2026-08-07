@@ -1,8 +1,10 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class ConsumptionInsightGenerateRequest(BaseModel):
     """Spring 백엔드가 집계한 카테고리별 소비 데이터."""
+
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     category: str = Field(min_length=1, max_length=50)
     categoryLabel: str = Field(min_length=1, max_length=50)
@@ -23,6 +25,8 @@ class ConsumptionInsightGenerateRequest(BaseModel):
 
 
 class ConsumptionInsightGenerateResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     reportTitle: str = Field(min_length=1, max_length=15)
     reportContent: str = Field(min_length=1, max_length=50)
 
@@ -32,7 +36,7 @@ class ConsumptionInsightGenerateResponse(BaseModel):
         stripped = value.strip()
         if not stripped:
             raise ValueError("report text must not be blank")
-        if stripped.startswith("```"):
+        if "```" in stripped:
             raise ValueError("report text must not contain a markdown code block")
         if stripped.startswith("{") and stripped.endswith("}"):
             raise ValueError("report text must not be a JSON-wrapped string")
