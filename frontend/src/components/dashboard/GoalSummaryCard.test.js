@@ -19,8 +19,9 @@ describe("GoalSummaryCard", () => {
           {
             goalId: 1,
             title: "Emergency fund",
-            targetAmount: 10000000,
+            targetAmount: 5000000,
             targetDate: "2027-11-30",
+            initialAmount: 3250000,
             requiredMonthlyAmount: 500000,
             status: "ACTIVE",
           },
@@ -29,9 +30,12 @@ describe("GoalSummaryCard", () => {
     });
 
     expect(wrapper.text()).toContain("Emergency fund");
-    expect(wrapper.text()).toContain("10,000,000원");
+    expect(wrapper.text()).toContain("5,000,000원");
+    expect(wrapper.text()).toContain("3,250,000원");
+    expect(wrapper.text()).toContain("65%");
     expect(wrapper.text()).toContain("월 필요 납입액");
     expect(wrapper.text()).toContain("진행 중");
+    expect(wrapper.find(".goal-progress-bar").attributes("style")).toContain("width: 65%");
   });
 
   it("shows the empty state when no goal exists", () => {

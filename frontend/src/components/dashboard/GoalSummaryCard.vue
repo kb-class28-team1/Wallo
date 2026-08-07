@@ -45,6 +45,21 @@ const formatGoalDate = (date) => {
 };
 
 const getStatusLabel = (status) => statusLabels[status] ?? status ?? "상태 미정";
+
+const getAchievementRate = (goal) => {
+  const targetAmount = Number(goal?.targetAmount);
+  const initialAmount = Number(goal?.initialAmount);
+
+  if (!Number.isFinite(targetAmount) || targetAmount <= 0) {
+    return 0;
+  }
+
+  if (!Number.isFinite(initialAmount) || initialAmount <= 0) {
+    return 0;
+  }
+
+  return Math.min(100, Math.max(0, Math.round((initialAmount / targetAmount) * 100)));
+};
 </script>
 
 <template>
@@ -94,6 +109,30 @@ const getStatusLabel = (status) => statusLabels[status] ?? status ?? "상태 미
             <span class="badge rounded-pill goal-status-badge">
               {{ getStatusLabel(goal.status) }}
             </span>
+          </div>
+
+          <div class="goal-progress-summary mb-4">
+            <p class="goal-progress-caption mb-1">목표 설정 당시 준비금 기준</p>
+            <div class="d-flex align-items-baseline justify-content-between gap-3">
+              <div class="goal-progress-amount">
+                <strong>{{ formatWon(goal.initialAmount) }}</strong>
+                <span>/ {{ formatWon(goal.targetAmount) }}</span>
+              </div>
+              <strong class="goal-progress-rate">{{ getAchievementRate(goal) }}%</strong>
+            </div>
+            <div
+              class="progress goal-progress mt-2"
+              role="progressbar"
+              :aria-label="`${goal.title || '금융 목표'} 달성률`"
+              :aria-valuenow="getAchievementRate(goal)"
+              aria-valuemin="0"
+              aria-valuemax="100"
+            >
+              <div
+                class="progress-bar goal-progress-bar"
+                :style="{ width: `${getAchievementRate(goal)}%` }"
+              ></div>
+            </div>
           </div>
 
           <dl class="row gy-3 mb-0">
@@ -179,6 +218,43 @@ const getStatusLabel = (status) => statusLabels[status] ?? status ?? "상태 미
   color: #0000d5;
   background: #eef0ff;
   white-space: nowrap;
+}
+
+.goal-progress-caption {
+  color: #6c757d;
+  font-size: 0.8rem;
+}
+
+.goal-progress-amount {
+  color: #111111;
+}
+
+.goal-progress-amount strong {
+  color: #4f46e5;
+  font-size: 1.65rem;
+  letter-spacing: -0.04em;
+}
+
+.goal-progress-amount span {
+  color: #6c757d;
+  font-size: 0.95rem;
+}
+
+.goal-progress-rate {
+  color: #4f46e5;
+  font-size: 1rem;
+}
+
+.goal-progress {
+  height: 0.7rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e6e7ff;
+}
+
+.goal-progress-bar {
+  border-radius: inherit;
+  background: linear-gradient(90deg, #5d52f4, #766bff);
 }
 
 @media (max-width: 575.98px) {
