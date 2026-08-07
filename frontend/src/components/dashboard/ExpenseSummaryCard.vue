@@ -61,7 +61,7 @@ const expenseCategoryRate = (amount) => {
 </script>
 
 <template>
-  <article class="card expense-summary-card border-0 shadow-sm mt-4">
+  <article class="card expense-summary-card border-0 shadow-sm">
     <div class="card-body expense-card-body">
       <div class="d-flex align-items-start justify-content-between gap-3">
         <div>

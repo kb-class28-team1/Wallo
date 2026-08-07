@@ -70,20 +70,20 @@ onMounted(() => {
         <p class="text-secondary mb-0">자산과 소비 현황을 확인하세요.</p>
       </header>
 
-      <GoalSummaryCard
-        :goals="goals"
-        :loading="isGoalLoading"
-        :error="goalError"
-        class="mb-4"
-        @retry="handleGoalRetry"
-      />
-
       <div class="dashboard-card-grid">
         <AssetSummaryCard :assets="assets" :chart-data="assetTrendChartData" />
         <BudgetSummaryCard :budget="budget" @save-budget="handleBudgetSave" />
       </div>
 
-      <ExpenseSummaryCard :expenses="expenses" :chart-data="expenseChartData" />
+      <div class="dashboard-summary-grid">
+        <ExpenseSummaryCard :expenses="expenses" :chart-data="expenseChartData" />
+        <GoalSummaryCard
+          :goals="goals"
+          :loading="isGoalLoading"
+          :error="goalError"
+          @retry="handleGoalRetry"
+        />
+      </div>
     </div>
   </section>
 </template>
@@ -102,12 +102,28 @@ onMounted(() => {
   grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
   gap: 40px;
   max-width: 1080px;
+  margin-top: 40px;
+}
+
+.dashboard-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 40px;
+  max-width: 1080px;
+  margin-top: 40px;
 }
 
 @media (max-width: 991.98px) {
   .dashboard-card-grid {
     grid-template-columns: 1fr;
     gap: 24px;
+    margin-top: 24px;
+  }
+
+  .dashboard-summary-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    margin-top: 24px;
   }
 }
 </style>

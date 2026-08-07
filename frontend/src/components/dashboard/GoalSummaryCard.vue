@@ -1,7 +1,8 @@
 <script setup>
+import { computed, ref, watch } from "vue";
 import { formatWon } from "@/commonUtils/formatters";
 
-defineProps({
+const props = defineProps({
   goals: {
     type: Array,
     default: () => [],
@@ -17,11 +18,34 @@ defineProps({
 });
 
 const emit = defineEmits(["retry"]);
+const selectedGoalIndex = ref(0);
 
-const statusLabels = {
-  ACTIVE: "진행 중",
-  ACHIEVED: "달성 완료",
-  CANCELLED: "취소됨",
+const selectedGoal = computed(() => props.goals[selectedGoalIndex.value] ?? null);
+
+watch(
+  () => props.goals.length,
+  (goalCount) => {
+    if (goalCount === 0) {
+      selectedGoalIndex.value = 0;
+      return;
+    }
+
+    if (selectedGoalIndex.value >= goalCount) {
+      selectedGoalIndex.value = goalCount - 1;
+    }
+  },
+);
+
+const showPreviousGoal = () => {
+  if (props.goals.length < 2) return;
+  selectedGoalIndex.value = (
+    selectedGoalIndex.value - 1 + props.goals.length
+  ) % props.goals.length;
+};
+
+const showNextGoal = () => {
+  if (props.goals.length < 2) return;
+  selectedGoalIndex.value = (selectedGoalIndex.value + 1) % props.goals.length;
 };
 
 const formatGoalDate = (date) => {
@@ -44,8 +68,6 @@ const formatGoalDate = (date) => {
   }).format(parsedDate);
 };
 
-const getStatusLabel = (status) => statusLabels[status] ?? status ?? "상태 미정";
-
 const getAchievementRate = (goal) => {
   const targetAmount = Number(goal?.targetAmount);
   const initialAmount = Number(goal?.initialAmount);
@@ -64,14 +86,15 @@ const getAchievementRate = (goal) => {
 
 <template>
   <article class="card goal-summary-card border-0 shadow-sm">
-    <div class="card-body">
-      <div class="d-flex align-items-start justify-content-between gap-3 mb-4">
-        <div>
-          <p class="goal-label fw-semibold mb-2">AI 금융 목표</p>
-          <h2 class="h4 fw-bold mb-0">확정된 목표</h2>
+    <div class="card-body goal-card-body">
+      <div class="goal-card-header d-flex align-items-start justify-content-between gap-3 mb-4">
+        <div v-if="selectedGoal" class="min-w-0">
+          <h2 class="h5 fw-bold mb-0 text-truncate">
+            {{ selectedGoal.title || "제목 없는 목표" }}
+          </h2>
         </div>
 
-        <RouterLink to="/ai-consulting" class="btn dashboard-action-button flex-shrink-0">
+        <RouterLink to="/ai-consulting" class="btn dashboard-action-button flex-shrink-0 ms-auto">
           목표 설정
           <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
         </RouterLink>
@@ -97,40 +120,30 @@ const getAchievementRate = (goal) => {
 
       <div v-else class="goal-list">
         <section
-          v-for="(goal, index) in goals"
-          :key="goal.goalId ?? goal.conversationId ?? index"
+          v-if="selectedGoal"
+          :key="selectedGoal.goalId ?? selectedGoal.conversationId ?? selectedGoalIndex"
           class="goal-item"
         >
-          <div class="d-flex align-items-start justify-content-between gap-3 mb-3">
-            <div>
-              <p class="goal-item-label mb-1">금융 목표</p>
-              <h3 class="h5 fw-bold mb-0">{{ goal.title || "제목 없는 목표" }}</h3>
-            </div>
-            <span class="badge rounded-pill goal-status-badge">
-              {{ getStatusLabel(goal.status) }}
-            </span>
-          </div>
-
           <div class="goal-progress-summary mb-4">
             <p class="goal-progress-caption mb-1">목표 설정 당시 준비금 기준</p>
             <div class="d-flex align-items-baseline justify-content-between gap-3">
               <div class="goal-progress-amount">
-                <strong>{{ formatWon(goal.initialAmount) }}</strong>
-                <span>/ {{ formatWon(goal.targetAmount) }}</span>
+                <strong>{{ formatWon(selectedGoal.initialAmount) }}</strong>
+                <span>/ {{ formatWon(selectedGoal.targetAmount) }}</span>
               </div>
-              <strong class="goal-progress-rate">{{ getAchievementRate(goal) }}%</strong>
+              <strong class="goal-progress-rate">{{ getAchievementRate(selectedGoal) }}%</strong>
             </div>
             <div
               class="progress goal-progress mt-2"
               role="progressbar"
-              :aria-label="`${goal.title || '금융 목표'} 달성률`"
-              :aria-valuenow="getAchievementRate(goal)"
+              :aria-label="`${selectedGoal.title || '금융 목표'} 달성률`"
+              :aria-valuenow="getAchievementRate(selectedGoal)"
               aria-valuemin="0"
               aria-valuemax="100"
             >
               <div
                 class="progress-bar goal-progress-bar"
-                :style="{ width: `${getAchievementRate(goal)}%` }"
+                :style="{ width: `${getAchievementRate(selectedGoal)}%` }"
               ></div>
             </div>
           </div>
@@ -138,17 +151,41 @@ const getAchievementRate = (goal) => {
           <dl class="row gy-3 mb-0">
             <div class="col-sm-4">
               <dt>목표 금액</dt>
-              <dd>{{ formatWon(goal.targetAmount) }}</dd>
+              <dd>{{ formatWon(selectedGoal.targetAmount) }}</dd>
             </div>
             <div class="col-sm-4">
               <dt>목표 날짜</dt>
-              <dd>{{ formatGoalDate(goal.targetDate) }}</dd>
+              <dd>{{ formatGoalDate(selectedGoal.targetDate) }}</dd>
             </div>
             <div class="col-sm-4">
               <dt>월 필요 납입액</dt>
-              <dd>{{ formatWon(goal.requiredMonthlyAmount) }}</dd>
+              <dd>{{ formatWon(selectedGoal.requiredMonthlyAmount) }}</dd>
             </div>
           </dl>
+
+          <div v-if="goals.length > 1" class="goal-carousel-footer">
+            <div class="goal-carousel-controls" aria-label="목표 선택">
+              <button
+                type="button"
+                class="btn goal-carousel-button"
+                aria-label="이전 목표"
+                @click="showPreviousGoal"
+              >
+                &lt;
+              </button>
+              <span class="goal-carousel-position" aria-live="polite">
+                {{ selectedGoalIndex + 1 }} / {{ goals.length }}
+              </span>
+              <button
+                type="button"
+                class="btn goal-carousel-button"
+                aria-label="다음 목표"
+                @click="showNextGoal"
+              >
+                &gt;
+              </button>
+            </div>
+          </div>
         </section>
       </div>
     </div>
@@ -157,18 +194,22 @@ const getAchievementRate = (goal) => {
 
 <style scoped>
 .goal-summary-card {
+  width: 100%;
+  height: 100%;
   max-width: 1080px;
   border-radius: 32px;
   background: #ffffff;
 }
 
-.goal-label,
-.goal-item-label {
-  color: #111111;
+.goal-card-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  padding: 36px 42px;
 }
 
-.goal-label {
-  font-size: 1.1rem;
+.goal-card-header {
+  margin-bottom: 2rem !important;
 }
 
 .dashboard-action-button {
@@ -195,6 +236,18 @@ const getAchievementRate = (goal) => {
   text-align: center;
 }
 
+.goal-list {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.goal-item {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
 .goal-item + .goal-item {
   margin-top: 1rem;
   padding-top: 1rem;
@@ -214,15 +267,55 @@ const getAchievementRate = (goal) => {
   font-weight: 700;
 }
 
-.goal-status-badge {
-  color: #0000d5;
-  background: #eef0ff;
-  white-space: nowrap;
+.goal-carousel-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.goal-carousel-footer {
+  display: flex;
+  justify-content: center;
+  margin-top: auto;
+  padding-top: 2rem;
+}
+
+.goal-carousel-button {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  color: #555b6e;
+  background: transparent;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.goal-carousel-button:hover,
+.goal-carousel-button:focus {
+  color: #6b5bd2;
+  background: #f0edff;
+}
+
+.goal-carousel-position {
+  min-width: 2.7rem;
+  color: #6c757d;
+  font-size: 0.75rem;
+  text-align: center;
 }
 
 .goal-progress-caption {
+  margin-bottom: 0.5rem !important;
   color: #6c757d;
   font-size: 0.8rem;
+}
+
+.goal-progress-summary {
+  margin-bottom: 2rem !important;
 }
 
 .goal-progress-amount {
@@ -246,6 +339,7 @@ const getAchievementRate = (goal) => {
 }
 
 .goal-progress {
+  margin-top: 0.75rem !important;
   height: 0.7rem;
   overflow: hidden;
   border-radius: 999px;
@@ -258,8 +352,8 @@ const getAchievementRate = (goal) => {
 }
 
 @media (max-width: 575.98px) {
-  .goal-summary-card .card-body {
-    padding: 1.5rem;
+  .goal-card-body {
+    padding: 30px;
   }
 
   .goal-summary-card .dashboard-action-button {

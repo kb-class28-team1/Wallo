@@ -17,6 +17,8 @@ public interface GoalMapper {
             @Param("conversationId") Long conversationId
     );
 
+    int countFinancialGoalsByUserId(@Param("userId") Long userId);
+
     List<FinancialGoal> findGoalsByUserId(@Param("userId") Long userId);
 
     FinancialGoal findGoalByConversationId(
