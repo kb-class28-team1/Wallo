@@ -102,19 +102,28 @@ const formatGoalDate = (date) => {
   }).format(parsedDate);
 };
 
+const getCurrentAmount = (goal) => {
+  const currentAmount = Number(goal?.currentAmount);
+  if (Number.isFinite(currentAmount)) {
+    return currentAmount;
+  }
+
+  return Number(goal?.initialAmount) || 0;
+};
+
 const getAchievementRate = (goal) => {
   const targetAmount = Number(goal?.targetAmount);
-  const initialAmount = Number(goal?.initialAmount);
+  const serverRate = Number(goal?.achievementRate);
+
+  if (Number.isFinite(serverRate)) {
+    return Math.min(100, Math.max(0, Math.round(serverRate)));
+  }
 
   if (!Number.isFinite(targetAmount) || targetAmount <= 0) {
     return 0;
   }
 
-  if (!Number.isFinite(initialAmount) || initialAmount <= 0) {
-    return 0;
-  }
-
-  return Math.min(100, Math.max(0, Math.round((initialAmount / targetAmount) * 100)));
+  return Math.min(100, Math.max(0, Math.round((getCurrentAmount(goal) / targetAmount) * 100)));
 };
 
 const formatAccountBalance = (account) => {
@@ -178,10 +187,10 @@ const submitAccountSelection = () => {
           class="goal-item"
         >
           <div class="goal-progress-summary mb-4">
-            <p class="goal-progress-caption mb-1">목표 설정 당시 준비금 기준</p>
+            <p class="goal-progress-caption mb-1">연결 계좌 현재 잔액 기준</p>
             <div class="d-flex align-items-baseline justify-content-between gap-3">
               <div class="goal-progress-amount">
-                <strong>{{ formatWon(selectedGoal.initialAmount) }}</strong>
+                <strong>{{ formatWon(getCurrentAmount(selectedGoal)) }}</strong>
                 <span>/ {{ formatWon(selectedGoal.targetAmount) }}</span>
               </div>
               <strong class="goal-progress-rate">{{ getAchievementRate(selectedGoal) }}%</strong>

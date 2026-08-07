@@ -15,6 +15,10 @@ public interface GoalAccountMapper {
             @Param("accountId") long accountId
     );
 
+    List<GoalAccountDto.SyncTarget> findSelectedAccountSyncTargets(
+            @Param("userId") long userId
+    );
+
     int deleteByGoalId(@Param("goalId") long goalId);
 
     int insertGoalAccount(

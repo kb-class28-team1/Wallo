@@ -22,6 +22,8 @@ describe("GoalSummaryCard", () => {
             targetAmount: 5000000,
             targetDate: "2027-11-30",
             initialAmount: 3250000,
+            currentAmount: 3250000,
+            achievementRate: 65,
             requiredMonthlyAmount: 500000,
             status: "ACTIVE",
           },
@@ -37,6 +39,7 @@ describe("GoalSummaryCard", () => {
     expect(wrapper.text()).toContain("5,000,000원");
     expect(wrapper.text()).toContain("3,250,000원");
     expect(wrapper.text()).toContain("65%");
+    expect(wrapper.text()).toContain("연결 계좌 현재 잔액 기준");
     expect(wrapper.text()).toContain("월 필요 납입액");
     expect(wrapper.text()).not.toContain("진행 중");
     expect(wrapper.find(".goal-progress-bar").attributes("style")).toContain("width: 65%");

@@ -84,6 +84,7 @@ class GoalMapperIntegrationTest {
         assertEquals(1, goalMapper.insertGoal(goal));
         assertNotNull(goal.getGoalId());
         assertEquals(1, goalMapper.completeSession(session.getSessionId(), "COMPLETED"));
+        linkGoalAccount(goal.getGoalId());
         assertNull(goalMapper.findActiveSession(7L, 11L));
         assertEquals("ACTIVE", selectGoalStatus(goal.getGoalId()));
         assertEquals(1, goalMapper.countFinancialGoals(7L, 11L));
@@ -96,6 +97,10 @@ class GoalMapperIntegrationTest {
         assertEquals(
                 600_000L,
                 goalMapper.findGoalsByUserId(7L).get(0).getRequiredMonthlyAmount()
+        );
+        assertEquals(
+                3_250_000L,
+                goalMapper.findGoalsByUserId(7L).get(0).getCurrentAmount()
         );
         assertEquals(
                 goal.getGoalId(),
@@ -149,6 +154,27 @@ class GoalMapperIntegrationTest {
         try (Connection connection = dataSource.getConnection();
              Statement statement = connection.createStatement()) {
             statement.execute("""
+                    CREATE TABLE CONNECTIONS (
+                        connection_id BIGINT PRIMARY KEY,
+                        status VARCHAR(20) NOT NULL,
+                        deleted_at TIMESTAMP NULL
+                    )
+                    """);
+            statement.execute("""
+                    CREATE TABLE ACCOUNTS (
+                        account_id BIGINT PRIMARY KEY,
+                        connection_id BIGINT NOT NULL,
+                        balance BIGINT NOT NULL,
+                        status VARCHAR(20) NOT NULL
+                    )
+                    """);
+            statement.execute("""
+                    CREATE TABLE FINANCIAL_GOAL_ACCOUNTS (
+                        goal_id BIGINT PRIMARY KEY,
+                        account_id BIGINT NOT NULL
+                    )
+                    """);
+            statement.execute("""
                     CREATE TABLE GOAL_INTERVIEW_SESSIONS (
                         session_id BIGINT AUTO_INCREMENT PRIMARY KEY,
                         user_id BIGINT NOT NULL,
@@ -182,6 +208,17 @@ class GoalMapperIntegrationTest {
                         UNIQUE (user_id)
                     )
                     """);
+        }
+    }
+
+    private void linkGoalAccount(Long goalId) throws Exception {
+        try (Connection connection = dataSource.getConnection();
+             Statement statement = connection.createStatement()) {
+            statement.execute("INSERT INTO CONNECTIONS VALUES (21, 'ACTIVE', NULL)");
+            statement.execute("INSERT INTO ACCOUNTS VALUES (101, 21, 3250000, 'ACTIVE')");
+            statement.execute(
+                    "INSERT INTO FINANCIAL_GOAL_ACCOUNTS VALUES (" + goalId + ", 101)"
+            );
         }
     }
 

@@ -23,6 +23,8 @@ public final class GoalDto {
         private final String motivation;
         private final String priority;
         private final long initialAmount;
+        private final long currentAmount;
+        private final int achievementRate;
         private final long requiredMonthlyAmount;
         private final String status;
         private final LocalDateTime createdAt;
@@ -43,10 +45,24 @@ public final class GoalDto {
                     goal.getMotivation(),
                     goal.getPriority(),
                     goal.getInitialAmount(),
+                    goal.getCurrentAmount(),
+                    achievementRate(goal.getCurrentAmount(), goal.getTargetAmount()),
                     goal.getRequiredMonthlyAmount(),
                     goal.getStatus(),
                     goal.getCreatedAt(),
                     goal.getUpdatedAt()
+            );
+        }
+
+        private static int achievementRate(long currentAmount, long targetAmount) {
+            if (targetAmount <= 0) {
+                return 0;
+            }
+
+            long normalizedCurrentAmount = Math.max(0L, currentAmount);
+            return (int) Math.min(
+                    100L,
+                    Math.round((double) normalizedCurrentAmount / targetAmount * 100)
             );
         }
     }

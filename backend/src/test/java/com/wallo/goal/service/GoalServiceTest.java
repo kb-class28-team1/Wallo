@@ -19,7 +19,8 @@ import org.junit.jupiter.api.Test;
 class GoalServiceTest {
 
     private final GoalMapper goalMapper = mock(GoalMapper.class);
-    private final GoalService goalService = new GoalService(goalMapper);
+    private final GoalAccountSyncService goalAccountSyncService = mock(GoalAccountSyncService.class);
+    private final GoalService goalService = new GoalService(goalMapper, goalAccountSyncService);
 
     @Test
     void mapsGoalsForTheAuthenticatedUser() {
@@ -35,6 +36,9 @@ class GoalServiceTest {
         assertEquals(10_000_000L, response.get(0).getTargetAmount());
         assertEquals(LocalDate.of(2027, 8, 1), response.get(0).getTargetDate());
         assertEquals(2_000_000L, response.get(0).getInitialAmount());
+        assertEquals(3_250_000L, response.get(0).getCurrentAmount());
+        assertEquals(33, response.get(0).getAchievementRate());
+        verify(goalAccountSyncService).syncSelectedAccounts(7L);
         verify(goalMapper).findGoalsByUserId(7L);
     }
 
@@ -50,6 +54,7 @@ class GoalServiceTest {
         when(goalMapper.findGoalsByUserId(8L)).thenReturn(List.of());
 
         assertTrue(goalService.getGoals(8L).isEmpty());
+        verify(goalAccountSyncService).syncSelectedAccounts(8L);
         verify(goalMapper).findGoalsByUserId(8L);
     }
 
@@ -61,6 +66,7 @@ class GoalServiceTest {
 
         assertEquals(31L, response.getGoalId());
         assertEquals("ACTIVE", response.getStatus());
+        verify(goalAccountSyncService).syncSelectedAccounts(7L);
     }
 
     @Test
@@ -68,6 +74,7 @@ class GoalServiceTest {
         when(goalMapper.findGoalByConversationId(7L, 11L)).thenReturn(null);
 
         assertNull(goalService.getGoalByConversationId(7L, 11L));
+        verify(goalAccountSyncService).syncSelectedAccounts(7L);
     }
 
     @Test
@@ -75,6 +82,7 @@ class GoalServiceTest {
         when(goalMapper.findGoalByConversationId(8L, 11L)).thenReturn(null);
 
         assertNull(goalService.getGoalByConversationId(8L, 11L));
+        verify(goalAccountSyncService).syncSelectedAccounts(8L);
         verify(goalMapper).findGoalByConversationId(8L, 11L);
     }
 
@@ -97,6 +105,7 @@ class GoalServiceTest {
         goal.setTargetAmount(10_000_000L);
         goal.setTargetDate(LocalDate.of(2027, 8, 1));
         goal.setInitialAmount(2_000_000L);
+        goal.setCurrentAmount(3_250_000L);
         goal.setRequiredMonthlyAmount(600_000L);
         goal.setStatus("ACTIVE");
         goal.setCreatedAt(LocalDateTime.of(2026, 8, 7, 12, 30));

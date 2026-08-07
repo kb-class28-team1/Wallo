@@ -140,6 +140,8 @@ class GoalControllerTest {
                 "비상 상황 대비",
                 "HIGH",
                 2_000_000L,
+                3_250_000L,
+                33,
                 600_000L,
                 "ACTIVE",
                 LocalDateTime.of(2026, 8, 7, 12, 30),

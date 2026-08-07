@@ -12,13 +12,19 @@ import org.springframework.stereotype.Service;
 public class GoalService {
 
     private final GoalMapper goalMapper;
+    private final GoalAccountSyncService goalAccountSyncService;
 
-    public GoalService(GoalMapper goalMapper) {
+    public GoalService(
+            GoalMapper goalMapper,
+            GoalAccountSyncService goalAccountSyncService
+    ) {
         this.goalMapper = goalMapper;
+        this.goalAccountSyncService = goalAccountSyncService;
     }
 
     public List<GoalDto.Response> getGoals(long userId) {
         validateId(userId, "사용자 ID");
+        goalAccountSyncService.syncSelectedAccounts(userId);
 
         List<FinancialGoal> goals = goalMapper.findGoalsByUserId(userId);
         if (goals == null || goals.isEmpty()) {
@@ -36,6 +42,7 @@ public class GoalService {
     ) {
         validateId(userId, "사용자 ID");
         validateId(conversationId, "채팅방 ID");
+        goalAccountSyncService.syncSelectedAccounts(userId);
 
         return GoalDto.Response.from(
                 goalMapper.findGoalByConversationId(userId, conversationId)

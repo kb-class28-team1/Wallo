@@ -31,4 +31,22 @@ public final class GoalAccountDto {
     public static class SelectionRequest {
         private Long accountId;
     }
+
+    /** 선택된 목표 계좌의 최신 잔액을 동기화하기 위한 내부 대상 정보다. */
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class SyncTarget {
+        private Long connectionId;
+        private Long institutionId;
+        private String codefOrganizationCode;
+        private String institutionName;
+        private String financialGroupCode;
+        private String financialGroupName;
+        private String institutionType;
+        private String logoUrl;
+        private String loginType;
+        private String loginId;
+        private String loginPassword;
+    }
 }

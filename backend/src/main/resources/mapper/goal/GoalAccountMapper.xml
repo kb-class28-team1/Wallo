@@ -72,6 +72,37 @@
           AND a.account_id = #{accountId}
     </select>
 
+    <select id="findSelectedAccountSyncTargets"
+            resultType="com.wallo.goal.dto.GoalAccountDto$SyncTarget">
+        SELECT DISTINCT
+            c.connection_id AS connectionId,
+            i.institution_id AS institutionId,
+            i.codef_organization_code AS codefOrganizationCode,
+            i.name AS institutionName,
+            i.financial_group_code AS financialGroupCode,
+            i.financial_group_name AS financialGroupName,
+            i.type AS institutionType,
+            i.logo_url AS logoUrl,
+            c.login_type AS loginType,
+            c.login_id AS loginId,
+            c.login_password AS loginPassword
+        FROM FINANCIAL_GOAL_ACCOUNTS selected_account
+        INNER JOIN FINANCIAL_GOALS goal
+            ON goal.goal_id = selected_account.goal_id
+        INNER JOIN ACCOUNTS a
+            ON a.account_id = selected_account.account_id
+        INNER JOIN CONNECTIONS c
+            ON c.connection_id = a.connection_id
+        INNER JOIN INSTITUTIONS i
+            ON i.institution_id = c.institution_id
+        WHERE goal.user_id = #{userId}
+          AND goal.status = 'ACTIVE'
+          AND a.status = 'ACTIVE'
+          AND c.status = 'ACTIVE'
+          AND c.deleted_at IS NULL
+          AND i.is_active = TRUE
+    </select>
+
     <delete id="deleteByGoalId">
         DELETE FROM FINANCIAL_GOAL_ACCOUNTS
         WHERE goal_id = #{goalId}

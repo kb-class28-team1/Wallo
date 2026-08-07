@@ -30,11 +30,46 @@
         <result property="motivation" column="motivation" />
         <result property="priority" column="priority" />
         <result property="initialAmount" column="initial_amount" />
+        <result property="currentAmount" column="current_amount" />
         <result property="requiredMonthlyAmount" column="required_monthly_amount" />
         <result property="status" column="status" />
         <result property="createdAt" column="created_at" />
         <result property="updatedAt" column="updated_at" />
     </resultMap>
+
+    <sql id="financialGoalColumns">
+        goal.goal_id,
+        goal.session_id,
+        goal.user_id,
+        goal.conversation_id,
+        goal.title,
+        goal.goal_type,
+        goal.target_amount,
+        goal.target_date,
+        goal.motivation,
+        goal.priority,
+        goal.initial_amount,
+        CASE
+            WHEN selected_connection.connection_id IS NULL THEN goal.initial_amount
+            ELSE COALESCE(selected_account.balance, goal.initial_amount)
+        END AS current_amount,
+        goal.required_monthly_amount,
+        goal.status,
+        goal.created_at,
+        goal.updated_at
+    </sql>
+
+    <sql id="financialGoalAccountJoins">
+        LEFT JOIN FINANCIAL_GOAL_ACCOUNTS selected_goal_account
+            ON selected_goal_account.goal_id = goal.goal_id
+        LEFT JOIN ACCOUNTS selected_account
+            ON selected_account.account_id = selected_goal_account.account_id
+           AND selected_account.status = 'ACTIVE'
+        LEFT JOIN CONNECTIONS selected_connection
+            ON selected_connection.connection_id = selected_account.connection_id
+           AND selected_connection.status = 'ACTIVE'
+           AND selected_connection.deleted_at IS NULL
+    </sql>
 
     <select id="findActiveSession" resultMap="goalInterviewSessionMap">
         SELECT
@@ -70,74 +105,32 @@
 
     <select id="findGoalsByUserId"
             resultMap="financialGoalMap">
-        SELECT
-            goal_id,
-            session_id,
-            user_id,
-            conversation_id,
-            title,
-            goal_type,
-            target_amount,
-            target_date,
-            motivation,
-            priority,
-            initial_amount,
-            required_monthly_amount,
-            status,
-            created_at,
-            updated_at
-        FROM FINANCIAL_GOALS
-        WHERE user_id = #{userId}
-        ORDER BY created_at DESC, goal_id DESC
+        SELECT <include refid="financialGoalColumns" />
+        FROM FINANCIAL_GOALS goal
+        <include refid="financialGoalAccountJoins" />
+        WHERE goal.user_id = #{userId}
+        ORDER BY goal.created_at DESC, goal.goal_id DESC
         LIMIT 1
     </select>
 
     <select id="findGoalById"
             resultMap="financialGoalMap">
-        SELECT
-            goal_id,
-            session_id,
-            user_id,
-            conversation_id,
-            title,
-            goal_type,
-            target_amount,
-            target_date,
-            motivation,
-            priority,
-            initial_amount,
-            required_monthly_amount,
-            status,
-            created_at,
-            updated_at
-        FROM FINANCIAL_GOALS
-        WHERE user_id = #{userId}
-          AND goal_id = #{goalId}
+        SELECT <include refid="financialGoalColumns" />
+        FROM FINANCIAL_GOALS goal
+        <include refid="financialGoalAccountJoins" />
+        WHERE goal.user_id = #{userId}
+          AND goal.goal_id = #{goalId}
         LIMIT 1
     </select>
 
     <select id="findGoalByConversationId"
             resultMap="financialGoalMap">
-        SELECT
-            goal_id,
-            session_id,
-            user_id,
-            conversation_id,
-            title,
-            goal_type,
-            target_amount,
-            target_date,
-            motivation,
-            priority,
-            initial_amount,
-            required_monthly_amount,
-            status,
-            created_at,
-            updated_at
-        FROM FINANCIAL_GOALS
-        WHERE user_id = #{userId}
-          AND conversation_id = #{conversationId}
-        ORDER BY goal_id DESC
+        SELECT <include refid="financialGoalColumns" />
+        FROM FINANCIAL_GOALS goal
+        <include refid="financialGoalAccountJoins" />
+        WHERE goal.user_id = #{userId}
+          AND goal.conversation_id = #{conversationId}
+        ORDER BY goal.goal_id DESC
         LIMIT 1
     </select>
 

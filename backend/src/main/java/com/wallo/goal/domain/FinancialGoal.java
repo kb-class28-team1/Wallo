@@ -21,6 +21,7 @@ public class FinancialGoal {
     private String motivation;
     private String priority;
     private long initialAmount;
+    private long currentAmount;
     private long requiredMonthlyAmount;
     private String status;
     private LocalDateTime createdAt;

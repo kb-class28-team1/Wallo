@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted } from "vue";
+import { computed, onBeforeUnmount, onMounted } from "vue";
 import { storeToRefs } from "pinia";
 import AssetSummaryCard from "@/components/dashboard/AssetSummaryCard.vue";
 import BudgetSummaryCard from "@/components/dashboard/BudgetSummaryCard.vue";
@@ -29,6 +29,10 @@ const {
 } = storeToRefs(goalStore);
 const { assetTrendChartData, expenseChartData } = useDashboardCharts(assets, expenses);
 
+const GOAL_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+let goalRefreshTimer = null;
+let goalRefreshInFlight = null;
+
 const hasDashboardData = computed(() => Boolean(
   assets.value ||
   budget.value ||
@@ -53,15 +57,61 @@ const handleAccountRetry = () => {
 const handleAccountSelect = async ({ goalId, accountId }) => {
   try {
     await goalStore.saveGoalAccount(goalId, accountId);
+    // 계좌 연결 직후 목표 조회가 최신 잔액을 동기화하므로 카드와 계좌 목록을 다시 읽는다.
+    await refreshGoalData({ refreshDashboard: true });
+    await goalStore.fetchAvailableAccounts({ notifyError: false });
   } catch {
     // The store already exposes and alerts the API error; keep the component event handler settled.
   }
 };
 
+const refreshGoalData = ({ refreshDashboard = false } = {}) => {
+  if (goalRefreshInFlight) {
+    return goalRefreshInFlight;
+  }
+
+  goalRefreshInFlight = (async () => {
+    await goalStore.fetchGoals({ notifyError: false });
+    if (refreshDashboard) {
+      await dashboardStore.fetchDashboardSummary();
+    }
+  })().finally(() => {
+    goalRefreshInFlight = null;
+  });
+
+  return goalRefreshInFlight;
+};
+
+const loadDashboard = async () => {
+  // 목표 조회가 선택 계좌 잔액을 먼저 동기화하도록 순서를 보장한다.
+  await refreshGoalData();
+  await Promise.all([
+    dashboardStore.fetchDashboardSummary(),
+    goalStore.fetchAvailableAccounts({ notifyError: false }),
+  ]);
+};
+
+const handleVisibilityChange = () => {
+  if (document.visibilityState === "visible") {
+    refreshGoalData({ refreshDashboard: true });
+  }
+};
+
 onMounted(() => {
-  dashboardStore.fetchDashboardSummary();
-  goalStore.fetchGoals();
-  goalStore.fetchAvailableAccounts({ notifyError: false });
+  loadDashboard();
+  goalRefreshTimer = window.setInterval(
+    () => refreshGoalData({ refreshDashboard: true }),
+    GOAL_REFRESH_INTERVAL_MS,
+  );
+  document.addEventListener("visibilitychange", handleVisibilityChange);
+});
+
+onBeforeUnmount(() => {
+  if (goalRefreshTimer !== null) {
+    window.clearInterval(goalRefreshTimer);
+    goalRefreshTimer = null;
+  }
+  document.removeEventListener("visibilitychange", handleVisibilityChange);
 });
 </script>
 
