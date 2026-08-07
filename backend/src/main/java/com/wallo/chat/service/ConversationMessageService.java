@@ -51,6 +51,18 @@ public class ConversationMessageService {
                 .collect(Collectors.toList());
     }
 
+    public GoalInterviewDto.ActiveDraftResponse getActiveGoalInterview(
+            Long conversationId,
+            Long currentUserId
+    ) {
+        conversationService.validateOwnership(conversationId, currentUserId);
+        GoalInterviewDto.Draft draft = goalPersistenceService.getActiveDraft(
+                currentUserId,
+                conversationId
+        );
+        return new GoalInterviewDto.ActiveDraftResponse(draft != null, draft);
+    }
+
     public SendConversationMessageResponse sendMessage(
             Long conversationId,
             Long currentUserId,

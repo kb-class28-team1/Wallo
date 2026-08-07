@@ -4,6 +4,7 @@ import { defineStore } from "pinia"
 import {
   createConversation,
   deleteConversation as deleteConversationApi,
+  getActiveGoalInterview,
   getConversationMessages,
   getConversations,
   sendConversationMessage,
@@ -73,6 +74,21 @@ export const useConversationStore = defineStore("conversation", () => {
     try {
       const response = await getConversationMessages(conversationId, userId)
       messages.value = response.map((message) => toViewMessage(message))
+
+      try {
+        const interviewResponse = await getActiveGoalInterview(conversationId)
+        activeGoalInterview.value = interviewResponse.active
+          ? {
+              action: "CONTINUE",
+              active: true,
+              draft: interviewResponse.draft,
+              feasibility: null,
+            }
+          : null
+      } catch {
+        // 기존 대화 메시지는 유지하고, 목표 카드 복구만 건너뛴다.
+        activeGoalInterview.value = null
+      }
     } catch (error) {
       messages.value = []
       alert(error.message || "대화 내용을 불러오지 못했습니다.")

@@ -60,4 +60,11 @@ public final class GoalInterviewDto {
         private Draft draft;
         private Feasibility feasibility;
     }
+
+    @Getter
+    @AllArgsConstructor
+    public static class ActiveDraftResponse {
+        private final boolean active;
+        private final Draft draft;
+    }
 }
