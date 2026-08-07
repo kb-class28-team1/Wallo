@@ -79,8 +79,8 @@ const moveToLogin = async () => {
   <main class="auth-page d-flex min-vh-100 align-items-center justify-content-center p-3">
     <section class="auth-card card w-100 border-0 p-3 p-sm-4 shadow-sm">
       <div class="card-body">
-        <p class="mb-2 text-center fs-1" aria-hidden="true">🐧</p>
-        <h1 class="mb-2 text-center fw-bold">회원가입</h1>
+        <img class="auth-logo" src="/images/profiles/Wallo-signup.svg" alt="Wallo 회원가입 로고" />
+        <h2 class="mb-2 text-center fw-bold">회원가입</h2>
         <p class="mb-4 text-center text-secondary">Wallo와 함께 절약을 시작해보세요.</p>
 
         <form novalidate @submit.prevent="handleSignup">
@@ -91,12 +91,14 @@ const moveToLogin = async () => {
               v-model="form.name"
               type="text"
               maxlength="50"
-              :class="[&quot;form-control&quot;, { &quot;is-invalid field-shake&quot;: errors.name }]"
+              :class="['form-control', { 'is-invalid field-shake': errors.name }]"
               autocomplete="name"
-              :aria-describedby="errors.name ? &quot;signup-name-error&quot; : undefined"
-              @input="clearError(&quot;name&quot;)"
+              :aria-describedby="errors.name ? 'signup-name-error' : undefined"
+              @input="clearError('name')"
             />
-            <small v-if="errors.name" id="signup-name-error" class="field-error">{{ errors.name }}</small>
+            <small v-if="errors.name" id="signup-name-error" class="field-error">{{
+              errors.name
+            }}</small>
           </div>
 
           <div class="mb-3">
@@ -106,9 +108,9 @@ const moveToLogin = async () => {
               v-model="form.nickname"
               type="text"
               maxlength="50"
-              :class="[&quot;form-control&quot;, { &quot;is-invalid field-shake&quot;: errors.nickname }]"
+              :class="['form-control', { 'is-invalid field-shake': errors.nickname }]"
               autocomplete="nickname"
-              @input="clearError(&quot;nickname&quot;)"
+              @input="clearError('nickname')"
             />
             <small v-if="errors.nickname" class="field-error">{{ errors.nickname }}</small>
           </div>
@@ -120,10 +122,10 @@ const moveToLogin = async () => {
               v-model="form.email"
               type="email"
               maxlength="255"
-              :class="[&quot;form-control&quot;, { &quot;is-invalid field-shake&quot;: errors.email }]"
+              :class="['form-control', { 'is-invalid field-shake': errors.email }]"
               autocomplete="email"
               placeholder="test@wallo.com"
-              @input="clearError(&quot;email&quot;)"
+              @input="clearError('email')"
             />
             <small v-if="errors.email" class="field-error">{{ errors.email }}</small>
           </div>
@@ -134,11 +136,11 @@ const moveToLogin = async () => {
               id="signup-password"
               v-model="form.password"
               type="password"
-              :class="[&quot;form-control&quot;, { &quot;is-invalid field-shake&quot;: errors.password }]"
+              :class="['form-control', { 'is-invalid field-shake': errors.password }]"
               autocomplete="new-password"
               minlength="8"
               maxlength="72"
-              @input="clearError(&quot;password&quot;)"
+              @input="clearError('password')"
             />
             <small v-if="errors.password" class="field-error">{{ errors.password }}</small>
             <div v-else class="form-text">8자 이상 72자 이하로 입력해주세요.</div>
@@ -150,11 +152,11 @@ const moveToLogin = async () => {
               id="signup-password-confirm"
               v-model="form.passwordConfirm"
               type="password"
-              :class="[&quot;form-control&quot;, { &quot;is-invalid field-shake&quot;: errors.passwordConfirm }]"
+              :class="['form-control', { 'is-invalid field-shake': errors.passwordConfirm }]"
               autocomplete="new-password"
               minlength="8"
               maxlength="72"
-              @input="clearError(&quot;passwordConfirm&quot;)"
+              @input="clearError('passwordConfirm')"
             />
             <small v-if="errors.passwordConfirm" class="field-error">
               {{ errors.passwordConfirm }}
@@ -204,6 +206,14 @@ const moveToLogin = async () => {
 .auth-card {
   max-width: 520px;
   border-radius: 24px;
+}
+
+.auth-logo {
+  display: block;
+  width: 200px;
+  height: 200px;
+  margin: 0 auto 0.5rem;
+  object-fit: contain;
 }
 
 .field-error {
@@ -263,19 +273,36 @@ const moveToLogin = async () => {
 }
 
 @keyframes field-shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-6px); }
-  50% { transform: translateX(6px); }
-  75% { transform: translateX(-3px); }
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-6px);
+  }
+  50% {
+    transform: translateX(6px);
+  }
+  75% {
+    transform: translateX(-3px);
+  }
 }
 
 @keyframes modal-in {
-  from { opacity: 0; transform: translateY(10px) scale(0.98); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .field-shake,
-  .success-modal { animation: none; }
+  .success-modal {
+    animation: none;
+  }
 }
 </style>

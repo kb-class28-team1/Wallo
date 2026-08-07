@@ -13,7 +13,9 @@ import com.wallo.challenge.service.WeeklyRankingRewardService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -66,6 +68,15 @@ public class ChallengeController {
         JoinChallengeResponse response = challengeService.joinChallenge(currentUserId, request);
 
         return ResponseEntity.ok(response);
+    }
+
+    /** 현재 로그인한 사용자를 요청한 챌린지에서 탈퇴시킨다. */
+    @DeleteMapping("/{challengeId}/membership")
+    public ResponseEntity<Void> leaveChallenge(@PathVariable Long challengeId) {
+        Long currentUserId = currentUserProvider.getCurrentUserId();
+        challengeService.leaveChallenge(currentUserId, challengeId);
+
+        return ResponseEntity.noContent().build();
     }
 
     /** 현재 로그인한 사용자의 챌린지 참여 상태를 조회한다. */
