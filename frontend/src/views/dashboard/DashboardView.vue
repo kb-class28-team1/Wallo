@@ -4,10 +4,13 @@ import { storeToRefs } from "pinia";
 import AssetSummaryCard from "@/components/dashboard/AssetSummaryCard.vue";
 import BudgetSummaryCard from "@/components/dashboard/BudgetSummaryCard.vue";
 import ExpenseSummaryCard from "@/components/dashboard/ExpenseSummaryCard.vue";
+import GoalSummaryCard from "@/components/dashboard/GoalSummaryCard.vue";
 import { useDashboardCharts } from "@/features/financial/useDashboardCharts";
 import { useDashboardStore } from "@/stores/useDashboardStore";
+import { useGoalStore } from "@/stores/goalStore";
 
 const dashboardStore = useDashboardStore();
+const goalStore = useGoalStore();
 const {
   isLoading,
   assets,
@@ -15,18 +18,33 @@ const {
   expenses,
   error,
 } = storeToRefs(dashboardStore);
+const {
+  goals,
+  isLoading: isGoalLoading,
+  error: goalError,
+} = storeToRefs(goalStore);
 const { assetTrendChartData, expenseChartData } = useDashboardCharts(assets, expenses);
 
 const hasDashboardData = computed(() => Boolean(
-  assets.value || budget.value || expenses.value,
+  assets.value ||
+  budget.value ||
+  expenses.value ||
+  goals.value.length > 0 ||
+  isGoalLoading.value ||
+  goalError.value,
 ));
 
 const handleBudgetSave = async (totalAmount) => {
   await dashboardStore.updateBudgetTotal(totalAmount);
 };
 
+const handleGoalRetry = () => {
+  goalStore.fetchGoals();
+};
+
 onMounted(() => {
   dashboardStore.fetchDashboardSummary();
+  goalStore.fetchGoals();
 });
 </script>
 
@@ -51,6 +69,14 @@ onMounted(() => {
         <h1 class="h3 fw-bold mb-1">대시보드</h1>
         <p class="text-secondary mb-0">자산과 소비 현황을 확인하세요.</p>
       </header>
+
+      <GoalSummaryCard
+        :goals="goals"
+        :loading="isGoalLoading"
+        :error="goalError"
+        class="mb-4"
+        @retry="handleGoalRetry"
+      />
 
       <div class="dashboard-card-grid">
         <AssetSummaryCard :assets="assets" :chart-data="assetTrendChartData" />

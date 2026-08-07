@@ -1,0 +1,58 @@
+import { mount } from "@vue/test-utils";
+import { describe, expect, it } from "vitest";
+import GoalSummaryCard from "./GoalSummaryCard.vue";
+
+const globalOptions = {
+  stubs: {
+    RouterLink: {
+      template: "<a><slot /></a>",
+    },
+  },
+};
+
+describe("GoalSummaryCard", () => {
+  it("shows the confirmed goal details", () => {
+    const wrapper = mount(GoalSummaryCard, {
+      ...globalOptions,
+      props: {
+        goals: [
+          {
+            goalId: 1,
+            title: "Emergency fund",
+            targetAmount: 10000000,
+            targetDate: "2027-11-30",
+            monthlyContribution: 500000,
+            status: "ACTIVE",
+          },
+        ],
+      },
+    });
+
+    expect(wrapper.text()).toContain("Emergency fund");
+    expect(wrapper.text()).toContain("10,000,000원");
+    expect(wrapper.text()).toContain("진행 중");
+  });
+
+  it("shows the empty state when no goal exists", () => {
+    const wrapper = mount(GoalSummaryCard, {
+      ...globalOptions,
+      props: { goals: [] },
+    });
+
+    expect(wrapper.text()).toContain("아직 확정된 금융 목표가 없습니다.");
+    expect(wrapper.find(".goal-state").exists()).toBe(true);
+  });
+
+  it("shows the error state and emits retry", async () => {
+    const wrapper = mount(GoalSummaryCard, {
+      ...globalOptions,
+      props: { error: "목표 조회 실패" },
+    });
+
+    expect(wrapper.text()).toContain("목표 조회 실패");
+
+    await wrapper.find("button").trigger("click");
+
+    expect(wrapper.emitted("retry")).toHaveLength(1);
+  });
+});
