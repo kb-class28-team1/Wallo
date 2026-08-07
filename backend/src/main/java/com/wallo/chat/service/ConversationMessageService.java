@@ -105,7 +105,8 @@ public class ConversationMessageService {
 
         return new SendConversationMessageResponse(
                 ChatMessageResponse.from(userMessage),
-                ChatMessageResponse.from(assistantMessage)
+                ChatMessageResponse.from(assistantMessage),
+                aiResponse.goalInterview()
         );
     }
 
