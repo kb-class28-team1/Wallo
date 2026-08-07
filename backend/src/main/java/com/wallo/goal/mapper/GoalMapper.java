@@ -2,6 +2,7 @@ package com.wallo.goal.mapper;
 
 import com.wallo.goal.domain.FinancialGoal;
 import com.wallo.goal.domain.GoalInterviewSession;
+import java.util.List;
 import org.apache.ibatis.annotations.Param;
 
 public interface GoalMapper {
@@ -12,6 +13,13 @@ public interface GoalMapper {
     );
 
     int countFinancialGoals(
+            @Param("userId") Long userId,
+            @Param("conversationId") Long conversationId
+    );
+
+    List<FinancialGoal> findGoalsByUserId(@Param("userId") Long userId);
+
+    FinancialGoal findGoalByConversationId(
             @Param("userId") Long userId,
             @Param("conversationId") Long conversationId
     );

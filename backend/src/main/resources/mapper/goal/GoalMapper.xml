@@ -17,6 +17,25 @@
         <result property="completedAt" column="completed_at" />
     </resultMap>
 
+    <resultMap id="financialGoalMap"
+               type="com.wallo.goal.domain.FinancialGoal">
+        <id property="goalId" column="goal_id" />
+        <result property="sessionId" column="session_id" />
+        <result property="userId" column="user_id" />
+        <result property="conversationId" column="conversation_id" />
+        <result property="title" column="title" />
+        <result property="goalType" column="goal_type" />
+        <result property="targetAmount" column="target_amount" />
+        <result property="targetDate" column="target_date" />
+        <result property="motivation" column="motivation" />
+        <result property="priority" column="priority" />
+        <result property="initialAmount" column="initial_amount" />
+        <result property="monthlyContribution" column="monthly_contribution" />
+        <result property="status" column="status" />
+        <result property="createdAt" column="created_at" />
+        <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
     <select id="findActiveSession" resultMap="goalInterviewSessionMap">
         SELECT
             session_id,
@@ -41,6 +60,54 @@
         FROM FINANCIAL_GOALS
         WHERE user_id = #{userId}
           AND conversation_id = #{conversationId}
+    </select>
+
+    <select id="findGoalsByUserId"
+            resultMap="financialGoalMap">
+        SELECT
+            goal_id,
+            session_id,
+            user_id,
+            conversation_id,
+            title,
+            goal_type,
+            target_amount,
+            target_date,
+            motivation,
+            priority,
+            initial_amount,
+            monthly_contribution,
+            status,
+            created_at,
+            updated_at
+        FROM FINANCIAL_GOALS
+        WHERE user_id = #{userId}
+        ORDER BY created_at DESC, goal_id DESC
+    </select>
+
+    <select id="findGoalByConversationId"
+            resultMap="financialGoalMap">
+        SELECT
+            goal_id,
+            session_id,
+            user_id,
+            conversation_id,
+            title,
+            goal_type,
+            target_amount,
+            target_date,
+            motivation,
+            priority,
+            initial_amount,
+            monthly_contribution,
+            status,
+            created_at,
+            updated_at
+        FROM FINANCIAL_GOALS
+        WHERE user_id = #{userId}
+          AND conversation_id = #{conversationId}
+        ORDER BY goal_id DESC
+        LIMIT 1
     </select>
 
     <insert id="insertSession"

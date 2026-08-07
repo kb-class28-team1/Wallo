@@ -86,6 +86,16 @@ class GoalMapperIntegrationTest {
         assertNull(goalMapper.findActiveSession(7L, 11L));
         assertEquals("ACTIVE", selectGoalStatus(goal.getGoalId()));
         assertEquals(1, goalMapper.countFinancialGoals(7L, 11L));
+        assertEquals(1, goalMapper.findGoalsByUserId(7L).size());
+        assertEquals(
+                "유럽 여행 자금",
+                goalMapper.findGoalsByUserId(7L).get(0).getTitle()
+        );
+        assertEquals(
+                goal.getGoalId(),
+                goalMapper.findGoalByConversationId(7L, 11L).getGoalId()
+        );
+        assertNull(goalMapper.findGoalByConversationId(8L, 11L));
 
         GoalInterviewSession secondSession = new GoalInterviewSession();
         secondSession.setUserId(7L);
