@@ -57,7 +57,11 @@ const clearError = (field) => {
   <main class="auth-page d-flex min-vh-100 align-items-center justify-content-center p-3">
     <section class="auth-card card w-100 border-0 p-3 p-sm-4 shadow-sm">
       <div class="card-body">
-        <p class="mb-2 text-center fs-1" aria-hidden="true">🐧</p>
+        <img
+          class="auth-logo"
+          src="/images/profiles/penguin-login.svg"
+          alt="Wallo 로그인 로고"
+        />
         <h1 class="mb-2 text-center fw-bold">로그인</h1>
         <p class="mb-4 text-center text-secondary">Wallo에서 절약 습관을 이어가세요.</p>
 
@@ -126,6 +130,14 @@ const clearError = (field) => {
 .auth-card {
   max-width: 480px;
   border-radius: 24px;
+}
+
+.auth-logo {
+  display: block;
+  width: 96px;
+  height: 96px;
+  margin: 0 auto 0.5rem;
+  object-fit: contain;
 }
 
 .field-error {
