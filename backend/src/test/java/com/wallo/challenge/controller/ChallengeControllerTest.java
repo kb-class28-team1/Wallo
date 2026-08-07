@@ -4,6 +4,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -53,5 +54,16 @@ class ChallengeControllerTest {
 
         verify(currentUserProvider).getCurrentUserId();
         verify(challengeService).getWeeklyRanking(1L);
+    }
+
+    @Test
+    void leavesCurrentChallengeForAuthenticatedUser() throws Exception {
+        when(currentUserProvider.getCurrentUserId()).thenReturn(1L);
+
+        mockMvc.perform(delete("/api/challenges/102/membership"))
+                .andExpect(status().isNoContent());
+
+        verify(currentUserProvider).getCurrentUserId();
+        verify(challengeService).leaveChallenge(1L, 102L);
     }
 }

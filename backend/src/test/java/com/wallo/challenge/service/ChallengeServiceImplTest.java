@@ -108,6 +108,28 @@ class ChallengeServiceImplTest {
     }
 
     @Test
+    void leavesRequestedCurrentChallenge() {
+        FakeChallengeMapper mapper = new FakeChallengeMapper();
+        mapper.currentChallengeId = 10L;
+        ChallengeService service = new ChallengeServiceImpl(mapper);
+
+        service.leaveChallenge(1L, 10L);
+
+        assertNull(mapper.currentChallengeId);
+    }
+
+    @Test
+    void throwsExceptionWhenLeavingAnotherChallenge() {
+        FakeChallengeMapper mapper = new FakeChallengeMapper();
+        mapper.currentChallengeId = 10L;
+        ChallengeService service = new ChallengeServiceImpl(mapper);
+
+        assertThrows(
+                NotChallengeMemberException.class,
+                () -> service.leaveChallenge(1L, 11L));
+    }
+
+    @Test
     void returnsNotJoinedWhenUserHasNoCurrentChallenge() {
         FakeChallengeMapper mapper = new FakeChallengeMapper();
         ChallengeService service = new ChallengeServiceImpl(mapper);
@@ -347,6 +369,15 @@ class ChallengeServiceImplTest {
                 currentChallengeId = challengeId;
             }
             return updateResult;
+        }
+
+        @Override
+        public int clearCurrentChallengeId(Long userId, Long challengeId) {
+            if (currentChallengeId != null && currentChallengeId.equals(challengeId)) {
+                currentChallengeId = null;
+                return 1;
+            }
+            return 0;
         }
 
         @Override
