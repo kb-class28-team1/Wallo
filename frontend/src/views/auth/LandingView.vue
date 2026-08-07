@@ -1,18 +1,28 @@
 <script setup>
 import { onMounted, onUnmounted, ref } from "vue"
+import { useRouter } from "vue-router"
 
 const loadingDots = [0, 1, 2, 3, 4]
 const activeDot = ref(0)
+const router = useRouter()
 let dotTimer
+let loginTimer
+
+const goToLogin = () => {
+  router.replace({ name: "login" })
+}
 
 onMounted(() => {
   dotTimer = window.setInterval(() => {
     activeDot.value = (activeDot.value + 1) % loadingDots.length
   }, 650)
+
+  loginTimer = window.setTimeout(goToLogin, 3000)
 })
 
 onUnmounted(() => {
   window.clearInterval(dotTimer)
+  window.clearTimeout(loginTimer)
 })
 </script>
 
