@@ -82,7 +82,7 @@ export const useConversationStore = defineStore("conversation", () => {
               action: "CONTINUE",
               active: true,
               draft: interviewResponse.draft,
-              feasibility: null,
+              feasibility: interviewResponse.feasibility ?? null,
             }
           : null
       } catch {

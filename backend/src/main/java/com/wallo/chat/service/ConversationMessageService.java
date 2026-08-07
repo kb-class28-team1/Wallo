@@ -11,7 +11,9 @@ import com.wallo.chat.dto.SendConversationMessageResponse;
 import com.wallo.chat.dto.SummarizeConversationRequest;
 import com.wallo.chat.dto.SummarizeConversationResponse;
 import com.wallo.goal.dto.GoalInterviewDto;
+import com.wallo.goal.service.GoalFeasibilityCalculator;
 import com.wallo.goal.service.GoalPersistenceService;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -60,7 +62,11 @@ public class ConversationMessageService {
                 currentUserId,
                 conversationId
         );
-        return new GoalInterviewDto.ActiveDraftResponse(draft != null, draft);
+        return new GoalInterviewDto.ActiveDraftResponse(
+                draft != null,
+                draft,
+                GoalFeasibilityCalculator.calculate(draft, LocalDate.now())
+        );
     }
 
     public SendConversationMessageResponse sendMessage(

@@ -66,5 +66,6 @@ public final class GoalInterviewDto {
     public static class ActiveDraftResponse {
         private final boolean active;
         private final Draft draft;
+        private final Feasibility feasibility;
     }
 }
