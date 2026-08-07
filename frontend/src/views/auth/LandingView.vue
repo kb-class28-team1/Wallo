@@ -1,31 +1,18 @@
 <script setup>
 import { onMounted, onUnmounted, ref } from "vue"
-import { useRouter } from "vue-router"
 
 const loadingDots = [0, 1, 2, 3, 4]
 const activeDot = ref(0)
-const canLogin = ref(false)
-const router = useRouter()
 let dotTimer
-let loginButtonTimer
-
-const goToLogin = () => {
-  router.replace({ name: "login" })
-}
 
 onMounted(() => {
   dotTimer = window.setInterval(() => {
     activeDot.value = (activeDot.value + 1) % loadingDots.length
   }, 650)
-
-  loginButtonTimer = window.setTimeout(() => {
-    canLogin.value = true
-  }, 3000)
 })
 
 onUnmounted(() => {
   window.clearInterval(dotTimer)
-  window.clearTimeout(loginButtonTimer)
 })
 </script>
 
@@ -82,9 +69,6 @@ onUnmounted(() => {
         ></span>
       </div>
 
-      <button v-if="canLogin" class="landing-login-button" type="button" @click="goToLogin">
-        로그인하러 가기(삭제 예정)
-      </button>
     </section>
   </main>
 </template>
@@ -209,36 +193,6 @@ onUnmounted(() => {
   box-shadow: 0 0 0 3px rgba(104, 89, 232, 0.1);
   opacity: 1;
   transform: scale(1.18);
-}
-
-.landing-login-button {
-  margin-top: 28px;
-  padding: 12px 28px;
-  color: #ffffff;
-  font: inherit;
-  font-size: 0.95rem;
-  font-weight: 750;
-  letter-spacing: -0.04em;
-  background: #5967e9;
-  border: 0;
-  border-radius: 999px;
-  box-shadow: 0 10px 22px rgba(89, 103, 233, 0.22);
-  cursor: pointer;
-  transition:
-    background-color 0.2s ease,
-    box-shadow 0.2s ease,
-    transform 0.2s ease;
-}
-
-.landing-login-button:hover {
-  background: #4c5bdc;
-  box-shadow: 0 12px 26px rgba(89, 103, 233, 0.28);
-  transform: translateY(-2px);
-}
-
-.landing-login-button:focus-visible {
-  outline: 3px solid rgba(89, 103, 233, 0.3);
-  outline-offset: 4px;
 }
 
 @keyframes character-flight {
