@@ -1,0 +1,15 @@
+.gradle/
+.gradle-user-home/
+build/
+out/
+
+node_modules/
+dist/
+.pnpm-store/
+
+.idea/
+*.iml
+
+# Local backend database and external API settings
+backend/src/main/resources/application.properties
+database/mysql/dbInit.sql
