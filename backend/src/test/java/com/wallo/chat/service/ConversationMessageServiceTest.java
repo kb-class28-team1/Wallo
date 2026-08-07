@@ -234,6 +234,35 @@ class ConversationMessageServiceTest {
     }
 
     @Test
+    void tellsAiWhenAnotherConversationAlreadyHasTheUsersFinancialGoal() {
+        SendConversationMessageRequest request = request(7L, "새로운 여행 목표를 만들고 싶어");
+        ChatRequest expectedRequest = new ChatRequest(request.getMessage())
+                .withGoalAlreadyExists(true);
+
+        when(goalPersistenceService.hasFinancialGoalForUser(7L)).thenReturn(true);
+        when(persistenceService.saveMessage(1L, "USER", request.getMessage()))
+                .thenReturn(message(1L, "USER", request.getMessage()));
+        when(chatService.chat(expectedRequest, 7L))
+                .thenReturn(new ChatResponse(
+                        "이미 금융 목표가 설정되어 있습니다.",
+                        null
+                ));
+        when(persistenceService.saveMessage(
+                1L,
+                "ASSISTANT",
+                "이미 금융 목표가 설정되어 있습니다."
+        )).thenReturn(message(
+                2L,
+                "ASSISTANT",
+                "이미 금융 목표가 설정되어 있습니다."
+        ));
+
+        conversationMessageService.sendMessage(1L, 7L, request);
+
+        verify(chatService).chat(expectedRequest, 7L);
+    }
+
+    @Test
     void doesNotRestoreAnInterviewWhenTheConversationAlreadyHasAFinancialGoal() {
         when(goalPersistenceService.hasFinancialGoal(7L, 1L)).thenReturn(true);
 

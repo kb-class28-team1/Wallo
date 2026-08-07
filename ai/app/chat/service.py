@@ -111,7 +111,7 @@ class ChatService:
         )
 
     def _existing_goal_message(self) -> str:
-        return "이 채팅방에는 이미 금융 목표가 설정되어 있습니다. 새 목표를 설정하려면 새 채팅방을 만들어 주세요."
+        return "이미 금융 목표가 설정되어 있습니다. 한 사람당 하나의 목표만 설정할 수 있어 새 목표를 추가할 수 없습니다."
 
     def _no_active_goal_message(self, goal_already_exists: bool) -> str:
         if goal_already_exists:

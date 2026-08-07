@@ -154,7 +154,7 @@ def test_existing_goal_blocks_a_second_goal_interview():
     )
 
     assert response.goal_interview is None
-    assert "새 채팅방" in response.answer
+    assert "한 사람당 하나의 목표" in response.answer
     client.chat.completions.create.assert_not_called()
 
 

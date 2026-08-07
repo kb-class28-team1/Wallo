@@ -58,7 +58,7 @@ public class ConversationMessageService {
             Long currentUserId
     ) {
         conversationService.validateOwnership(conversationId, currentUserId);
-        if (goalPersistenceService.hasFinancialGoal(currentUserId, conversationId)) {
+        if (hasExistingFinancialGoal(currentUserId, conversationId)) {
             return new GoalInterviewDto.ActiveDraftResponse(false, null, null);
         }
         GoalInterviewDto.Draft draft = goalPersistenceService.getActiveDraft(
@@ -94,10 +94,7 @@ public class ConversationMessageService {
                 currentUserId,
                 conversationId
         );
-        boolean goalAlreadyExists = goalPersistenceService.hasFinancialGoal(
-                currentUserId,
-                conversationId
-        );
+        boolean goalAlreadyExists = hasExistingFinancialGoal(currentUserId, conversationId);
         if (goalAlreadyExists) {
             goalDraft = null;
         }
@@ -190,6 +187,11 @@ public class ConversationMessageService {
                 message.getRole().toLowerCase(),
                 message.getContent()
         );
+    }
+
+    private boolean hasExistingFinancialGoal(Long userId, Long conversationId) {
+        return goalPersistenceService.hasFinancialGoalForUser(userId)
+                || goalPersistenceService.hasFinancialGoal(userId, conversationId);
     }
 
     private void validateRequest(

@@ -87,6 +87,7 @@ class GoalMapperIntegrationTest {
         assertNull(goalMapper.findActiveSession(7L, 11L));
         assertEquals("ACTIVE", selectGoalStatus(goal.getGoalId()));
         assertEquals(1, goalMapper.countFinancialGoals(7L, 11L));
+        assertEquals(1, goalMapper.countFinancialGoalsByUserId(7L));
         assertEquals(1, goalMapper.findGoalsByUserId(7L).size());
         assertEquals(
                 "유럽 여행 자금",
@@ -101,6 +102,7 @@ class GoalMapperIntegrationTest {
                 goalMapper.findGoalByConversationId(7L, 11L).getGoalId()
         );
         assertTrue(goalMapper.findGoalsByUserId(8L).isEmpty());
+        assertEquals(0, goalMapper.countFinancialGoalsByUserId(8L));
         assertNull(goalMapper.findGoalByConversationId(8L, 11L));
 
         GoalInterviewSession secondSession = new GoalInterviewSession();
@@ -112,7 +114,7 @@ class GoalMapperIntegrationTest {
 
         assertThrows(
                 RuntimeException.class,
-                () -> goalMapper.insertGoal(financialGoal(secondSession.getSessionId()))
+                () -> goalMapper.insertGoal(financialGoal(secondSession.getSessionId(), 12L))
         );
         assertEquals(1, goalMapper.countFinancialGoals(7L, 11L));
         assertEquals(1, goalMapper.findGoalsByUserId(7L).size());
@@ -123,10 +125,14 @@ class GoalMapperIntegrationTest {
     }
 
     private FinancialGoal financialGoal(Long sessionId) {
+        return financialGoal(sessionId, 11L);
+    }
+
+    private FinancialGoal financialGoal(Long sessionId, Long conversationId) {
         FinancialGoal goal = new FinancialGoal();
         goal.setSessionId(sessionId);
         goal.setUserId(7L);
-        goal.setConversationId(11L);
+        goal.setConversationId(conversationId);
         goal.setTitle("유럽 여행 자금");
         goal.setGoalType("TRAVEL");
         goal.setTargetAmount(10_000_000L);
@@ -172,7 +178,8 @@ class GoalMapperIntegrationTest {
                         status VARCHAR(20) NOT NULL,
                         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                         updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                        UNIQUE (conversation_id)
+                        UNIQUE (conversation_id),
+                        UNIQUE (user_id)
                     )
                     """);
         }

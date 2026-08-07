@@ -8,6 +8,7 @@ import com.wallo.goal.dto.GoalInterviewDto;
 import com.wallo.goal.mapper.GoalMapper;
 import java.time.LocalDate;
 import java.util.List;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +18,8 @@ public class GoalPersistenceService {
     private static final String ACTIVE = "ACTIVE";
     private static final String COMPLETED = "COMPLETED";
     private static final String CANCELLED = "CANCELLED";
+    private static final String EXISTING_GOAL_MESSAGE =
+            "이미 금융 목표가 설정되어 있습니다. 한 사람당 하나의 목표만 설정할 수 있습니다.";
 
     private final GoalMapper goalMapper;
     private final ObjectMapper objectMapper;
@@ -43,6 +46,10 @@ public class GoalPersistenceService {
 
     public boolean hasFinancialGoal(Long userId, Long conversationId) {
         return goalMapper.countFinancialGoals(userId, conversationId) > 0;
+    }
+
+    public boolean hasFinancialGoalForUser(Long userId) {
+        return goalMapper.countFinancialGoalsByUserId(userId) > 0;
     }
 
     @Transactional
@@ -78,6 +85,9 @@ public class GoalPersistenceService {
             Long conversationId,
             GoalInterviewDto.Draft draft
     ) {
+        if (hasFinancialGoalForUser(userId)) {
+            throw new IllegalArgumentException(EXISTING_GOAL_MESSAGE);
+        }
         if (hasFinancialGoal(userId, conversationId)) {
             throw new IllegalStateException(
                     "이 채팅방에는 이미 금융 목표가 설정되어 있습니다."
@@ -113,6 +123,9 @@ public class GoalPersistenceService {
             GoalInterviewDto.Feasibility feasibility
     ) {
         validateConfirmedDraft(draft, feasibility);
+        if (hasFinancialGoalForUser(userId)) {
+            throw new IllegalArgumentException(EXISTING_GOAL_MESSAGE);
+        }
         if (hasFinancialGoal(userId, conversationId)) {
             throw new IllegalStateException(
                     "이 채팅방에는 이미 금융 목표가 설정되어 있습니다."
@@ -136,7 +149,11 @@ public class GoalPersistenceService {
         goal.setInitialAmount(draft.getCurrentAmount());
         goal.setRequiredMonthlyAmount(feasibility.getRequiredMonthlyAmount());
         goal.setStatus(ACTIVE);
-        goalMapper.insertGoal(goal);
+        try {
+            goalMapper.insertGoal(goal);
+        } catch (DuplicateKeyException exception) {
+            throw new IllegalArgumentException(EXISTING_GOAL_MESSAGE, exception);
+        }
 
         if (goalMapper.completeSession(session.getSessionId(), COMPLETED) != 1) {
             throw new IllegalStateException("목표 인터뷰를 완료 처리하지 못했습니다.");

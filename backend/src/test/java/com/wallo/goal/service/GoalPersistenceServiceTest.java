@@ -96,6 +96,13 @@ class GoalPersistenceServiceTest {
     }
 
     @Test
+    void detectsAnExistingFinancialGoalForTheUser() {
+        when(goalMapper.countFinancialGoalsByUserId(7L)).thenReturn(1);
+
+        assertTrue(service.hasFinancialGoalForUser(7L));
+    }
+
+    @Test
     void cannotStartAnotherInterviewAfterAConversationHasAFinancialGoal() {
         when(goalMapper.countFinancialGoals(7L, 11L)).thenReturn(1);
 
@@ -109,6 +116,23 @@ class GoalPersistenceServiceTest {
         );
 
         assertTrue(exception.getMessage().contains("이미 금융 목표"));
+        verify(goalMapper, never()).insertSession(any());
+    }
+
+    @Test
+    void cannotStartAnotherInterviewInAnotherConversationAfterUserHasAFinancialGoal() {
+        when(goalMapper.countFinancialGoalsByUserId(7L)).thenReturn(1);
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> service.applyResult(
+                        7L,
+                        99L,
+                        result(GoalInterviewDto.Action.CONTINUE, draft(false))
+                )
+        );
+
+        assertTrue(exception.getMessage().contains("한 사람당 하나의 목표"));
         verify(goalMapper, never()).insertSession(any());
     }
 
