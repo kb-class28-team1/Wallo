@@ -77,12 +77,21 @@ public class FinancialReportGenerationScheduler {
         return runGuarded(priorityNewsIds);
     }
 
+    /** 시연용 수동 실행은 자동 스케줄 활성화 설정과 무관하게 리포트를 생성한다. */
+    BatchResult generateManuallyForCrawledNews(List<Long> priorityNewsIds) {
+        return runWithLock(priorityNewsIds);
+    }
+
     private BatchResult runGuarded(List<Long> priorityNewsIds) {
         if (!enabled) {
             log.info("금융 리포트 자동 생성 스케줄러가 비활성화되어 있습니다(financial-report.scheduler.enabled=false).");
             return EMPTY_RESULT;
         }
 
+        return runWithLock(priorityNewsIds);
+    }
+
+    private BatchResult runWithLock(List<Long> priorityNewsIds) {
         if (!isRunning.compareAndSet(false, true)) {
             log.warn("이전 금융 리포트 자동 생성 작업이 아직 진행 중이라 이번 실행은 건너뜁니다.");
             return EMPTY_RESULT;

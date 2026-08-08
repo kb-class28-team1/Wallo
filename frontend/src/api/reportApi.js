@@ -36,3 +36,13 @@ export const generateReport = async (newsId) => {
     throw new Error(toUserMessage(error, "AI 리포트를 생성하지 못했습니다."))
   }
 }
+
+// 시연용: 스케줄 시간을 기다리지 않고 뉴스 크롤링과 금융 리포트 생성을 즉시 실행함
+export const generateReportsNow = async () => {
+  try {
+    const response = await httpClient.post("/api/reports/generate-now")
+    return unwrap(response)
+  } catch (error) {
+    throw new Error(toUserMessage(error, "금융 리포트를 수동 생성하지 못했습니다."))
+  }
+}
