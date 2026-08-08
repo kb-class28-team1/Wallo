@@ -75,7 +75,12 @@ def test_generates_valid_structured_report():
     assert result.eventDescription == "사건 설명 내용입니다."
     assert result.responseStrategy == "대응 방안 내용입니다."
     assert client.chat.completions.calls[0]["model"] == "llama-3.3-70b-versatile"
-    assert client.chat.completions.calls[0]["response_format"] == {"type": "json_object"}
+    response_format = client.chat.completions.calls[0]["response_format"]
+    assert response_format["type"] == "json_schema"
+    assert response_format["json_schema"]["strict"] is True
+    schema = response_format["json_schema"]["schema"]
+    assert schema["additionalProperties"] is False
+    assert set(schema["required"]) == set(schema["properties"])
 
 
 def test_gpt_oss_json_mode_hides_reasoning_output():

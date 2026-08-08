@@ -18,6 +18,27 @@ OTHER_FIELD_MAX_LENGTH = 1200
 
 router = APIRouter(prefix="/api")
 
+FINANCIAL_REPORT_JSON_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "summary": {"type": "array", "items": {"type": "string"}},
+        "eventDescription": {"type": "string"},
+        "cause": {"type": "string"},
+        "socialImpact": {"type": "string"},
+        "userImpact": {"type": "string"},
+        "responseStrategy": {"type": "string"},
+    },
+    "required": [
+        "summary",
+        "eventDescription",
+        "cause",
+        "socialImpact",
+        "userImpact",
+        "responseStrategy",
+    ],
+    "additionalProperties": False,
+}
+
 
 class NewsReportGenerateRequest(BaseModel):
     newsId: int
@@ -122,15 +143,18 @@ def generate_financial_report(client: Groq, request: NewsReportGenerateRequest, 
             messages=[
                 {
                     "role": "system",
-                    "content": (
-                        FINANCIAL_REPORT_INSTRUCTIONS
-                        + "\n\n반드시 다음 키를 가진 유효한 JSON 객체만 반환하세요: "
-                        "summary, eventDescription, cause, socialImpact, userImpact, responseStrategy."
-                    ),
+                    "content": FINANCIAL_REPORT_INSTRUCTIONS,
                 },
                 {"role": "user", "content": report_input},
             ],
-            response_format={"type": "json_object"},
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "financial_report",
+                    "strict": True,
+                    "schema": FINANCIAL_REPORT_JSON_SCHEMA,
+                },
+            },
             max_completion_tokens=4000,
             **reasoning_options,
         )
