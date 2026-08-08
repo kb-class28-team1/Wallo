@@ -3,6 +3,8 @@ package com.wallo.goal.mapper;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.wallo.goal.domain.FinancialGoal;
 import com.wallo.goal.domain.GoalInterviewSession;
@@ -82,15 +84,66 @@ class GoalMapperIntegrationTest {
         assertEquals(1, goalMapper.insertGoal(goal));
         assertNotNull(goal.getGoalId());
         assertEquals(1, goalMapper.completeSession(session.getSessionId(), "COMPLETED"));
+        linkGoalAccount(goal.getGoalId());
         assertNull(goalMapper.findActiveSession(7L, 11L));
         assertEquals("ACTIVE", selectGoalStatus(goal.getGoalId()));
+        assertEquals(1, goalMapper.countFinancialGoals(7L, 11L));
+        assertEquals(1, goalMapper.countFinancialGoalsByUserId(7L));
+        assertEquals(1, goalMapper.findGoalsByUserId(7L).size());
+        assertEquals(
+                "유럽 여행 자금",
+                goalMapper.findGoalsByUserId(7L).get(0).getTitle()
+        );
+        assertEquals(
+                600_000L,
+                goalMapper.findGoalsByUserId(7L).get(0).getRequiredMonthlyAmount()
+        );
+        assertEquals(
+                2_000_000L,
+                goalMapper.findGoalsByUserId(7L).get(0).getCurrentAmount()
+        );
+        updateInitialAmount(goal.getGoalId(), 0L);
+        sqlSession.clearCache();
+        assertEquals(
+                0L,
+                goalMapper.findGoalsByUserId(7L).get(0).getCurrentAmount()
+        );
+        assertEquals(
+                goal.getGoalId(),
+                goalMapper.findGoalByConversationId(7L, 11L).getGoalId()
+        );
+        assertTrue(goalMapper.findGoalsByUserId(8L).isEmpty());
+        assertEquals(0, goalMapper.countFinancialGoalsByUserId(8L));
+        assertNull(goalMapper.findGoalByConversationId(8L, 11L));
+
+        GoalInterviewSession secondSession = new GoalInterviewSession();
+        secondSession.setUserId(7L);
+        secondSession.setConversationId(11L);
+        secondSession.setStatus("ACTIVE");
+        secondSession.setGoalDraftJson("{}");
+        goalMapper.insertSession(secondSession);
+
+        assertThrows(
+                RuntimeException.class,
+                () -> goalMapper.insertGoal(financialGoal(secondSession.getSessionId(), 12L))
+        );
+        assertEquals(1, goalMapper.countFinancialGoals(7L, 11L));
+        assertEquals(1, goalMapper.findGoalsByUserId(7L).size());
+        assertEquals(
+                goal.getGoalId(),
+                goalMapper.findGoalByConversationId(7L, 11L).getGoalId()
+        );
     }
 
     private FinancialGoal financialGoal(Long sessionId) {
+        return financialGoal(sessionId, 11L);
+    }
+
+    private FinancialGoal financialGoal(Long sessionId, Long conversationId) {
         FinancialGoal goal = new FinancialGoal();
         goal.setSessionId(sessionId);
         goal.setUserId(7L);
-        goal.setConversationId(11L);
+        goal.setConversationId(conversationId);
         goal.setTitle("유럽 여행 자금");
         goal.setGoalType("TRAVEL");
         goal.setTargetAmount(10_000_000L);
@@ -98,7 +151,7 @@ class GoalMapperIntegrationTest {
         goal.setMotivation("가족과 여행");
         goal.setPriority("MEDIUM");
         goal.setInitialAmount(2_000_000L);
-        goal.setMonthlyContribution(600_000L);
+        goal.setRequiredMonthlyAmount(600_000L);
         goal.setStatus("ACTIVE");
         return goal;
     }
@@ -106,6 +159,27 @@ class GoalMapperIntegrationTest {
     private void createTables() throws Exception {
         try (Connection connection = dataSource.getConnection();
              Statement statement = connection.createStatement()) {
+            statement.execute("""
+                    CREATE TABLE CONNECTIONS (
+                        connection_id BIGINT PRIMARY KEY,
+                        status VARCHAR(20) NOT NULL,
+                        deleted_at TIMESTAMP NULL
+                    )
+                    """);
+            statement.execute("""
+                    CREATE TABLE ACCOUNTS (
+                        account_id BIGINT PRIMARY KEY,
+                        connection_id BIGINT NOT NULL,
+                        balance BIGINT NOT NULL,
+                        status VARCHAR(20) NOT NULL
+                    )
+                    """);
+            statement.execute("""
+                    CREATE TABLE FINANCIAL_GOAL_ACCOUNTS (
+                        goal_id BIGINT PRIMARY KEY,
+                        account_id BIGINT NOT NULL
+                    )
+                    """);
             statement.execute("""
                     CREATE TABLE GOAL_INTERVIEW_SESSIONS (
                         session_id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -132,12 +206,25 @@ class GoalMapperIntegrationTest {
                         motivation VARCHAR(500) NULL,
                         priority VARCHAR(20) NULL,
                         initial_amount BIGINT NOT NULL,
-                        monthly_contribution BIGINT NOT NULL,
+                        required_monthly_amount BIGINT NOT NULL,
                         status VARCHAR(20) NOT NULL,
                         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE (conversation_id),
+                        UNIQUE (user_id)
                     )
                     """);
+        }
+    }
+
+    private void linkGoalAccount(Long goalId) throws Exception {
+        try (Connection connection = dataSource.getConnection();
+             Statement statement = connection.createStatement()) {
+            statement.execute("INSERT INTO CONNECTIONS VALUES (21, 'ACTIVE', NULL)");
+            statement.execute("INSERT INTO ACCOUNTS VALUES (101, 21, 3250000, 'ACTIVE')");
+            statement.execute(
+                    "INSERT INTO FINANCIAL_GOAL_ACCOUNTS VALUES (" + goalId + ", 101)"
+            );
         }
     }
 
@@ -149,6 +236,16 @@ class GoalMapperIntegrationTest {
              )) {
             resultSet.next();
             return resultSet.getString("status");
+        }
+    }
+
+    private void updateInitialAmount(Long goalId, long initialAmount) throws Exception {
+        try (Connection connection = dataSource.getConnection();
+             Statement statement = connection.createStatement()) {
+            statement.executeUpdate(
+                    "UPDATE FINANCIAL_GOALS SET initial_amount = " + initialAmount
+                            + " WHERE goal_id = " + goalId
+            );
         }
     }
 }

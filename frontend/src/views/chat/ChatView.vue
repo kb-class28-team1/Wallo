@@ -4,6 +4,7 @@ import { storeToRefs } from "pinia"
 
 import ChatInput from "@/components/chat/ChatInput.vue"
 import ChatMessage from "@/components/chat/ChatMessage.vue"
+import GoalInterviewCard from "@/components/chat/GoalInterviewCard.vue"
 import { useConversationStore } from "@/stores/conversationStore"
 import { useUserStore } from "@/stores/userStore"
 
@@ -20,6 +21,7 @@ const {
   activeConversation,
   activeConversationId,
   messages,
+  activeGoalInterview,
   isLoading: isConversationLoading,
   isMessageLoading,
   isSending: isChatLoading,
@@ -122,6 +124,14 @@ async function sendMessage(message) {
   await scrollToBottom()
 }
 
+const confirmGoal = async () => {
+  await sendMessage("이대로 확정할게")
+}
+
+const cancelGoal = async () => {
+  await sendMessage("그만할래")
+}
+
 onMounted(async () => {
   if (!userId.value) {
     await userStore.restoreSession()
@@ -160,6 +170,14 @@ onMounted(async () => {
               :message="message"
               @typing="followTypingMessage"
               @typing-complete="completeTypingMessage"
+            />
+
+            <GoalInterviewCard
+              v-if="activeGoalInterview"
+              :interview="activeGoalInterview"
+              :loading="isChatLoading"
+              @confirm="confirmGoal"
+              @cancel="cancelGoal"
             />
 
             <div

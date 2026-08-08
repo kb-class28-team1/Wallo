@@ -78,6 +78,14 @@ def test_generates_valid_structured_report():
     assert client.chat.completions.calls[0]["response_format"] == {"type": "json_object"}
 
 
+def test_gpt_oss_json_mode_hides_reasoning_output():
+    client = FakeGroqClient(content=_valid_report().model_dump_json())
+
+    generate_financial_report(client, _sample_request(), "openai/gpt-oss-20b")
+
+    assert client.chat.completions.calls[0]["reasoning_format"] == "hidden"
+
+
 # 2. summary 누락
 def test_missing_summary_field_raises_validation_error():
     with pytest.raises(ValidationError):

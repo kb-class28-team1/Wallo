@@ -36,6 +36,17 @@ export const getConversationMessages = async (conversationId, userId) => {
   }
 }
 
+export const getActiveGoalInterview = async (conversationId) => {
+  try {
+    const response = await httpClient.get(
+      `/api/conversations/${conversationId}/goal-interview`,
+    )
+    return response.data
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error, "진행 중인 목표 설정을 불러오지 못했습니다."))
+  }
+}
+
 export const sendConversationMessage = async (
   conversationId,
   userId,

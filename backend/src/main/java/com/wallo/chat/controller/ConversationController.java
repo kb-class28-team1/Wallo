@@ -9,6 +9,7 @@ import com.wallo.chat.dto.SendConversationMessageResponse;
 import com.wallo.chat.dto.UpdateConversationTitleRequest;
 import com.wallo.chat.service.ConversationMessageService;
 import com.wallo.chat.service.ConversationService;
+import com.wallo.goal.dto.GoalInterviewDto;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -62,6 +63,17 @@ public class ConversationController {
     ) {
         return ResponseEntity.ok(
                 conversationMessageService.getMessages(conversationId, userId)
+        );
+    }
+
+    @GetMapping("/{conversationId}/goal-interview")
+    public ResponseEntity<GoalInterviewDto.ActiveDraftResponse>
+    getActiveGoalInterview(@PathVariable Long conversationId) {
+        return ResponseEntity.ok(
+                conversationMessageService.getActiveGoalInterview(
+                        conversationId,
+                        currentUserProvider.getCurrentUserId()
+                )
         );
     }
 

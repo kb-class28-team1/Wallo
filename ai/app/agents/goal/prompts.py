@@ -17,7 +17,6 @@ EXTRACTION_SYSTEM_PROMPT = """
 - motivation: 목표를 이루려는 이유
 - priority: LOW, MEDIUM, HIGH 중 하나
 - current_amount: 목표에 이미 배정한 준비금(원 단위 정수)
-- monthly_contribution: 매달 추가할 수 있는 금액(원 단위 정수)
 - assumptions: 상대 날짜 등을 해석할 때 사용한 가정의 문자열 배열
 - next_field: 현재 초안과 이번 답변을 종합했을 때 가장 중요한 다음 확인 항목
 - next_question: 이미 답한 내용을 반복하지 않는 자연스러운 다음 질문

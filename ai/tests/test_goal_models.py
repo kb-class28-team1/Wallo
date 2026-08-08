@@ -34,7 +34,6 @@ def test_goal_draft_accepts_structured_interview_state():
         motivation=" 취업 3주년 기념 여행 ",
         priority=GoalPriority.HIGH,
         current_amount=2_000_000,
-        monthly_contribution=500_000,
         missing_fields=[GoalField.CURRENT_AMOUNT],
         assumptions=[" 목표일은 2027년 6월 1일로 임시 해석함 "],
     )
@@ -50,7 +49,6 @@ def test_goal_draft_accepts_structured_interview_state():
         ("target_amount", 0),
         ("target_amount", -1),
         ("current_amount", -1),
-        ("monthly_contribution", -1),
     ],
 )
 def test_goal_draft_rejects_invalid_money_values(field_name, invalid_value):

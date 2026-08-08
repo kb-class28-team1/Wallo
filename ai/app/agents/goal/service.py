@@ -1,5 +1,4 @@
 from datetime import date
-from math import ceil
 
 from app.agents.goal.context import FinancialContext
 from app.agents.goal.extractor import GoalExtractionError, GoalExtractor
@@ -19,7 +18,6 @@ PLANNING_FIELD_ORDER = (
     GoalField.TARGET_AMOUNT,
     GoalField.TARGET_DATE,
     GoalField.CURRENT_AMOUNT,
-    GoalField.MONTHLY_CONTRIBUTION,
 )
 
 FIELD_ATTRIBUTE = {
@@ -30,7 +28,6 @@ FIELD_ATTRIBUTE = {
     GoalField.MOTIVATION: "motivation",
     GoalField.PRIORITY: "priority",
     GoalField.CURRENT_AMOUNT: "current_amount",
-    GoalField.MONTHLY_CONTRIBUTION: "monthly_contribution",
 }
 
 DEFAULT_TITLE_BY_GOAL_TYPE = {
@@ -189,7 +186,6 @@ def question_for(
         GoalField.GOAL_TYPE: "어떤 상황이나 계획을 위해 돈을 마련하고 싶으세요?",
         GoalField.TARGET_AMOUNT: f"{goal_name}에 필요한 금액은 어느 정도인가요?",
         GoalField.TARGET_DATE: f"{goal_name}을 언제까지 마련하고 싶으세요?",
-        GoalField.MONTHLY_CONTRIBUTION: f"{goal_name}을 위해 매달 부담 없이 마련할 수 있는 금액은 얼마인가요?",
     }
     if field == GoalField.CURRENT_AMOUNT:
         return current_amount_question(financial_context)
@@ -229,7 +225,6 @@ def calculate_feasibility(
         draft.target_amount,
         draft.target_date,
         draft.current_amount,
-        draft.monthly_contribution,
     )
     if any(value is None for value in required_values):
         return FeasibilityResult(status=FeasibilityStatus.INSUFFICIENT_INFORMATION)
@@ -237,11 +232,9 @@ def calculate_feasibility(
     target_amount = draft.target_amount
     target_date = draft.target_date
     current_amount = draft.current_amount
-    monthly_contribution = draft.monthly_contribution
     assert target_amount is not None
     assert target_date is not None
     assert current_amount is not None
-    assert monthly_contribution is not None
 
     remaining_amount = max(0, target_amount - current_amount)
     if remaining_amount == 0:
@@ -250,7 +243,6 @@ def calculate_feasibility(
             remaining_amount=0,
             remaining_months=0,
             required_monthly_amount=0,
-            monthly_gap=monthly_contribution,
         )
 
     today = reference_date or date.today()
@@ -261,24 +253,17 @@ def calculate_feasibility(
             remaining_amount=remaining_amount,
             remaining_months=0,
             required_monthly_amount=None,
-            monthly_gap=None,
         )
 
-    required_monthly_amount = ceil(remaining_amount / remaining_months)
-    monthly_gap = monthly_contribution - required_monthly_amount
-    if monthly_contribution < required_monthly_amount:
-        status = FeasibilityStatus.ADJUSTMENT_REQUIRED
-    elif monthly_contribution * 10 < required_monthly_amount * 11:
-        status = FeasibilityStatus.TIGHT
-    else:
-        status = FeasibilityStatus.ACHIEVABLE
+    required_monthly_amount = (
+        remaining_amount + remaining_months - 1
+    ) // remaining_months
 
     return FeasibilityResult(
-        status=status,
+        status=FeasibilityStatus.CALCULATED,
         remaining_amount=remaining_amount,
         remaining_months=remaining_months,
         required_monthly_amount=required_monthly_amount,
-        monthly_gap=monthly_gap,
     )
 
 
@@ -305,19 +290,8 @@ def feasibility_question(
                 f"'{goal_name}'의 목표 날짜가 이미 지났거나 너무 가까워요. "
                 "새로운 목표 시점을 알려주시겠어요?"
             )
-        increase = max(0, -result.monthly_gap) if result.monthly_gap is not None else 0
-        return (
-            f"'{goal_name}'까지 남은 금액은 약 {result.remaining_amount:,}원이고, "
-            f"목표 시점까지 매달 약 {result.required_monthly_amount:,}원이 필요해요. "
-            f"현재 계획보다 월 {increase:,}원 정도 더 필요합니다. "
-            "월 납입액이나 목표 시점을 조정할까요, 아니면 이대로 확정할까요?"
-        )
-    if result.status == FeasibilityStatus.TIGHT:
-        return (
-            f"'{goal_name}'을 위해 매달 약 {result.required_monthly_amount:,}원이 필요해 "
-            "여유가 크지는 않아요. 현재 계획으로 확정할까요?"
-        )
     return (
-        f"'{goal_name}'은 매달 약 {result.required_monthly_amount:,}원을 마련하면 "
-        "목표 시점까지 달성할 수 있어요. 이 계획으로 확정할까요?"
+        f"'{goal_name}'까지 남은 금액은 약 {result.remaining_amount:,}원이고, "
+        f"목표 시점까지 매달 약 {result.required_monthly_amount:,}원이 필요해요. "
+        "이 계획으로 확정할까요?"
     )
