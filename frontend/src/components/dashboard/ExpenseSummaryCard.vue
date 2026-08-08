@@ -10,7 +10,10 @@ ChartJS.register(ArcElement, Tooltip, Legend);
 const props = defineProps({
   expenses: {
     type: Object,
-    required: true,
+    default: () => ({
+      totalExpense: 0,
+      expenseCategoryBreakdown: [],
+    }),
   },
   chartData: {
     type: Object,

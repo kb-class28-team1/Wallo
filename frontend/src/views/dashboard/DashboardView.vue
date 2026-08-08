@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { storeToRefs } from "pinia";
 import AssetSummaryCard from "@/components/dashboard/AssetSummaryCard.vue";
 import BudgetSummaryCard from "@/components/dashboard/BudgetSummaryCard.vue";
@@ -30,8 +30,13 @@ const {
 const { assetTrendChartData, expenseChartData } = useDashboardCharts(assets, expenses);
 
 const GOAL_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+const isDashboardReady = ref(false);
 let goalRefreshTimer = null;
 let goalRefreshInFlight = null;
+
+const isDashboardLoading = computed(() => (
+  !isDashboardReady.value || isLoading.value || isGoalLoading.value
+));
 
 const hasDashboardData = computed(() => Boolean(
   assets.value ||
@@ -83,12 +88,17 @@ const refreshGoalData = ({ refreshDashboard = false } = {}) => {
 };
 
 const loadDashboard = async () => {
+  isDashboardReady.value = false;
   // 목표 조회가 선택 계좌 잔액을 먼저 동기화하도록 순서를 보장한다.
-  await refreshGoalData();
-  await Promise.all([
-    dashboardStore.fetchDashboardSummary(),
-    goalStore.fetchAvailableAccounts({ notifyError: false }),
-  ]);
+  try {
+    await refreshGoalData();
+    await Promise.all([
+      dashboardStore.fetchDashboardSummary(),
+      goalStore.fetchAvailableAccounts({ notifyError: false }),
+    ]);
+  } finally {
+    isDashboardReady.value = true;
+  }
 };
 
 const handleVisibilityChange = () => {
@@ -117,7 +127,7 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="container-fluid py-4 px-4">
-    <div v-if="isLoading" class="dashboard-state text-center py-5">
+    <div v-if="isDashboardLoading" class="dashboard-state text-center py-5">
       <div class="spinner-border text-primary" role="status" aria-label="대시보드 데이터 로딩 중"></div>
       <p class="mt-3 mb-0 text-secondary">대시보드 데이터를 불러오는 중입니다.</p>
     </div>
