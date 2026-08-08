@@ -134,8 +134,8 @@ const clearError = (field) => {
 
 .auth-logo {
   display: block;
-  width: 96px;
-  height: 96px;
+  width: 140px;
+  height: 140px;
   margin: 0 auto 0.5rem;
   object-fit: contain;
 }

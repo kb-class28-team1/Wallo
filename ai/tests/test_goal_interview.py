@@ -1,4 +1,4 @@
-"""목표 정보 추출, 꼬리질문, 자산 개인화 및 달성 가능성 테스트."""
+"""목표 정보 추출, 꼬리질문, 자산 개인화 및 월 필요액 계산 테스트."""
 
 import json
 from datetime import date
@@ -63,7 +63,6 @@ def complete_draft(**updates) -> GoalDraft:
         "motivation": "취업 3주년 기념 여행",
         "priority": GoalPriority.HIGH,
         "current_amount": 2_000_000,
-        "monthly_contribution": 700_000,
     }
     values.update(updates)
     return GoalDraft(**values)
@@ -168,7 +167,6 @@ def test_emergency_goal_gets_default_title_and_skips_redundant_title_question():
         target_date=date(2027, 11, 1),
         motivation="비상 상황 대비",
         current_amount=2_000_000,
-        monthly_contribution=500_000,
     )
 
     result = GoalInterviewService(StubExtractor(extraction)).process(
@@ -180,10 +178,11 @@ def test_emergency_goal_gets_default_title_and_skips_redundant_title_question():
     assert result.draft.title == "비상금 마련"
     assert result.draft.goal_type == GoalType.EMERGENCY_FUND
     assert result.draft.missing_fields == []
-    assert result.draft.state == InterviewState.REVIEW
+    assert result.draft.state == InterviewState.CONFIRMATION
     assert result.feasibility is not None
-    assert result.feasibility.status == FeasibilityStatus.ADJUSTMENT_REQUIRED
-    assert "월 납입액이나 목표 시점" in result.next_question
+    assert result.feasibility.status == FeasibilityStatus.CALCULATED
+    assert result.feasibility.required_monthly_amount == 533_334
+    assert "이 계획으로 확정" in result.next_question
 
 
 def test_explicit_emergency_facts_survive_model_extraction_failure():
@@ -207,7 +206,6 @@ def test_explicit_emergency_facts_survive_model_extraction_failure():
     assert extraction.target_amount == 10_000_000
     assert extraction.target_date == date(2027, 11, 30)
     assert extraction.current_amount == 2_000_000
-    assert extraction.monthly_contribution == 500_000
     assert extraction.motivation == "비상 상황에 대비하기 위해"
 
 
@@ -266,7 +264,7 @@ def test_merges_new_information_and_user_correction_without_duplicate_assumption
 
 
 def test_selects_one_asset_personalized_question_for_current_amount():
-    draft = complete_draft(current_amount=None, monthly_contribution=None)
+    draft = complete_draft(current_amount=None)
     extractor = StubExtractor(GoalExtraction())
 
     result = GoalInterviewService(extractor).process(
@@ -279,7 +277,6 @@ def test_selects_one_asset_personalized_question_for_current_amount():
     assert result.draft.state == InterviewState.ACTIVE
     assert result.draft.missing_fields == [
         GoalField.CURRENT_AMOUNT,
-        GoalField.MONTHLY_CONTRIBUTION,
     ]
     assert "7,000,000원" in result.next_question
     assert "15,000,000원" in result.next_question
@@ -312,43 +309,40 @@ def test_complete_achievable_goal_moves_to_confirmation():
 
     assert result.draft.state == InterviewState.CONFIRMATION
     assert result.feasibility is not None
-    assert result.feasibility.status == FeasibilityStatus.ACHIEVABLE
+    assert result.feasibility.status == FeasibilityStatus.CALCULATED
     assert result.feasibility.remaining_amount == 6_000_000
     assert result.feasibility.remaining_months == 10
     assert result.feasibility.required_monthly_amount == 600_000
     assert "600,000원" in result.next_question
 
 
-def test_unaffordable_goal_moves_to_feasibility_review():
+def test_goal_does_not_ask_for_monthly_contribution():
     result = GoalInterviewService(StubExtractor(GoalExtraction())).process(
-        "월 30만 원까지 가능해",
-        complete_draft(monthly_contribution=300_000),
+        "현재 내용으로 계산해줘",
+        complete_draft(),
         financial_context(),
         date(2026, 8, 6),
     )
 
-    assert result.draft.state == InterviewState.REVIEW
+    assert result.draft.state == InterviewState.CONFIRMATION
     assert result.feasibility is not None
-    assert result.feasibility.status == FeasibilityStatus.ADJUSTMENT_REQUIRED
-    assert result.feasibility.monthly_gap == -300_000
-    assert "월 납입액이나 목표 시점" in result.next_question
-    assert "이대로 확정" in result.next_question
+    assert result.feasibility.status == FeasibilityStatus.CALCULATED
+    assert GoalField.CURRENT_AMOUNT not in result.draft.missing_fields
+    assert "월 납입액" not in result.next_question
+    assert "이 계획으로 확정" in result.next_question
 
 
-def test_feasibility_handles_missing_already_achieved_and_tight_goals():
+def test_feasibility_handles_missing_already_achieved_and_calculated_goals():
     insufficient = calculate_feasibility(GoalDraft(target_amount=1_000_000))
     achieved = calculate_feasibility(
         complete_draft(current_amount=8_000_000),
         date(2026, 8, 6),
     )
-    tight = calculate_feasibility(
-        complete_draft(monthly_contribution=600_000),
-        date(2026, 8, 6),
-    )
+    calculated = calculate_feasibility(complete_draft(), date(2026, 8, 6))
 
     assert insufficient.status == FeasibilityStatus.INSUFFICIENT_INFORMATION
     assert achieved.status == FeasibilityStatus.ALREADY_ACHIEVED
-    assert tight.status == FeasibilityStatus.TIGHT
+    assert calculated.status == FeasibilityStatus.CALCULATED
 
 
 def test_past_target_date_requires_adjustment():

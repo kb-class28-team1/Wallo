@@ -1,8 +1,9 @@
 package com.wallo.goal.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -57,6 +58,7 @@ class GoalPersistenceServiceTest {
         GoalInterviewDto.Draft restored = objectMapper.readValue(
                 session.getGoalDraftJson(), GoalInterviewDto.Draft.class);
         assertEquals("유럽 여행 자금", restored.getTitle());
+        assertFalse(session.getGoalDraftJson().contains("monthlyContribution"));
     }
 
     @Test
@@ -87,12 +89,64 @@ class GoalPersistenceServiceTest {
     }
 
     @Test
+    void detectsAnExistingFinancialGoalInTheConversation() {
+        when(goalMapper.countFinancialGoals(7L, 11L)).thenReturn(1);
+
+        assertTrue(service.hasFinancialGoal(7L, 11L));
+    }
+
+    @Test
+    void detectsAnExistingFinancialGoalForTheUser() {
+        when(goalMapper.countFinancialGoalsByUserId(7L)).thenReturn(1);
+
+        assertTrue(service.hasFinancialGoalForUser(7L));
+    }
+
+    @Test
+    void cannotStartAnotherInterviewAfterAConversationHasAFinancialGoal() {
+        when(goalMapper.countFinancialGoals(7L, 11L)).thenReturn(1);
+
+        IllegalStateException exception = assertThrows(
+                IllegalStateException.class,
+                () -> service.applyResult(
+                        7L,
+                        11L,
+                        result(GoalInterviewDto.Action.CONTINUE, draft(false))
+                )
+        );
+
+        assertTrue(exception.getMessage().contains("이미 금융 목표"));
+        verify(goalMapper, never()).insertSession(any());
+    }
+
+    @Test
+    void cannotStartAnotherInterviewInAnotherConversationAfterUserHasAFinancialGoal() {
+        when(goalMapper.countFinancialGoalsByUserId(7L)).thenReturn(1);
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> service.applyResult(
+                        7L,
+                        99L,
+                        result(GoalInterviewDto.Action.CONTINUE, draft(false))
+                )
+        );
+
+        assertTrue(exception.getMessage().contains("한 사람당 하나의 목표"));
+        verify(goalMapper, never()).insertSession(any());
+    }
+
+    @Test
     void confirmPersistsTheFinancialGoalAndCompletesTheSession() {
         when(goalMapper.findActiveSession(7L, 11L)).thenReturn(activeSession(31L));
         when(goalMapper.completeSession(31L, "COMPLETED")).thenReturn(1);
         GoalInterviewDto.Draft draft = draft(true);
 
-        service.applyResult(7L, 11L, result(GoalInterviewDto.Action.CONFIRM, draft));
+        GoalInterviewDto.Result persisted = service.applyResult(
+                7L,
+                11L,
+                result(GoalInterviewDto.Action.CONFIRM, draft)
+        );
 
         ArgumentCaptor<FinancialGoal> captor = ArgumentCaptor.forClass(FinancialGoal.class);
         verify(goalMapper).insertGoal(captor.capture());
@@ -100,6 +154,15 @@ class GoalPersistenceServiceTest {
         assertEquals(31L, goal.getSessionId());
         assertEquals("유럽 여행 자금", goal.getTitle());
         assertEquals(10_000_000L, goal.getTargetAmount());
+        assertEquals(
+                GoalFeasibilityCalculator.calculate(draft, LocalDate.now())
+                        .getRequiredMonthlyAmount(),
+                goal.getRequiredMonthlyAmount()
+        );
+        assertEquals(
+                goal.getRequiredMonthlyAmount(),
+                persisted.getFeasibility().getRequiredMonthlyAmount()
+        );
         assertEquals("ACTIVE", goal.getStatus());
         verify(goalMapper).completeSession(31L, "COMPLETED");
     }
@@ -162,7 +225,6 @@ class GoalPersistenceServiceTest {
                 "가족과 여행",
                 "MEDIUM",
                 2_000_000L,
-                600_000L,
                 List.of(),
                 List.of(),
                 confirmed

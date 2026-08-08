@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wallo.goal.mapper.GoalAccountMapper">
+
+    <sql id="availableAccountColumns">
+        a.account_id AS accountId,
+        i.name AS bankName,
+        a.account_name AS accountName,
+        COALESCE(NULLIF(a.account_display_number, ''), a.account_number) AS displayNumber,
+        CASE
+            WHEN UPPER(TRIM(COALESCE(a.account_subtype, ''))) IN
+                ('CHECKING', 'CURRENT', 'DEPOSIT', '입출금', '입출금통장', '보통예금', '요구불예금')
+                THEN '입출금'
+            WHEN UPPER(TRIM(COALESCE(a.account_subtype, ''))) IN
+                ('예금', '정기예금', 'TIME_DEPOSIT', 'TERM_DEPOSIT')
+                THEN '예금'
+            WHEN UPPER(TRIM(COALESCE(a.account_subtype, ''))) IN
+                ('SAVINGS', '적금', '정기적금', '청약')
+                THEN '적금'
+            WHEN UPPER(TRIM(COALESCE(a.account_subtype, ''))) = 'CMA'
+                THEN 'CMA'
+        END AS accountType,
+        COALESCE(a.balance, 0) AS balance,
+        COALESCE(a.currency, 'KRW') AS currency,
+        CASE
+            WHEN EXISTS (
+                SELECT 1
+                FROM FINANCIAL_GOAL_ACCOUNTS selected_account
+                INNER JOIN FINANCIAL_GOALS selected_goal
+                    ON selected_goal.goal_id = selected_account.goal_id
+                WHERE selected_goal.user_id = #{userId}
+                  AND selected_account.account_id = a.account_id
+            ) THEN TRUE
+            ELSE FALSE
+        END AS selected
+    </sql>
+
+    <sql id="availableAccountWhere">
+        c.user_id = #{userId}
+        AND c.status = 'ACTIVE'
+        AND c.deleted_at IS NULL
+        AND a.status = 'ACTIVE'
+        AND UPPER(TRIM(COALESCE(a.account_type, ''))) &lt;&gt; 'LOAN'
+        AND UPPER(TRIM(COALESCE(a.account_subtype, ''))) IN (
+            'CHECKING', 'CURRENT', 'DEPOSIT', '입출금', '입출금통장', '보통예금', '요구불예금',
+            '예금', '정기예금', 'TIME_DEPOSIT', 'TERM_DEPOSIT',
+            'SAVINGS', '적금', '정기적금', '청약', 'CMA'
+        )
+    </sql>
+
+    <select id="findAvailableAccounts"
+            resultType="com.wallo.goal.dto.GoalAccountDto$AvailableAccount">
+        SELECT
+            <include refid="availableAccountColumns" />
+        FROM ACCOUNTS a
+        INNER JOIN CONNECTIONS c ON c.connection_id = a.connection_id
+        INNER JOIN INSTITUTIONS i ON i.institution_id = c.institution_id
+        WHERE <include refid="availableAccountWhere" />
+        ORDER BY i.name, a.account_id
+    </select>
+
+    <select id="findAvailableAccount"
+            resultType="com.wallo.goal.dto.GoalAccountDto$AvailableAccount">
+        SELECT
+            <include refid="availableAccountColumns" />
+        FROM ACCOUNTS a
+        INNER JOIN CONNECTIONS c ON c.connection_id = a.connection_id
+        INNER JOIN INSTITUTIONS i ON i.institution_id = c.institution_id
+        WHERE <include refid="availableAccountWhere" />
+          AND a.account_id = #{accountId}
+    </select>
+
+    <select id="findSelectedAccountSyncTargets"
+            resultType="com.wallo.goal.dto.GoalAccountDto$SyncTarget">
+        SELECT DISTINCT
+            c.connection_id AS connectionId,
+            i.institution_id AS institutionId,
+            i.codef_organization_code AS codefOrganizationCode,
+            i.name AS institutionName,
+            i.financial_group_code AS financialGroupCode,
+            i.financial_group_name AS financialGroupName,
+            i.type AS institutionType,
+            i.logo_url AS logoUrl,
+            c.login_type AS loginType,
+            c.login_id AS loginId,
+            c.login_password AS loginPassword
+        FROM FINANCIAL_GOAL_ACCOUNTS selected_account
+        INNER JOIN FINANCIAL_GOALS goal
+            ON goal.goal_id = selected_account.goal_id
+        INNER JOIN ACCOUNTS a
+            ON a.account_id = selected_account.account_id
+        INNER JOIN CONNECTIONS c
+            ON c.connection_id = a.connection_id
+        INNER JOIN INSTITUTIONS i
+            ON i.institution_id = c.institution_id
+        WHERE goal.user_id = #{userId}
+          AND goal.status = 'ACTIVE'
+          AND a.status = 'ACTIVE'
+          AND c.status = 'ACTIVE'
+          AND c.deleted_at IS NULL
+          AND i.is_active = TRUE
+    </select>
+
+    <delete id="deleteByGoalId">
+        DELETE FROM FINANCIAL_GOAL_ACCOUNTS
+        WHERE goal_id = #{goalId}
+    </delete>
+
+    <insert id="insertGoalAccount">
+        INSERT INTO FINANCIAL_GOAL_ACCOUNTS (goal_id, account_id)
+        VALUES (#{goalId}, #{accountId})
+    </insert>
+
+</mapper>
