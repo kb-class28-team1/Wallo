@@ -25,12 +25,17 @@ class NewsCrawlingSchedulerTest {
         List<Long> savedNewsIds = List.of(1L, 2L);
         when(newsCrawler.crawlAndSave()).thenReturn(savedNewsIds);
         FinancialReportGenerationScheduler reportScheduler = mock(FinancialReportGenerationScheduler.class);
+        when(reportScheduler.generateManuallyForCrawledNews(eq(savedNewsIds)))
+                .thenReturn(new FinancialReportGenerationScheduler.BatchResult(2, 2, 0, 0));
         NewsCrawlingScheduler scheduler = new NewsCrawlingScheduler(newsCrawler, reportScheduler);
 
-        scheduler.scheduledNewsCrawling();
+        NewsCrawlingScheduler.RunResult result = scheduler.runNow();
 
         verify(newsCrawler).crawlAndSave();
-        verify(reportScheduler).generateForCrawledNews(eq(savedNewsIds));
+        verify(reportScheduler).generateManuallyForCrawledNews(eq(savedNewsIds));
+        org.junit.jupiter.api.Assertions.assertTrue(result.started());
+        org.junit.jupiter.api.Assertions.assertEquals(2, result.crawledNewsCount());
+        org.junit.jupiter.api.Assertions.assertEquals(2, result.generatedReportCount());
     }
 
     // 2. 크롤링이 실패해도(기존 news 백로그가 있을 수 있으므로) 리포트 생성은 빈 우선 목록으로 그대로 시도된다.
@@ -39,6 +44,8 @@ class NewsCrawlingSchedulerTest {
         NewsCrawler newsCrawler = mock(NewsCrawler.class);
         doThrow(new RuntimeException("크롤링 실패")).when(newsCrawler).crawlAndSave();
         FinancialReportGenerationScheduler reportScheduler = mock(FinancialReportGenerationScheduler.class);
+        when(reportScheduler.generateForCrawledNews(eq(List.of())))
+                .thenReturn(new FinancialReportGenerationScheduler.BatchResult(0, 0, 0, 0));
         NewsCrawlingScheduler scheduler = new NewsCrawlingScheduler(newsCrawler, reportScheduler);
 
         assertDoesNotThrow(scheduler::scheduledNewsCrawling);

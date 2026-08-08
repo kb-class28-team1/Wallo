@@ -5,6 +5,7 @@ import com.wallo.report.dto.response.ReportDetailResponse;
 import com.wallo.report.dto.response.ReportListResponse;
 import com.wallo.report.service.NewsReportGenerationService;
 import com.wallo.report.service.NewsService;
+import com.wallo.report.scheduler.NewsCrawlingScheduler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -20,10 +21,16 @@ public class ReportController {
 
     private final NewsService newsService;
     private final NewsReportGenerationService newsReportGenerationService;
+    private final NewsCrawlingScheduler newsCrawlingScheduler;
 
-    public ReportController(NewsService newsService, NewsReportGenerationService newsReportGenerationService) {
+    public ReportController(
+            NewsService newsService,
+            NewsReportGenerationService newsReportGenerationService,
+            NewsCrawlingScheduler newsCrawlingScheduler
+    ) {
         this.newsService = newsService;
         this.newsReportGenerationService = newsReportGenerationService;
+        this.newsCrawlingScheduler = newsCrawlingScheduler;
     }
 
     /**
@@ -54,5 +61,11 @@ public class ReportController {
     public CommonResponse<ReportDetailResponse> generateReport(@PathVariable Long newsId) {
         newsReportGenerationService.generateIfAbsent(newsId);
         return CommonResponse.success(newsService.getReportDetail(newsId));
+    }
+
+    /** 스케줄 시간을 기다리지 않고 뉴스 크롤링과 금융 리포트 생성을 즉시 실행한다. */
+    @PostMapping("/generate-now")
+    public CommonResponse<NewsCrawlingScheduler.RunResult> generateReportsNow() {
+        return CommonResponse.success(newsCrawlingScheduler.runNow());
     }
 }
