@@ -4,6 +4,7 @@ import { defineStore } from "pinia"
 import {
   createConversation,
   deleteConversation as deleteConversationApi,
+  getActiveGoalInterview,
   getConversationMessages,
   getConversations,
   sendConversationMessage,
@@ -22,6 +23,7 @@ export const useConversationStore = defineStore("conversation", () => {
   const conversations = ref([])
   const activeConversationId = ref(null)
   const messages = ref([])
+  const activeGoalInterview = ref(null)
   const isLoading = ref(false)
   const isMessageLoading = ref(false)
   const isSending = ref(false)
@@ -63,13 +65,30 @@ export const useConversationStore = defineStore("conversation", () => {
   const fetchMessages = async (userId, conversationId) => {
     if (!conversationId) {
       messages.value = []
+      activeGoalInterview.value = null
       return
     }
 
+    activeGoalInterview.value = null
     isMessageLoading.value = true
     try {
       const response = await getConversationMessages(conversationId, userId)
       messages.value = response.map((message) => toViewMessage(message))
+
+      try {
+        const interviewResponse = await getActiveGoalInterview(conversationId)
+        activeGoalInterview.value = interviewResponse.active
+          ? {
+              action: "CONTINUE",
+              active: true,
+              draft: interviewResponse.draft,
+              feasibility: interviewResponse.feasibility ?? null,
+            }
+          : null
+      } catch {
+        // 기존 대화 메시지는 유지하고, 목표 카드 복구만 건너뛴다.
+        activeGoalInterview.value = null
+      }
     } catch (error) {
       messages.value = []
       alert(error.message || "대화 내용을 불러오지 못했습니다.")
@@ -86,6 +105,7 @@ export const useConversationStore = defineStore("conversation", () => {
       conversations.value.unshift(conversation)
       activeConversationId.value = conversation.conversationId
       messages.value = []
+      activeGoalInterview.value = null
       return conversation
     } catch (error) {
       alert(error.message || "새 채팅방을 만들지 못했습니다.")
@@ -97,6 +117,7 @@ export const useConversationStore = defineStore("conversation", () => {
 
   const selectConversation = async (conversationId, userId) => {
     activeConversationId.value = conversationId
+    activeGoalInterview.value = null
     await fetchMessages(userId, conversationId)
   }
 
@@ -139,6 +160,7 @@ export const useConversationStore = defineStore("conversation", () => {
           await fetchMessages(userId, nextConversationId)
         } else {
           messages.value = []
+          activeGoalInterview.value = null
         }
       }
       return true
@@ -178,6 +200,8 @@ export const useConversationStore = defineStore("conversation", () => {
         content,
       )
 
+      activeGoalInterview.value = response.goalInterview ?? null
+
       if (activeConversationId.value === conversationId) {
         const pendingMessageIndex = messages.value.findIndex(
           (message) => message.id === pendingMessageId,
@@ -211,6 +235,7 @@ export const useConversationStore = defineStore("conversation", () => {
     activeConversation,
     activeConversationId,
     messages,
+    activeGoalInterview,
     isLoading,
     isMessageLoading,
     isSending,

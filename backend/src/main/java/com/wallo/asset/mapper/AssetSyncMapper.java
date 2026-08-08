@@ -8,6 +8,8 @@ public interface AssetSyncMapper {
 
     int upsertAccount(@Param("connectionId") long connectionId, @Param("account") AssetSyncDto.Account account);
 
+    int updateConnectionLastSyncAt(@Param("connectionId") long connectionId);
+
     Long findAccountId(@Param("connectionId") long connectionId, @Param("accountNumber") String accountNumber);
 
     int upsertCard(@Param("connectionId") long connectionId, @Param("card") AssetSyncDto.Card card);

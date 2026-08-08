@@ -53,6 +53,7 @@ class GoalPriority(str, Enum):
 class FeasibilityStatus(str, Enum):
     """현재 목표 계획의 달성 가능성 판정."""
 
+    CALCULATED = "CALCULATED"
     ACHIEVABLE = "ACHIEVABLE"
     TIGHT = "TIGHT"
     ADJUSTMENT_REQUIRED = "ADJUSTMENT_REQUIRED"
@@ -70,7 +71,6 @@ class GoalField(str, Enum):
     MOTIVATION = "motivation"
     PRIORITY = "priority"
     CURRENT_AMOUNT = "currentAmount"
-    MONTHLY_CONTRIBUTION = "monthlyContribution"
 
 
 class GoalDraft(BaseModel):
@@ -91,7 +91,6 @@ class GoalDraft(BaseModel):
     motivation: str | None = Field(default=None, max_length=500)
     priority: GoalPriority | None = None
     current_amount: int | None = Field(default=None, ge=0)
-    monthly_contribution: int | None = Field(default=None, ge=0)
     missing_fields: list[GoalField] = Field(default_factory=list)
     assumptions: list[str] = Field(default_factory=list)
     confirmed: bool = False
@@ -135,7 +134,6 @@ class GoalExtraction(BaseModel):
     motivation: str | None = Field(default=None, max_length=500)
     priority: GoalPriority | None = None
     current_amount: int | None = Field(default=None, ge=0)
-    monthly_contribution: int | None = Field(default=None, ge=0)
     assumptions: list[str] = Field(default_factory=list)
     next_field: GoalField | None = None
     next_question: str | None = Field(default=None, max_length=500)
@@ -160,7 +158,6 @@ class FeasibilityResult(BaseModel):
     remaining_amount: int | None = Field(default=None, ge=0)
     remaining_months: int | None = Field(default=None, ge=0)
     required_monthly_amount: int | None = Field(default=None, ge=0)
-    monthly_gap: int | None = None
 
 
 class GoalInterviewResult(BaseModel):

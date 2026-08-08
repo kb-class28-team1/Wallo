@@ -1,13 +1,16 @@
 <script setup>
-import { computed, onMounted } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { storeToRefs } from "pinia";
 import AssetSummaryCard from "@/components/dashboard/AssetSummaryCard.vue";
 import BudgetSummaryCard from "@/components/dashboard/BudgetSummaryCard.vue";
 import ExpenseSummaryCard from "@/components/dashboard/ExpenseSummaryCard.vue";
+import GoalSummaryCard from "@/components/dashboard/GoalSummaryCard.vue";
 import { useDashboardCharts } from "@/features/financial/useDashboardCharts";
 import { useDashboardStore } from "@/stores/useDashboardStore";
+import { useGoalStore } from "@/stores/goalStore";
 
 const dashboardStore = useDashboardStore();
+const goalStore = useGoalStore();
 const {
   isLoading,
   assets,
@@ -15,24 +18,116 @@ const {
   expenses,
   error,
 } = storeToRefs(dashboardStore);
+const {
+  goals,
+  isLoading: isGoalLoading,
+  error: goalError,
+  availableAccounts,
+  isAccountLoading,
+  isAccountSaving,
+  accountError,
+} = storeToRefs(goalStore);
 const { assetTrendChartData, expenseChartData } = useDashboardCharts(assets, expenses);
 
+const GOAL_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+const isDashboardReady = ref(false);
+let goalRefreshTimer = null;
+let goalRefreshInFlight = null;
+
+const isDashboardLoading = computed(() => (
+  !isDashboardReady.value || isLoading.value || isGoalLoading.value
+));
+
 const hasDashboardData = computed(() => Boolean(
-  assets.value || budget.value || expenses.value,
+  assets.value ||
+  budget.value ||
+  expenses.value ||
+  goals.value.length > 0 ||
+  isGoalLoading.value ||
+  goalError.value,
 ));
 
 const handleBudgetSave = async (totalAmount) => {
   await dashboardStore.updateBudgetTotal(totalAmount);
 };
 
+const handleGoalRetry = () => {
+  goalStore.fetchGoals();
+};
+
+const handleAccountRetry = () => {
+  goalStore.fetchAvailableAccounts();
+};
+
+const handleAccountSelect = async ({ goalId, accountId }) => {
+  try {
+    await goalStore.saveGoalAccount(goalId, accountId);
+    // 계좌 연결 직후 목표 조회가 최신 잔액을 동기화하므로 카드와 계좌 목록을 다시 읽는다.
+    await refreshGoalData({ refreshDashboard: true });
+    await goalStore.fetchAvailableAccounts({ notifyError: false });
+  } catch {
+    // The store already exposes and alerts the API error; keep the component event handler settled.
+  }
+};
+
+const refreshGoalData = ({ refreshDashboard = false } = {}) => {
+  if (goalRefreshInFlight) {
+    return goalRefreshInFlight;
+  }
+
+  goalRefreshInFlight = (async () => {
+    await goalStore.fetchGoals({ notifyError: false });
+    if (refreshDashboard) {
+      await dashboardStore.fetchDashboardSummary();
+    }
+  })().finally(() => {
+    goalRefreshInFlight = null;
+  });
+
+  return goalRefreshInFlight;
+};
+
+const loadDashboard = async () => {
+  isDashboardReady.value = false;
+  // 목표 조회가 선택 계좌 잔액을 먼저 동기화하도록 순서를 보장한다.
+  try {
+    await refreshGoalData();
+    await Promise.all([
+      dashboardStore.fetchDashboardSummary(),
+      goalStore.fetchAvailableAccounts({ notifyError: false }),
+    ]);
+  } finally {
+    isDashboardReady.value = true;
+  }
+};
+
+const handleVisibilityChange = () => {
+  if (document.visibilityState === "visible") {
+    refreshGoalData({ refreshDashboard: true });
+  }
+};
+
 onMounted(() => {
-  dashboardStore.fetchDashboardSummary();
+  loadDashboard();
+  goalRefreshTimer = window.setInterval(
+    () => refreshGoalData({ refreshDashboard: true }),
+    GOAL_REFRESH_INTERVAL_MS,
+  );
+  document.addEventListener("visibilitychange", handleVisibilityChange);
+});
+
+onBeforeUnmount(() => {
+  if (goalRefreshTimer !== null) {
+    window.clearInterval(goalRefreshTimer);
+    goalRefreshTimer = null;
+  }
+  document.removeEventListener("visibilitychange", handleVisibilityChange);
 });
 </script>
 
 <template>
   <section class="container-fluid py-4 px-4">
-    <div v-if="isLoading" class="dashboard-state text-center py-5">
+    <div v-if="isDashboardLoading" class="dashboard-state text-center py-5">
       <div class="spinner-border text-primary" role="status" aria-label="대시보드 데이터 로딩 중"></div>
       <p class="mt-3 mb-0 text-secondary">대시보드 데이터를 불러오는 중입니다.</p>
     </div>
@@ -57,7 +152,21 @@ onMounted(() => {
         <BudgetSummaryCard :budget="budget" @save-budget="handleBudgetSave" />
       </div>
 
-      <ExpenseSummaryCard :expenses="expenses" :chart-data="expenseChartData" />
+      <div class="dashboard-summary-grid">
+        <ExpenseSummaryCard :expenses="expenses" :chart-data="expenseChartData" />
+        <GoalSummaryCard
+          :goals="goals"
+          :loading="isGoalLoading"
+          :error="goalError"
+          :available-accounts="availableAccounts"
+          :account-loading="isAccountLoading"
+          :account-saving="isAccountSaving"
+          :account-error="accountError"
+          @retry="handleGoalRetry"
+          @retry-accounts="handleAccountRetry"
+          @select-account="handleAccountSelect"
+        />
+      </div>
     </div>
   </section>
 </template>
@@ -76,12 +185,28 @@ onMounted(() => {
   grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
   gap: 40px;
   max-width: 1080px;
+  margin-top: 40px;
+}
+
+.dashboard-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 40px;
+  max-width: 1080px;
+  margin-top: 40px;
 }
 
 @media (max-width: 991.98px) {
   .dashboard-card-grid {
     grid-template-columns: 1fr;
     gap: 24px;
+    margin-top: 24px;
+  }
+
+  .dashboard-summary-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    margin-top: 24px;
   }
 }
 </style>

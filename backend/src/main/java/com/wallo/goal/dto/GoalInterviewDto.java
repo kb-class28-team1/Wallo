@@ -1,5 +1,6 @@
 package com.wallo.goal.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -23,6 +24,7 @@ public final class GoalInterviewDto {
     @Setter
     @NoArgsConstructor
     @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Draft {
         private String state;
         private String title;
@@ -32,7 +34,6 @@ public final class GoalInterviewDto {
         private String motivation;
         private String priority;
         private Long currentAmount;
-        private Long monthlyContribution;
         private List<String> missingFields = new ArrayList<>();
         private List<String> assumptions = new ArrayList<>();
         private boolean confirmed;
@@ -47,7 +48,6 @@ public final class GoalInterviewDto {
         private Long remainingAmount;
         private Integer remainingMonths;
         private Long requiredMonthlyAmount;
-        private Long monthlyGap;
     }
 
     @Getter
@@ -59,5 +59,13 @@ public final class GoalInterviewDto {
         private boolean active;
         private Draft draft;
         private Feasibility feasibility;
+    }
+
+    @Getter
+    @AllArgsConstructor
+    public static class ActiveDraftResponse {
+        private final boolean active;
+        private final Draft draft;
+        private final Feasibility feasibility;
     }
 }

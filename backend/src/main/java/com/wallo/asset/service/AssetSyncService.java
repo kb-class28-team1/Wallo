@@ -63,19 +63,7 @@ public class AssetSyncService {
             ));
         }
 
-        for (CodefDto.Account account : values(data.getAccounts())) {
-            assetSyncMapper.upsertAccount(connectionId, new AssetSyncDto.Account(
-                    account.getResAccount(), account.getResAccountDisplay(), account.getResAccountName(),
-                    institution.getInstitutionType(), account.getResAccountSubtype(), amount(account.getResAccountBalance()),
-                    amount(defaultValue(account.getResAccountEvalAmount(), account.getResAccountBalance())),
-                    defaultValue(account.getResAccountCurrency(), "KRW"), status(account.getResAccountStatus())));
-        }
-        for (CodefDto.Loan loan : values(data.getLoans())) {
-            assetSyncMapper.upsertAccount(connectionId, new AssetSyncDto.Account(
-                    loan.getResLoanAccount(), loan.getResLoanDisplay(), loan.getResLoanName(), "LOAN", "LOAN",
-                    amount(loan.getResLoanBalance()), amount(loan.getResLoanBalance()),
-                    defaultValue(loan.getResLoanCurrency(), "KRW"), status(loan.getResLoanStatus())));
-        }
+        upsertAccounts(connectionId, institution, data);
         for (CodefDto.Card card : values(data.getCards())) {
             assetSyncMapper.upsertCard(connectionId, new AssetSyncDto.Card(
                     card.getResCardNo(), card.getResCardName(), defaultValue(card.getResCardType(), "CREDIT"),
@@ -99,6 +87,7 @@ public class AssetSyncService {
         }
         upsertCurrentMonthSnapshot(userId, currentMonth);
         consumptionInsightCache.invalidateAfterCommit(userId, currentMonth);
+        assetSyncMapper.updateConnectionLastSyncAt(connectionId);
         LOGGER.info(String.format(
                 Locale.ROOT,
                 "asset-sync-service organization=%s type=%s snapshots=%d accounts=%d loans=%d cards=%d "
@@ -115,6 +104,21 @@ public class AssetSyncService {
         ));
     }
 
+    /** 선택된 목표 계좌의 잔액만 최신 Codef 응답으로 갱신한다. */
+    public void syncAccountBalances(
+            long connectionId,
+            Institution institution,
+            CodefDto.Response response
+    ) {
+        if (response == null || response.getData() == null) {
+            return;
+        }
+
+        CodefDto.AssetData data = objectMapper.convertValue(response.getData(), CodefDto.AssetData.class);
+        upsertAccounts(connectionId, institution, data);
+        assetSyncMapper.updateConnectionLastSyncAt(connectionId);
+    }
+
     public void refreshCurrentMonthSnapshot(long userId) {
         YearMonth currentMonth = YearMonth.from(LocalDate.now(clock));
         upsertCurrentMonthSnapshot(userId, currentMonth);
@@ -129,6 +133,26 @@ public class AssetSyncService {
                         currentTotalAssets == null ? 0L : currentTotalAssets
                 )
         );
+    }
+
+    private void upsertAccounts(
+            long connectionId,
+            Institution institution,
+            CodefDto.AssetData data
+    ) {
+        for (CodefDto.Account account : values(data.getAccounts())) {
+            assetSyncMapper.upsertAccount(connectionId, new AssetSyncDto.Account(
+                    account.getResAccount(), account.getResAccountDisplay(), account.getResAccountName(),
+                    institution.getInstitutionType(), account.getResAccountSubtype(), amount(account.getResAccountBalance()),
+                    amount(defaultValue(account.getResAccountEvalAmount(), account.getResAccountBalance())),
+                    defaultValue(account.getResAccountCurrency(), "KRW"), status(account.getResAccountStatus())));
+        }
+        for (CodefDto.Loan loan : values(data.getLoans())) {
+            assetSyncMapper.upsertAccount(connectionId, new AssetSyncDto.Account(
+                    loan.getResLoanAccount(), loan.getResLoanDisplay(), loan.getResLoanName(), "LOAN", "LOAN",
+                    amount(loan.getResLoanBalance()), amount(loan.getResLoanBalance()),
+                    defaultValue(loan.getResLoanCurrency(), "KRW"), status(loan.getResLoanStatus())));
+        }
     }
 
     private long elapsedMillis(long startedAt) {
