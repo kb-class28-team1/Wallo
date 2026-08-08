@@ -24,6 +24,14 @@
             updated_at = CURRENT_TIMESTAMP
     </insert>
 
+    <update id="updateConnectionLastSyncAt">
+        UPDATE CONNECTIONS
+        SET last_sync_at = CURRENT_TIMESTAMP
+        WHERE connection_id = #{connectionId}
+          AND status = 'ACTIVE'
+          AND deleted_at IS NULL
+    </update>
+
     <select id="findAccountId" resultType="java.lang.Long">
         SELECT account_id FROM ACCOUNTS
         WHERE connection_id = #{connectionId} AND account_number = #{accountNumber}
