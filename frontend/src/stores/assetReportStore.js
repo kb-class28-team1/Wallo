@@ -1,9 +1,5 @@
 import { defineStore } from "pinia";
-import {
-  getInsight,
-  getTaxSettlement,
-  updateAnnualSalary,
-} from "@/api/assetApi";
+import { getInsight, getTaxSettlement } from "@/api/assetApi";
 import { getApiErrorCode, getApiErrorMessage } from "@/commonUtils/apiError";
 
 export const useReportStore = defineStore("report", {
@@ -14,9 +10,6 @@ export const useReportStore = defineStore("report", {
     taxSettlement: null,
     isTaxSettlementLoading: false,
     taxSettlementError: null,
-    isAnnualSalaryRequired: false,
-    isAnnualSalarySaving: false,
-    annualSalaryError: null,
   }),
 
   actions: {
@@ -48,7 +41,6 @@ export const useReportStore = defineStore("report", {
     async fetchTaxSettlement(year) {
       this.isTaxSettlementLoading = true;
       this.taxSettlementError = null;
-      this.isAnnualSalaryRequired = false;
 
       try {
         const response = await getTaxSettlement(year);
@@ -60,7 +52,8 @@ export const useReportStore = defineStore("report", {
 
         const errorCode = getApiErrorCode(error);
         if (errorCode === "PROFILE_004") {
-          this.isAnnualSalaryRequired = true;
+          this.taxSettlementError =
+            "세전 연봉 자동 조회 결과가 없습니다. 금융기관 연결을 다시 진행해 주세요.";
         } else if (errorCode !== "REPORT_002") {
           this.taxSettlementError = getApiErrorMessage(
             error,
@@ -71,33 +64,6 @@ export const useReportStore = defineStore("report", {
         throw error;
       } finally {
         this.isTaxSettlementLoading = false;
-      }
-    },
-
-    async saveAnnualSalary(annualSalary) {
-      this.isAnnualSalarySaving = true;
-      this.annualSalaryError = null;
-
-      try {
-        const response = await updateAnnualSalary(annualSalary);
-        this.isAnnualSalaryRequired = false;
-
-        try {
-          await this.fetchTaxSettlement();
-        } catch {
-          // 조회 오류는 taxSettlementError에서 별도로 안내합니다.
-        }
-
-        return response?.data ?? null;
-      } catch (error) {
-        this.annualSalaryError = getApiErrorMessage(
-          error,
-          "연봉을 저장하는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
-        );
-
-        throw error;
-      } finally {
-        this.isAnnualSalarySaving = false;
       }
     },
   },

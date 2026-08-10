@@ -73,11 +73,3 @@ export const getTaxSettlement = async (year) => {
   return response.data;
 };
 
-export const updateAnnualSalary = async (annualSalary) => {
-  const response = await httpClient.patch("/api/users/profile", {
-    annualSalary,
-  });
-
-  return response.data;
-};
-
