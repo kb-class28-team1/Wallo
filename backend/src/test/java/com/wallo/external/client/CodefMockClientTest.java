@@ -131,6 +131,39 @@ class CodefMockClientTest {
     }
 
     @Test
+    void callsIncomeProofMockEndpointWithBearerToken() {
+        CodefDto.IncomeProofRequest request = new CodefDto.IncomeProofRequest(
+                "0001", "1", "mock_id", "mock_pw", "2025", "2025"
+        );
+        CodefDto.Response expected = CodefDto.Response.success("income-proof");
+        when(restTemplate.exchange(
+                eq("http://localhost:8080/mock/v1/kr/public/mw/issuance/proof-income"),
+                eq(HttpMethod.POST),
+                any(HttpEntity.class),
+                eq(CodefDto.Response.class)
+        )).thenReturn(ResponseEntity.ok(expected));
+
+        CodefDto.Response actual = client.getIncomeProof(request);
+
+        assertEquals(expected, actual);
+        ArgumentCaptor<HttpEntity> entityCaptor = ArgumentCaptor.forClass(HttpEntity.class);
+        verify(restTemplate).exchange(
+                eq("http://localhost:8080/mock/v1/kr/public/mw/issuance/proof-income"),
+                eq(HttpMethod.POST),
+                entityCaptor.capture(),
+                eq(CodefDto.Response.class)
+        );
+        assertEquals(
+                "Bearer mock-codef-token",
+                entityCaptor.getValue().getHeaders().getFirst("Authorization")
+        );
+        CodefDto.IncomeProofRequest sentRequest =
+                (CodefDto.IncomeProofRequest) entityCaptor.getValue().getBody();
+        assertEquals(request.getSearchStartYear(), sentRequest.getSearchStartYear());
+        assertEquals(request.getPassword(), sentRequest.getPassword());
+    }
+
+    @Test
     void usesConfiguredSandboxBaseUrlPathAndPasswordEncryptor() {
         CodefMockClient configuredClient = new CodefMockClient(
                 restTemplate,

@@ -11,7 +11,8 @@ import org.springframework.web.client.RestTemplate;
 /**
  * Common CODEF adapter used by the local Mock API and CODEF Sandbox/production.
  */
-public class CodefMockClient implements CodefClient, BankTransactionClient, CardApprovalClient {
+public class CodefMockClient
+        implements CodefClient, BankTransactionClient, CardApprovalClient, IncomeProofClient {
 
     private static final String DEFAULT_MOCK_PATH_PREFIX = "/mock/v1";
     private static final String BANK = "BANK";
@@ -19,6 +20,7 @@ public class CodefMockClient implements CodefClient, BankTransactionClient, Card
     private static final String STOCK = "STOCK";
     private static final String BANK_TRANSACTION_PATH = "/kr/bank/p/account/transaction-list";
     private static final String CARD_APPROVAL_PATH = "/kr/card/p/approval-list";
+    private static final String INCOME_PROOF_PATH = "/kr/public/mw/issuance/proof-income";
 
     private final RestTemplate restTemplate;
     private final CodefMockApiUrlProvider urlProvider;
@@ -84,6 +86,15 @@ public class CodefMockClient implements CodefClient, BankTransactionClient, Card
         );
     }
 
+    @Override
+    public CodefDto.Response getIncomeProof(CodefDto.IncomeProofRequest request) {
+        return post(
+                INCOME_PROOF_PATH,
+                encrypt(request),
+                "CODEF income proof API call failed."
+        );
+    }
+
     private CodefDto.Request encrypt(CodefDto.Request request) {
         if (request == null) {
             return null;
@@ -123,6 +134,20 @@ public class CodefMockClient implements CodefClient, BankTransactionClient, Card
                 passwordEncryptor.encrypt(request.getPassword()),
                 request.getStartDate(),
                 request.getEndDate()
+        );
+    }
+
+    private CodefDto.IncomeProofRequest encrypt(CodefDto.IncomeProofRequest request) {
+        if (request == null) {
+            return null;
+        }
+        return new CodefDto.IncomeProofRequest(
+                request.getOrganization(),
+                request.getLoginType(),
+                request.getId(),
+                passwordEncryptor.encrypt(request.getPassword()),
+                request.getSearchStartYear(),
+                request.getSearchEndYear()
         );
     }
 

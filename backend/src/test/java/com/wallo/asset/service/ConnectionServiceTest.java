@@ -30,12 +30,14 @@ public class ConnectionServiceTest {
     private final AssetSyncService assetSyncService = mock(AssetSyncService.class);
     private final CardWithdrawalReconciliationService cardWithdrawalReconciliationService =
             mock(CardWithdrawalReconciliationService.class);
+    private final AnnualSalarySyncService annualSalarySyncService = mock(AnnualSalarySyncService.class);
     private final ConnectionService connectionService = new ConnectionService(
             codefClient,
             institutionService,
             connectionMapper,
             assetSyncService,
-            cardWithdrawalReconciliationService
+            cardWithdrawalReconciliationService,
+            annualSalarySyncService
     );
 
     @Test
@@ -70,6 +72,7 @@ public class ConnectionServiceTest {
         assertEquals(ConnectionDto.Status.SUCCESS, response.getResults().get(2).getStatus());
         verify(codefClient, times(3)).connectInstitution(any(CodefDto.Request.class));
         verify(connectionMapper).insertConnections(any(), org.mockito.ArgumentMatchers.eq(7L), any(), any(), any());
+        verify(annualSalarySyncService).syncAnnualSalary(7L);
         verify(cardWithdrawalReconciliationService).reconcile(7L);
     }
 
