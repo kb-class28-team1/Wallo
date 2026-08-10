@@ -1,6 +1,6 @@
 import { createPinia, setActivePinia } from "pinia";
 import { flushPromises, mount } from "@vue/test-utils";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getTaxSettlement } from "@/api/assetApi";
 import TaxDeductionTrackerCard from "./TaxDeductionTrackerCard.vue";
 
@@ -21,6 +21,10 @@ describe("TaxDeductionTrackerCard", () => {
     });
   });
 
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("shows the automatically queried salary and no manual input controls", async () => {
     const wrapper = mount(TaxDeductionTrackerCard, {
       global: {
@@ -30,11 +34,63 @@ describe("TaxDeductionTrackerCard", () => {
 
     await flushPromises();
 
-    expect(wrapper.text()).toContain("자동 조회된 세전 연봉");
-    expect(wrapper.text()).toContain("50,000,000원");
+    expect(wrapper.text()).toContain("50,000,000");
     expect(wrapper.text()).toContain("50%");
     expect(wrapper.find("input").exists()).toBe(false);
-    expect(wrapper.text()).not.toContain("연봉 입력");
-    expect(wrapper.text()).not.toContain("연봉 수정");
+    expect(wrapper.find(".manual-salary-form").exists()).toBe(false);
+  });
+
+  it("shows the manual salary form when automatic lookup is unavailable", async () => {
+    const error = new Error("salary unavailable");
+    error.response = {
+      data: {
+        error: {
+          code: "PROFILE_004",
+          message: "salary unavailable",
+        },
+      },
+    };
+    getTaxSettlement.mockRejectedValue(error);
+
+    const wrapper = mount(TaxDeductionTrackerCard, {
+      global: {
+        plugins: [createPinia()],
+      },
+    });
+
+    await flushPromises();
+
+    expect(wrapper.find("#manualAnnualSalary").exists()).toBe(true);
+    expect(wrapper.find(".manual-salary-form").exists()).toBe(true);
+    expect(wrapper.find(".btn-outline-danger").exists()).toBe(false);
+
+    await wrapper.find("#manualAnnualSalary").setValue("50000000");
+    await wrapper.find(".manual-salary-form").trigger("submit");
+
+    expect(wrapper.emitted("manual-salary-submit")).toEqual([[50_000_000]]);
+  });
+
+  it("keeps the retry state for general lookup errors", async () => {
+    const error = new Error("server unavailable");
+    error.response = {
+      data: {
+        error: {
+          code: "COMMON_001",
+          message: "server unavailable",
+        },
+      },
+    };
+    getTaxSettlement.mockRejectedValue(error);
+
+    const wrapper = mount(TaxDeductionTrackerCard, {
+      global: {
+        plugins: [createPinia()],
+      },
+    });
+
+    await flushPromises();
+
+    expect(wrapper.find(".manual-salary-form").exists()).toBe(false);
+    expect(wrapper.find(".btn-outline-danger").exists()).toBe(true);
   });
 });

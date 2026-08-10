@@ -1,12 +1,23 @@
 <script setup>
-import { computed, onMounted } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { storeToRefs } from "pinia";
-import { useReportStore } from "@/stores/assetReportStore.js";
-import { formatWon } from "@/commonUtils/formatters";
+import {
+  ANNUAL_SALARY_LOOKUP_STATUS,
+  useReportStore,
+} from "@/stores/assetReportStore.js";
+import { formatNumber, formatWon } from "@/commonUtils/formatters";
 
 const reportStore = useReportStore();
-const { taxSettlement, isTaxSettlementLoading, taxSettlementError } =
+const emit = defineEmits(["manual-salary-submit"]);
+const {
+  taxSettlement,
+  isTaxSettlementLoading,
+  taxSettlementError,
+  annualSalaryLookupStatus,
+} =
   storeToRefs(reportStore);
+const annualSalaryInput = ref("");
+const manualSalaryError = ref("");
 
 const annualSalary = computed(() =>
   Number(taxSettlement.value?.annualSalary ?? 0),
@@ -14,6 +25,23 @@ const annualSalary = computed(() =>
 
 const formattedAnnualSalary = computed(() =>
   annualSalary.value > 0 ? formatWon(annualSalary.value) : "조회 결과 없음",
+);
+
+const isAnnualSalaryUnavailable = computed(
+  () => annualSalaryLookupStatus.value === ANNUAL_SALARY_LOOKUP_STATUS.UNAVAILABLE,
+);
+
+const isTaxSettlementError = computed(
+  () =>
+    !isAnnualSalaryUnavailable.value &&
+    (annualSalaryLookupStatus.value === ANNUAL_SALARY_LOOKUP_STATUS.ERROR ||
+      Boolean(taxSettlementError.value)),
+);
+
+const taxSettlementErrorMessage = computed(
+  () =>
+    taxSettlementError.value ||
+    "소득공제 달성률을 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
 );
 
 const achievementRate = computed(() => {
@@ -44,11 +72,36 @@ const achievementMessage = computed(() => {
 });
 
 const loadTaxSettlement = async () => {
+  if (
+    annualSalaryLookupStatus.value === ANNUAL_SALARY_LOOKUP_STATUS.UNAVAILABLE ||
+    annualSalaryLookupStatus.value === ANNUAL_SALARY_LOOKUP_STATUS.ERROR
+  ) {
+    return;
+  }
+
   try {
     await reportStore.fetchTaxSettlement();
   } catch {
     // 조회 오류와 재시도 상태는 Pinia에서 관리합니다.
   }
+};
+
+const formatManualSalaryInput = () => {
+  const numericValue = String(annualSalaryInput.value).replace(/[^0-9]/g, "");
+
+  annualSalaryInput.value = numericValue ? formatNumber(numericValue) : "";
+  manualSalaryError.value = "";
+};
+
+const submitManualSalary = () => {
+  const salary = Number(String(annualSalaryInput.value).replaceAll(",", ""));
+
+  if (!Number.isFinite(salary) || salary <= 0) {
+    manualSalaryError.value = "연봉은 0원보다 큰 금액으로 입력해 주세요.";
+    return;
+  }
+
+  emit("manual-salary-submit", salary);
 };
 
 const retryTaxSettlement = async () => {
@@ -78,10 +131,45 @@ onMounted(loadTaxSettlement);
         <p class="text-secondary mb-0 mt-3">카드 사용 내역을 계산하고 있습니다.</p>
       </div>
 
-      <div v-else-if="taxSettlementError" class="tax-deduction-state text-center">
+      <div
+        v-else-if="isAnnualSalaryUnavailable"
+        class="tax-deduction-state manual-salary-state"
+      >
+        <i class="bi bi-pencil-square text-primary fs-2" aria-hidden="true"></i>
+        <p class="fw-semibold mb-1 mt-3">세전 연봉을 자동으로 조회하지 못했습니다.</p>
+        <p class="small text-secondary mb-3">
+          연봉을 직접 입력하면 소득공제 달성률을 계산할 수 있습니다.
+        </p>
+
+        <form class="manual-salary-form" @submit.prevent="submitManualSalary">
+          <label for="manualAnnualSalary" class="visually-hidden">세전 연봉</label>
+          <div class="input-group">
+            <input
+              id="manualAnnualSalary"
+              v-model="annualSalaryInput"
+              type="text"
+              class="form-control"
+              inputmode="numeric"
+              autocomplete="off"
+              placeholder="예: 50,000,000"
+              required
+              @input="formatManualSalaryInput"
+            />
+            <span class="input-group-text">원</span>
+          </div>
+          <p v-if="manualSalaryError" class="small text-danger mb-2" role="alert">
+            {{ manualSalaryError }}
+          </p>
+          <button type="submit" class="btn btn-primary w-100">
+            수동 연봉 입력
+          </button>
+        </form>
+      </div>
+
+      <div v-else-if="isTaxSettlementError" class="tax-deduction-state text-center">
         <i class="bi bi-exclamation-circle text-danger fs-2" aria-hidden="true"></i>
         <p class="fw-semibold mb-1 mt-3">소득공제 달성률을 불러오지 못했습니다.</p>
-        <p class="small text-secondary mb-3">{{ taxSettlementError }}</p>
+        <p class="small text-secondary mb-3">{{ taxSettlementErrorMessage }}</p>
         <button
           type="button"
           class="btn btn-outline-danger"
@@ -91,7 +179,10 @@ onMounted(loadTaxSettlement);
         </button>
       </div>
 
-      <div v-else-if="taxSettlement" class="tax-deduction-content">
+      <div
+        v-else-if="annualSalaryLookupStatus === ANNUAL_SALARY_LOOKUP_STATUS.AVAILABLE && taxSettlement"
+        class="tax-deduction-content"
+      >
         <div class="annual-salary-summary mb-4">
           <span class="tax-deduction-label">자동 조회된 세전 연봉</span>
           <strong class="annual-salary-value">{{ formattedAnnualSalary }}</strong>
@@ -172,6 +263,11 @@ onMounted(loadTaxSettlement);
   flex-direction: column;
   align-items: center;
   justify-content: center;
+}
+
+.manual-salary-form {
+  width: 100%;
+  max-width: 360px;
 }
 
 .tax-deduction-label {
