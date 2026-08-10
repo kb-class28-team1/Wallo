@@ -1,6 +1,6 @@
 import { createPinia, setActivePinia } from "pinia";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getTaxSettlement } from "@/api/assetApi";
+import { getTaxSettlement, updateAnnualSalary } from "@/api/assetApi";
 import {
   ANNUAL_SALARY_LOOKUP_STATUS,
   useReportStore,
@@ -9,6 +9,7 @@ import {
 vi.mock("@/api/assetApi", () => ({
   getInsight: vi.fn(),
   getTaxSettlement: vi.fn(),
+  updateAnnualSalary: vi.fn(),
 }));
 
 describe("assetReportStore annual salary lookup state", () => {
@@ -32,6 +33,56 @@ describe("assetReportStore annual salary lookup state", () => {
       ANNUAL_SALARY_LOOKUP_STATUS.AVAILABLE,
     );
     expect(store.taxSettlementErrorCode).toBeNull();
+    expect(store.annualSalaryError).toBeNull();
+  });
+
+  it("saves a manual salary and refetches the tax settlement", async () => {
+    updateAnnualSalary.mockResolvedValue({
+      data: { annualSalary: 50_000_000 },
+    });
+    getTaxSettlement.mockResolvedValue({
+      data: {
+        annualSalary: 50_000_000,
+        creditCardThreshold: 12_500_000,
+      },
+    });
+    const store = useReportStore();
+    store.setAnnualSalaryLookupStatus("UNAVAILABLE");
+
+    await store.saveAnnualSalary(50_000_000);
+
+    expect(updateAnnualSalary).toHaveBeenCalledWith(50_000_000);
+    expect(getTaxSettlement).toHaveBeenCalledTimes(1);
+    expect(store.taxSettlement.annualSalary).toBe(50_000_000);
+    expect(store.annualSalaryLookupStatus).toBe(
+      ANNUAL_SALARY_LOOKUP_STATUS.AVAILABLE,
+    );
+    expect(store.isAnnualSalarySaving).toBe(false);
+    expect(store.annualSalaryError).toBeNull();
+  });
+
+  it("keeps the fallback form available when manual salary saving fails", async () => {
+    const error = new Error("invalid salary");
+    error.response = {
+      data: {
+        error: {
+          code: "PROFILE_001",
+          message: "invalid salary",
+        },
+      },
+    };
+    updateAnnualSalary.mockRejectedValue(error);
+    const store = useReportStore();
+    store.setAnnualSalaryLookupStatus("UNAVAILABLE");
+
+    await expect(store.saveAnnualSalary(0)).rejects.toBe(error);
+
+    expect(store.annualSalaryLookupStatus).toBe(
+      ANNUAL_SALARY_LOOKUP_STATUS.UNAVAILABLE,
+    );
+    expect(store.isAnnualSalarySaving).toBe(false);
+    expect(store.annualSalaryError).toBe("invalid salary");
+    expect(getTaxSettlement).not.toHaveBeenCalled();
   });
 
   it("accepts the lookup status returned by asset connection", () => {

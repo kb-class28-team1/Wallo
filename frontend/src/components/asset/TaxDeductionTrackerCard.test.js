@@ -1,12 +1,13 @@
 import { createPinia, setActivePinia } from "pinia";
 import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getTaxSettlement } from "@/api/assetApi";
+import { getTaxSettlement, updateAnnualSalary } from "@/api/assetApi";
 import TaxDeductionTrackerCard from "./TaxDeductionTrackerCard.vue";
 
 vi.mock("@/api/assetApi", () => ({
   getInsight: vi.fn(),
   getTaxSettlement: vi.fn(),
+  updateAnnualSalary: vi.fn(),
 }));
 
 describe("TaxDeductionTrackerCard", () => {
@@ -51,6 +52,18 @@ describe("TaxDeductionTrackerCard", () => {
       },
     };
     getTaxSettlement.mockRejectedValue(error);
+    updateAnnualSalary.mockResolvedValue({
+      data: { annualSalary: 50_000_000 },
+    });
+    getTaxSettlement
+      .mockRejectedValueOnce(error)
+      .mockResolvedValueOnce({
+        data: {
+          annualSalary: 50_000_000,
+          creditCardThreshold: 12_500_000,
+          cardSpentYtd: 6_250_000,
+        },
+      });
 
     const wrapper = mount(TaxDeductionTrackerCard, {
       global: {
@@ -66,8 +79,11 @@ describe("TaxDeductionTrackerCard", () => {
 
     await wrapper.find("#manualAnnualSalary").setValue("50000000");
     await wrapper.find(".manual-salary-form").trigger("submit");
+    await flushPromises();
 
-    expect(wrapper.emitted("manual-salary-submit")).toEqual([[50_000_000]]);
+    expect(updateAnnualSalary).toHaveBeenCalledWith(50_000_000);
+    expect(wrapper.find(".manual-salary-form").exists()).toBe(false);
+    expect(wrapper.text()).toContain("50,000,000");
   });
 
   it("keeps the retry state for general lookup errors", async () => {

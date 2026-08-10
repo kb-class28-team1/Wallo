@@ -1,5 +1,9 @@
 import { defineStore } from "pinia";
-import { getInsight, getTaxSettlement } from "@/api/assetApi";
+import {
+  getInsight,
+  getTaxSettlement,
+  updateAnnualSalary,
+} from "@/api/assetApi";
 import { getApiErrorCode, getApiErrorMessage } from "@/commonUtils/apiError";
 
 export const ANNUAL_SALARY_LOOKUP_STATUS = Object.freeze({
@@ -20,6 +24,8 @@ export const useReportStore = defineStore("report", {
     taxSettlementError: null,
     taxSettlementErrorCode: null,
     annualSalaryLookupStatus: ANNUAL_SALARY_LOOKUP_STATUS.IDLE,
+    isAnnualSalarySaving: false,
+    annualSalaryError: null,
   }),
 
   actions: {
@@ -61,6 +67,7 @@ export const useReportStore = defineStore("report", {
       this.isTaxSettlementLoading = true;
       this.taxSettlementError = null;
       this.taxSettlementErrorCode = null;
+      this.annualSalaryError = null;
       this.annualSalaryLookupStatus = ANNUAL_SALARY_LOOKUP_STATUS.LOADING;
 
       try {
@@ -95,6 +102,26 @@ export const useReportStore = defineStore("report", {
         throw error;
       } finally {
         this.isTaxSettlementLoading = false;
+      }
+    },
+
+    async saveAnnualSalary(annualSalary) {
+      this.isAnnualSalarySaving = true;
+      this.annualSalaryError = null;
+
+      try {
+        const response = await updateAnnualSalary(annualSalary);
+        await this.fetchTaxSettlement();
+
+        return response?.data ?? response ?? null;
+      } catch (error) {
+        this.annualSalaryError = getApiErrorMessage(
+          error,
+          "연봉을 저장하는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+        );
+        throw error;
+      } finally {
+        this.isAnnualSalarySaving = false;
       }
     },
   },

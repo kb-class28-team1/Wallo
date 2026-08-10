@@ -8,12 +8,13 @@ import {
 import { formatNumber, formatWon } from "@/commonUtils/formatters";
 
 const reportStore = useReportStore();
-const emit = defineEmits(["manual-salary-submit"]);
 const {
   taxSettlement,
   isTaxSettlementLoading,
   taxSettlementError,
   annualSalaryLookupStatus,
+  isAnnualSalarySaving,
+  annualSalaryError,
 } =
   storeToRefs(reportStore);
 const annualSalaryInput = ref("");
@@ -35,12 +36,14 @@ const isTaxSettlementError = computed(
   () =>
     !isAnnualSalaryUnavailable.value &&
     (annualSalaryLookupStatus.value === ANNUAL_SALARY_LOOKUP_STATUS.ERROR ||
-      Boolean(taxSettlementError.value)),
+      Boolean(taxSettlementError.value) ||
+      Boolean(annualSalaryError.value)),
 );
 
 const taxSettlementErrorMessage = computed(
   () =>
     taxSettlementError.value ||
+    annualSalaryError.value ||
     "소득공제 달성률을 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
 );
 
@@ -91,9 +94,10 @@ const formatManualSalaryInput = () => {
 
   annualSalaryInput.value = numericValue ? formatNumber(numericValue) : "";
   manualSalaryError.value = "";
+  reportStore.annualSalaryError = null;
 };
 
-const submitManualSalary = () => {
+const submitManualSalary = async () => {
   const salary = Number(String(annualSalaryInput.value).replaceAll(",", ""));
 
   if (!Number.isFinite(salary) || salary <= 0) {
@@ -101,7 +105,13 @@ const submitManualSalary = () => {
     return;
   }
 
-  emit("manual-salary-submit", salary);
+  try {
+    await reportStore.saveAnnualSalary(salary);
+    annualSalaryInput.value = "";
+    manualSalaryError.value = "";
+  } catch {
+    manualSalaryError.value = annualSalaryError.value;
+  }
 };
 
 const retryTaxSettlement = async () => {
@@ -153,15 +163,29 @@ onMounted(loadTaxSettlement);
               autocomplete="off"
               placeholder="예: 50,000,000"
               required
+              :disabled="isAnnualSalarySaving"
               @input="formatManualSalaryInput"
             />
             <span class="input-group-text">원</span>
           </div>
-          <p v-if="manualSalaryError" class="small text-danger mb-2" role="alert">
-            {{ manualSalaryError }}
+          <p
+            v-if="manualSalaryError || annualSalaryError"
+            class="small text-danger mb-2"
+            role="alert"
+          >
+            {{ manualSalaryError || annualSalaryError }}
           </p>
-          <button type="submit" class="btn btn-primary w-100">
-            수동 연봉 입력
+          <button
+            type="submit"
+            class="btn btn-primary w-100"
+            :disabled="isAnnualSalarySaving"
+          >
+            <span
+              v-if="isAnnualSalarySaving"
+              class="spinner-border spinner-border-sm me-2"
+              aria-hidden="true"
+            ></span>
+            {{ isAnnualSalarySaving ? "저장 중..." : "수동 연봉 입력" }}
           </button>
         </form>
       </div>
