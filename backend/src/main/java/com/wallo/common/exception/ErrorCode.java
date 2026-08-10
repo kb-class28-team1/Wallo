@@ -59,11 +59,6 @@ public enum ErrorCode {
             "REPORT_005",
             "금융 리포트 저장에 실패했습니다."
     ),
-    INVALID_ANNUAL_SALARY(
-            HttpStatus.BAD_REQUEST,
-            "PROFILE_001",
-            "연봉은 0원보다 큰 금액으로 입력해주세요."
-    ),
     USER_NOT_FOUND(
             HttpStatus.NOT_FOUND,
             "PROFILE_002",

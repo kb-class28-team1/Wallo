@@ -71,7 +71,12 @@ public class AppConfig {
         return new ConfiguredCodefAccessTokenProvider(accessToken);
     }
 
-    @Bean(name = {"codefClient", "bankTransactionClient", "cardApprovalClient"})
+    @Bean(name = {
+            "codefClient",
+            "bankTransactionClient",
+            "cardApprovalClient",
+            "incomeProofClient"
+    })
     public CodefMockClient codefClient(
             RestTemplate restTemplate,
             CodefAuthorizedRequestFactory requestFactory,
