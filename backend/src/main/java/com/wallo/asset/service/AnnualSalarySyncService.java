@@ -36,34 +36,45 @@ public class AnnualSalarySyncService {
         this.clock = clock;
     }
 
-    public void syncAnnualSalary(long userId) {
+    public ConnectionDto.AnnualSalaryLookupStatus syncAnnualSalary(long userId) {
         int targetYear = LocalDate.now(clock).getYear() - 1;
-        CodefDto.Response response = incomeProofClient.getIncomeProof(
-                createIncomeProofRequest(targetYear)
-        );
-        if (!isCodefSuccess(response)) {
-            logSkip(userId, targetYear, "CODEF income proof response was not successful.");
-            return;
-        }
+        try {
+            CodefDto.Response response = incomeProofClient.getIncomeProof(
+                    createIncomeProofRequest(targetYear)
+            );
+            if (!isCodefSuccess(response)) {
+                logSkip(userId, targetYear, "CODEF income proof response was not successful.");
+                return ConnectionDto.AnnualSalaryLookupStatus.UNAVAILABLE;
+            }
 
-        Long annualSalary = extractAnnualSalary(response.getData(), targetYear);
-        if (annualSalary == null || annualSalary <= 0) {
-            logSkip(userId, targetYear, "No earned-income amount was found.");
-            return;
-        }
+            Long annualSalary = extractAnnualSalary(response.getData(), targetYear);
+            if (annualSalary == null || annualSalary <= 0) {
+                logSkip(userId, targetYear, "No earned-income amount was found.");
+                return ConnectionDto.AnnualSalaryLookupStatus.UNAVAILABLE;
+            }
 
-        int updatedRows = annualSalaryMapper.updateAnnualSalary(userId, annualSalary);
-        if (updatedRows == 0) {
-            logSkip(userId, targetYear, "The user row was not found.");
-            return;
-        }
+            int updatedRows = annualSalaryMapper.updateAnnualSalary(userId, annualSalary);
+            if (updatedRows == 0) {
+                logSkip(userId, targetYear, "The user row was not found.");
+                return ConnectionDto.AnnualSalaryLookupStatus.ERROR;
+            }
 
-        LOGGER.info(String.format(
-                "annual-salary-sync userId=%d year=%d amount=%d",
-                userId,
-                targetYear,
-                annualSalary
-        ));
+            LOGGER.info(String.format(
+                    "annual-salary-sync userId=%d year=%d amount=%d",
+                    userId,
+                    targetYear,
+                    annualSalary
+            ));
+            return ConnectionDto.AnnualSalaryLookupStatus.AVAILABLE;
+        } catch (RuntimeException exception) {
+            LOGGER.warning(String.format(
+                    "annual-salary-sync failed userId=%d year=%d reason=%s",
+                    userId,
+                    targetYear,
+                    exception.getMessage()
+            ));
+            return ConnectionDto.AnnualSalaryLookupStatus.ERROR;
+        }
     }
 
     private CodefDto.IncomeProofRequest createIncomeProofRequest(int targetYear) {

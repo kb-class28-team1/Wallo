@@ -34,6 +34,20 @@ describe("assetReportStore annual salary lookup state", () => {
     expect(store.taxSettlementErrorCode).toBeNull();
   });
 
+  it("accepts the lookup status returned by asset connection", () => {
+    const store = useReportStore();
+
+    expect(store.setAnnualSalaryLookupStatus("UNAVAILABLE")).toBe(
+      ANNUAL_SALARY_LOOKUP_STATUS.UNAVAILABLE,
+    );
+    expect(store.setAnnualSalaryLookupStatus("ERROR")).toBe(
+      ANNUAL_SALARY_LOOKUP_STATUS.ERROR,
+    );
+    expect(store.setAnnualSalaryLookupStatus("unknown")).toBe(
+      ANNUAL_SALARY_LOOKUP_STATUS.ERROR,
+    );
+  });
+
   it("marks the salary unavailable for PROFILE_004", async () => {
     const error = new Error("salary unavailable");
     error.response = {

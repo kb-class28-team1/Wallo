@@ -73,7 +73,7 @@ public class ConnectionService {
         syncAssets(userId, attempts);
         long syncElapsedMs = elapsedMillis(syncStartedAt);
         long salarySyncStartedAt = System.nanoTime();
-        syncAnnualSalary(userId);
+        ConnectionDto.AnnualSalaryLookupStatus annualSalaryLookupStatus = syncAnnualSalary(userId);
         long salarySyncElapsedMs = elapsedMillis(salarySyncStartedAt);
         long reconciliationStartedAt = System.nanoTime();
         cardWithdrawalReconciliationService.reconcile(userId);
@@ -81,17 +81,18 @@ public class ConnectionService {
         LOGGER.info(String.format(
                 Locale.ROOT,
                 "asset-connect summary institutions=%d success=%d connectionMs=%d saveMs=%d syncMs=%d "
-                        + "salarySyncMs=%d reconciliationMs=%d totalMs=%d",
+                        + "salaryLookupStatus=%s salarySyncMs=%d reconciliationMs=%d totalMs=%d",
                 attempts.size(),
                 results.stream().filter(result -> result.getStatus() == ConnectionDto.Status.SUCCESS).count(),
                 connectionElapsedMs,
                 saveElapsedMs,
                 syncElapsedMs,
+                annualSalaryLookupStatus,
                 salarySyncElapsedMs,
                 reconciliationElapsedMs,
                 elapsedMillis(totalStartedAt)
         ));
-        return new ConnectionDto.Response(results);
+        return new ConnectionDto.Response(results, annualSalaryLookupStatus);
     }
 
     @Transactional(readOnly = true)
@@ -128,9 +129,13 @@ public class ConnectionService {
         }
     }
 
-    private void syncAnnualSalary(long userId) {
+    private ConnectionDto.AnnualSalaryLookupStatus syncAnnualSalary(long userId) {
         try {
-            annualSalarySyncService.syncAnnualSalary(userId);
+            ConnectionDto.AnnualSalaryLookupStatus status =
+                    annualSalarySyncService.syncAnnualSalary(userId);
+            return status == null
+                    ? ConnectionDto.AnnualSalaryLookupStatus.ERROR
+                    : status;
         } catch (RuntimeException exception) {
             LOGGER.warning(String.format(
                     Locale.ROOT,
@@ -138,6 +143,7 @@ public class ConnectionService {
                     userId,
                     exception.getMessage()
             ));
+            return ConnectionDto.AnnualSalaryLookupStatus.ERROR;
         }
     }
 

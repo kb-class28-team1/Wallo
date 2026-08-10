@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.wallo.asset.dto.ConnectionDto;
 import com.wallo.asset.mapper.AnnualSalaryMapper;
 import com.wallo.external.client.IncomeProofClient;
 import com.wallo.external.dto.CodefDto;
@@ -57,8 +58,9 @@ class AnnualSalarySyncServiceTest {
         when(incomeProofClient.getIncomeProof(any())).thenReturn(CodefDto.Response.success(data));
         when(annualSalaryMapper.updateAnnualSalary(7L, 60_000_000L)).thenReturn(1);
 
-        service.syncAnnualSalary(7L);
+        ConnectionDto.AnnualSalaryLookupStatus status = service.syncAnnualSalary(7L);
 
+        assertEquals(ConnectionDto.AnnualSalaryLookupStatus.AVAILABLE, status);
         ArgumentCaptor<CodefDto.IncomeProofRequest> requestCaptor =
                 ArgumentCaptor.forClass(CodefDto.IncomeProofRequest.class);
         verify(incomeProofClient).getIncomeProof(requestCaptor.capture());
@@ -73,8 +75,20 @@ class AnnualSalarySyncServiceTest {
         when(incomeProofClient.getIncomeProof(any()))
                 .thenReturn(CodefDto.Response.failure("CF-99999", "failed", ""));
 
-        service.syncAnnualSalary(7L);
+        ConnectionDto.AnnualSalaryLookupStatus status = service.syncAnnualSalary(7L);
 
+        assertEquals(ConnectionDto.AnnualSalaryLookupStatus.UNAVAILABLE, status);
+        verify(annualSalaryMapper, never()).updateAnnualSalary(anyLong(), anyLong());
+    }
+
+    @Test
+    void reportsErrorWhenIncomeProofClientFails() {
+        when(incomeProofClient.getIncomeProof(any()))
+                .thenThrow(new IllegalStateException("CODEF unavailable"));
+
+        ConnectionDto.AnnualSalaryLookupStatus status = service.syncAnnualSalary(7L);
+
+        assertEquals(ConnectionDto.AnnualSalaryLookupStatus.ERROR, status);
         verify(annualSalaryMapper, never()).updateAnnualSalary(anyLong(), anyLong());
     }
 

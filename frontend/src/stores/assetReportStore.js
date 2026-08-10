@@ -23,6 +23,15 @@ export const useReportStore = defineStore("report", {
   }),
 
   actions: {
+    setAnnualSalaryLookupStatus(status) {
+      const normalizedStatus = String(status ?? "").toLowerCase();
+      if (Object.values(ANNUAL_SALARY_LOOKUP_STATUS).includes(normalizedStatus)) {
+        this.annualSalaryLookupStatus = normalizedStatus;
+      }
+
+      return this.annualSalaryLookupStatus;
+    },
+
     async fetchInsight() {
       this.isInsightLoading = true;
       this.insightError = null;

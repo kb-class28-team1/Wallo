@@ -62,6 +62,8 @@ public class ConnectionServiceTest {
                 .thenReturn(3);
         when(connectionMapper.findActiveConnectionId(org.mockito.ArgumentMatchers.eq(7L), any()))
                 .thenReturn(1L);
+        when(annualSalarySyncService.syncAnnualSalary(7L))
+                .thenReturn(ConnectionDto.AnnualSalaryLookupStatus.AVAILABLE);
         ConnectionDto.Response response = connectionService.connectAllAssets(7L, request);
 
         assertEquals(3, response.getResults().size());
@@ -70,6 +72,10 @@ public class ConnectionServiceTest {
         assertEquals("KB Financial", response.getResults().get(0).getFinancialGroupName());
         assertEquals(ConnectionDto.Status.SUCCESS, response.getResults().get(1).getStatus());
         assertEquals(ConnectionDto.Status.SUCCESS, response.getResults().get(2).getStatus());
+        assertEquals(
+                ConnectionDto.AnnualSalaryLookupStatus.AVAILABLE,
+                response.getAnnualSalaryLookupStatus()
+        );
         verify(codefClient, times(3)).connectInstitution(any(CodefDto.Request.class));
         verify(connectionMapper).insertConnections(any(), org.mockito.ArgumentMatchers.eq(7L), any(), any(), any());
         verify(annualSalarySyncService).syncAnnualSalary(7L);
@@ -91,6 +97,8 @@ public class ConnectionServiceTest {
                 .thenReturn(3);
         when(connectionMapper.findActiveConnectionId(org.mockito.ArgumentMatchers.eq(7L), any()))
                 .thenReturn(1L);
+        when(annualSalarySyncService.syncAnnualSalary(7L))
+                .thenReturn(ConnectionDto.AnnualSalaryLookupStatus.UNAVAILABLE);
         ConnectionDto.Response response = connectionService.connectAllAssets(7L, request);
 
         assertEquals(3, response.getResults().size());
@@ -98,6 +106,10 @@ public class ConnectionServiceTest {
         assertEquals(ConnectionDto.Status.FAILED, response.getResults().get(1).getStatus());
         assertEquals("External service failed", response.getResults().get(1).getMessage());
         assertEquals(ConnectionDto.Status.SUCCESS, response.getResults().get(2).getStatus());
+        assertEquals(
+                ConnectionDto.AnnualSalaryLookupStatus.UNAVAILABLE,
+                response.getAnnualSalaryLookupStatus()
+        );
     }
 
     @Test

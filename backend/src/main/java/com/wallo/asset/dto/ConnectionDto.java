@@ -35,6 +35,11 @@ public final class ConnectionDto {
     @AllArgsConstructor
     public static class Response {
         private List<Result> results;
+        private AnnualSalaryLookupStatus annualSalaryLookupStatus;
+
+        public Response(List<Result> results) {
+            this.results = results;
+        }
     }
 
     @Getter
@@ -119,5 +124,11 @@ public final class ConnectionDto {
     public enum Status {
         SUCCESS,
         FAILED
+    }
+
+    public enum AnnualSalaryLookupStatus {
+        AVAILABLE,
+        UNAVAILABLE,
+        ERROR
     }
 }
