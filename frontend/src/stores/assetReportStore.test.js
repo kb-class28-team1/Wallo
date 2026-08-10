@@ -85,6 +85,33 @@ describe("assetReportStore annual salary lookup state", () => {
     expect(getTaxSettlement).not.toHaveBeenCalled();
   });
 
+  it("reports a refetch failure after the salary was saved", async () => {
+    const error = new Error("report unavailable");
+    error.response = {
+      data: {
+        error: {
+          code: "COMMON_001",
+          message: "report unavailable",
+        },
+      },
+    };
+    updateAnnualSalary.mockResolvedValue({
+      data: { annualSalary: 50_000_000 },
+    });
+    getTaxSettlement.mockRejectedValue(error);
+    const store = useReportStore();
+    store.setAnnualSalaryLookupStatus("UNAVAILABLE");
+
+    await expect(store.saveAnnualSalary(50_000_000)).rejects.toBe(error);
+
+    expect(updateAnnualSalary).toHaveBeenCalledWith(50_000_000);
+    expect(store.annualSalaryLookupStatus).toBe(
+      ANNUAL_SALARY_LOOKUP_STATUS.ERROR,
+    );
+    expect(store.isAnnualSalarySaving).toBe(false);
+    expect(store.annualSalaryError).toBe("report unavailable");
+  });
+
   it("accepts the lookup status returned by asset connection", () => {
     const store = useReportStore();
 
