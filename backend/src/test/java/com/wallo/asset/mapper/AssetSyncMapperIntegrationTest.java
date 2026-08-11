@@ -3,6 +3,7 @@ package com.wallo.asset.mapper;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.wallo.asset.dto.AssetSyncDto;
+import com.wallo.asset.service.TransactionSourceKeyGenerator;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -71,6 +72,56 @@ class AssetSyncMapperIntegrationTest {
             assertEquals(1, resultSet.getInt("row_count"));
             assertEquals(39_000L, resultSet.getLong("amount"));
             assertEquals("FOOD", resultSet.getString("category"));
+        }
+    }
+
+    @Test
+    void reconnectionWithNewCardIdKeepsOneApprovalAndUpdatesCardRelation() throws Exception {
+        TransactionSourceKeyGenerator keyGenerator = new TransactionSourceKeyGenerator();
+        String sourceDedupKey = keyGenerator.forCardApproval("0311", "2468-0000-0000-1357", "87654321");
+        AssetSyncDto.Transaction first = cardTransaction(101L, 38_000L, "DELIVERY", sourceDedupKey);
+        AssetSyncDto.Transaction reconnected = cardTransaction(202L, 39_000L, "FOOD", sourceDedupKey);
+
+        assetSyncMapper.upsertTransaction(first);
+        assetSyncMapper.upsertTransaction(reconnected);
+
+        try (Connection connection = dataSource.getConnection();
+             Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(
+                     "SELECT COUNT(*) AS row_count, MAX(card_id) AS card_id, "
+                             + "MAX(amount) AS amount, MAX(source_dedup_key) AS source_dedup_key "
+                             + "FROM TRANSACTIONS"
+             )) {
+            resultSet.next();
+            assertEquals(1, resultSet.getInt("row_count"));
+            assertEquals(202L, resultSet.getLong("card_id"));
+            assertEquals(39_000L, resultSet.getLong("amount"));
+            assertEquals(sourceDedupKey, resultSet.getString("source_dedup_key"));
+        }
+    }
+
+    @Test
+    void reconnectionWithNewAccountIdKeepsOneBankTransactionAndUpdatesAccountRelation() throws Exception {
+        TransactionSourceKeyGenerator keyGenerator = new TransactionSourceKeyGenerator();
+        String sourceDedupKey = keyGenerator.forBankTransaction("0004", "123456-01-789012", "BANK-202607-0001");
+        AssetSyncDto.Transaction first = bankTransaction(301L, 3_000_000L, sourceDedupKey);
+        AssetSyncDto.Transaction reconnected = bankTransaction(402L, 3_100_000L, sourceDedupKey);
+
+        assetSyncMapper.upsertTransaction(first);
+        assetSyncMapper.upsertTransaction(reconnected);
+
+        try (Connection connection = dataSource.getConnection();
+             Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(
+                     "SELECT COUNT(*) AS row_count, MAX(account_id) AS account_id, "
+                             + "MAX(amount) AS amount, MAX(source_dedup_key) AS source_dedup_key "
+                             + "FROM TRANSACTIONS"
+             )) {
+            resultSet.next();
+            assertEquals(1, resultSet.getInt("row_count"));
+            assertEquals(402L, resultSet.getLong("account_id"));
+            assertEquals(3_100_000L, resultSet.getLong("amount"));
+            assertEquals(sourceDedupKey, resultSet.getString("source_dedup_key"));
         }
     }
 
@@ -170,6 +221,63 @@ class AssetSyncMapperIntegrationTest {
                 "MERCHANT_KEYWORD",
                 new BigDecimal("0.9800"),
                 "keyword-v1"
+        );
+    }
+
+    private AssetSyncDto.Transaction cardTransaction(
+            long cardId,
+            long amount,
+            String category,
+            String sourceDedupKey
+    ) {
+        return new AssetSyncDto.Transaction(
+                7L,
+                cardId,
+                null,
+                "EXPENSE",
+                category,
+                amount,
+                "배달의민족",
+                "배달의민족",
+                "요식/음료",
+                "87654321",
+                LocalDate.of(2026, 7, 26),
+                LocalTime.of(19, 30),
+                "MERCHANT_KEYWORD",
+                new BigDecimal("0.9800"),
+                "keyword-v1",
+                "CARD_APPROVAL",
+                "0311",
+                "87654321",
+                sourceDedupKey
+        );
+    }
+
+    private AssetSyncDto.Transaction bankTransaction(
+            long accountId,
+            long amount,
+            String sourceDedupKey
+    ) {
+        return new AssetSyncDto.Transaction(
+                7L,
+                null,
+                accountId,
+                "INCOME",
+                "INCOME",
+                amount,
+                "월급_7월",
+                "월급_7월",
+                null,
+                "BANK-202607-0001",
+                LocalDate.of(2026, 7, 25),
+                LocalTime.of(10, 0),
+                "BANK_DIRECTION",
+                BigDecimal.ONE,
+                "bank-direction-v1",
+                "BANK_TRANSACTION",
+                "0004",
+                "BANK-202607-0001",
+                sourceDedupKey
         );
     }
 
