@@ -304,6 +304,7 @@ public class FeedService {
     private AnalysisResponse applyCategoryAverageFallback(Long userId, AnalysisResponse analysis) {
         if (analysis == null
                 || analysis.estimatedSavingAmount() > 0
+                || analysis.referenceValue() > 0
                 || "SPENT".equals(analysis.spendingType())) {
             return analysis;
         }

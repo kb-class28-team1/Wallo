@@ -235,7 +235,10 @@ public class PriceReferenceService {
         long actualCost = Math.max(0, analysis.actualCost());
         long difference = calculateDifference(
                 analysis.spendingType(), referenceValue, actualCost);
-        int estimatedAmount = difference > 0
+        boolean calculatedFromReference = referenceValue > 0
+                && ("SAVED".equals(analysis.spendingType())
+                || "REDUCED".equals(analysis.spendingType()));
+        int estimatedAmount = calculatedFromReference
                 ? (int) Math.min(Integer.MAX_VALUE, difference)
                 : analysis.estimatedSavingAmount();
         return new AnalysisResponse(
@@ -252,7 +255,7 @@ public class PriceReferenceService {
         if ("SAVED".equals(spendingType)) {
             return Math.max(0, referenceValue - actualCost);
         }
-        if ("REDUCED".equals(spendingType) && actualCost > 0) {
+        if ("REDUCED".equals(spendingType)) {
             return Math.max(0, referenceValue - actualCost);
         }
         return 0;
