@@ -2,6 +2,7 @@ import argparse
 import os
 import time
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Optional
 
 import pandas as pd
@@ -30,7 +31,12 @@ POST_CONTENT_SELECTORS = [
     ".elementor-widget-container",
 ]
 
-OUTPUT_FILE = "money_log_raw_contents.csv"
+OUTPUT_FILE = (
+    Path(__file__).resolve().parent.parent
+    / "data"
+    / "raw"
+    / "money_log_raw_contents.csv"
+)
 
 REQUEST_DELAY_SECONDS = 1
 MAX_RETRIES = 3
