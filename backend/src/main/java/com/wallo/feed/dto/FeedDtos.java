@@ -2,6 +2,7 @@ package com.wallo.feed.dto;
 
 import com.wallo.feed.domain.Feed;
 import com.wallo.feed.domain.FeedMessage;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public final class FeedDtos {
@@ -9,7 +10,46 @@ public final class FeedDtos {
 
     public record AnalysisResponse(
             String spendingType, String category, int estimatedSavingAmount,
-            String summary, double confidenceScore) {}
+            String summary, double confidenceScore,
+            List<DetectedItem> detectedItems,
+            long referenceValue,
+            long actualCost,
+            long savingDifference,
+            List<PriceReference> priceReferences) {
+
+        public AnalysisResponse(
+                String spendingType, String category, int estimatedSavingAmount,
+                String summary, double confidenceScore) {
+            this(spendingType, category, estimatedSavingAmount, summary, confidenceScore,
+                    List.of(), 0, 0, 0, List.of());
+        }
+
+        public AnalysisResponse {
+            detectedItems = detectedItems == null ? List.of() : List.copyOf(detectedItems);
+            priceReferences = priceReferences == null ? List.of() : List.copyOf(priceReferences);
+        }
+    }
+
+    public record DetectedItem(
+            String itemName,
+            String brand,
+            String unit,
+            int quantity,
+            int unitPrice,
+            int totalValue,
+            double confidence,
+            String evidence) {
+    }
+
+    public record PriceReference(
+            String itemName,
+            String brand,
+            String unit,
+            int unitPrice,
+            String source,
+            String sourceUrl,
+            LocalDateTime observedAt) {
+    }
 
     /** 사용자가 확인한 절약 금액의 누적 요약. 원본 피드백 전체 대신 AI 프롬프트에 요약값만 전달한다. */
     public static class SavingAmountFeedbackSummary {

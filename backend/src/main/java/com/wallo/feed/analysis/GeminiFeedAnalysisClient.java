@@ -6,9 +6,12 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.wallo.chat.client.AiServerException;
 import com.wallo.feed.dto.FeedDtos.AnalysisResponse;
+import com.wallo.feed.dto.FeedDtos.DetectedItem;
 import com.wallo.feed.dto.FeedDtos.SavingAmountFeedbackSummary;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
 import java.util.Locale;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -105,13 +108,30 @@ public class GeminiFeedAnalysisClient implements FeedAnalysisClient, SavingFeedb
                 근거가 부족하거나 절약 행동을 확인할 수 없으면 보수적으로 0원에 가깝게 작성하세요.
                 spendingType이 SPENT이면 0으로 작성하세요.
                 confidenceScore는 근거가 명확할수록 1에 가까운 0부터 1 사이 숫자로 작성하세요.
+                actualCost는 영상·사진의 영수증, 가격표 또는 음성에서 실제 지출 금액이 명확할 때만
+                원 단위 정수로 작성하고 확인할 수 없으면 0으로 작성하세요.
+                detectedItems에는 현재 카테고리의 절약 금액 계산에 직접 필요한 물품만 최대 3개 작성하세요.
+                물품명, 브랜드, 한 묶음의 규격과 묶음 수량을 화면에서 확인할 수 있는 범위에서 작성하세요.
+                unit은 가격 비교 기준이 되는 한 묶음 규격입니다. 예: 1L×1개, 500ml×60병, 120g×5봉.
+                시장 가격은 직접 추정하지 마세요. 시세 검색과 계산은 서버가 별도로 수행합니다.
 
                 {
                   "spendingType": "%s",
                   "category": "%s",
                   "estimatedSavingAmount": 0,
                   "summary": "절약 행동에 대한 짧은 한국어 설명",
-                  "confidenceScore": 0.0
+                  "confidenceScore": 0.0,
+                  "actualCost": 0,
+                  "detectedItems": [
+                    {
+                      "itemName": "상품 종류 또는 상품명",
+                      "brand": "확인되지 않으면 빈 문자열",
+                      "unit": "한 묶음 규격",
+                      "quantity": 1,
+                      "confidence": 0.0,
+                      "evidence": "화면에서 확인한 짧은 근거"
+                    }
+                  ]
                 }
                 분석 범위는 위에서 지정한 category 한 가지만으로 제한합니다.
                 카테고리 코드: FOOD(식비), CAFE(카페), TRANSPORT(교통/차량), SHOPPING(쇼핑),
@@ -151,13 +171,51 @@ public class GeminiFeedAnalysisClient implements FeedAnalysisClient, SavingFeedb
         }
         double confidence = result.path("confidenceScore").asDouble(0.0);
         confidence = Math.max(0.0, Math.min(1.0, confidence));
+        long actualCost = Math.max(0, result.path("actualCost").asLong(0));
+        List<DetectedItem> detectedItems = parseDetectedItems(result.path("detectedItems"));
         String summary = result.path("summary").asText(DEFAULT_SUMMARY).trim();
         if (summary.isBlank()) {
             summary = DEFAULT_SUMMARY;
         }
 
         // 카테고리/소비 종류는 사용자가 선택하고 서버가 검증한 값을 신뢰한다.
-        return new AnalysisResponse(spendingType, category, amount, summary, confidence);
+        return new AnalysisResponse(
+                spendingType, category, amount, summary, confidence,
+                detectedItems, 0, actualCost, 0, List.of());
+    }
+
+    private List<DetectedItem> parseDetectedItems(JsonNode itemsNode) {
+        if (!itemsNode.isArray()) {
+            return List.of();
+        }
+        List<DetectedItem> items = new ArrayList<>();
+        for (JsonNode item : itemsNode) {
+            if (items.size() >= 3) {
+                break;
+            }
+            String itemName = item.path("itemName").asText("").trim();
+            if (itemName.isBlank()) {
+                continue;
+            }
+            String brand = item.path("brand").asText("").trim();
+            String unit = item.path("unit").asText("개").trim();
+            if (unit.isBlank()) {
+                unit = "개";
+            }
+            int quantity = Math.max(1, Math.min(99, item.path("quantity").asInt(1)));
+            double confidence = item.path("confidence").asDouble(0);
+            confidence = Math.max(0, Math.min(1, confidence));
+            items.add(new DetectedItem(
+                    itemName,
+                    brand,
+                    unit,
+                    quantity,
+                    0,
+                    0,
+                    confidence,
+                    item.path("evidence").asText("").trim()));
+        }
+        return List.copyOf(items);
     }
 
     private String extractGeneratedText(JsonNode response) {
