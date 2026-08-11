@@ -12,6 +12,7 @@ import {
   getFeeds,
   getRoomMessages,
   addFeedLike,
+  rateFeedAnalysis,
 } from "@/api/feedApi"
 import {
   EXPENSE_CATEGORY_META,
@@ -66,6 +67,12 @@ const form = reactive({
   savingAmount: 0,
   analysisSummary: "",
   confidenceScore: 0,
+  analysisDetails: "",
+  detectedItems: [],
+  referenceValue: 0,
+  actualCost: 0,
+  savingDifference: 0,
+  priceReferences: [],
 })
 
 const spendingTypes = [
@@ -282,6 +289,12 @@ const closeModal = () => {
     savingAmount: 0,
     analysisSummary: "",
     confidenceScore: 0,
+    analysisDetails: "",
+    detectedItems: [],
+    referenceValue: 0,
+    actualCost: 0,
+    savingDifference: 0,
+    priceReferences: [],
   })
   if (fileInput.value) fileInput.value.value = ""
 }
@@ -327,6 +340,15 @@ const removeFeed = async (feed) => {
     deletingFeedId.value = null
   }
 }
+const rateAnalysis = async (feed, rating) => {
+  if (!isMyFeed(feed) || feed.analysisAccuracy) return
+  try {
+    await rateFeedAnalysis(challengeId.value, feed.id, { rating })
+    feed.analysisAccuracy = rating
+  } catch (error) {
+    openDialog({ message: error.message })
+  }
+}
 const chooseFile = () => fileInput.value?.click()
 const handleFile = async (event) => {
   const file = event.target.files?.[0]
@@ -339,6 +361,12 @@ const handleFile = async (event) => {
   form.file = file
   previewUrl.value = URL.createObjectURL(file)
   form.analysisSummary = ""
+  form.analysisDetails = ""
+  form.detectedItems = []
+  form.referenceValue = 0
+  form.actualCost = 0
+  form.savingDifference = 0
+  form.priceReferences = []
 }
 const validationMessage = ({ requireCaption = false } = {}) => {
   if (!form.file) return "사진이나 영상을 선택해 주세요."
@@ -362,6 +390,12 @@ const requestAnalysis = async () => {
     form.savingAmount = result.estimatedSavingAmount
     form.analysisSummary = result.summary
     form.confidenceScore = result.confidenceScore
+    form.analysisDetails = JSON.stringify(result)
+    form.detectedItems = result.detectedItems || []
+    form.referenceValue = result.referenceValue || 0
+    form.actualCost = result.actualCost || 0
+    form.savingDifference = result.savingDifference || 0
+    form.priceReferences = result.priceReferences || []
   } catch (error) {
     openDialog({ message: error.message })
   } finally {
@@ -379,6 +413,7 @@ const uploadFeed = async () => {
     data.append("savingAmount", String(form.savingAmount))
     data.append("analysisSummary", form.analysisSummary)
     data.append("confidenceScore", String(form.confidenceScore))
+    data.append("analysisDetails", form.analysisDetails)
     await createFeed(challengeId.value, data)
     closeModal()
     await Promise.all([loadFeeds(), loadMessages({ forceScroll: true })])
@@ -578,6 +613,23 @@ onBeforeUnmount(() => {
                 </div>
               </div>
               <span>🤖 AI 분석 완료 · 절약 금액 {{ formatWon(feed.savingAmount) }}</span>
+              <div v-if="isMyFeed(feed)" class="analysis-feedback">
+                <small>이 분석은 얼마나 정확했나요?</small>
+                <button
+                  v-for="rating in [
+                    { value: 'HIGH', label: '높음' },
+                    { value: 'ACCURATE', label: '정확' },
+                    { value: 'LOW', label: '낮음' },
+                  ]"
+                  :key="rating.value"
+                  type="button"
+                  :class="{ selected: feed.analysisAccuracy === rating.value }"
+                  :disabled="Boolean(feed.analysisAccuracy)"
+                  @click.stop="rateAnalysis(feed, rating.value)"
+                >
+                  {{ rating.label }}
+                </button>
+              </div>
             </footer>
           </article>
         </main>
@@ -723,6 +775,19 @@ onBeforeUnmount(() => {
                 min="0"
                 :disabled="!form.analysisSummary"
               /><b>원</b>
+            </div>
+          </div>
+          <div v-if="form.analysisSummary && (form.detectedItems.length || form.referenceValue)" class="analysis-detail-box">
+            <div class="analysis-value-grid">
+              <span>시세 기준 가치 <b>{{ formatWon(form.referenceValue) }}</b></span>
+              <span>영상 속 실제 비용 <b>{{ form.actualCost ? formatWon(form.actualCost) : "확인 불가" }}</b></span>
+              <span>계산된 차액 <b>{{ form.savingDifference ? formatWon(form.savingDifference) : "확인 불가" }}</b></span>
+            </div>
+            <div v-if="form.detectedItems.length" class="detected-item-list">
+              <small>영상에서 확인한 물품</small>
+              <span v-for="item in form.detectedItems" :key="`${item.itemName}-${item.unit}`">
+                {{ item.itemName }} {{ item.quantity }}{{ item.unit }} · {{ item.unitPrice ? formatWon(item.unitPrice) : "시세 확인 중" }}
+              </span>
             </div>
           </div>
           <label class="section-label" for="feed-caption">한줄요약 (필수)</label>
@@ -1438,6 +1503,71 @@ textarea {
 }
 .result-box.ready > span {
   color: #328665;
+}
+.analysis-detail-box {
+  margin-top: 10px;
+  padding: 14px;
+  color: #50586e;
+  background: #f8f7ff;
+  border: 1px solid #e5e1ff;
+  border-radius: 14px;
+  font-size: 0.82rem;
+}
+.analysis-value-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.analysis-value-grid span,
+.detected-item-list span,
+.detected-item-list small {
+  display: block;
+}
+.analysis-value-grid b {
+  display: block;
+  margin-top: 3px;
+  color: #5f50ca;
+}
+.detected-item-list {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #e7e4f5;
+}
+.detected-item-list small {
+  margin-bottom: 2px;
+  color: #7a8093;
+  font-weight: 800;
+}
+.analysis-feedback {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.analysis-feedback small {
+  width: 100%;
+  color: #aeb8d4;
+}
+.analysis-feedback button {
+  padding: 5px 9px;
+  color: #c3cae1;
+  background: transparent;
+  border: 1px solid #ffffff2a;
+  border-radius: 999px;
+  font-size: 0.72rem;
+}
+.analysis-feedback button.selected,
+.analysis-feedback button:hover:not(:disabled) {
+  color: #fff;
+  background: #6f61dc;
+  border-color: #8e82ff;
+}
+.analysis-feedback button:disabled {
+  cursor: default;
+  opacity: 0.75;
 }
 textarea {
   min-height: 84px;
