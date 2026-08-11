@@ -52,8 +52,12 @@ public final class FeedDtos {
         }
 
         public DetectedItem {
-            comparisonType = "HOMEMADE".equalsIgnoreCase(comparisonType)
-                    ? "HOMEMADE" : "PRODUCT";
+            comparisonType = switch (comparisonType == null
+                    ? "" : comparisonType.trim().toUpperCase()) {
+                case "HOMEMADE" -> "HOMEMADE";
+                case "GATHERED" -> "GATHERED";
+                default -> "PRODUCT";
+            };
             ingredientCostPerUnit = Math.max(0, ingredientCostPerUnit);
             restaurantPricePerUnit = Math.max(0, restaurantPricePerUnit);
             ingredientBasis = ingredientBasis == null ? "" : ingredientBasis.trim();

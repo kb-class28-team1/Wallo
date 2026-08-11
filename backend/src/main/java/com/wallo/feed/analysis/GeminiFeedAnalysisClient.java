@@ -115,12 +115,15 @@ public class GeminiFeedAnalysisClient implements FeedAnalysisClient, SavingFeedb
                 unit은 가격 비교 기준이 되는 한 묶음 규격입니다. 예: 1L×1개, 500ml×60병, 120g×5봉.
                 직접 요리하거나 음료·디저트를 만든 장면이 명확하면 comparisonType을 HOMEMADE로,
                 완제품을 구매하거나 사용한 장면이면 PRODUCT로 작성하세요.
+                직접 채집·재배·수확·낚시하여 구매 비용 없이 얻은 물품이 명확하면
+                comparisonType을 GATHERED로 작성하고 actualCost는 0으로 작성하세요.
                 HOMEMADE일 때 ingredientCostPerUnit은 일반적인 소량 구매 재료비를 사용한 1단위 예상 원가,
                 restaurantPricePerUnit은 음식점·카페의 보수적인 1단위 판매가를 원 단위 정수로 작성하세요.
                 ingredientBasis에는 사진·영상에 실제로 보이는 재료, 양, 토핑, 소스와 조리 형태를 우선해
                 핵심 재료와 원가 산정 근거를 짧게 작성하세요. 정형화된 레시피를 그대로 가정하지 마세요.
-                PRODUCT일 때 재료 관련 세 값은 각각 0, 0, 빈 문자열로 작성하세요.
-                PRODUCT의 시장 가격은 직접 추정하지 마세요. 상품 시세 검색과 최종 계산은 서버가 수행합니다.
+                PRODUCT 또는 GATHERED일 때 재료 관련 세 값은 각각 0, 0, 빈 문자열로 작성하세요.
+                PRODUCT와 GATHERED의 시장 가격은 직접 추정하지 마세요.
+                상품 시세 검색과 최종 계산은 서버가 수행합니다.
 
                 {
                   "spendingType": "%s",
@@ -137,7 +140,7 @@ public class GeminiFeedAnalysisClient implements FeedAnalysisClient, SavingFeedb
                       "quantity": 1,
                       "confidence": 0.0,
                       "evidence": "화면에서 확인한 짧은 근거",
-                      "comparisonType": "PRODUCT 또는 HOMEMADE",
+                      "comparisonType": "PRODUCT, HOMEMADE 또는 GATHERED",
                       "ingredientCostPerUnit": 0,
                       "restaurantPricePerUnit": 0,
                       "ingredientBasis": "HOMEMADE일 때 보이는 핵심 재료와 산정 근거"
