@@ -319,6 +319,32 @@ class PriceReferenceServiceTest {
         assertTrue(result.summary().contains("총 가치는 8,000원"));
     }
 
+    @Test
+    void searchesGatheredItemPriceEvenWhenVisualConfidenceIsLow() {
+        PriceReferenceRow stored = row("고구마", "", "1kg", 4_500);
+        when(mapper.findBestMatch("고구마", "", "1kg", "FOOD"))
+                .thenReturn(null, stored);
+        when(mapper.upsert(any())).thenReturn(1);
+        when(shoppingClient.search("고구마", "", "1kg"))
+                .thenReturn(List.of(new ShoppingPriceCandidate(
+                        "국산 햇고구마 1kg", 4_500, "농산물몰",
+                        "https://example.com/sweet-potato", "")));
+        AnalysisResponse input = new AnalysisResponse(
+                "REDUCED", "FOOD", 0, "고구마를 직접 수확했습니다.", 0.4,
+                List.of(new DetectedItem(
+                        "고구마", "", "1kg", 1, 0, 0, 0.4,
+                        "수확한 고구마가 보임", "GATHERED", 0, 0, "")),
+                0, 0, 0, List.of());
+
+        AnalysisResponse result = service.enrich(input);
+
+        assertEquals(4_500, result.referenceValue());
+        assertEquals(4_500, result.estimatedSavingAmount());
+        assertEquals(0, result.actualCost());
+        assertTrue(result.summary().contains("고구마 1kg 시세 4,500원"));
+        verify(mapper).upsert(any());
+    }
+
     private AnalysisResponse analysis(
             String spendingType, long actualCost, DetectedItem item) {
         return new AnalysisResponse(
