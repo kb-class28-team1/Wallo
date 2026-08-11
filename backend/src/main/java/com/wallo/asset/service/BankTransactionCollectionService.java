@@ -5,21 +5,18 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wallo.asset.classification.ExpenseCategoryClassifier;
 import com.wallo.asset.domain.Institution;
 import com.wallo.asset.dto.AssetSyncDto;
-import com.wallo.asset.dto.ConnectionDto;
 import com.wallo.asset.mapper.AssetSyncMapper;
 import com.wallo.external.auth.CodefCredential;
 import com.wallo.external.auth.CodefCredentialProvider;
 import com.wallo.external.client.BankTransactionClient;
+import com.wallo.external.CodefDateTime;
+import com.wallo.external.CodefResponseValidator;
 import com.wallo.external.dto.CodefDto;
 import java.math.BigDecimal;
 import java.time.Clock;
-import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.YearMonth;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeFormatterBuilder;
-import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -35,22 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class BankTransactionCollectionService {
 
-    private static final String BANK_INSTITUTION_TYPE = "BANK";
-    private static final String SOURCE_TYPE = "BANK_TRANSACTION";
-    private static final String INCOME = "INCOME";
-    private static final String TRANSFER = "TRANSFER";
-    private static final String CARD_PAYMENT = "CARD_PAYMENT";
-    private static final String BANK_DIRECTION_SOURCE = "BANK_DIRECTION";
-    private static final String BANK_DIRECTION_CLASSIFIER_VERSION = "bank-direction-v1";
-    private static final String BANK_DIRECTION_FALLBACK_SOURCE = "BANK_DIRECTION_FALLBACK";
-    private static final String BANK_DIRECTION_FALLBACK_CLASSIFIER_VERSION =
-            "bank-direction-fallback-v1";
-    private static final DateTimeFormatter REQUEST_DATE_FORMATTER = DateTimeFormatter.BASIC_ISO_DATE;
-    private static final DateTimeFormatter RESPONSE_TIME_FORMATTER = new DateTimeFormatterBuilder()
-            .appendValue(ChronoField.HOUR_OF_DAY, 2)
-            .appendValue(ChronoField.MINUTE_OF_HOUR, 2)
-            .appendValue(ChronoField.SECOND_OF_MINUTE, 2)
-            .toFormatter();
+    private static final String SOURCE_TYPE = AssetTransactionConstants.BANK_TRANSACTION_SOURCE_TYPE;
     private static final Logger LOGGER = Logger.getLogger(BankTransactionCollectionService.class.getName());
 
     private final BankTransactionClient bankTransactionClient;
@@ -122,12 +104,12 @@ public class BankTransactionCollectionService {
                         credential.id(),
                         credential.password(),
                         accountNumber,
-                        startDate.format(REQUEST_DATE_FORMATTER),
-                        endDate.format(REQUEST_DATE_FORMATTER)
+                        CodefDateTime.formatDate(startDate),
+                        CodefDateTime.formatDate(endDate)
                 )
         );
         long apiElapsedMs = elapsedMillis(apiStartedAt);
-        validateCodefResponse(response);
+        CodefResponseValidator.requireSuccess(response, "은행 거래내역을 가져오지 못했습니다");
 
         long conversionStartedAt = System.nanoTime();
         List<CodefDto.BankTransaction> transactions = objectMapper.convertValue(
@@ -164,7 +146,8 @@ public class BankTransactionCollectionService {
             assetSyncMapper.upsertTransaction(mapping.transaction());
             if (mapping.reusedClassification()) {
                 reusedClassificationCount++;
-            } else if ("AI".equals(mapping.transaction().getCategorySource())) {
+            } else if (AssetTransactionConstants.AI_CATEGORY_SOURCE
+                    .equals(mapping.transaction().getCategorySource())) {
                 aiRequestCount++;
             }
             savedCount++;
@@ -237,7 +220,7 @@ public class BankTransactionCollectionService {
         String normalizedKind = source.getTransactionKind() == null
                 ? ""
                 : source.getTransactionKind().trim().toUpperCase(Locale.ROOT);
-        boolean cardPayment = CARD_PAYMENT.equals(normalizedKind);
+        boolean cardPayment = AssetTransactionConstants.CARD_PAYMENT_KIND.equals(normalizedKind);
         ExpenseCategoryClassifier.Context context = cardPayment
                 ? new ExpenseCategoryClassifier.Context(description, null, accountOut)
                 : null;
@@ -265,7 +248,7 @@ public class BankTransactionCollectionService {
     ) {
         TransactionClassification classification = prepared.cardPayment()
                 ? new TransactionClassification(
-                        "EXPENSE",
+                        AssetTransactionConstants.EXPENSE_TYPE,
                         resolution.result().category(),
                         prepared.directionClassification().amount(),
                         resolution.result().source(),
@@ -312,8 +295,8 @@ public class BankTransactionCollectionService {
         }
 
         return switch (normalizedKind) {
-            case INCOME -> classifyIncome(accountIn, accountOut);
-            case TRANSFER -> classifyTransfer(accountIn, accountOut);
+            case AssetTransactionConstants.INCOME_TYPE -> classifyIncome(accountIn, accountOut);
+            case AssetTransactionConstants.TRANSFER_TYPE -> classifyTransfer(accountIn, accountOut);
             default -> throw new IllegalArgumentException(
                     "지원하지 않는 은행 거래 유형입니다: " + transactionKind
             );
@@ -357,7 +340,7 @@ public class BankTransactionCollectionService {
         }
 
         return new TransactionClassification(
-                "EXPENSE",
+                AssetTransactionConstants.EXPENSE_TYPE,
                 null,
                 accountOut,
                 null,
@@ -445,33 +428,37 @@ public class BankTransactionCollectionService {
                 && !existing.getCategory().isBlank()
                 && existing.getCategorySource() != null
                 && !existing.getCategorySource().isBlank()
-                && !"FALLBACK".equals(existing.getCategorySource());
+                && !AssetTransactionConstants.FALLBACK_CATEGORY_SOURCE.equals(existing.getCategorySource());
     }
 
     private TransactionClassification incomeClassification(long amount, boolean fallback) {
         return new TransactionClassification(
-                INCOME,
-                INCOME,
+                AssetTransactionConstants.INCOME_TYPE,
+                AssetTransactionConstants.INCOME_CATEGORY,
                 amount,
-                fallback ? BANK_DIRECTION_FALLBACK_SOURCE : BANK_DIRECTION_SOURCE,
+                fallback
+                        ? AssetTransactionConstants.BANK_DIRECTION_FALLBACK_SOURCE
+                        : AssetTransactionConstants.BANK_DIRECTION_SOURCE,
                 BigDecimal.ONE,
                 fallback
-                        ? BANK_DIRECTION_FALLBACK_CLASSIFIER_VERSION
-                        : BANK_DIRECTION_CLASSIFIER_VERSION,
+                        ? AssetTransactionConstants.BANK_DIRECTION_FALLBACK_CLASSIFIER_VERSION
+                        : AssetTransactionConstants.BANK_DIRECTION_CLASSIFIER_VERSION,
                 false
         );
     }
 
     private TransactionClassification transferClassification(long amount, boolean fallback) {
         return new TransactionClassification(
-                TRANSFER,
-                "SEND",
+                AssetTransactionConstants.TRANSFER_TYPE,
+                AssetTransactionConstants.SEND_CATEGORY,
                 amount,
-                fallback ? BANK_DIRECTION_FALLBACK_SOURCE : BANK_DIRECTION_SOURCE,
+                fallback
+                        ? AssetTransactionConstants.BANK_DIRECTION_FALLBACK_SOURCE
+                        : AssetTransactionConstants.BANK_DIRECTION_SOURCE,
                 BigDecimal.ONE,
                 fallback
-                        ? BANK_DIRECTION_FALLBACK_CLASSIFIER_VERSION
-                        : BANK_DIRECTION_CLASSIFIER_VERSION,
+                        ? AssetTransactionConstants.BANK_DIRECTION_FALLBACK_CLASSIFIER_VERSION
+                        : AssetTransactionConstants.BANK_DIRECTION_CLASSIFIER_VERSION,
                 false
         );
     }
@@ -482,7 +469,8 @@ public class BankTransactionCollectionService {
             LocalDate startDate,
             LocalDate endDate
     ) {
-        if (institution == null || !BANK_INSTITUTION_TYPE.equals(institution.getInstitutionType())) {
+        if (institution == null
+                || !AssetTransactionConstants.BANK_INSTITUTION_TYPE.equals(institution.getInstitutionType())) {
             throw new IllegalArgumentException("은행 기관만 거래내역을 수집할 수 있습니다.");
         }
         if (accountNumber == null || accountNumber.isBlank()) {
@@ -491,17 +479,6 @@ public class BankTransactionCollectionService {
         AssetIdentifierNormalizer.normalize(accountNumber, "account number");
         if (startDate == null || endDate == null || startDate.isAfter(endDate)) {
             throw new IllegalArgumentException("은행 거래내역 조회 기간이 올바르지 않습니다.");
-        }
-    }
-
-    private void validateCodefResponse(CodefDto.Response response) {
-        if (response == null
-                || response.getResult() == null
-                || !ConnectionDto.CODEF_SUCCESS_CODE.equals(response.getResult().getCode())) {
-            String message = response != null && response.getResult() != null
-                    ? response.getResult().getMessage()
-                    : "응답이 없습니다.";
-            throw new IllegalStateException("은행 거래내역을 가져오지 못했습니다: " + message);
         }
     }
 
@@ -518,19 +495,11 @@ public class BankTransactionCollectionService {
     }
 
     private LocalDate parseDate(String value) {
-        try {
-            return LocalDate.parse(value, REQUEST_DATE_FORMATTER);
-        } catch (DateTimeException exception) {
-            throw new IllegalArgumentException("은행 거래일 형식이 올바르지 않습니다.", exception);
-        }
+        return CodefDateTime.parseDate(value, "Bank transaction date");
     }
 
     private LocalTime parseTime(String value) {
-        try {
-            return LocalTime.parse(value, RESPONSE_TIME_FORMATTER);
-        } catch (DateTimeException exception) {
-            throw new IllegalArgumentException("은행 거래시간 형식이 올바르지 않습니다.", exception);
-        }
+        return CodefDateTime.parseTime(value, "Bank transaction time");
     }
 
     private String required(String value, String fieldName) {

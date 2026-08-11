@@ -11,23 +11,18 @@ package com.wallo.asset.service;
  */
 public final class TransactionRelationValidator {
 
-    private static final String CARD_APPROVAL = "CARD_APPROVAL";
-    private static final String BANK_TRANSACTION = "BANK_TRANSACTION";
-    private static final String LOAN_TRANSACTION = "LOAN_TRANSACTION";
-    private static final String STOCK_TRANSACTION = "STOCK_TRANSACTION";
-
     private TransactionRelationValidator() {
     }
 
     public static void validate(String sourceType, Long cardId, Long accountId) {
-        if (CARD_APPROVAL.equals(sourceType)) {
+        if (AssetTransactionConstants.CARD_APPROVAL_SOURCE_TYPE.equals(sourceType)) {
             require(cardId, "cardId", sourceType);
             return;
         }
 
-        if (BANK_TRANSACTION.equals(sourceType)
-                || LOAN_TRANSACTION.equals(sourceType)
-                || STOCK_TRANSACTION.equals(sourceType)) {
+        if (AssetTransactionConstants.BANK_TRANSACTION_SOURCE_TYPE.equals(sourceType)
+                || AssetTransactionConstants.LOAN_TRANSACTION_SOURCE_TYPE.equals(sourceType)
+                || AssetTransactionConstants.STOCK_TRANSACTION_SOURCE_TYPE.equals(sourceType)) {
             require(accountId, "accountId", sourceType);
         }
     }

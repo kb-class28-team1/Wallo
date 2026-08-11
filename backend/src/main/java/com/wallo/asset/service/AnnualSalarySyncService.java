@@ -6,6 +6,7 @@ import com.wallo.asset.mapper.AnnualSalaryMapper;
 import com.wallo.external.auth.CodefCredential;
 import com.wallo.external.auth.CodefCredentialProvider;
 import com.wallo.external.client.IncomeProofClient;
+import com.wallo.external.CodefResponseValidator;
 import com.wallo.external.dto.CodefDto;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -124,9 +125,7 @@ public class AnnualSalarySyncService {
     }
 
     private boolean isCodefSuccess(CodefDto.Response response) {
-        return response != null
-                && response.getResult() != null
-                && ConnectionDto.CODEF_SUCCESS_CODE.equals(response.getResult().getCode());
+        return CodefResponseValidator.isSuccess(response);
     }
 
     private void logSkip(long userId, int targetYear, String reason) {

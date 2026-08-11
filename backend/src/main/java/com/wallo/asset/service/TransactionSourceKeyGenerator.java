@@ -16,7 +16,7 @@ public class TransactionSourceKeyGenerator {
     ) {
         String canonicalValue = String.join(
                 "|",
-                "CARD_APPROVAL",
+                AssetTransactionConstants.CARD_APPROVAL_SOURCE_TYPE,
                 required(organizationCode, "기관 코드"),
                 normalizeIdentity(cardNumber, "카드번호"),
                 required(approvalNo, "승인번호")
@@ -31,7 +31,7 @@ public class TransactionSourceKeyGenerator {
     ) {
         String canonicalValue = String.join(
                 "|",
-                "BANK_TRANSACTION",
+                AssetTransactionConstants.BANK_TRANSACTION_SOURCE_TYPE,
                 required(organizationCode, "기관 코드"),
                 normalizeIdentity(accountNumber, "계좌번호"),
                 required(transactionId, "원천 거래번호")

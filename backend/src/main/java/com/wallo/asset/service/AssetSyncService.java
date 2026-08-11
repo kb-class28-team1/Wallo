@@ -4,10 +4,11 @@ import com.wallo.asset.domain.Institution;
 import com.wallo.asset.dto.AssetSyncDto;
 import com.wallo.asset.mapper.AssetMapper;
 import com.wallo.asset.mapper.AssetSyncMapper;
+import com.wallo.external.CodefDateTime;
+import com.wallo.external.CodefResponseValidator;
 import com.wallo.external.dto.CodefDto;
 import com.wallo.external.converter.CodefAssetResponseMapper;
 import java.time.Clock;
-import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.YearMonth;
@@ -21,11 +22,6 @@ import org.springframework.stereotype.Service;
 @Service
 public class AssetSyncService {
 
-    private static final String CARD_APPROVAL_SOURCE_TYPE = "CARD_APPROVAL";
-    private static final String LOAN_TRANSACTION_SOURCE_TYPE = "LOAN_TRANSACTION";
-    private static final String STOCK_TRANSACTION_SOURCE_TYPE = "STOCK_TRANSACTION";
-    private static final String CODEF_CATEGORY_SOURCE = "CODEF";
-    private static final String CODEF_CLASSIFIER_VERSION = "codef-v1";
     private static final Logger LOGGER = Logger.getLogger(AssetSyncService.class.getName());
 
     private final AssetSyncMapper assetSyncMapper;
@@ -59,6 +55,7 @@ public class AssetSyncService {
 
     public void sync(long userId, long connectionId, Institution institution, CodefDto.Response response) {
         long startedAt = System.nanoTime();
+        CodefResponseValidator.requireSuccess(response, "Asset synchronization");
         CodefDto.AssetData data = codefAssetResponseMapper.toAssetData(response);
         YearMonth currentMonth = YearMonth.from(LocalDate.now(clock));
 
@@ -82,9 +79,9 @@ public class AssetSyncService {
         long assetStageElapsedMs = elapsedMillis(startedAt);
         long transactionStageStartedAt = System.nanoTime();
         int transactionDuplicateCount = 0;
-        if ("CARD".equals(institution.getInstitutionType())) {
+        if (AssetTransactionConstants.CARD_INSTITUTION_TYPE.equals(institution.getInstitutionType())) {
             cardApprovalCollectionService.collectInitial(userId, connectionId, institution);
-        } else if ("BANK".equals(institution.getInstitutionType())) {
+        } else if (AssetTransactionConstants.BANK_INSTITUTION_TYPE.equals(institution.getInstitutionType())) {
             collectBankTransactions(userId, connectionId, institution, data.getAccounts());
             List<CodefDto.Transaction> loanTransactions = values(data.getTransactions()).stream()
                     .filter(source -> !blank(source.getResLoanAccount()))
@@ -135,7 +132,8 @@ public class AssetSyncService {
             Institution institution,
             CodefDto.Response response
     ) {
-        if (response == null || response.getData() == null) {
+        CodefResponseValidator.requireSuccess(response, "Account balance synchronization");
+        if (response.getData() == null) {
             return;
         }
 
@@ -235,8 +233,8 @@ public class AssetSyncService {
                 ? defaultValue(source.getResUsedMerchantName(), "카드 결제")
                 : loanTransaction ? "학자금대출 상환" : defaultValue(source.getResAccountTrDesc(), "계좌 거래");
         String type = cardTransaction || loanTransaction
-                ? "EXPENSE"
-                : defaultValue(source.getResAccountTrType(), "EXPENSE");
+                ? AssetTransactionConstants.EXPENSE_TYPE
+                : defaultValue(source.getResAccountTrType(), AssetTransactionConstants.EXPENSE_TYPE);
         String category = cardTransaction
                 ? defaultValue(source.getResUsedCategory(), "OTHER")
                 : loanTransaction
@@ -244,10 +242,16 @@ public class AssetSyncService {
                         : defaultValue(source.getResAccountTrCategory(), "OTHER");
         long amount = amount(cardTransaction ? source.getResUsedAmount()
                 : loanTransaction ? source.getResLoanPaymentAmount() : source.getResAccountTrAmount());
-        LocalDate date = LocalDate.parse(cardTransaction ? source.getResUsedDate()
-                : loanTransaction ? source.getResLoanPaymentDate() : source.getResAccountTrDate());
-        LocalTime time = LocalTime.parse(cardTransaction ? source.getResUsedTime()
-                : loanTransaction ? source.getResLoanPaymentTime() : source.getResAccountTrTime());
+        LocalDate date = CodefDateTime.parseIsoDate(
+                cardTransaction ? source.getResUsedDate()
+                        : loanTransaction ? source.getResLoanPaymentDate() : source.getResAccountTrDate(),
+                "Asset transaction date"
+        );
+        LocalTime time = CodefDateTime.parseIsoTime(
+                cardTransaction ? source.getResUsedTime()
+                        : loanTransaction ? source.getResLoanPaymentTime() : source.getResAccountTrTime(),
+                "Asset transaction time"
+        );
 
         AssetSyncDto.Transaction transaction = new AssetSyncDto.Transaction(
                 userId,
@@ -262,9 +266,9 @@ public class AssetSyncService {
                 sourceTransactionId,
                 date,
                 time,
-                CODEF_CATEGORY_SOURCE,
+                AssetTransactionConstants.CODEF_CATEGORY_SOURCE,
                 java.math.BigDecimal.ONE,
-                CODEF_CLASSIFIER_VERSION,
+                AssetTransactionConstants.CODEF_CLASSIFIER_VERSION,
                 sourceType,
                 identity.sourceOrganizationCode(),
                 sourceTransactionId,
@@ -371,12 +375,12 @@ public class AssetSyncService {
 
     private String sourceType(boolean cardTransaction, boolean loanTransaction) {
         if (cardTransaction) {
-            return CARD_APPROVAL_SOURCE_TYPE;
+            return AssetTransactionConstants.CARD_APPROVAL_SOURCE_TYPE;
         }
         if (loanTransaction) {
-            return LOAN_TRANSACTION_SOURCE_TYPE;
+            return AssetTransactionConstants.LOAN_TRANSACTION_SOURCE_TYPE;
         }
-        return STOCK_TRANSACTION_SOURCE_TYPE;
+        return AssetTransactionConstants.STOCK_TRANSACTION_SOURCE_TYPE;
     }
 
     private String sourceTransactionId(
@@ -408,11 +412,7 @@ public class AssetSyncService {
     }
 
     private String snapshotMonth(String value) {
-        try {
-            return YearMonth.parse(value).toString();
-        } catch (DateTimeException exception) {
-            throw new IllegalArgumentException("Invalid asset snapshot month: " + value, exception);
-        }
+        return CodefDateTime.parseYearMonth(value, "Asset snapshot month").toString();
     }
 
     private String status(String value) {
