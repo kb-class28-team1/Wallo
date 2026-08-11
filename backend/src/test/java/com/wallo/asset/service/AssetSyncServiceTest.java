@@ -151,6 +151,66 @@ class AssetSyncServiceTest {
     }
 
     @Test
+    void excludesInactiveAccountsAndCardsFromAssetSync() {
+        Institution institution = new Institution(1L, "0004", "Wallo Bank", "BANK", "bank-logo");
+        Map<String, Object> data = Map.of(
+                "accounts", List.of(
+                        Map.of(
+                                "resAccount", "123456-01-789012",
+                                "resAccountDisplay", "123456-**-***012",
+                                "resAccountName", "Active account",
+                                "resAccountBalance", "5000000",
+                                "resAccountStatus", "1",
+                                "resAccountSubtype", "CHECKING"
+                        ),
+                        Map.of(
+                                "resAccount", "987654-01-321098",
+                                "resAccountDisplay", "987654-**-***098",
+                                "resAccountName", "Inactive account",
+                                "resAccountBalance", "15000000",
+                                "resAccountStatus", "0",
+                                "resAccountSubtype", "CHECKING"
+                        )
+                ),
+                "cards", List.of(
+                        Map.of(
+                                "resCardNo", "1111-0000-0000-1111",
+                                "resCardName", "Active card",
+                                "resCardType", "CHECK",
+                                "resCardState", "1"
+                        ),
+                        Map.of(
+                                "resCardNo", "2222-0000-0000-2222",
+                                "resCardName", "Inactive card",
+                                "resCardType", "CHECK",
+                                "resCardState", "0"
+                        )
+                )
+        );
+        when(assetSyncMapper.findAccountId(11L, "12345601789012")).thenReturn(31L);
+
+        assetSyncService.sync(7L, 11L, institution, CodefDto.Response.success(data));
+
+        ArgumentCaptor<AssetSyncDto.Account> accountCaptor =
+                ArgumentCaptor.forClass(AssetSyncDto.Account.class);
+        verify(assetSyncMapper).upsertAccount(eq(11L), accountCaptor.capture());
+        assertEquals("12345601789012", accountCaptor.getValue().getNumber());
+        verify(assetSyncMapper, never()).findAccountId(11L, "98765401321098");
+        verify(bankTransactionCollectionService).collectInitial(
+                7L, 31L, "123456-01-789012", institution
+        );
+        verify(bankTransactionCollectionService, never()).collectInitial(
+                anyLong(), anyLong(), eq("987654-01-321098"), eq(institution)
+        );
+
+        ArgumentCaptor<AssetSyncDto.Card> cardCaptor =
+                ArgumentCaptor.forClass(AssetSyncDto.Card.class);
+        verify(assetSyncMapper).upsertCard(eq(11L), cardCaptor.capture());
+        assertEquals("1111000000001111", cardCaptor.getValue().getNumber());
+        verify(assetSyncMapper, times(1)).upsertCard(eq(11L), any(AssetSyncDto.Card.class));
+    }
+
+    @Test
     void storesLoanAsActiveLoanAndUsesLiveTotalForCurrentSnapshot() {
         Institution institution = new Institution(1L, "0004", "국민은행", "BANK", "bank-logo");
         Map<String, Object> data = Map.of(

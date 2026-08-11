@@ -9,7 +9,12 @@ CREATE TABLE USERS (
 
 CREATE TABLE CARDS (
     card_id BIGINT PRIMARY KEY,
-    card_type VARCHAR(20) NOT NULL
+    connection_id BIGINT NULL,
+    card_number VARCHAR(50) NULL,
+    card_name VARCHAR(100) NULL,
+    card_type VARCHAR(20) NOT NULL,
+    status VARCHAR(20) NULL,
+    valid_period VARCHAR(10) NULL
 );
 
 CREATE TABLE TRANSACTIONS (

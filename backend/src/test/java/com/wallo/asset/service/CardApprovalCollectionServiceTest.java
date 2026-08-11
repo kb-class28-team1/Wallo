@@ -153,6 +153,7 @@ class CardApprovalCollectionServiceTest {
         );
 
         assertEquals(0, stats.total());
+        verify(assetSyncMapper).findActiveCardNumbers(11L);
         verify(assetSyncMapper, never()).upsertTransaction(any());
     }
 
