@@ -39,6 +39,31 @@ public final class AssetSyncDto {
 
     @Getter
     @AllArgsConstructor
+    public static class SyncStats {
+        private final int inserted;
+        private final int updated;
+
+        public static SyncStats empty() {
+            return new SyncStats(0, 0);
+        }
+
+        public int total() {
+            return inserted + updated;
+        }
+
+        public SyncStats plus(SyncStats other) {
+            if (other == null) {
+                return this;
+            }
+            return new SyncStats(
+                    inserted + other.inserted,
+                    updated + other.updated
+            );
+        }
+    }
+
+    @Getter
+    @AllArgsConstructor
     public static class Account {
         private final String number;
         private final String displayNumber;

@@ -75,6 +75,16 @@ public class CardApprovalCollectionService {
             LocalDate startDate,
             LocalDate endDate
     ) {
+        return collectWithStats(userId, connectionId, institution, startDate, endDate).total();
+    }
+
+    public AssetSyncDto.SyncStats collectWithStats(
+            long userId,
+            long connectionId,
+            Institution institution,
+            LocalDate startDate,
+            LocalDate endDate
+    ) {
         validateCollectionRequest(institution, startDate, endDate);
 
         long startedAt = System.nanoTime();
@@ -104,6 +114,8 @@ public class CardApprovalCollectionService {
         long conversionElapsedMs = elapsedMillis(conversionStartedAt);
 
         int savedCount = 0;
+        int insertedCount = 0;
+        int updatedCount = 0;
         int reusedClassificationCount = 0;
         int aiRequestCount = 0;
         long classificationStartedAt = System.nanoTime();
@@ -128,7 +140,18 @@ public class CardApprovalCollectionService {
                     approval,
                     classifications.get(approval.sourceIdentity().sourceDedupKey())
             );
+            boolean existingTransaction = assetSyncMapper.findExistingTransactionId(
+                    mapping.transaction().getUserId(),
+                    mapping.transaction().getSourceType(),
+                    mapping.transaction().getSourceOrganizationCode(),
+                    mapping.transaction().getSourceDedupKey()
+            ) != null;
             assetSyncMapper.upsertTransaction(mapping.transaction());
+            if (existingTransaction) {
+                updatedCount++;
+            } else {
+                insertedCount++;
+            }
             if (mapping.reusedClassification()) {
                 reusedClassificationCount++;
             } else if (AssetTransactionConstants.AI_CATEGORY_SOURCE
@@ -157,7 +180,7 @@ public class CardApprovalCollectionService {
                 processingElapsedMs,
                 elapsedMillis(startedAt)
         ));
-        return savedCount;
+        return new AssetSyncDto.SyncStats(insertedCount, updatedCount);
     }
 
     private void invalidateConsumptionInsightCache(
