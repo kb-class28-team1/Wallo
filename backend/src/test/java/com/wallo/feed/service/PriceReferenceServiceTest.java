@@ -81,6 +81,36 @@ class PriceReferenceServiceTest {
     }
 
     @Test
+    void convertsPackagePriceToSingleItemPriceBeforeStoring() {
+        PriceReferenceRow stored = row("당고", "", "1꼬치", 543);
+        stored.setCategory("CAFE");
+        when(mapper.findBestMatch(anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(null, stored);
+        when(mapper.upsert(any())).thenReturn(1);
+        when(shoppingClient.search("당고", "", "1꼬치"))
+                .thenReturn(List.of(new ShoppingPriceCandidate(
+                        "모찌모찌 당고 23꼬치 1.035kg",
+                        12_480,
+                        "테스트몰",
+                        "https://example.com/dango",
+                        "")));
+
+        AnalysisResponse analysis = new AnalysisResponse(
+                "SAVED", "CAFE", 0, "당고를 직접 만들었습니다.", 0.9,
+                List.of(new DetectedItem(
+                        "당고", "", "1꼬치", 5, 0, 0, 0.9, "다섯 꼬치 확인")),
+                0, 0, 0, List.of());
+
+        AnalysisResponse result = service.enrich(analysis);
+
+        ArgumentCaptor<PriceReferenceRow> rowCaptor = ArgumentCaptor.forClass(PriceReferenceRow.class);
+        verify(mapper).upsert(rowCaptor.capture());
+        assertEquals(543, rowCaptor.getValue().getLowestPrice());
+        assertEquals(2_715, result.referenceValue());
+        assertEquals(2_715, result.estimatedSavingAmount());
+    }
+
+    @Test
     void doesNotSearchLowConfidenceItems() {
         when(mapper.findBestMatch(anyString(), anyString(), anyString(), anyString()))
                 .thenReturn(null);
