@@ -7,6 +7,8 @@ import com.wallo.asset.domain.Institution;
 import com.wallo.asset.dto.AssetSyncDto;
 import com.wallo.asset.dto.ConnectionDto;
 import com.wallo.asset.mapper.AssetSyncMapper;
+import com.wallo.external.auth.CodefCredential;
+import com.wallo.external.auth.CodefCredentialProvider;
 import com.wallo.external.client.CardApprovalClient;
 import com.wallo.external.dto.CodefDto;
 import java.time.Clock;
@@ -43,6 +45,7 @@ public class CardApprovalCollectionService {
     private static final Logger LOGGER = Logger.getLogger(CardApprovalCollectionService.class.getName());
 
     private final CardApprovalClient cardApprovalClient;
+    private final CodefCredentialProvider codefCredentialProvider;
     private final ObjectMapper objectMapper;
     private final ExpenseCategoryClassifier categoryClassifier;
     private final TransactionSourceKeyGenerator sourceKeyGenerator;
@@ -52,6 +55,7 @@ public class CardApprovalCollectionService {
 
     public CardApprovalCollectionService(
             CardApprovalClient cardApprovalClient,
+            CodefCredentialProvider codefCredentialProvider,
             ObjectMapper objectMapper,
             ExpenseCategoryClassifier categoryClassifier,
             TransactionSourceKeyGenerator sourceKeyGenerator,
@@ -60,6 +64,7 @@ public class CardApprovalCollectionService {
             ConsumptionInsightCache consumptionInsightCache
     ) {
         this.cardApprovalClient = cardApprovalClient;
+        this.codefCredentialProvider = codefCredentialProvider;
         this.objectMapper = objectMapper;
         this.categoryClassifier = categoryClassifier;
         this.sourceKeyGenerator = sourceKeyGenerator;
@@ -84,12 +89,16 @@ public class CardApprovalCollectionService {
 
         long startedAt = System.nanoTime();
         long apiStartedAt = System.nanoTime();
+        CodefCredential credential = codefCredentialProvider.getCredential(
+                userId,
+                institution.getCodefOrganizationCode()
+        );
         CodefDto.Response response = cardApprovalClient.getApprovals(
                 new CodefDto.CardApprovalRequest(
                         institution.getCodefOrganizationCode(),
-                        ConnectionDto.MOCK_LOGIN_TYPE,
-                        ConnectionDto.MOCK_ID,
-                        ConnectionDto.MOCK_PASSWORD,
+                        credential.loginType(),
+                        credential.id(),
+                        credential.password(),
                         startDate.format(REQUEST_DATE_FORMATTER),
                         endDate.format(REQUEST_DATE_FORMATTER)
                 )

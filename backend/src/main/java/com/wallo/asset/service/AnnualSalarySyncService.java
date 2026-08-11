@@ -3,6 +3,8 @@ package com.wallo.asset.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wallo.asset.dto.ConnectionDto;
 import com.wallo.asset.mapper.AnnualSalaryMapper;
+import com.wallo.external.auth.CodefCredential;
+import com.wallo.external.auth.CodefCredentialProvider;
 import com.wallo.external.client.IncomeProofClient;
 import com.wallo.external.dto.CodefDto;
 import java.time.Clock;
@@ -20,17 +22,20 @@ public class AnnualSalarySyncService {
     private static final String EARNED_INCOME_TYPE = "\uADFC\uB85C\uC18C\uB4DD";
 
     private final IncomeProofClient incomeProofClient;
+    private final CodefCredentialProvider codefCredentialProvider;
     private final AnnualSalaryMapper annualSalaryMapper;
     private final ObjectMapper objectMapper;
     private final Clock clock;
 
     public AnnualSalarySyncService(
             IncomeProofClient incomeProofClient,
+            CodefCredentialProvider codefCredentialProvider,
             AnnualSalaryMapper annualSalaryMapper,
             ObjectMapper objectMapper,
             Clock clock
     ) {
         this.incomeProofClient = incomeProofClient;
+        this.codefCredentialProvider = codefCredentialProvider;
         this.annualSalaryMapper = annualSalaryMapper;
         this.objectMapper = objectMapper;
         this.clock = clock;
@@ -40,7 +45,7 @@ public class AnnualSalarySyncService {
         int targetYear = LocalDate.now(clock).getYear() - 1;
         try {
             CodefDto.Response response = incomeProofClient.getIncomeProof(
-                    createIncomeProofRequest(targetYear)
+                    createIncomeProofRequest(userId, targetYear)
             );
             if (!isCodefSuccess(response)) {
                 logSkip(userId, targetYear, "CODEF income proof response was not successful.");
@@ -77,13 +82,17 @@ public class AnnualSalarySyncService {
         }
     }
 
-    private CodefDto.IncomeProofRequest createIncomeProofRequest(int targetYear) {
+    private CodefDto.IncomeProofRequest createIncomeProofRequest(long userId, int targetYear) {
         String year = String.valueOf(targetYear);
+        CodefCredential credential = codefCredentialProvider.getCredential(
+                userId,
+                INCOME_PROOF_ORGANIZATION
+        );
         return new CodefDto.IncomeProofRequest(
                 INCOME_PROOF_ORGANIZATION,
-                ConnectionDto.MOCK_LOGIN_TYPE,
-                ConnectionDto.MOCK_ID,
-                ConnectionDto.MOCK_PASSWORD,
+                credential.loginType(),
+                credential.id(),
+                credential.password(),
                 year,
                 year
         );

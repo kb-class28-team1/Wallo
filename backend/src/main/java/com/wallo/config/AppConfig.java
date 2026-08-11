@@ -5,10 +5,12 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.wallo.external.auth.CodefAccessTokenProvider;
 import com.wallo.external.auth.CodefAuthorizedRequestFactory;
+import com.wallo.external.auth.CodefCredentialProvider;
 import com.wallo.external.auth.CodefPasswordEncryptor;
 import com.wallo.external.auth.ConfiguredCodefAccessTokenProvider;
 import com.wallo.external.auth.IdentityCodefPasswordEncryptor;
 import com.wallo.external.auth.MockCodefAccessTokenProvider;
+import com.wallo.external.auth.MockCodefCredentialProvider;
 import com.wallo.external.auth.RsaCodefPasswordEncryptor;
 import com.wallo.external.client.CodefMockApiUrlProvider;
 import com.wallo.external.client.CodefMockClient;
@@ -69,6 +71,15 @@ public class AppConfig {
             return new MockCodefAccessTokenProvider(accessToken);
         }
         return new ConfiguredCodefAccessTokenProvider(accessToken);
+    }
+
+    @Bean
+    public CodefCredentialProvider codefCredentialProvider(
+            @Value("${codef.mock.login-type:1}") String mockLoginType,
+            @Value("${codef.mock.id:mock_id}") String mockId,
+            @Value("${codef.mock.password:mock_pw}") String mockPassword
+    ) {
+        return new MockCodefCredentialProvider(mockLoginType, mockId, mockPassword);
     }
 
     @Bean(name = {

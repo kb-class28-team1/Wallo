@@ -89,6 +89,15 @@ public final class CodefDto {
         private String code;
         private String message;
         private String extraMessage;
+        private String transactionId;
+
+        /**
+         * 기존 Mock 응답과 호출부 호환을 위한 생성자다.
+         * 추가인증이 없는 응답은 transactionId가 없다.
+         */
+        public Result(String code, String message, String extraMessage) {
+            this(code, message, extraMessage, null);
+        }
     }
 
     @Getter

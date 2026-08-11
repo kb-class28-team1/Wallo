@@ -10,12 +10,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wallo.asset.domain.Institution;
 import com.wallo.asset.dto.AssetSyncDto;
 import com.wallo.asset.mapper.AssetMapper;
 import com.wallo.asset.mapper.AssetSyncMapper;
 import com.wallo.external.dto.CodefDto;
+import com.wallo.external.converter.ObjectMapperCodefAssetResponseMapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -35,7 +36,7 @@ class AssetSyncServiceTest {
     private final AssetSyncService assetSyncService = new AssetSyncService(
             assetSyncMapper,
             assetMapper,
-            new ObjectMapper(),
+            new ObjectMapperCodefAssetResponseMapper(new ObjectMapper()),
             cardApprovalCollectionService,
             bankTransactionCollectionService,
             new ConsumptionInsightCache(),

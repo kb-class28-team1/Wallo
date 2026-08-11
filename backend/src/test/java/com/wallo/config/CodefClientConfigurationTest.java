@@ -1,10 +1,14 @@
 package com.wallo.config;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.mockito.Mockito.mock;
 
 import com.wallo.external.auth.CodefAuthorizedRequestFactory;
+import com.wallo.external.auth.CodefCredential;
+import com.wallo.external.auth.CodefCredentialProvider;
 import com.wallo.external.auth.IdentityCodefPasswordEncryptor;
+import com.wallo.external.auth.MockCodefCredentialProvider;
 import com.wallo.external.client.CodefMockClient;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestTemplate;
@@ -48,5 +52,20 @@ class CodefClientConfigurationTest {
         );
 
         assertInstanceOf(CodefMockClient.class, client);
+    }
+
+    @Test
+    void createsCredentialProviderWithConfiguredMockValues() {
+        CodefCredentialProvider provider = appConfig.codefCredentialProvider(
+                "2",
+                "configured-id",
+                "configured-password"
+        );
+
+        assertInstanceOf(MockCodefCredentialProvider.class, provider);
+        CodefCredential credential = provider.getCredential(7L, "0004");
+        assertEquals("2", credential.loginType());
+        assertEquals("configured-id", credential.id());
+        assertEquals("configured-password", credential.password());
     }
 }

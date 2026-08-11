@@ -15,9 +15,6 @@ public final class ConnectionDto {
     }
 
     public static final String CODEF_SUCCESS_CODE = "CF-00000";
-    public static final String MOCK_LOGIN_TYPE = "1";
-    public static final String MOCK_ID = "mock_id";
-    public static final String MOCK_PASSWORD = "mock_pw";
     public static final String SUCCESS_MESSAGE = "연동 완료";
     public static final String FAILED_MESSAGE = "연동 실패";
 
