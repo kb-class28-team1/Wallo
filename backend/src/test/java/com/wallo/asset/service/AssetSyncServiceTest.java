@@ -15,7 +15,7 @@ import com.wallo.asset.dto.AssetSyncDto;
 import com.wallo.asset.mapper.AssetMapper;
 import com.wallo.asset.mapper.AssetSyncMapper;
 import com.wallo.external.dto.CodefDto;
-import com.wallo.external.mapper.ObjectMapperCodefAssetResponseMapper;
+import com.wallo.external.converter.ObjectMapperCodefAssetResponseMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Clock;
 import java.time.Instant;

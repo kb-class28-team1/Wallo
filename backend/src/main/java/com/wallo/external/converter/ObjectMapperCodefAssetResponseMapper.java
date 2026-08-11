@@ -1,4 +1,4 @@
-package com.wallo.external.mapper;
+package com.wallo.external.converter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wallo.external.dto.CodefDto;

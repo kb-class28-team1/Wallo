@@ -5,7 +5,7 @@ import com.wallo.asset.dto.AssetSyncDto;
 import com.wallo.asset.mapper.AssetMapper;
 import com.wallo.asset.mapper.AssetSyncMapper;
 import com.wallo.external.dto.CodefDto;
-import com.wallo.external.mapper.CodefAssetResponseMapper;
+import com.wallo.external.converter.CodefAssetResponseMapper;
 import java.time.Clock;
 import java.time.DateTimeException;
 import java.time.LocalDate;
