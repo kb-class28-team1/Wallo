@@ -114,10 +114,14 @@ public class PriceReferenceService {
     }
 
     private AnalysisResponse enrichSafely(AnalysisResponse analysis) {
-        List<DetectedItem> items = analysis.detectedItems().stream()
+        List<DetectedItem> detectedItems = analysis.detectedItems().stream()
                 .filter(item -> item != null && item.itemName() != null && !item.itemName().isBlank())
                 .limit(MAX_SEARCH_ITEMS)
                 .toList();
+        boolean gatheredComparison = detectedItems.stream().anyMatch(this::isGathered);
+        List<DetectedItem> items = gatheredComparison
+                ? detectedItems.stream().filter(this::isGathered).toList()
+                : detectedItems;
         Map<Integer, PriceReferenceRow> resolvedRows = new HashMap<>();
         Map<Integer, FoodCostReferenceRow> resolvedFoodRows = new HashMap<>();
         Map<Integer, RecipeCost> recipeCosts = new HashMap<>();
@@ -477,8 +481,10 @@ public class PriceReferenceService {
             }
         }
 
-        long actualCost = analysis.actualCost() > 0
-                ? analysis.actualCost() : ingredientCostTotal;
+        boolean gatheredComparison = items.stream().anyMatch(this::isGathered);
+        long actualCost = gatheredComparison
+                ? 0
+                : analysis.actualCost() > 0 ? analysis.actualCost() : ingredientCostTotal;
         long difference = calculateDifference(
                 analysis.spendingType(), referenceValue, actualCost);
         boolean calculatedFromReference = referenceValue > 0
@@ -491,7 +497,7 @@ public class PriceReferenceService {
                 analysis.spendingType(), analysis.category(), estimatedAmount,
                 appendPriceSummary(
                         analysis.summary(), referenceValue, actualCost, difference,
-                        ingredientCostTotal > 0),
+                        ingredientCostTotal > 0, gatheredComparison, resolvedItems),
                 analysis.confidenceScore(), resolvedItems, referenceValue, actualCost,
                 difference, references);
     }
@@ -511,12 +517,27 @@ public class PriceReferenceService {
 
     private String appendPriceSummary(
             String summary, long referenceValue, long actualCost, long difference,
-            boolean homemadeComparison) {
+            boolean homemadeComparison, boolean gatheredComparison,
+            List<DetectedItem> items) {
         if (referenceValue <= 0) {
             return summary;
         }
         String priceSummary;
-        if (homemadeComparison) {
+        if (gatheredComparison) {
+            String itemValues = items.stream()
+                    .filter(item -> isGathered(item) && item.unitPrice() > 0)
+                    .limit(3)
+                    .map(this::formatGatheredItemValue)
+                    .reduce((left, right) -> left + ", " + right)
+                    .orElse("");
+            priceSummary = itemValues.isBlank()
+                    ? String.format(Locale.KOREA,
+                            "직접 채집한 물품은 실제 비용 0원으로 계산했으며 총 가치는 %,d원입니다.",
+                            referenceValue)
+                    : String.format(Locale.KOREA,
+                            "직접 채집한 물품은 실제 비용 0원으로 계산했습니다. %s 기준 총 가치는 %,d원입니다.",
+                            itemValues, referenceValue);
+        } else if (homemadeComparison) {
             priceSummary = String.format(Locale.KOREA,
                     "음식점 판매가 %,d원과 재료비 %,d원을 비교한 절약 차액은 %,d원입니다.",
                     referenceValue, actualCost, difference);
@@ -548,6 +569,21 @@ public class PriceReferenceService {
 
     private boolean isHomemade(DetectedItem item) {
         return item != null && "HOMEMADE".equals(item.comparisonType());
+    }
+
+    private boolean isGathered(DetectedItem item) {
+        return item != null && "GATHERED".equals(item.comparisonType());
+    }
+
+    private String formatGatheredItemValue(DetectedItem item) {
+        int quantity = Math.max(1, item.quantity());
+        String unit = normalizeDisplayUnit(item.unit());
+        if (quantity > 1) {
+            return String.format(Locale.KOREA, "%s %s 시세 %,d원 × %d",
+                    item.itemName(), unit, item.unitPrice(), quantity);
+        }
+        return String.format(Locale.KOREA, "%s %s 시세 %,d원",
+                item.itemName(), unit, item.unitPrice());
     }
 
     private int safeMultiply(int price, int quantity) {
