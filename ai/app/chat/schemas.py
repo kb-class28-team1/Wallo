@@ -20,6 +20,17 @@ class ChatHistoryMessage(BaseModel):
     content: str = Field(min_length=1)
 
 
+class ConsumptionAnalysisPeriodContext(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    type: str
+    label: str | None = None
+    start_date: str = Field(alias="startDate")
+    end_date: str = Field(alias="endDate")
+    compare_start: str = Field(alias="compareStart")
+    compare_end: str = Field(alias="compareEnd")
+
+
 class ChatRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
@@ -35,6 +46,9 @@ class ChatRequest(BaseModel):
     goal_already_exists: bool = Field(default=False, alias="goalAlreadyExists")
     consumption_context: ConsumptionContext | None = Field(
         default=None, alias="consumptionContext"
+    )
+    previous_consumption_period: ConsumptionAnalysisPeriodContext | None = Field(
+        default=None, alias="previousConsumptionPeriod"
     )
 
 

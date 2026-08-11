@@ -14,6 +14,10 @@ from app.agents.financial.tools.registry import TOOL_SCHEMAS, execute_tool
 from app.agents.goal.context import FinancialContext
 from app.core.config import get_groq_model
 from app.agents.financial.consumption_models import ConsumptionContext
+from app.agents.financial.spending_intent import (
+    build_spending_arguments,
+    is_spending_request,
+)
 
 logger = logging.getLogger("wallo_ai")
 ASSET_ANALYSIS_TOOL = "analyze_assets"
@@ -47,6 +51,7 @@ class FinancialAgent:
         summary: str | None = None,
         financial_context: FinancialContext | None = None,
         consumption_context: ConsumptionContext | None = None,
+        previous_consumption_period: dict[str, Any] | None = None,
     ) -> str:
         self.selected_tool = None
         self.selected_tool_result = None
@@ -64,6 +69,33 @@ class FinancialAgent:
             })
         messages.extend(history or [])
         messages.append({"role": "user", "content": user_message})
+        if is_spending_request(user_message, previous_consumption_period):
+            arguments = build_spending_arguments(
+                user_message, previous_consumption_period
+            )
+            tool_result = execute_tool(
+                SPENDING_ANALYSIS_TOOL, arguments, consumption_context
+            )
+            self.selected_tool = SPENDING_ANALYSIS_TOOL
+            if tool_result.status == "success" and isinstance(tool_result.data, dict):
+                self.selected_tool_result = tool_result.data
+            messages.insert(len(messages) - 1, {
+                "role": "system",
+                "content": (
+                    "다음은 coach_spending 도구가 계산한 결과입니다. 수치를 다시 계산하거나 "
+                    "추측하지 말고 사용자의 질문에 맞춰 설명하세요.\n"
+                    + json.dumps(tool_result.to_dict(), ensure_ascii=False)
+                ),
+            })
+            final_completion = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                max_completion_tokens=SPENDING_ANALYSIS_FINAL_COMPLETION_TOKENS,
+            )
+            return (
+                final_completion.choices[0].message.content
+                or "소비분석 결과를 정리하지 못했습니다."
+            )
         completion = self.client.chat.completions.create(
             model=self.model,
             messages=messages,

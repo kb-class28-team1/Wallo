@@ -22,3 +22,4 @@ class ConsumptionContext(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
     transactions: list[ConsumptionTransaction] = Field(default_factory=list)
     budget: ConsumptionBudget | None = None
+    budgets: list[ConsumptionBudget] = Field(default_factory=list)

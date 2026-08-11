@@ -35,10 +35,19 @@ class ChatService:
                 goal_interview = None
             else:
                 financial_agent = FinancialAgent(self.client)
-                run_arguments = [request.message, history, request.summary, request.financial_context]
-                if request.consumption_context is not None:
-                    run_arguments.append(request.consumption_context)
-                answer = financial_agent.run(*run_arguments)
+                previous_period = (
+                    request.previous_consumption_period.model_dump(by_alias=True)
+                    if request.previous_consumption_period is not None
+                    else None
+                )
+                answer = financial_agent.run(
+                    request.message,
+                    history,
+                    request.summary,
+                    request.financial_context,
+                    request.consumption_context,
+                    previous_period,
+                )
                 if financial_agent.selected_tool == "coach_spending":
                     consumption_analysis = financial_agent.selected_tool_result
                 goal_interview = None
