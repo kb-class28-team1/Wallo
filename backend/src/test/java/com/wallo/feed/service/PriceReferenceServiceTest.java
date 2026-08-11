@@ -143,6 +143,38 @@ class PriceReferenceServiceTest {
     }
 
     @Test
+    void searchesConvenienceCoffeeByCoreProductWords() {
+        PriceReferenceRow stored = row("레쓰비캔커피", "", "250ml×1캔", 1_200);
+        stored.setCategory("CAFE");
+        when(mapper.findBestMatch(anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(null, stored);
+        when(mapper.upsert(any())).thenReturn(1);
+        when(shoppingClient.search(
+                "레쓰비 캔커피(럭키플러스 카페라떼 250ml)", "", "250ml×1캔"))
+                .thenReturn(List.of(
+                        new ShoppingPriceCandidate(
+                                "롯데 카페라떼 캔커피 250ml",
+                                700, "테스트몰", "https://example.com/unrelated", ""),
+                        new ShoppingPriceCandidate(
+                                "레쓰비 카페라떼 240ml 1캔",
+                                1_200, "테스트몰", "https://example.com/letsbe", "")));
+        AnalysisResponse analysis = new AnalysisResponse(
+                "SAVED", "CAFE", 0, "편의점 커피를 선택했습니다.", 0.9,
+                List.of(new DetectedItem(
+                        "레쓰비 캔커피(럭키플러스 카페라떼 250ml)", "", "250ml×1캔",
+                        1, 0, 0, 0.9, "캔 제품 확인")),
+                0, 0, 0, List.of());
+
+        AnalysisResponse result = service.enrich(analysis);
+
+        ArgumentCaptor<PriceReferenceRow> rowCaptor =
+                ArgumentCaptor.forClass(PriceReferenceRow.class);
+        verify(mapper).upsert(rowCaptor.capture());
+        assertEquals("https://example.com/letsbe", rowCaptor.getValue().getSourceUrl());
+        assertEquals(1_200, result.estimatedSavingAmount());
+    }
+
+    @Test
     void subtractsHomemadeIngredientCostFromRestaurantPrice() {
         FoodCostReferenceMapper foodMapper =
                 org.mockito.Mockito.mock(FoodCostReferenceMapper.class);
