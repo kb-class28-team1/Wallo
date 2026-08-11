@@ -37,7 +37,11 @@ class GeminiFeedAnalysisClientTest {
                     "unit":"1L×1개",
                     "quantity":2,
                     "confidence":0.9,
-                    "evidence":"서울우유 1L 두 개가 보임"
+                    "evidence":"서울우유 1L 두 개가 보임",
+                    "comparisonType":"PRODUCT",
+                    "ingredientCostPerUnit":0,
+                    "restaurantPricePerUnit":0,
+                    "ingredientBasis":""
                   }]
                 }
                 """;
@@ -58,6 +62,8 @@ class GeminiFeedAnalysisClientTest {
                     String prompt = body.path("contents").get(0).path("parts").get(0)
                             .path("text").asText();
                     assertTrue(prompt.contains("detectedItems"));
+                    assertTrue(prompt.contains("comparisonType"));
+                    assertTrue(prompt.contains("ingredientCostPerUnit"));
                 })
                 .andRespond(withSuccess(providerResponse.toString(), MediaType.APPLICATION_JSON));
 
@@ -74,6 +80,8 @@ class GeminiFeedAnalysisClientTest {
         assertEquals("서울우유", result.detectedItems().get(0).brand());
         assertEquals("1L×1개", result.detectedItems().get(0).unit());
         assertEquals(2, result.detectedItems().get(0).quantity());
+        assertEquals("PRODUCT", result.detectedItems().get(0).comparisonType());
+        assertEquals(0, result.detectedItems().get(0).ingredientCostPerUnit());
         server.verify();
     }
 }
