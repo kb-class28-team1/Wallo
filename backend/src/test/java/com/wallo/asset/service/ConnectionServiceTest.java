@@ -21,6 +21,7 @@ import com.wallo.external.dto.CodefDto;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
+import org.mockito.ArgumentCaptor;
 import org.junit.Test;
 
 public class ConnectionServiceTest {
@@ -78,7 +79,12 @@ public class ConnectionServiceTest {
                 ConnectionDto.AnnualSalaryLookupStatus.AVAILABLE,
                 response.getAnnualSalaryLookupStatus()
         );
-        verify(codefClient, times(3)).connectInstitution(any(CodefDto.Request.class));
+        ArgumentCaptor<CodefDto.Request> requestCaptor =
+                ArgumentCaptor.forClass(CodefDto.Request.class);
+        verify(codefClient, times(3)).connectInstitution(requestCaptor.capture());
+        assertEquals("1", requestCaptor.getAllValues().get(0).getLoginType());
+        assertEquals("mock_id", requestCaptor.getAllValues().get(0).getId());
+        assertEquals("mock_pw", requestCaptor.getAllValues().get(0).getPassword());
         verify(connectionMapper).insertConnections(any(), org.mockito.ArgumentMatchers.eq(7L), any(), any(), any());
         verify(annualSalarySyncService).syncAnnualSalary(7L);
         verify(cardWithdrawalReconciliationService).reconcile(7L);
