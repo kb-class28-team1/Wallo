@@ -14,6 +14,7 @@ import java.time.YearMonth;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.logging.Logger;
 import org.springframework.stereotype.Service;
 
@@ -80,17 +81,32 @@ public class AssetSyncService {
         }
         long assetStageElapsedMs = elapsedMillis(startedAt);
         long transactionStageStartedAt = System.nanoTime();
+        int transactionDuplicateCount = 0;
         if ("CARD".equals(institution.getInstitutionType())) {
             cardApprovalCollectionService.collectInitial(userId, connectionId, institution);
         } else if ("BANK".equals(institution.getInstitutionType())) {
             collectBankTransactions(userId, connectionId, institution, data.getAccounts());
-            for (CodefDto.Transaction source : values(data.getTransactions())) {
+            List<CodefDto.Transaction> loanTransactions = values(data.getTransactions()).stream()
+                    .filter(source -> !blank(source.getResLoanAccount()))
+                    .toList();
+            List<CodefDto.Transaction> uniqueLoanTransactions = deduplicateAssetTransactions(
+                    loanTransactions,
+                    institution
+            );
+            transactionDuplicateCount = loanTransactions.size() - uniqueLoanTransactions.size();
+            for (CodefDto.Transaction source : uniqueLoanTransactions) {
                 if (!blank(source.getResLoanAccount())) {
                     syncTransaction(userId, connectionId, institution, source);
                 }
             }
         } else {
-            for (CodefDto.Transaction source : values(data.getTransactions())) {
+            List<CodefDto.Transaction> assetTransactions = values(data.getTransactions());
+            List<CodefDto.Transaction> uniqueAssetTransactions = deduplicateAssetTransactions(
+                    assetTransactions,
+                    institution
+            );
+            transactionDuplicateCount = assetTransactions.size() - uniqueAssetTransactions.size();
+            for (CodefDto.Transaction source : uniqueAssetTransactions) {
                 syncTransaction(userId, connectionId, institution, source);
             }
         }
@@ -100,6 +116,7 @@ public class AssetSyncService {
         LOGGER.info(String.format(
                 Locale.ROOT,
                 "asset-sync-service organization=%s type=%s snapshots=%d accounts=%d loans=%d cards=%d "
+                        + "transactionDuplicates=%d "
                         + "assetStageMs=%d transactionStageMs=%d totalMs=%d",
                 institution.getCodefOrganizationCode(),
                 institution.getInstitutionType(),
@@ -107,6 +124,7 @@ public class AssetSyncService {
                 values(data.getAccounts()).size(),
                 values(data.getLoans()).size(),
                 values(data.getCards()).size(),
+                transactionDuplicateCount,
                 assetStageElapsedMs,
                 elapsedMillis(transactionStageStartedAt),
                 elapsedMillis(startedAt)
@@ -260,6 +278,67 @@ public class AssetSyncService {
                 sourceDedupKey
         );
         assetSyncMapper.upsertTransaction(transaction);
+    }
+
+    private List<CodefDto.Transaction> deduplicateAssetTransactions(
+            List<CodefDto.Transaction> transactions,
+            Institution institution
+    ) {
+        return TransactionBatchDeduplicator.deduplicate(
+                transactions,
+                source -> assetTransactionSourceDedupKey(institution, source),
+                this::sameAssetTransactionPayload,
+                "ASSET_TRANSACTION"
+        );
+    }
+
+    private String assetTransactionSourceDedupKey(
+            Institution institution,
+            CodefDto.Transaction source
+    ) {
+        if (source == null) {
+            throw new IllegalArgumentException("CODEF asset transaction is required.");
+        }
+        boolean cardTransaction = !blank(source.getResCardNo());
+        boolean loanTransaction = !blank(source.getResLoanAccount());
+        String assetNumber = cardTransaction
+                ? source.getResCardNo()
+                : loanTransaction ? source.getResLoanAccount() : source.getResAccount();
+        String sourceType = sourceType(cardTransaction, loanTransaction);
+        String sourceTransactionId = sourceTransactionId(cardTransaction, loanTransaction, source);
+        return sourceKeyGenerator.forAssetTransaction(
+                sourceType,
+                institution.getCodefOrganizationCode(),
+                assetNumber,
+                sourceTransactionId
+        );
+    }
+
+    private boolean sameAssetTransactionPayload(
+            CodefDto.Transaction left,
+            CodefDto.Transaction right
+    ) {
+        return Objects.equals(left.getResAccount(), right.getResAccount())
+                && Objects.equals(left.getResAccountTrNo(), right.getResAccountTrNo())
+                && Objects.equals(left.getResAccountTrDate(), right.getResAccountTrDate())
+                && Objects.equals(left.getResAccountTrTime(), right.getResAccountTrTime())
+                && Objects.equals(left.getResAccountTrType(), right.getResAccountTrType())
+                && Objects.equals(left.getResAccountTrAmount(), right.getResAccountTrAmount())
+                && Objects.equals(left.getResAccountTrDesc(), right.getResAccountTrDesc())
+                && Objects.equals(left.getResAccountTrCategory(), right.getResAccountTrCategory())
+                && Objects.equals(left.getResCardNo(), right.getResCardNo())
+                && Objects.equals(left.getResCardApprovalNo(), right.getResCardApprovalNo())
+                && Objects.equals(left.getResUsedDate(), right.getResUsedDate())
+                && Objects.equals(left.getResUsedTime(), right.getResUsedTime())
+                && Objects.equals(left.getResUsedAmount(), right.getResUsedAmount())
+                && Objects.equals(left.getResUsedMerchantName(), right.getResUsedMerchantName())
+                && Objects.equals(left.getResUsedCategory(), right.getResUsedCategory())
+                && Objects.equals(left.getResLoanAccount(), right.getResLoanAccount())
+                && Objects.equals(left.getResLoanPaymentNo(), right.getResLoanPaymentNo())
+                && Objects.equals(left.getResLoanPaymentDate(), right.getResLoanPaymentDate())
+                && Objects.equals(left.getResLoanPaymentTime(), right.getResLoanPaymentTime())
+                && Objects.equals(left.getResLoanPaymentAmount(), right.getResLoanPaymentAmount())
+                && Objects.equals(left.getResLoanPaymentCategory(), right.getResLoanPaymentCategory());
     }
 
     private String sourceType(boolean cardTransaction, boolean loanTransaction) {

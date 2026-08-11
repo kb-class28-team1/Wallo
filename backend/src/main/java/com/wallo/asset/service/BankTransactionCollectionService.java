@@ -143,6 +143,12 @@ public class BankTransactionCollectionService {
         List<PreparedBankTransaction> preparedTransactions = safeList(transactions).stream()
                 .map(source -> prepareTransaction(userId, accountId, accountNumber, institution, source))
                 .toList();
+        preparedTransactions = TransactionBatchDeduplicator.deduplicate(
+                preparedTransactions,
+                PreparedBankTransaction::sourceDedupKey,
+                SOURCE_TYPE
+        );
+        int duplicateCount = safeList(transactions).size() - preparedTransactions.size();
         Map<String, ClassificationResolution> classifications = resolveClassifications(
                 userId,
                 institution,
@@ -169,11 +175,12 @@ public class BankTransactionCollectionService {
         long processingElapsedMs = elapsedMillis(processingStartedAt);
         LOGGER.info(String.format(
                 Locale.ROOT,
-                "asset-sync bank organization=%s account=%s records=%d saved=%d reusedClassification=%d "
+                "asset-sync bank organization=%s account=%s records=%d duplicates=%d saved=%d reusedClassification=%d "
                         + "aiRequests=%d apiMs=%d conversionMs=%d classificationMs=%d processingMs=%d totalMs=%d",
                 institution.getCodefOrganizationCode(),
                 accountNumber,
                 safeList(transactions).size(),
+                duplicateCount,
                 savedCount,
                 reusedClassificationCount,
                 aiRequestCount,

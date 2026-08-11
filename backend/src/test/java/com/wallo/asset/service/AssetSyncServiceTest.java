@@ -266,6 +266,39 @@ class AssetSyncServiceTest {
     }
 
     @Test
+    void removesDuplicateTransactionsFromGenericAssetResponse() {
+        Institution institution = new Institution(3L, "0081", "Wallo Securities", "STOCK", "stock-logo");
+        Map<String, Object> source = Map.of(
+                "resAccount", "12345678-01",
+                "resAccountTrNo", "STOCK-DUPLICATE-0001",
+                "resAccountTrDate", "2026-07-24",
+                "resAccountTrTime", "10:05:00",
+                "resAccountTrType", "INCOME",
+                "resAccountTrAmount", "180000",
+                "resAccountTrDesc", "배당금",
+                "resAccountTrCategory", "INVESTMENT"
+        );
+        Map<String, Object> data = Map.of(
+                "accounts", List.of(Map.of(
+                        "resAccount", "12345678-01",
+                        "resAccountDisplay", "123456**-**",
+                        "resAccountName", "Investment account",
+                        "resAccountBalance", "350000",
+                        "resAccountEvalAmount", "14500000",
+                        "resAccountCurrency", "KRW",
+                        "resAccountStatus", "1",
+                        "resAccountSubtype", "STOCK"
+                )),
+                "transactions", List.of(source, source)
+        );
+        when(assetSyncMapper.findAccountId(11L, "1234567801")).thenReturn(41L);
+
+        assetSyncService.sync(7L, 11L, institution, CodefDto.Response.success(data));
+
+        verify(assetSyncMapper).upsertTransaction(any(AssetSyncDto.Transaction.class));
+    }
+
+    @Test
     void refreshesCurrentMonthSnapshotFromLiveTotal() {
         when(assetMapper.selectTotalAssets(7L)).thenReturn(12_300_000L);
 

@@ -120,6 +120,12 @@ public class CardApprovalCollectionService {
         List<PreparedApproval> preparedApprovals = safeList(approvals).stream()
                 .map(approval -> prepareApproval(userId, connectionId, institution, approval))
                 .toList();
+        preparedApprovals = TransactionBatchDeduplicator.deduplicate(
+                preparedApprovals,
+                PreparedApproval::sourceDedupKey,
+                SOURCE_TYPE
+        );
+        int duplicateCount = safeList(approvals).size() - preparedApprovals.size();
         Map<String, ClassificationResolution> classifications = resolveClassifications(
                 userId,
                 institution,
@@ -146,10 +152,11 @@ public class CardApprovalCollectionService {
         long processingElapsedMs = elapsedMillis(processingStartedAt);
         LOGGER.info(String.format(
                 Locale.ROOT,
-                "asset-sync card organization=%s records=%d saved=%d reusedClassification=%d aiRequests=%d "
+                "asset-sync card organization=%s records=%d duplicates=%d saved=%d reusedClassification=%d aiRequests=%d "
                         + "apiMs=%d conversionMs=%d classificationMs=%d processingMs=%d totalMs=%d",
                 institution.getCodefOrganizationCode(),
                 safeList(approvals).size(),
+                duplicateCount,
                 savedCount,
                 reusedClassificationCount,
                 aiRequestCount,
