@@ -23,16 +23,18 @@ CREATE TABLE IF NOT EXISTS `feed_price_reference` (
     KEY idx_feed_price_reference_expiry (expires_at)
 );
 
+-- 현재 MySQL 버전에서는 ADD COLUMN IF NOT EXISTS를 지원하지 않으므로
+-- 아래 ALTER TABLE은 아직 이 migration을 실행하지 않은 DB에서 한 번만 실행합니다.
 ALTER TABLE `feed_analysis`
-    ADD COLUMN IF NOT EXISTS reference_value BIGINT NOT NULL DEFAULT 0,
-    ADD COLUMN IF NOT EXISTS actual_cost BIGINT NOT NULL DEFAULT 0,
-    ADD COLUMN IF NOT EXISTS saving_difference BIGINT NOT NULL DEFAULT 0,
-    ADD COLUMN IF NOT EXISTS detected_items_json JSON NULL,
-    ADD COLUMN IF NOT EXISTS price_references_json JSON NULL,
-    ADD COLUMN IF NOT EXISTS analyzed_at DATETIME NULL,
-    ADD COLUMN IF NOT EXISTS analysis_accuracy VARCHAR(20) NULL,
-    ADD COLUMN IF NOT EXISTS analysis_feedback_note VARCHAR(500) NULL,
-    ADD COLUMN IF NOT EXISTS analysis_feedback_at DATETIME NULL;
+    ADD COLUMN `reference_value` BIGINT NOT NULL DEFAULT 0,
+    ADD COLUMN `actual_cost` BIGINT NOT NULL DEFAULT 0,
+    ADD COLUMN `saving_difference` BIGINT NOT NULL DEFAULT 0,
+    ADD COLUMN `detected_items_json` JSON NULL,
+    ADD COLUMN `price_references_json` JSON NULL,
+    ADD COLUMN `analyzed_at` DATETIME NULL,
+    ADD COLUMN `analysis_accuracy` VARCHAR(20) NULL,
+    ADD COLUMN `analysis_feedback_note` VARCHAR(500) NULL,
+    ADD COLUMN `analysis_feedback_at` DATETIME NULL;
 
 -- 필요하면 운영 DB에서 아래 인덱스를 한 번만 추가하세요.
 -- CREATE INDEX idx_feed_analysis_accuracy ON feed_analysis (analysis_accuracy);
