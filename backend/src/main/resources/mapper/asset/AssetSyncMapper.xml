@@ -78,8 +78,8 @@
             #{transaction.date}, #{transaction.time}
         )
         ON DUPLICATE KEY UPDATE
-            card_id = VALUES(card_id),
-            account_id = VALUES(account_id),
+            card_id = COALESCE(VALUES(card_id), card_id),
+            account_id = COALESCE(VALUES(account_id), account_id),
             type = VALUES(type),
             category = CASE
                 WHEN category_source = 'AI' AND #{transaction.categorySource} = 'FALLBACK'

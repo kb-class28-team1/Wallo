@@ -231,6 +231,7 @@ public class AssetSyncService {
                 ? null
                 : required(assetSyncMapper.findAccountId(connectionId, accountNumber));
         String sourceType = sourceType(cardTransaction, loanTransaction);
+        TransactionRelationValidator.validate(sourceType, cardId, accountId);
         String sourceTransactionId = sourceTransactionId(cardTransaction, loanTransaction, source);
         String sourceDedupKey = sourceKeyGenerator.forAssetTransaction(
                 sourceType,

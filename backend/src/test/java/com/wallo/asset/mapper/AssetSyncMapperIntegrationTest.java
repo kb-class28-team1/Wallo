@@ -101,6 +101,28 @@ class AssetSyncMapperIntegrationTest {
     }
 
     @Test
+    void nullIncomingCardIdPreservesExistingCardRelation() throws Exception {
+        TransactionSourceKeyGenerator keyGenerator = new TransactionSourceKeyGenerator();
+        String sourceDedupKey = keyGenerator.forCardApproval("0311", "2468-0000-0000-1357", "87654321");
+        AssetSyncDto.Transaction first = cardTransaction(101L, 38_000L, "DELIVERY", sourceDedupKey);
+        AssetSyncDto.Transaction reconnectedWithoutRelation =
+                cardTransaction(null, 39_000L, "FOOD", sourceDedupKey);
+
+        assetSyncMapper.upsertTransaction(first);
+        assetSyncMapper.upsertTransaction(reconnectedWithoutRelation);
+
+        try (Connection connection = dataSource.getConnection();
+             Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(
+                     "SELECT card_id, amount FROM TRANSACTIONS"
+             )) {
+            resultSet.next();
+            assertEquals(101L, resultSet.getLong("card_id"));
+            assertEquals(39_000L, resultSet.getLong("amount"));
+        }
+    }
+
+    @Test
     void reconnectionWithNewAccountIdKeepsOneBankTransactionAndUpdatesAccountRelation() throws Exception {
         TransactionSourceKeyGenerator keyGenerator = new TransactionSourceKeyGenerator();
         String sourceDedupKey = keyGenerator.forBankTransaction("0004", "123456-01-789012", "BANK-202607-0001");
@@ -122,6 +144,28 @@ class AssetSyncMapperIntegrationTest {
             assertEquals(402L, resultSet.getLong("account_id"));
             assertEquals(3_100_000L, resultSet.getLong("amount"));
             assertEquals(sourceDedupKey, resultSet.getString("source_dedup_key"));
+        }
+    }
+
+    @Test
+    void nullIncomingAccountIdPreservesExistingAccountRelation() throws Exception {
+        TransactionSourceKeyGenerator keyGenerator = new TransactionSourceKeyGenerator();
+        String sourceDedupKey = keyGenerator.forBankTransaction("0004", "123456-01-789012", "BANK-202607-0001");
+        AssetSyncDto.Transaction first = bankTransaction(301L, 3_000_000L, sourceDedupKey);
+        AssetSyncDto.Transaction reconnectedWithoutRelation =
+                bankTransaction(null, 3_100_000L, sourceDedupKey);
+
+        assetSyncMapper.upsertTransaction(first);
+        assetSyncMapper.upsertTransaction(reconnectedWithoutRelation);
+
+        try (Connection connection = dataSource.getConnection();
+             Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(
+                     "SELECT account_id, amount FROM TRANSACTIONS"
+             )) {
+            resultSet.next();
+            assertEquals(301L, resultSet.getLong("account_id"));
+            assertEquals(3_100_000L, resultSet.getLong("amount"));
         }
     }
 
@@ -225,7 +269,7 @@ class AssetSyncMapperIntegrationTest {
     }
 
     private AssetSyncDto.Transaction cardTransaction(
-            long cardId,
+            Long cardId,
             long amount,
             String category,
             String sourceDedupKey
@@ -254,7 +298,7 @@ class AssetSyncMapperIntegrationTest {
     }
 
     private AssetSyncDto.Transaction bankTransaction(
-            long accountId,
+            Long accountId,
             long amount,
             String sourceDedupKey
     ) {

@@ -232,6 +232,7 @@ public class CardApprovalCollectionService {
             ClassificationResolution resolution
     ) {
         ExpenseCategoryClassifier.Result classification = resolution.result();
+        TransactionRelationValidator.validate(SOURCE_TYPE, approval.cardId(), null);
         AssetSyncDto.Transaction transaction = new AssetSyncDto.Transaction(
                 approval.userId(),
                 approval.cardId(),

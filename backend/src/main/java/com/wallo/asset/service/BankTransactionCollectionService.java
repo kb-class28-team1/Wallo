@@ -274,6 +274,7 @@ public class BankTransactionCollectionService {
                         resolution.reused()
                 )
                 : prepared.directionClassification();
+        TransactionRelationValidator.validate(SOURCE_TYPE, null, prepared.accountId());
         AssetSyncDto.Transaction transaction = new AssetSyncDto.Transaction(
                 prepared.userId(),
                 null,
