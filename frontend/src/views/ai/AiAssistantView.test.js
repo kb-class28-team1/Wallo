@@ -2,7 +2,7 @@ import { mount } from "@vue/test-utils"
 import { createPinia, setActivePinia } from "pinia"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import AiAssistantView from "./AiAssistantView.vue"
-import { getGoals } from "@/api/goalApi"
+import { getGoalRoadmap, getGoals } from "@/api/goalApi"
 
 const push = vi.fn()
 
@@ -12,8 +12,10 @@ vi.mock("vue-router", () => ({
 
 vi.mock("@/api/goalApi", () => ({
   getGoals: vi.fn().mockResolvedValue({ data: [] }),
+  getGoalRoadmap: vi.fn().mockResolvedValue({ data: null }),
   getAvailableGoalAccounts: vi.fn(),
   selectGoalAccount: vi.fn(),
+  updateGoalRoadmapStep: vi.fn(),
 }))
 
 describe("AiAssistantView", () => {
@@ -21,6 +23,7 @@ describe("AiAssistantView", () => {
     setActivePinia(createPinia())
     push.mockReset()
     getGoals.mockResolvedValue({ data: [] })
+    getGoalRoadmap.mockResolvedValue({ data: null })
   })
 
   it("shows the goal empty state and roadmap introduction when no goal exists", async () => {
@@ -53,6 +56,33 @@ describe("AiAssistantView", () => {
         requiredMonthlyAmount: 500000,
         targetDate: "2027-12-31",
       }],
+    })
+    getGoalRoadmap.mockResolvedValue({
+      data: {
+        generationStatus: "COMPLETED",
+        currentStepNumber: 1,
+        completedStepNumbers: [],
+        roadmap: {
+          steps: [
+            {
+              stepNumber: 1,
+              title: "자동 저축 시작",
+              description: "전용 계좌를 준비합니다.",
+              targetDate: "2026-09-30",
+              targetAmount: 3000000,
+              actionItems: ["자동이체 설정"],
+            },
+            {
+              stepNumber: 2,
+              title: "최종 목표 달성",
+              description: "목표 잔액을 확인합니다.",
+              targetDate: "2027-12-31",
+              targetAmount: 10000000,
+              actionItems: ["최종 잔액 확인"],
+            },
+          ],
+        },
+      },
     })
 
     const wrapper = mount(AiAssistantView)

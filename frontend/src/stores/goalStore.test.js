@@ -2,21 +2,27 @@ import { createPinia, setActivePinia } from "pinia";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   getAvailableGoalAccounts,
+  getGoalRoadmap,
   getGoals,
   selectGoalAccount,
+  updateGoalRoadmapStep,
 } from "@/api/goalApi";
 import { useGoalStore } from "./goalStore";
 
 vi.mock("@/api/goalApi", () => ({
   getAvailableGoalAccounts: vi.fn(),
+  getGoalRoadmap: vi.fn(),
   getGoals: vi.fn(),
   selectGoalAccount: vi.fn(),
+  updateGoalRoadmapStep: vi.fn(),
 }));
 
 describe("goalStore", () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     vi.stubGlobal("alert", vi.fn());
+    getGoalRoadmap.mockResolvedValue({ success: true, data: null });
+    updateGoalRoadmapStep.mockResolvedValue({ success: true, data: null });
   });
 
   afterEach(() => {
@@ -34,6 +40,37 @@ describe("goalStore", () => {
     expect(store.goals).toEqual(goals);
     expect(store.isLoading).toBe(false);
     expect(store.error).toBeNull();
+    expect(getGoalRoadmap).toHaveBeenCalledWith(1);
+  });
+
+  it("stores the AI roadmap returned for a confirmed goal", async () => {
+    const roadmap = {
+      goalId: 31,
+      generationStatus: "COMPLETED",
+      roadmap: { steps: [{ title: "비상금 계좌 분리" }] },
+    };
+    getGoalRoadmap.mockResolvedValue({ success: true, data: roadmap });
+
+    const store = useGoalStore();
+
+    await expect(store.fetchGoalRoadmap(31)).resolves.toEqual(roadmap);
+    expect(store.roadmap).toEqual(roadmap);
+    expect(store.roadmapError).toBeNull();
+    expect(store.isRoadmapLoading).toBe(false);
+  });
+
+  it("stores updated roadmap progress", async () => {
+    const updated = {
+      currentStepNumber: 2,
+      completedStepNumbers: [1],
+      roadmap: { steps: [{ stepNumber: 1 }, { stepNumber: 2 }] },
+    };
+    updateGoalRoadmapStep.mockResolvedValue({ success: true, data: updated });
+    const store = useGoalStore();
+
+    await expect(store.saveRoadmapStep(31, 1, true)).resolves.toEqual(updated);
+    expect(updateGoalRoadmapStep).toHaveBeenCalledWith(31, 1, true);
+    expect(store.roadmap).toEqual(updated);
   });
 
   it("keeps an empty list when the user has no confirmed goal", async () => {

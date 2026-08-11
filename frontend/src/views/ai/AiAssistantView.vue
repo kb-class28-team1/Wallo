@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted } from "vue"
+import { computed, onMounted, ref } from "vue"
 import { useRouter } from "vue-router"
 import { storeToRefs } from "pinia"
 import { useGoalStore } from "@/stores/goalStore"
@@ -7,11 +7,20 @@ import { formatWon } from "@/commonUtils/formatters"
 
 const router = useRouter()
 const goalStore = useGoalStore()
-const { goals, isLoading, error } = storeToRefs(goalStore)
+const {
+  goals,
+  isLoading,
+  error,
+  roadmap,
+  isRoadmapLoading,
+  roadmapError,
+  isRoadmapProgressSaving,
+} = storeToRefs(goalStore)
 
 const walloCharacter = "/images/profiles/thinking-penguin.svg"
 const hasGoal = computed(() => goals.value.length > 0)
 const currentGoal = computed(() => goals.value[0] ?? null)
+const roadmapSlider = ref(null)
 
 const currentAmount = computed(() => {
   const amount = Number(currentGoal.value?.currentAmount)
@@ -53,56 +62,35 @@ const remainingMonths = computed(() => {
   return Math.max(0, months)
 })
 
-const addMonths = (date, months) => {
-  const result = new Date(date)
-  result.setMonth(result.getMonth() + months)
-  return result
+const goalRoadmapSteps = computed(() => {
+  const steps = roadmap.value?.roadmap?.steps
+  if (!Array.isArray(steps)) return []
+  const completedSteps = new Set(roadmap.value?.completedStepNumbers ?? [])
+  const currentStepNumber = Number(roadmap.value?.currentStepNumber) || 1
+  return steps.map((step, index) => ({
+    number: step.stepNumber ?? index + 1,
+    icon: index === steps.length - 1 ? "bi-flag" : "bi-clipboard-check",
+    title: step.title,
+    date: formatGoalDate(step.targetDate),
+    description: step.description,
+    actionItems: step.actionItems ?? [],
+    completed: completedSteps.has(step.stepNumber ?? index + 1),
+    active: !completedSteps.has(step.stepNumber ?? index + 1)
+      && (step.stepNumber ?? index + 1) === currentStepNumber,
+  }))
+})
+
+const toggleRoadmapStep = async (step) => {
+  if (!currentGoal.value?.goalId || isRoadmapProgressSaving.value) return
+  await goalStore.saveRoadmapStep(currentGoal.value.goalId, step.number, !step.completed)
 }
 
-const formatMilestoneDate = (date) => new Intl.DateTimeFormat("ko-KR", {
-  year: "numeric",
-  month: "short",
-}).format(date)
-
-const goalRoadmapSteps = computed(() => {
-  const goal = currentGoal.value
-  if (!goal) return []
-
-  const today = new Date()
-  const targetDate = parseGoalDate(goal.targetDate) ?? today
-  const months = Math.max(1, remainingMonths.value)
-  const remainingAmount = Math.max(0, targetAmount.value - currentAmount.value)
-  const checkpoints = [
-    { ratio: 0, title: "저축 계획 시작", icon: "bi-wallet2" },
-    { ratio: 1 / 3, title: "1차 진행 점검", icon: "bi-graph-up-arrow" },
-    { ratio: 2 / 3, title: "중간 목표 달성", icon: "bi-clipboard-check" },
-    { ratio: 1, title: "최종 목표 달성", icon: "bi-flag" },
-  ]
-
-  return checkpoints.map((checkpoint, index) => {
-    const milestoneAmount = index === 3
-      ? targetAmount.value
-      : Math.round((currentAmount.value + remainingAmount * checkpoint.ratio) / 10000) * 10000
-    const milestoneDate = index === 3
-      ? targetDate
-      : addMonths(today, Math.round(months * checkpoint.ratio))
-    const milestoneRate = targetAmount.value > 0
-      ? Math.round((milestoneAmount / targetAmount.value) * 100)
-      : 0
-
-    return {
-      number: index + 1,
-      icon: checkpoint.icon,
-      title: checkpoint.title,
-      date: formatMilestoneDate(milestoneDate),
-      description: index === 0
-        ? `매월 ${formatWon(goal.requiredMonthlyAmount)} 자동 저축을 시작하세요.`
-        : `${formatWon(milestoneAmount)}까지 모으는 단계예요.`,
-      completed: achievementRate.value >= milestoneRate,
-      active: index === Math.min(3, Math.floor(achievementRate.value / 25)),
-    }
-  })
-})
+const scrollRoadmap = (direction) => {
+  const slider = roadmapSlider.value
+  if (!slider) return
+  const distance = Math.max(280, slider.clientWidth * 0.8)
+  slider.scrollBy({ left: direction * distance, behavior: "smooth" })
+}
 
 const coachingMessage = computed(() => {
   if (achievementRate.value >= 100) return "목표를 달성했어요! 새로운 목표를 준비해볼까요?"
@@ -370,10 +358,45 @@ onMounted(() => {
         <div class="card-body p-4 p-lg-5">
           <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
             <h2 class="section-title h5 fw-bold">목표 달성을 위한 로드맵</h2>
-            <span class="small text-secondary">현재 목표 기준 예상 계획</span>
+            <div class="d-flex align-items-center gap-2">
+              <span class="small text-secondary">AI가 생성한 맞춤 계획</span>
+              <div v-if="goalRoadmapSteps.length > 1" class="roadmap-navigation" aria-label="로드맵 이동">
+                <button
+                  type="button"
+                  class="btn roadmap-navigation-button"
+                  aria-label="이전 로드맵 단계 보기"
+                  @click="scrollRoadmap(-1)"
+                >
+                  <i class="bi bi-chevron-left" aria-hidden="true"></i>
+                </button>
+                <button
+                  type="button"
+                  class="btn roadmap-navigation-button"
+                  aria-label="다음 로드맵 단계 보기"
+                  @click="scrollRoadmap(1)"
+                >
+                  <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                </button>
+              </div>
+            </div>
           </div>
 
-          <ol class="roadmap-list goal-roadmap-list list-unstyled mt-4 mb-0">
+          <div v-if="isRoadmapLoading" class="roadmap-state text-secondary mt-4" role="status">
+            <span class="spinner-border spinner-border-sm text-primary me-2"></span>
+            저장된 로드맵을 불러오는 중입니다.
+          </div>
+          <div v-else-if="roadmapError" class="alert alert-danger mt-4 mb-0">
+            {{ roadmapError }}
+          </div>
+          <div v-else-if="roadmap?.generationStatus === 'FAILED'" class="alert alert-warning mt-4 mb-0">
+            AI 로드맵 생성에 실패했습니다. 목표는 정상적으로 저장되어 있습니다.
+          </div>
+          <ol
+            v-else-if="goalRoadmapSteps.length"
+            ref="roadmapSlider"
+            class="roadmap-list goal-roadmap-list list-unstyled mt-4 mb-0"
+            aria-label="목표 달성 로드맵 단계"
+          >
             <li
               v-for="(step, index) in goalRoadmapSteps"
               :key="step.number"
@@ -389,6 +412,19 @@ onMounted(() => {
                 <small class="step-date">{{ step.date }}</small>
                 <strong>{{ step.title }}</strong>
                 <small>{{ step.description }}</small>
+                <small v-for="action in step.actionItems" :key="action" class="roadmap-action">
+                  · {{ action }}
+                </small>
+                <button
+                  type="button"
+                  class="btn btn-sm roadmap-progress-button mt-2"
+                  :class="step.completed ? 'btn-outline-secondary' : 'btn-outline-primary'"
+                  :disabled="isRoadmapProgressSaving"
+                  @click="toggleRoadmapStep(step)"
+                >
+                  <i class="bi me-1" :class="step.completed ? 'bi-arrow-counterclockwise' : 'bi-check-circle'"></i>
+                  {{ step.completed ? "완료 취소" : "이 단계까지 완료" }}
+                </button>
               </span>
               <i
                 v-if="index < goalRoadmapSteps.length - 1"
@@ -397,6 +433,9 @@ onMounted(() => {
               ></i>
             </li>
           </ol>
+          <p v-else class="roadmap-state text-secondary mt-4 mb-0">
+            아직 생성된 로드맵이 없습니다.
+          </p>
         </div>
       </article>
 
@@ -573,6 +612,53 @@ onMounted(() => {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 3.25rem;
+}
+
+.goal-roadmap-list {
+  display: flex;
+  gap: 1.5rem;
+  overflow-x: auto;
+  padding: 0.85rem 0.5rem 1.25rem;
+  scroll-behavior: smooth;
+  scroll-padding-inline: 0.5rem;
+  scroll-snap-type: x mandatory;
+  scrollbar-color: #c8c3fb #f1f0fa;
+  scrollbar-width: thin;
+}
+
+.goal-roadmap-list .roadmap-item {
+  min-width: min(360px, calc(100vw - 5rem));
+  flex: 0 0 min(360px, calc(100vw - 5rem));
+  scroll-snap-align: start;
+}
+
+.goal-roadmap-list .roadmap-arrow {
+  right: -1.35rem;
+}
+
+.roadmap-navigation {
+  display: inline-flex;
+  gap: 0.4rem;
+}
+
+.roadmap-navigation-button {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid #dcd8fb;
+  border-radius: 50%;
+  color: #6555df;
+  background: #fff;
+}
+
+.roadmap-navigation-button:hover,
+.roadmap-navigation-button:focus-visible {
+  border-color: #7567e9;
+  color: #fff;
+  background: #7567e9;
 }
 
 .roadmap-item {
@@ -785,6 +871,23 @@ onMounted(() => {
   font-weight: 700;
 }
 
+.roadmap-state {
+  padding: 1.5rem;
+  border-radius: 16px;
+  background: #f8f8fe;
+  text-align: center;
+}
+
+.roadmap-action {
+  color: #555d73 !important;
+}
+
+.roadmap-progress-button {
+  align-self: flex-start;
+  border-radius: 10px;
+  font-weight: 700;
+}
+
 .action-card {
   display: flex;
   min-height: 130px;
@@ -823,8 +926,16 @@ onMounted(() => {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .goal-roadmap-list {
+    display: flex;
+  }
+
   .roadmap-item:nth-child(2) .roadmap-arrow {
     display: none;
+  }
+
+  .goal-roadmap-list .roadmap-item:nth-child(2) .roadmap-arrow {
+    display: block;
   }
 }
 
@@ -861,7 +972,16 @@ onMounted(() => {
     gap: 1.5rem;
   }
 
+  .goal-roadmap-list {
+    display: flex;
+    gap: 1rem;
+  }
+
   .roadmap-arrow {
+    display: none;
+  }
+
+  .goal-roadmap-list .roadmap-item:nth-child(2) .roadmap-arrow {
     display: none;
   }
 }
