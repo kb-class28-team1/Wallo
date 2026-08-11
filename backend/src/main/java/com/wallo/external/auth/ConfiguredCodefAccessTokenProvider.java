@@ -1,12 +1,12 @@
 package com.wallo.external.auth;
 
-public class MockCodefAccessTokenProvider implements CodefAccessTokenProvider {
+public class ConfiguredCodefAccessTokenProvider implements CodefAccessTokenProvider {
 
     private final String accessToken;
 
-    public MockCodefAccessTokenProvider(String accessToken) {
+    public ConfiguredCodefAccessTokenProvider(String accessToken) {
         if (accessToken == null || accessToken.isBlank()) {
-            throw new IllegalArgumentException("CODEF Mock API access token is required.");
+            throw new IllegalArgumentException("CODEF access token is required.");
         }
         this.accessToken = accessToken.trim();
     }

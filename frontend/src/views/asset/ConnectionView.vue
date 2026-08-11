@@ -3,10 +3,12 @@ import { computed, onBeforeUnmount, ref } from "vue";
 import { useRouter } from "vue-router";
 import { connectAllAssets } from "@/api/assetApi";
 import { getLocalInstitutionLogo } from "@/features/asset/institutionLogos";
+import { useReportStore } from "@/stores/assetReportStore";
 import { useUserStore } from "@/stores/userStore";
 import { getApiErrorMessage } from "@/commonUtils/apiError";
 
 const router = useRouter();
+const reportStore = useReportStore();
 const userStore = useUserStore();
 
 const name = ref("");
@@ -220,7 +222,11 @@ const handleSubmit = async () => {
     progress.value = 100;
     loadingMessage.value = "연동 결과를 정리하는 중...";
 
-    const results = response?.data?.results || response?.results || [];
+    const connectionData = response?.data ?? response ?? {};
+    reportStore.setAnnualSalaryLookupStatus(
+      connectionData.annualSalaryLookupStatus,
+    );
+    const results = connectionData.results || [];
 
     await wait(300);
     notifyConnectionResult(results);

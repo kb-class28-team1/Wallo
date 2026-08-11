@@ -15,11 +15,13 @@ import com.wallo.asset.exception.ConnectionConsentRequiredException;
 import com.wallo.asset.exception.ConnectionNotFoundException;
 import com.wallo.asset.mapper.ConnectionMapper;
 import com.wallo.common.exception.ErrorCode;
+import com.wallo.external.auth.MockCodefCredentialProvider;
 import com.wallo.external.client.CodefClient;
 import com.wallo.external.dto.CodefDto;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
+import org.mockito.ArgumentCaptor;
 import org.junit.Test;
 
 public class ConnectionServiceTest {
@@ -30,12 +32,15 @@ public class ConnectionServiceTest {
     private final AssetSyncService assetSyncService = mock(AssetSyncService.class);
     private final CardWithdrawalReconciliationService cardWithdrawalReconciliationService =
             mock(CardWithdrawalReconciliationService.class);
+    private final AnnualSalarySyncService annualSalarySyncService = mock(AnnualSalarySyncService.class);
     private final ConnectionService connectionService = new ConnectionService(
             codefClient,
+            new MockCodefCredentialProvider("1", "mock_id", "mock_pw"),
             institutionService,
             connectionMapper,
             assetSyncService,
-            cardWithdrawalReconciliationService
+            cardWithdrawalReconciliationService,
+            annualSalarySyncService
     );
 
     @Test
@@ -60,6 +65,8 @@ public class ConnectionServiceTest {
                 .thenReturn(3);
         when(connectionMapper.findActiveConnectionId(org.mockito.ArgumentMatchers.eq(7L), any()))
                 .thenReturn(1L);
+        when(annualSalarySyncService.syncAnnualSalary(7L))
+                .thenReturn(ConnectionDto.AnnualSalaryLookupStatus.AVAILABLE);
         ConnectionDto.Response response = connectionService.connectAllAssets(7L, request);
 
         assertEquals(3, response.getResults().size());
@@ -68,8 +75,18 @@ public class ConnectionServiceTest {
         assertEquals("KB Financial", response.getResults().get(0).getFinancialGroupName());
         assertEquals(ConnectionDto.Status.SUCCESS, response.getResults().get(1).getStatus());
         assertEquals(ConnectionDto.Status.SUCCESS, response.getResults().get(2).getStatus());
-        verify(codefClient, times(3)).connectInstitution(any(CodefDto.Request.class));
+        assertEquals(
+                ConnectionDto.AnnualSalaryLookupStatus.AVAILABLE,
+                response.getAnnualSalaryLookupStatus()
+        );
+        ArgumentCaptor<CodefDto.Request> requestCaptor =
+                ArgumentCaptor.forClass(CodefDto.Request.class);
+        verify(codefClient, times(3)).connectInstitution(requestCaptor.capture());
+        assertEquals("1", requestCaptor.getAllValues().get(0).getLoginType());
+        assertEquals("mock_id", requestCaptor.getAllValues().get(0).getId());
+        assertEquals("mock_pw", requestCaptor.getAllValues().get(0).getPassword());
         verify(connectionMapper).insertConnections(any(), org.mockito.ArgumentMatchers.eq(7L), any(), any(), any());
+        verify(annualSalarySyncService).syncAnnualSalary(7L);
         verify(cardWithdrawalReconciliationService).reconcile(7L);
     }
 
@@ -88,6 +105,8 @@ public class ConnectionServiceTest {
                 .thenReturn(3);
         when(connectionMapper.findActiveConnectionId(org.mockito.ArgumentMatchers.eq(7L), any()))
                 .thenReturn(1L);
+        when(annualSalarySyncService.syncAnnualSalary(7L))
+                .thenReturn(ConnectionDto.AnnualSalaryLookupStatus.UNAVAILABLE);
         ConnectionDto.Response response = connectionService.connectAllAssets(7L, request);
 
         assertEquals(3, response.getResults().size());
@@ -95,6 +114,10 @@ public class ConnectionServiceTest {
         assertEquals(ConnectionDto.Status.FAILED, response.getResults().get(1).getStatus());
         assertEquals("External service failed", response.getResults().get(1).getMessage());
         assertEquals(ConnectionDto.Status.SUCCESS, response.getResults().get(2).getStatus());
+        assertEquals(
+                ConnectionDto.AnnualSalaryLookupStatus.UNAVAILABLE,
+                response.getAnnualSalaryLookupStatus()
+        );
     }
 
     @Test

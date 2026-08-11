@@ -318,6 +318,35 @@ public class CodefMockServiceTest {
         assertEquals(null, response.getData());
     }
 
+    @Test
+    public void incomeProofEndpointLoadsPreviousYearFixture() {
+        CodefDto.Response response = service.getIncomeProof(
+                new CodefDto.IncomeProofRequest(
+                        "0001", "1", "mock_id", "mock_password", "2025", "2025"
+                )
+        );
+
+        assertSuccess(response);
+        CodefDto.IncomeProofData data = objectMapper.convertValue(
+                response.getData(),
+                CodefDto.IncomeProofData.class
+        );
+        assertEquals(3, data.getResPaymentDetailsStatusList().size());
+        assertEquals("50000000", data.getResPaymentDetailsStatusList().get(0).getResPaidTotalAmt());
+    }
+
+    @Test
+    public void incomeProofEndpointRejectsYearWithoutFixture() {
+        CodefDto.Response response = service.getIncomeProof(
+                new CodefDto.IncomeProofRequest(
+                        "0001", "1", "mock_id", "mock_password", "2024", "2024"
+                )
+        );
+
+        assertEquals("CF-40400", response.getResult().getCode());
+        assertNull(response.getData());
+    }
+
     private CodefDto.CardApprovalRequest cardRequest(String startDate, String endDate) {
         return new CodefDto.CardApprovalRequest(
                 "0311",

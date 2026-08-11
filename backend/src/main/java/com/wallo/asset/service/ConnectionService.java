@@ -5,6 +5,8 @@ import com.wallo.asset.dto.ConnectionDto;
 import com.wallo.asset.exception.ConnectionConsentRequiredException;
 import com.wallo.asset.exception.ConnectionNotFoundException;
 import com.wallo.asset.mapper.ConnectionMapper;
+import com.wallo.external.auth.CodefCredential;
+import com.wallo.external.auth.CodefCredentialProvider;
 import com.wallo.external.client.CodefClient;
 import com.wallo.external.dto.CodefDto;
 import java.util.ArrayList;
@@ -20,23 +22,29 @@ public class ConnectionService {
     private static final Logger LOGGER = Logger.getLogger(ConnectionService.class.getName());
 
     private final CodefClient codefClient;
+    private final CodefCredentialProvider codefCredentialProvider;
     private final InstitutionService institutionService;
     private final ConnectionMapper connectionMapper;
     private final AssetSyncService assetSyncService;
     private final CardWithdrawalReconciliationService cardWithdrawalReconciliationService;
+    private final AnnualSalarySyncService annualSalarySyncService;
 
     public ConnectionService(
             CodefClient codefClient,
+            CodefCredentialProvider codefCredentialProvider,
             InstitutionService institutionService,
             ConnectionMapper connectionMapper,
             AssetSyncService assetSyncService,
-            CardWithdrawalReconciliationService cardWithdrawalReconciliationService
+            CardWithdrawalReconciliationService cardWithdrawalReconciliationService,
+            AnnualSalarySyncService annualSalarySyncService
     ) {
         this.codefClient = codefClient;
+        this.codefCredentialProvider = codefCredentialProvider;
         this.institutionService = institutionService;
         this.connectionMapper = connectionMapper;
         this.assetSyncService = assetSyncService;
         this.cardWithdrawalReconciliationService = cardWithdrawalReconciliationService;
+        this.annualSalarySyncService = annualSalarySyncService;
     }
 
     @Transactional
@@ -48,9 +56,15 @@ public class ConnectionService {
         long connectionStartedAt = System.nanoTime();
         for (Institution institution : institutionService.getConnectionTargetInstitutions()) {
             long institutionStartedAt = System.nanoTime();
-            CodefDto.Response codefResponse = codefClient.connectInstitution(createCodefRequest(institution));
+            CodefCredential credential = codefCredentialProvider.getCredential(
+                    userId,
+                    institution.getCodefOrganizationCode()
+            );
+            CodefDto.Response codefResponse = codefClient.connectInstitution(
+                    createCodefRequest(institution, credential)
+            );
             ConnectionDto.Result result = toConnectionResult(institution, codefResponse);
-            attempts.add(new ConnectionAttempt(institution, codefResponse, result));
+            attempts.add(new ConnectionAttempt(institution, codefResponse, result, credential));
             LOGGER.info(String.format(
                     Locale.ROOT,
                     "asset-connect institution=%s type=%s status=%s durationMs=%d",
@@ -64,27 +78,32 @@ public class ConnectionService {
 
         List<ConnectionDto.Result> results = attempts.stream().map(ConnectionAttempt::result).toList();
         long saveStartedAt = System.nanoTime();
-        saveConnections(userId, results);
+        saveConnections(userId, attempts);
         long saveElapsedMs = elapsedMillis(saveStartedAt);
         long syncStartedAt = System.nanoTime();
         syncAssets(userId, attempts);
         long syncElapsedMs = elapsedMillis(syncStartedAt);
+        long salarySyncStartedAt = System.nanoTime();
+        ConnectionDto.AnnualSalaryLookupStatus annualSalaryLookupStatus = syncAnnualSalary(userId);
+        long salarySyncElapsedMs = elapsedMillis(salarySyncStartedAt);
         long reconciliationStartedAt = System.nanoTime();
         cardWithdrawalReconciliationService.reconcile(userId);
         long reconciliationElapsedMs = elapsedMillis(reconciliationStartedAt);
         LOGGER.info(String.format(
                 Locale.ROOT,
                 "asset-connect summary institutions=%d success=%d connectionMs=%d saveMs=%d syncMs=%d "
-                        + "reconciliationMs=%d totalMs=%d",
+                        + "salaryLookupStatus=%s salarySyncMs=%d reconciliationMs=%d totalMs=%d",
                 attempts.size(),
                 results.stream().filter(result -> result.getStatus() == ConnectionDto.Status.SUCCESS).count(),
                 connectionElapsedMs,
                 saveElapsedMs,
                 syncElapsedMs,
+                annualSalaryLookupStatus,
+                salarySyncElapsedMs,
                 reconciliationElapsedMs,
                 elapsedMillis(totalStartedAt)
         ));
-        return new ConnectionDto.Response(results);
+        return new ConnectionDto.Response(results, annualSalaryLookupStatus);
     }
 
     @Transactional(readOnly = true)
@@ -121,21 +140,43 @@ public class ConnectionService {
         }
     }
 
+    private ConnectionDto.AnnualSalaryLookupStatus syncAnnualSalary(long userId) {
+        try {
+            ConnectionDto.AnnualSalaryLookupStatus status =
+                    annualSalarySyncService.syncAnnualSalary(userId);
+            return status == null
+                    ? ConnectionDto.AnnualSalaryLookupStatus.ERROR
+                    : status;
+        } catch (RuntimeException exception) {
+            LOGGER.warning(String.format(
+                    Locale.ROOT,
+                    "annual-salary-sync failed userId=%d reason=%s",
+                    userId,
+                    exception.getMessage()
+            ));
+            return ConnectionDto.AnnualSalaryLookupStatus.ERROR;
+        }
+    }
+
     private long elapsedMillis(long startedAt) {
         return (System.nanoTime() - startedAt) / 1_000_000L;
     }
 
-    private void saveConnections(long userId, List<ConnectionDto.Result> results) {
-        if (results.isEmpty()) {
+    private void saveConnections(long userId, List<ConnectionAttempt> attempts) {
+        if (attempts.isEmpty()) {
             return;
         }
 
+        List<ConnectionDto.Result> results = attempts.stream()
+                .map(ConnectionAttempt::result)
+                .toList();
+        CodefCredential credential = attempts.get(0).credential();
         int savedRows = connectionMapper.insertConnections(
                 results,
                 userId,
-                ConnectionDto.MOCK_LOGIN_TYPE,
-                ConnectionDto.MOCK_ID,
-                ConnectionDto.MOCK_PASSWORD);
+                credential.loginType(),
+                credential.id(),
+                credential.password());
         if (savedRows < results.size()) {
             throw new IllegalStateException("연동 결과 저장에 실패했습니다.");
         }
@@ -147,13 +188,16 @@ public class ConnectionService {
         }
     }
 
-    private CodefDto.Request createCodefRequest(Institution institution) {
+    private CodefDto.Request createCodefRequest(
+            Institution institution,
+            CodefCredential credential
+    ) {
         return new CodefDto.Request(
                 institution.getCodefOrganizationCode(),
                 institution.getInstitutionType(),
-                ConnectionDto.MOCK_LOGIN_TYPE,
-                ConnectionDto.MOCK_ID,
-                ConnectionDto.MOCK_PASSWORD
+                credential.loginType(),
+                credential.id(),
+                credential.password()
         );
     }
 
@@ -193,6 +237,11 @@ public class ConnectionService {
         );
     }
 
-    private record ConnectionAttempt(Institution institution, CodefDto.Response response, ConnectionDto.Result result) {
+    private record ConnectionAttempt(
+            Institution institution,
+            CodefDto.Response response,
+            ConnectionDto.Result result,
+            CodefCredential credential
+    ) {
     }
 }

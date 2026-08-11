@@ -2,6 +2,7 @@ package com.wallo.asset.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -46,8 +47,8 @@ class AnnualSalaryServiceTest {
         assertInvalidSalary(new AnnualSalaryDto.UpdateRequest(-1L));
 
         verify(annualSalaryMapper, never()).updateAnnualSalary(
-                org.mockito.ArgumentMatchers.anyLong(),
-                org.mockito.ArgumentMatchers.anyLong()
+                anyLong(),
+                anyLong()
         );
     }
 

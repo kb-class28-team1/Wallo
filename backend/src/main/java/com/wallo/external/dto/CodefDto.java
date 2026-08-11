@@ -55,6 +55,19 @@ public final class CodefDto {
     @Setter
     @NoArgsConstructor
     @AllArgsConstructor
+    public static class IncomeProofRequest {
+        private String organization;
+        private String loginType;
+        private String id;
+        private String password;
+        private String searchStartYear;
+        private String searchEndYear;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class Response {
         private Result result;
         private Object data;
@@ -76,6 +89,15 @@ public final class CodefDto {
         private String code;
         private String message;
         private String extraMessage;
+        private String transactionId;
+
+        /**
+         * 기존 Mock 응답과 호출부 호환을 위한 생성자다.
+         * 추가인증이 없는 응답은 transactionId가 없다.
+         */
+        public Result(String code, String message, String extraMessage) {
+            this(code, message, extraMessage, null);
+        }
     }
 
     @Getter
@@ -88,6 +110,24 @@ public final class CodefDto {
         private List<Card> cards;
         private List<Transaction> transactions;
         private List<AssetSnapshot> assetSnapshots;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class IncomeProofData {
+        private List<PaymentDetails> resPaymentDetailsStatusList;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class PaymentDetails {
+        private String resAttrYear;
+        private String resType;
+        private String resPaidTotalAmt;
     }
 
     @Getter

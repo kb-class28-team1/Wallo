@@ -69,6 +69,21 @@ public class CodefMockController {
         return codefMockService.getBankTransactions(request);
     }
 
+    @PostMapping({
+            "/mock/v1/kr/public/mw/issuance/proof-income",
+            "/v1/kr/public/mw/issuance/proof-income"
+    })
+    public CodefDto.Response getIncomeProof(
+            @RequestBody CodefDto.IncomeProofRequest request,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorizationHeader
+    ) {
+        CodefDto.Response authenticationFailure = authenticate(authorizationHeader);
+        if (authenticationFailure != null) {
+            return authenticationFailure;
+        }
+        return codefMockService.getIncomeProof(request);
+    }
+
     private CodefDto.Response authenticate(String authorizationHeader) {
         String expectedAuthorization = "Bearer " + accessTokenProvider.getAccessToken();
         if (expectedAuthorization.equals(authorizationHeader)) {
