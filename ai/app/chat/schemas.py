@@ -1,6 +1,7 @@
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
+from app.agents.financial.consumption_models import ConsumptionContext
 
 from app.agents.goal.context import (
     AccountSubtype,
@@ -32,6 +33,9 @@ class ChatRequest(BaseModel):
     )
     goal_draft: GoalDraft | None = Field(default=None, alias="goalDraft")
     goal_already_exists: bool = Field(default=False, alias="goalAlreadyExists")
+    consumption_context: ConsumptionContext | None = Field(
+        default=None, alias="consumptionContext"
+    )
 
 
 class GoalInterviewResponse(BaseModel):
@@ -51,6 +55,10 @@ class ChatResponse(BaseModel):
     goal_interview: GoalInterviewResponse | None = Field(
         default=None,
         alias="goalInterview",
+    )
+    consumption_analysis: dict | None = Field(
+        default=None,
+        alias="consumptionAnalysis",
     )
 
 
