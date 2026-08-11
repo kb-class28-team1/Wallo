@@ -112,7 +112,7 @@ public class CardApprovalCollectionService {
                 .toList();
         preparedApprovals = TransactionBatchDeduplicator.deduplicate(
                 preparedApprovals,
-                PreparedApproval::sourceDedupKey,
+                approval -> approval.sourceIdentity().sourceDedupKey(),
                 SOURCE_TYPE
         );
         int duplicateCount = safeList(approvals).size() - preparedApprovals.size();
@@ -126,7 +126,7 @@ public class CardApprovalCollectionService {
         for (PreparedApproval approval : preparedApprovals) {
             TransactionMapping mapping = toTransaction(
                     approval,
-                    classifications.get(approval.sourceDedupKey())
+                    classifications.get(approval.sourceIdentity().sourceDedupKey())
             );
             assetSyncMapper.upsertTransaction(mapping.transaction());
             if (mapping.reusedClassification()) {
@@ -197,7 +197,7 @@ public class CardApprovalCollectionService {
                 approval.getResMemberSector(),
                 amount
         );
-        String sourceDedupKey = sourceKeyGenerator.forCardApproval(
+        TransactionSourceIdentity sourceIdentity = sourceKeyGenerator.identityForCardApproval(
                 institution.getCodefOrganizationCode(),
                 cardNumber,
                 approvalNo
@@ -213,8 +213,7 @@ public class CardApprovalCollectionService {
                 transactionDate,
                 transactionTime,
                 context,
-                sourceDedupKey,
-                institution.getCodefOrganizationCode()
+                sourceIdentity
         );
     }
 
@@ -223,7 +222,8 @@ public class CardApprovalCollectionService {
             ClassificationResolution resolution
     ) {
         ExpenseCategoryClassifier.Result classification = resolution.result();
-        TransactionRelationValidator.validate(SOURCE_TYPE, approval.cardId(), null);
+        TransactionSourceIdentity sourceIdentity = approval.sourceIdentity();
+        TransactionRelationValidator.validate(sourceIdentity.sourceType(), approval.cardId(), null);
         AssetSyncDto.Transaction transaction = new AssetSyncDto.Transaction(
                 approval.userId(),
                 approval.cardId(),
@@ -240,10 +240,10 @@ public class CardApprovalCollectionService {
                 classification.source(),
                 classification.confidence(),
                 classification.classifierVersion(),
-                SOURCE_TYPE,
-                approval.sourceOrganizationCode(),
-                approval.approvalNo(),
-                approval.sourceDedupKey()
+                sourceIdentity.sourceType(),
+                sourceIdentity.sourceOrganizationCode(),
+                sourceIdentity.sourceTransactionId(),
+                sourceIdentity.sourceDedupKey()
         );
         return new TransactionMapping(transaction, resolution.reused());
     }
@@ -260,7 +260,7 @@ public class CardApprovalCollectionService {
                     categoryClassifier.classifyBeforeAi(approval.context());
             if (deterministicClassification != null && deterministicClassification.isPresent()) {
                 resolutions.put(
-                        approval.sourceDedupKey(),
+                        approval.sourceIdentity().sourceDedupKey(),
                         new ClassificationResolution(deterministicClassification.get(), false)
                 );
                 continue;
@@ -268,13 +268,13 @@ public class CardApprovalCollectionService {
 
             AssetSyncDto.ExistingClassification existing = assetSyncMapper.findExistingClassification(
                     userId,
-                    SOURCE_TYPE,
-                    institution.getCodefOrganizationCode(),
-                    approval.sourceDedupKey()
+                    approval.sourceIdentity().sourceType(),
+                    approval.sourceIdentity().sourceOrganizationCode(),
+                    approval.sourceIdentity().sourceDedupKey()
             );
             if (isReusable(existing)) {
                 resolutions.put(
-                        approval.sourceDedupKey(),
+                        approval.sourceIdentity().sourceDedupKey(),
                         new ClassificationResolution(
                                 new ExpenseCategoryClassifier.Result(
                                         existing.getCategory(),
@@ -292,12 +292,12 @@ public class CardApprovalCollectionService {
 
         List<ExpenseCategoryClassifier.Result> classified = categoryClassifier.classifyBatch(pendingContexts);
         for (PreparedApproval approval : approvals) {
-            if (resolutions.containsKey(approval.sourceDedupKey())) {
+            if (resolutions.containsKey(approval.sourceIdentity().sourceDedupKey())) {
                 continue;
             }
             int contextIndex = pendingContexts.indexOf(approval.context());
             resolutions.put(
-                    approval.sourceDedupKey(),
+                    approval.sourceIdentity().sourceDedupKey(),
                     new ClassificationResolution(classified.get(contextIndex), false)
             );
         }
@@ -403,8 +403,7 @@ public class CardApprovalCollectionService {
             LocalDate transactionDate,
             LocalTime transactionTime,
             ExpenseCategoryClassifier.Context context,
-            String sourceDedupKey,
-            String sourceOrganizationCode
+            TransactionSourceIdentity sourceIdentity
     ) {
     }
 }

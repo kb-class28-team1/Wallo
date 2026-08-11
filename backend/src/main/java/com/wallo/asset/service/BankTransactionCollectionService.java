@@ -127,7 +127,7 @@ public class BankTransactionCollectionService {
                 .toList();
         preparedTransactions = TransactionBatchDeduplicator.deduplicate(
                 preparedTransactions,
-                PreparedBankTransaction::sourceDedupKey,
+                transaction -> transaction.sourceIdentity().sourceDedupKey(),
                 SOURCE_TYPE
         );
         int duplicateCount = safeList(transactions).size() - preparedTransactions.size();
@@ -141,7 +141,7 @@ public class BankTransactionCollectionService {
         for (PreparedBankTransaction source : preparedTransactions) {
             TransactionMapping mapping = toTransaction(
                     source,
-                    classifications.get(source.sourceDedupKey())
+                    classifications.get(source.sourceIdentity().sourceDedupKey())
             );
             assetSyncMapper.upsertTransaction(mapping.transaction());
             if (mapping.reusedClassification()) {
@@ -210,12 +210,11 @@ public class BankTransactionCollectionService {
 
         long accountIn = parseNonNegativeAmount(source.getResAccountIn());
         long accountOut = parseNonNegativeAmount(source.getResAccountOut());
-        String transactionId = required(source.getResTrNo(), "은행 거래번호");
         String description = defaultValue(source.getResAccountDesc(), "계좌 거래");
-        String sourceDedupKey = sourceKeyGenerator.forBankTransaction(
+        TransactionSourceIdentity sourceIdentity = sourceKeyGenerator.identityForBankTransaction(
                 institution.getCodefOrganizationCode(),
                 accountNumber,
-                transactionId
+                source.getResTrNo()
         );
         String normalizedKind = source.getTransactionKind() == null
                 ? ""
@@ -236,9 +235,7 @@ public class BankTransactionCollectionService {
                 description,
                 parseDate(source.getResTrDate()),
                 parseTime(source.getResTrTime()),
-                institution.getCodefOrganizationCode(),
-                transactionId,
-                sourceDedupKey
+                sourceIdentity
         );
     }
 
@@ -257,7 +254,8 @@ public class BankTransactionCollectionService {
                         resolution.reused()
                 )
                 : prepared.directionClassification();
-        TransactionRelationValidator.validate(SOURCE_TYPE, null, prepared.accountId());
+        TransactionSourceIdentity sourceIdentity = prepared.sourceIdentity();
+        TransactionRelationValidator.validate(sourceIdentity.sourceType(), null, prepared.accountId());
         AssetSyncDto.Transaction transaction = new AssetSyncDto.Transaction(
                 prepared.userId(),
                 null,
@@ -274,10 +272,10 @@ public class BankTransactionCollectionService {
                 classification.categorySource(),
                 classification.confidence(),
                 classification.classifierVersion(),
-                SOURCE_TYPE,
-                prepared.sourceOrganizationCode(),
-                prepared.transactionId(),
-                prepared.sourceDedupKey()
+                sourceIdentity.sourceType(),
+                sourceIdentity.sourceOrganizationCode(),
+                sourceIdentity.sourceTransactionId(),
+                sourceIdentity.sourceDedupKey()
         );
         return new TransactionMapping(transaction, classification.reusedClassification());
     }
@@ -360,7 +358,7 @@ public class BankTransactionCollectionService {
         for (PreparedBankTransaction transaction : transactions) {
             if (!transaction.cardPayment()) {
                 resolutions.put(
-                        transaction.sourceDedupKey(),
+                        transaction.sourceIdentity().sourceDedupKey(),
                         new ClassificationResolution(
                                 new ExpenseCategoryClassifier.Result(
                                         transaction.directionClassification().category(),
@@ -378,7 +376,7 @@ public class BankTransactionCollectionService {
                     categoryClassifier.classifyBeforeAi(transaction.context());
             if (deterministicClassification != null && deterministicClassification.isPresent()) {
                 resolutions.put(
-                        transaction.sourceDedupKey(),
+                        transaction.sourceIdentity().sourceDedupKey(),
                         new ClassificationResolution(deterministicClassification.get(), false)
                 );
                 continue;
@@ -386,13 +384,13 @@ public class BankTransactionCollectionService {
 
             AssetSyncDto.ExistingClassification existing = assetSyncMapper.findExistingClassification(
                     userId,
-                    SOURCE_TYPE,
-                    institution.getCodefOrganizationCode(),
-                    transaction.sourceDedupKey()
+                    transaction.sourceIdentity().sourceType(),
+                    transaction.sourceIdentity().sourceOrganizationCode(),
+                    transaction.sourceIdentity().sourceDedupKey()
             );
             if (isReusable(existing)) {
                 resolutions.put(
-                        transaction.sourceDedupKey(),
+                        transaction.sourceIdentity().sourceDedupKey(),
                         new ClassificationResolution(
                                 new ExpenseCategoryClassifier.Result(
                                         existing.getCategory(),
@@ -410,12 +408,12 @@ public class BankTransactionCollectionService {
 
         List<ExpenseCategoryClassifier.Result> classified = categoryClassifier.classifyBatch(pendingContexts);
         for (PreparedBankTransaction transaction : transactions) {
-            if (resolutions.containsKey(transaction.sourceDedupKey())) {
+            if (resolutions.containsKey(transaction.sourceIdentity().sourceDedupKey())) {
                 continue;
             }
             int contextIndex = pendingContexts.indexOf(transaction.context());
             resolutions.put(
-                    transaction.sourceDedupKey(),
+                    transaction.sourceIdentity().sourceDedupKey(),
                     new ClassificationResolution(classified.get(contextIndex), false)
             );
         }
@@ -502,13 +500,6 @@ public class BankTransactionCollectionService {
         return CodefDateTime.parseTime(value, "Bank transaction time");
     }
 
-    private String required(String value, String fieldName) {
-        if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException(fieldName + " 값이 필요합니다.");
-        }
-        return value.trim();
-    }
-
     private String defaultValue(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value.trim();
     }
@@ -542,9 +533,7 @@ public class BankTransactionCollectionService {
             String description,
             LocalDate transactionDate,
             LocalTime transactionTime,
-            String sourceOrganizationCode,
-            String transactionId,
-            String sourceDedupKey
+            TransactionSourceIdentity sourceIdentity
     ) {
     }
 

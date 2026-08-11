@@ -14,14 +14,22 @@ public class TransactionSourceKeyGenerator {
             String cardNumber,
             String approvalNo
     ) {
-        String canonicalValue = String.join(
-                "|",
+        return identityForCardApproval(organizationCode, cardNumber, approvalNo).sourceDedupKey();
+    }
+
+    public TransactionSourceIdentity identityForCardApproval(
+            String organizationCode,
+            String cardNumber,
+            String approvalNo
+    ) {
+        return identity(
                 AssetTransactionConstants.CARD_APPROVAL_SOURCE_TYPE,
-                required(organizationCode, "기관 코드"),
-                normalizeIdentity(cardNumber, "카드번호"),
-                required(approvalNo, "승인번호")
+                organizationCode,
+                cardNumber,
+                approvalNo,
+                "카드번호",
+                "승인번호"
         );
-        return sha256(canonicalValue);
     }
 
     public String forBankTransaction(
@@ -29,14 +37,22 @@ public class TransactionSourceKeyGenerator {
             String accountNumber,
             String transactionId
     ) {
-        String canonicalValue = String.join(
-                "|",
+        return identityForBankTransaction(organizationCode, accountNumber, transactionId).sourceDedupKey();
+    }
+
+    public TransactionSourceIdentity identityForBankTransaction(
+            String organizationCode,
+            String accountNumber,
+            String transactionId
+    ) {
+        return identity(
                 AssetTransactionConstants.BANK_TRANSACTION_SOURCE_TYPE,
-                required(organizationCode, "기관 코드"),
-                normalizeIdentity(accountNumber, "계좌번호"),
-                required(transactionId, "원천 거래번호")
+                organizationCode,
+                accountNumber,
+                transactionId,
+                "계좌번호",
+                "원천 거래번호"
         );
-        return sha256(canonicalValue);
     }
 
     /**
@@ -50,14 +66,51 @@ public class TransactionSourceKeyGenerator {
             String assetNumber,
             String transactionId
     ) {
+        return identityForAssetTransaction(sourceType, organizationCode, assetNumber, transactionId)
+                .sourceDedupKey();
+    }
+
+    public TransactionSourceIdentity identityForAssetTransaction(
+            String sourceType,
+            String organizationCode,
+            String assetNumber,
+            String transactionId
+    ) {
+        return identity(
+                sourceType,
+                organizationCode,
+                assetNumber,
+                transactionId,
+                "asset number",
+                "source transaction id"
+        );
+    }
+
+    private TransactionSourceIdentity identity(
+            String sourceType,
+            String organizationCode,
+            String assetNumber,
+            String transactionId,
+            String assetFieldName,
+            String transactionFieldName
+    ) {
+        String normalizedSourceType = required(sourceType, "source type");
+        String normalizedOrganizationCode = required(organizationCode, "organization code");
+        String normalizedAssetNumber = normalizeIdentity(assetNumber, assetFieldName);
+        String normalizedTransactionId = required(transactionId, transactionFieldName);
         String canonicalValue = String.join(
                 "|",
-                required(sourceType, "source type"),
-                required(organizationCode, "organization code"),
-                normalizeIdentity(assetNumber, "asset number"),
-                required(transactionId, "source transaction id")
+                normalizedSourceType,
+                normalizedOrganizationCode,
+                normalizedAssetNumber,
+                normalizedTransactionId
         );
-        return sha256(canonicalValue);
+        return new TransactionSourceIdentity(
+                normalizedSourceType,
+                normalizedOrganizationCode,
+                normalizedTransactionId,
+                sha256(canonicalValue)
+        );
     }
 
     private String sha256(String value) {

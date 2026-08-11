@@ -225,10 +225,11 @@ public class AssetSyncService {
         Long accountId = cardTransaction
                 ? null
                 : required(assetSyncMapper.findAccountId(connectionId, accountNumber));
-        String sourceType = identity.sourceType();
+        TransactionSourceIdentity sourceIdentity = identity.sourceIdentity();
+        String sourceType = sourceIdentity.sourceType();
         TransactionRelationValidator.validate(sourceType, cardId, accountId);
-        String sourceTransactionId = identity.sourceTransactionId();
-        String sourceDedupKey = identity.sourceDedupKey();
+        String sourceTransactionId = sourceIdentity.sourceTransactionId();
+        String sourceDedupKey = sourceIdentity.sourceDedupKey();
         String merchantName = cardTransaction
                 ? defaultValue(source.getResUsedMerchantName(), "카드 결제")
                 : loanTransaction ? "학자금대출 상환" : defaultValue(source.getResAccountTrDesc(), "계좌 거래");
@@ -270,7 +271,7 @@ public class AssetSyncService {
                 java.math.BigDecimal.ONE,
                 AssetTransactionConstants.CODEF_CLASSIFIER_VERSION,
                 sourceType,
-                identity.sourceOrganizationCode(),
+                sourceIdentity.sourceOrganizationCode(),
                 sourceTransactionId,
                 sourceDedupKey
         );
@@ -289,7 +290,7 @@ public class AssetSyncService {
                 .toList();
         return TransactionBatchDeduplicator.deduplicate(
                 preparedTransactions,
-                transaction -> transaction.identity().sourceDedupKey(),
+                transaction -> transaction.identity().sourceIdentity().sourceDedupKey(),
                 (left, right) -> sameAssetTransactionPayload(left.source(), right.source()),
                 "ASSET_TRANSACTION"
         );
@@ -312,7 +313,7 @@ public class AssetSyncService {
         String sourceType = sourceType(cardTransaction, loanTransaction);
         String sourceOrganizationCode = institution.getCodefOrganizationCode();
         String sourceTransactionId = sourceTransactionId(cardTransaction, loanTransaction, source);
-        String sourceDedupKey = sourceKeyGenerator.forAssetTransaction(
+        TransactionSourceIdentity sourceIdentity = sourceKeyGenerator.identityForAssetTransaction(
                 sourceType,
                 sourceOrganizationCode,
                 assetNumber,
@@ -322,10 +323,7 @@ public class AssetSyncService {
                 cardTransaction,
                 loanTransaction,
                 assetNumber,
-                sourceType,
-                sourceOrganizationCode,
-                sourceTransactionId,
-                sourceDedupKey
+                sourceIdentity
         );
     }
 
@@ -360,10 +358,7 @@ public class AssetSyncService {
             boolean cardTransaction,
             boolean loanTransaction,
             String assetNumber,
-            String sourceType,
-            String sourceOrganizationCode,
-            String sourceTransactionId,
-            String sourceDedupKey
+            TransactionSourceIdentity sourceIdentity
     ) {
     }
 

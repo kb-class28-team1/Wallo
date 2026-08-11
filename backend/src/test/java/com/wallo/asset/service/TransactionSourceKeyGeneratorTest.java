@@ -56,6 +56,20 @@ class TransactionSourceKeyGeneratorTest {
     }
 
     @Test
+    void generatedIdentityCarriesDatabaseSourceColumnsTogether() {
+        TransactionSourceIdentity identity = generator.identityForBankTransaction(
+                "0004",
+                "123456-01-789012",
+                "BANK-202607-0001"
+        );
+
+        assertEquals("BANK_TRANSACTION", identity.sourceType());
+        assertEquals("0004", identity.sourceOrganizationCode());
+        assertEquals("BANK-202607-0001", identity.sourceTransactionId());
+        assertEquals(64, identity.sourceDedupKey().length());
+    }
+
+    @Test
     void assetIdentifierNormalizerUsesOneCanonicalCardAndAccountFormat() {
         assertEquals(
                 "12345601789012",
