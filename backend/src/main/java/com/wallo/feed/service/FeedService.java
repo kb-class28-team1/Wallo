@@ -4,7 +4,6 @@ import com.wallo.feed.analysis.FeedAnalysisClient;
 import com.wallo.feed.domain.Feed;
 import com.wallo.feed.domain.FeedMessage;
 import com.wallo.feed.dto.FeedDtos.AnalysisResponse;
-import com.wallo.feed.dto.FeedDtos.CategoryExpenseAverage;
 import com.wallo.feed.dto.FeedDtos.FeedListResponse;
 import com.wallo.feed.dto.FeedDtos.LikeResponse;
 import com.wallo.feed.dto.FeedDtos.MessageRequest;
@@ -16,7 +15,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.time.LocalDate;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
@@ -31,9 +29,8 @@ public class FeedService {
     private static final Set<String> FEED_CATEGORIES = Set.of(
             "FOOD", "CAFE", "TRANSPORT", "SHOPPING", "DELIVERY",
             "HOUSING", "LIVING", "CULTURE", "HEALTH", "ETC");
-    private static final int PRIMARY_HISTORY_DAYS = 60;
-    private static final int EXTENDED_HISTORY_DAYS = 90;
-    private static final int MINIMUM_HISTORY_TRANSACTIONS = 3;
+    private static final Set<String> FEEDBACK_TYPES = Set.of("ACCEPTED", "ADJUSTED", "MANUAL");
+    private static final Set<String> ANALYSIS_STATUSES = Set.of("AI_COMPLETED", "AI_FAILED", "MANUAL");
     private static final long MAX_FILE_SIZE = 50L * 1024 * 1024;
     private final FeedMapper feedMapper;
     private final FeedAnalysisClient analysisClient;
@@ -74,18 +71,56 @@ public class FeedService {
         String normalizedCategory = normalizeCategory(category);
         validate(media, spendingType, normalizedCategory);
         AnalysisResponse analysis = analysisClient.analyze(media, spendingType, normalizedCategory);
-        return applyCategoryAverageFallback(userId, analysis);
+        if (analysis == null) {
+            throw new IllegalStateException("AI 분석 결과가 비어 있습니다.");
+        }
+
+        // 소비 유형과 카테고리는 클라이언트가 선택한 값을 기준으로 고정한다.
+        Integer amount = normalizeOptionalAmount(analysis.estimatedSavingAmount());
+        if ("SPENT".equals(spendingType)) {
+            amount = 0;
+        }
+        String summary = blankToNull(analysis.summary());
+        if (summary == null) {
+            summary = "AI 분석 결과를 확인해 주세요.";
+        }
+        return new AnalysisResponse(
+                spendingType,
+                normalizedCategory,
+                amount,
+                summary,
+                normalizeConfidence(analysis.confidenceScore()));
+    }
+
+    /** 기존 호출부 호환용 생성자. AI 결과를 그대로 확인한 것으로 간주한다. */
+    @Transactional
+    public Feed create(Long userId, Long challengeId, MultipartFile media,
+                       String spendingType, String category, String customCategory,
+                       String caption, int savingAmount, String analysisSummary,
+        double confidenceScore) {
+        return create(userId, challengeId, media, spendingType, category, customCategory,
+                caption, savingAmount, analysisSummary, confidenceScore,
+                savingAmount, "ACCEPTED", "AI_COMPLETED");
     }
 
     @Transactional
     public Feed create(Long userId, Long challengeId, MultipartFile media,
                        String spendingType, String category, String customCategory,
                        String caption, int savingAmount, String analysisSummary,
-        double confidenceScore) {
+                       double confidenceScore, Integer aiEstimatedAmount,
+                       String feedbackType, String analysisStatus) {
         requireMember(userId, challengeId);
         String normalizedCategory = normalizeCategory(category);
         validate(media, spendingType, normalizedCategory);
         validateCaption(caption);
+        int confirmedAmount = normalizeAmount(savingAmount);
+        Integer normalizedAiAmount = normalizeOptionalAmount(aiEstimatedAmount);
+        String normalizedFeedbackType = normalizeFeedbackType(feedbackType, normalizedAiAmount);
+        String normalizedAnalysisStatus = normalizeAnalysisStatus(analysisStatus, normalizedAiAmount);
+        if ("SPENT".equals(spendingType)) {
+            confirmedAmount = 0;
+            normalizedAiAmount = 0;
+        }
         String mediaType = media.getContentType() != null
                 && media.getContentType().toLowerCase(Locale.ROOT).startsWith("video/")
                 ? "VIDEO" : "IMAGE";
@@ -98,15 +133,18 @@ public class FeedService {
         feed.setThumbnailUrl(mediaType.equals("IMAGE") ? mediaUrl : null);
         feed.setMediaType(mediaType);
         feed.setSpendingType(spendingType);
-        feed.setSavingAmount(Math.max(0, savingAmount));
+        feed.setSavingAmount(confirmedAmount);
         feed.setCategory(normalizedCategory);
         // 새 인증 글은 공통 지출 카테고리만 사용하며 기존 custom_category 데이터는 유지함.
         feed.setCustomCategory(null);
         feed.setCaption(blankToNull(caption));
         feed.setAnalysisSummary(blankToNull(analysisSummary));
+        feed.setAnalysisStatus(normalizedAnalysisStatus);
         feedMapper.insertFeed(feed);
         feedMapper.insertAnalysis(feed.getId(), spendingType, normalizedCategory,
-                feed.getSavingAmount(), analysisSummary, confidenceScore);
+                normalizedAiAmount, feed.getSavingAmount(), blankToNull(analysisSummary),
+                normalizeConfidence(confidenceScore), normalizedFeedbackType,
+                normalizedAnalysisStatus);
         feedMapper.insertFeedShareMessage(challengeId, userId, feed.getId());
         publishMessageAfterCommit(challengeId, feedMapper.findMessageByLastInsertId());
         return feed;
@@ -141,8 +179,7 @@ public class FeedService {
         if (category.isBlank() || !FEED_CATEGORIES.contains(category)) {
             throw new IllegalArgumentException("지원하지 않는 카테고리입니다.");
         }
-        int savingAmount = request.savingAmount() == null
-                ? 0 : Math.max(0, request.savingAmount());
+        int savingAmount = normalizeAmount(request.savingAmount());
         int updated = feedMapper.updateFeed(
                 feedId, userId, challengeId, category, request.spendingType(),
                 blankToNull(request.caption()), savingAmount);
@@ -212,60 +249,41 @@ public class FeedService {
         return category == null ? "" : category.trim().toUpperCase(Locale.ROOT);
     }
 
-    private AnalysisResponse applyCategoryAverageFallback(Long userId, AnalysisResponse analysis) {
-        if (analysis == null
-                || analysis.estimatedSavingAmount() > 0
-                || "SPENT".equals(analysis.spendingType())) {
-            return analysis;
-        }
-
-        LocalDate endDate = LocalDate.now().minusDays(1);
-        CategoryExpenseAverage average = feedMapper.findCategoryExpenseAverage(
-                userId,
-                analysis.category(),
-                endDate.minusDays(PRIMARY_HISTORY_DAYS - 1L),
-                endDate);
-        int historyDays = PRIMARY_HISTORY_DAYS;
-
-        if (!hasEnoughHistory(average)) {
-            average = feedMapper.findCategoryExpenseAverage(
-                    userId,
-                    analysis.category(),
-                    endDate.minusDays(EXTENDED_HISTORY_DAYS - 1L),
-                    endDate);
-            historyDays = EXTENDED_HISTORY_DAYS;
-        }
-
-        if (!hasEnoughHistory(average)) {
-            return analysis;
-        }
-
-        int estimatedAmount = toSavingAmount(average.getAverageAmount());
-        if (estimatedAmount == 0) {
-            return analysis;
-        }
-
-        String summary = appendHistoryFallbackSummary(analysis.summary(), historyDays);
-        return new AnalysisResponse(
-                analysis.spendingType(), analysis.category(), estimatedAmount,
-                summary, analysis.confidenceScore());
+    private int normalizeAmount(Integer amount) {
+        return amount == null ? 0 : Math.max(0, amount);
     }
 
-    private boolean hasEnoughHistory(CategoryExpenseAverage average) {
-        return average != null
-                && average.getTransactionCount() >= MINIMUM_HISTORY_TRANSACTIONS
-                && average.getAverageAmount() > 0;
+    private Integer normalizeOptionalAmount(Integer amount) {
+        return amount == null ? null : Math.max(0, amount);
     }
 
-    private int toSavingAmount(long amount) {
-        return (int) Math.min(Integer.MAX_VALUE, Math.max(0L, amount));
+    private double normalizeConfidence(double confidence) {
+        if (Double.isNaN(confidence) || Double.isInfinite(confidence)) {
+            return 0.0;
+        }
+        return Math.max(0.0, Math.min(1.0, confidence));
     }
 
-    private String appendHistoryFallbackSummary(String summary, int historyDays) {
-        String base = blankToNull(summary);
-        String fallback = "AI가 금액을 명확히 판단하지 못해 최근 "
-                + historyDays + "일간 해당 카테고리의 평균 결제 금액으로 추정했어요.";
-        return base == null ? fallback : base + " " + fallback;
+    private String normalizeFeedbackType(String feedbackType, Integer aiEstimatedAmount) {
+        String normalized = feedbackType == null ? "" : feedbackType.trim().toUpperCase(Locale.ROOT);
+        if (normalized.isBlank()) {
+            return aiEstimatedAmount == null ? "MANUAL" : "ACCEPTED";
+        }
+        if (!FEEDBACK_TYPES.contains(normalized)) {
+            throw new IllegalArgumentException("지원하지 않는 AI 피드백 유형입니다.");
+        }
+        return normalized;
+    }
+
+    private String normalizeAnalysisStatus(String analysisStatus, Integer aiEstimatedAmount) {
+        String normalized = analysisStatus == null ? "" : analysisStatus.trim().toUpperCase(Locale.ROOT);
+        if (normalized.isBlank()) {
+            return aiEstimatedAmount == null ? "MANUAL" : "AI_COMPLETED";
+        }
+        if (!ANALYSIS_STATUSES.contains(normalized)) {
+            throw new IllegalArgumentException("지원하지 않는 AI 분석 상태입니다.");
+        }
+        return normalized;
     }
 
     private String store(MultipartFile media) {

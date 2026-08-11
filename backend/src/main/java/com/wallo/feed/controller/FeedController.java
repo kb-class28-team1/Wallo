@@ -49,10 +49,13 @@ public class FeedController {
             @RequestParam String caption,
             @RequestParam(defaultValue = "0") int savingAmount,
             @RequestParam(defaultValue = "") String analysisSummary,
-            @RequestParam(defaultValue = "0") double confidenceScore) {
+            @RequestParam(defaultValue = "0") double confidenceScore,
+            @RequestParam(required = false) Integer aiEstimatedAmount,
+            @RequestParam(defaultValue = "MANUAL") String feedbackType,
+            @RequestParam(defaultValue = "MANUAL") String analysisStatus) {
         Feed feed = feedService.create(currentUserProvider.getCurrentUserId(), challengeId,
                 media, spendingType, category, customCategory, caption, savingAmount,
-                analysisSummary, confidenceScore);
+                analysisSummary, confidenceScore, aiEstimatedAmount, feedbackType, analysisStatus);
         return ResponseEntity.status(HttpStatus.CREATED).body(feed);
     }
 

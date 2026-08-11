@@ -8,7 +8,7 @@ public final class FeedDtos {
     private FeedDtos() {}
 
     public record AnalysisResponse(
-            String spendingType, String category, int estimatedSavingAmount,
+            String spendingType, String category, Integer estimatedSavingAmount,
             String summary, double confidenceScore) {}
 
     public static class CategoryExpenseAverage {

@@ -20,8 +20,12 @@ public interface FeedMapper {
                          @Param("mineOnly") boolean mineOnly);
     int insertFeed(Feed feed);
     int insertAnalysis(@Param("feedId") Long feedId, @Param("spendingType") String spendingType,
-                       @Param("category") String category, @Param("amount") int amount,
-                       @Param("summary") String summary, @Param("confidence") double confidence);
+                       @Param("category") String category,
+                       @Param("aiEstimatedAmount") Integer aiEstimatedAmount,
+                       @Param("confirmedAmount") int confirmedAmount,
+                       @Param("summary") String summary, @Param("confidence") double confidence,
+                       @Param("feedbackType") String feedbackType,
+                       @Param("analysisStatus") String analysisStatus);
     int insertFeedShareMessage(@Param("challengeId") Long challengeId,
                                @Param("userId") Long userId, @Param("feedId") Long feedId);
     int incrementLikeCount(@Param("feedId") Long feedId);

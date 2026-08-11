@@ -2,7 +2,6 @@ package com.wallo.feed.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -10,10 +9,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.wallo.feed.analysis.FeedAnalysisClient;
+import com.wallo.feed.domain.Feed;
 import com.wallo.feed.dto.FeedDtos.AnalysisResponse;
-import com.wallo.feed.dto.FeedDtos.CategoryExpenseAverage;
 import com.wallo.feed.mapper.FeedMapper;
-import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
@@ -32,35 +30,25 @@ class FeedServiceTest {
     }
 
     @Test
-    void usesSixtyDayCategoryAverageWhenAiCannotEstimateAmount() {
+    void keepsZeroWhenAiCannotEstimateAmount() {
         when(analysisClient.analyze(any(), eq("REDUCED"), eq("CAFE")))
                 .thenReturn(new AnalysisResponse("REDUCED", "CAFE", 0, "금액을 확인하기 어렵습니다.", 0.2));
-        when(feedMapper.findCategoryExpenseAverage(
-                eq(7L), eq("CAFE"), any(LocalDate.class), any(LocalDate.class)))
-                .thenReturn(average(3, 4_500));
 
         AnalysisResponse result = feedService.analyze(7L, 10L, media(), "REDUCED", "CAFE");
 
-        assertEquals(4_500, result.estimatedSavingAmount());
-        assertTrue(result.summary().contains("최근 60일"));
-        verify(feedMapper).findCategoryExpenseAverage(
-                eq(7L), eq("CAFE"), any(LocalDate.class), any(LocalDate.class));
+        assertEquals(0, result.estimatedSavingAmount());
+        verify(feedMapper, never()).findCategoryExpenseAverage(any(), any(), any(), any());
     }
 
     @Test
-    void extendsHistoryToNinetyDaysWhenSixtyDaysHaveTooFewTransactions() {
+    void keepsZeroForSavedTypeWithoutAnAiAmount() {
         when(analysisClient.analyze(any(), eq("SAVED"), eq("FOOD")))
                 .thenReturn(new AnalysisResponse("SAVED", "FOOD", 0, "금액을 확인하기 어렵습니다.", 0.1));
-        when(feedMapper.findCategoryExpenseAverage(
-                eq(7L), eq("FOOD"), any(LocalDate.class), any(LocalDate.class)))
-                .thenReturn(average(2, 10_000), average(3, 8_000));
 
         AnalysisResponse result = feedService.analyze(7L, 10L, media(), "SAVED", "FOOD");
 
-        assertEquals(8_000, result.estimatedSavingAmount());
-        assertTrue(result.summary().contains("최근 90일"));
-        verify(feedMapper, org.mockito.Mockito.times(2)).findCategoryExpenseAverage(
-                eq(7L), eq("FOOD"), any(LocalDate.class), any(LocalDate.class));
+        assertEquals(0, result.estimatedSavingAmount());
+        verify(feedMapper, never()).findCategoryExpenseAverage(any(), any(), any(), any());
     }
 
     @Test
@@ -72,7 +60,7 @@ class FeedServiceTest {
 
         assertEquals(2_000, result.estimatedSavingAmount());
         verify(feedMapper, never()).findCategoryExpenseAverage(
-                eq(7L), eq("CAFE"), any(LocalDate.class), any(LocalDate.class));
+                eq(7L), eq("CAFE"), any(), any());
     }
 
     @Test
@@ -84,7 +72,20 @@ class FeedServiceTest {
 
         assertEquals(0, result.estimatedSavingAmount());
         verify(feedMapper, never()).findCategoryExpenseAverage(
-                eq(7L), eq("CAFE"), any(LocalDate.class), any(LocalDate.class));
+                eq(7L), eq("CAFE"), any(), any());
+    }
+
+    @Test
+    void allowsManualAmountAfterAiFailure() {
+        Feed result = feedService.create(
+                7L, 10L, media(), "REDUCED", "CAFE", null,
+                "직접 금액을 입력했어요.", 2_500, "AI 분석에 실패했습니다.", 0.0,
+                null, "MANUAL", "AI_FAILED");
+
+        assertEquals(2_500, result.getSavingAmount());
+        verify(feedMapper).insertAnalysis(
+                null, "REDUCED", "CAFE", null, 2_500,
+                "AI 분석에 실패했습니다.", 0.0, "MANUAL", "AI_FAILED");
     }
 
     @Test
@@ -100,10 +101,4 @@ class FeedServiceTest {
         return new MockMultipartFile("media", "feed.jpg", "image/jpeg", new byte[]{1});
     }
 
-    private CategoryExpenseAverage average(long count, long amount) {
-        CategoryExpenseAverage average = new CategoryExpenseAverage();
-        average.setTransactionCount(count);
-        average.setAverageAmount(amount);
-        return average;
-    }
 }
