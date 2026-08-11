@@ -49,6 +49,32 @@ CREATE TABLE IF NOT EXISTS FINANCIAL_GOALS (
   DEFAULT CHARSET=utf8mb4
   COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS GOAL_ROADMAPS;
+
+CREATE TABLE GOAL_ROADMAPS (
+    roadmap_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    goal_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    generation_status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    roadmap_json JSON NULL,
+    failure_reason VARCHAR(500) NULL,
+    prompt_version VARCHAR(50) NOT NULL,
+    current_step_number INT NOT NULL DEFAULT 1,
+    completed_step_numbers JSON NULL,
+    progress_updated_at DATETIME NULL,
+    generated_at DATETIME NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_goal_roadmaps_goal (goal_id),
+    INDEX idx_goal_roadmaps_user_status (user_id, generation_status),
+    CONSTRAINT ck_goal_roadmaps_status
+        CHECK (generation_status IN ('PENDING', 'GENERATING', 'COMPLETED', 'FAILED')),
+    CONSTRAINT ck_goal_roadmaps_current_step
+        CHECK (current_step_number >= 1)
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS FINANCIAL_GOAL_ACCOUNTS (
     goal_id BIGINT NOT NULL PRIMARY KEY,
     account_id BIGINT NOT NULL,
