@@ -18,6 +18,9 @@ import com.wallo.feed.analysis.FeedAnalysisClient;
 import com.wallo.feed.analysis.GeminiFeedAnalysisClient;
 import com.wallo.feed.analysis.MockFeedAnalysisClient;
 import com.wallo.feed.price.NoopShoppingPriceClient;
+import com.wallo.feed.price.NoopRestaurantPriceClient;
+import com.wallo.feed.price.RestaurantPriceClient;
+import com.wallo.feed.price.SerpApiRestaurantPriceClient;
 import com.wallo.feed.price.SerpApiShoppingPriceClient;
 import com.wallo.feed.price.ShoppingPriceClient;
 import java.time.Clock;
@@ -174,6 +177,25 @@ public class AppConfig {
         requestFactory.setConnectTimeout(Math.max(500, connectTimeoutMs));
         requestFactory.setReadTimeout(Math.max(1_000, readTimeoutMs));
         return new SerpApiShoppingPriceClient(
+                new RestTemplate(requestFactory), baseUrl.trim(), apiKey.trim(), maxResults);
+    }
+
+    @Bean
+    public RestaurantPriceClient restaurantPriceClient(
+            @Value("${shopping.price.enabled:false}") boolean enabled,
+            @Value("${shopping.price.serpapi.api-key:}") String apiKey,
+            @Value("${shopping.price.serpapi.base-url:https://serpapi.com/search.json}") String baseUrl,
+            @Value("${shopping.price.connect-timeout-ms:1500}") int connectTimeoutMs,
+            @Value("${shopping.price.read-timeout-ms:4500}") int readTimeoutMs,
+            @Value("${shopping.price.max-results:20}") int maxResults
+    ) {
+        if (!enabled || apiKey == null || apiKey.isBlank()) {
+            return new NoopRestaurantPriceClient();
+        }
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(Math.max(500, connectTimeoutMs));
+        requestFactory.setReadTimeout(Math.max(1_000, readTimeoutMs));
+        return new SerpApiRestaurantPriceClient(
                 new RestTemplate(requestFactory), baseUrl.trim(), apiKey.trim(), maxResults);
     }
 
