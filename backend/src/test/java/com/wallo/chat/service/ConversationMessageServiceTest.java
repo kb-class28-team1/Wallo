@@ -1,6 +1,8 @@
 package com.wallo.chat.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
@@ -203,6 +205,77 @@ class ConversationMessageServiceTest {
     }
 
     @Test
+    void tellsAiWhenTheConversationAlreadyHasAFinancialGoal() {
+        SendConversationMessageRequest request = request(7L, "새로운 여행 목표를 만들고 싶어");
+        ChatRequest expectedRequest = new ChatRequest(request.getMessage())
+                .withGoalAlreadyExists(true);
+
+        when(goalPersistenceService.hasFinancialGoal(7L, 1L)).thenReturn(true);
+        when(persistenceService.saveMessage(1L, "USER", request.getMessage()))
+                .thenReturn(message(1L, "USER", request.getMessage()));
+        when(chatService.chat(expectedRequest, 7L))
+                .thenReturn(new ChatResponse(
+                        "이 채팅방에는 이미 금융 목표가 설정되어 있습니다.",
+                        null
+                ));
+        when(persistenceService.saveMessage(
+                1L,
+                "ASSISTANT",
+                "이 채팅방에는 이미 금융 목표가 설정되어 있습니다."
+        )).thenReturn(message(
+                2L,
+                "ASSISTANT",
+                "이 채팅방에는 이미 금융 목표가 설정되어 있습니다."
+        ));
+
+        conversationMessageService.sendMessage(1L, 7L, request);
+
+        verify(chatService).chat(expectedRequest, 7L);
+    }
+
+    @Test
+    void tellsAiWhenAnotherConversationAlreadyHasTheUsersFinancialGoal() {
+        SendConversationMessageRequest request = request(7L, "새로운 여행 목표를 만들고 싶어");
+        ChatRequest expectedRequest = new ChatRequest(request.getMessage())
+                .withGoalAlreadyExists(true);
+
+        when(goalPersistenceService.hasFinancialGoalForUser(7L)).thenReturn(true);
+        when(persistenceService.saveMessage(1L, "USER", request.getMessage()))
+                .thenReturn(message(1L, "USER", request.getMessage()));
+        when(chatService.chat(expectedRequest, 7L))
+                .thenReturn(new ChatResponse(
+                        "이미 금융 목표가 설정되어 있습니다.",
+                        null
+                ));
+        when(persistenceService.saveMessage(
+                1L,
+                "ASSISTANT",
+                "이미 금융 목표가 설정되어 있습니다."
+        )).thenReturn(message(
+                2L,
+                "ASSISTANT",
+                "이미 금융 목표가 설정되어 있습니다."
+        ));
+
+        conversationMessageService.sendMessage(1L, 7L, request);
+
+        verify(chatService).chat(expectedRequest, 7L);
+    }
+
+    @Test
+    void doesNotRestoreAnInterviewWhenTheConversationAlreadyHasAFinancialGoal() {
+        when(goalPersistenceService.hasFinancialGoal(7L, 1L)).thenReturn(true);
+
+        GoalInterviewDto.ActiveDraftResponse response =
+                conversationMessageService.getActiveGoalInterview(1L, 7L);
+
+        assertFalse(response.isActive());
+        assertNull(response.getDraft());
+        assertNull(response.getFeasibility());
+        verify(goalPersistenceService, org.mockito.Mockito.never()).getActiveDraft(7L, 1L);
+    }
+
+    @Test
     void continuesStoredGoalInterviewAndPersistsTheAiResult() {
         SendConversationMessageRequest request = request(7L, "천만 원이 필요해");
         GoalInterviewDto.Draft storedDraft = goalDraft("COLLECTING", false);
@@ -258,7 +331,6 @@ class ConversationMessageServiceTest {
                 "가족과 여행",
                 "MEDIUM",
                 2_000_000L,
-                600_000L,
                 List.of(),
                 List.of(),
                 confirmed

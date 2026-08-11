@@ -111,6 +111,11 @@ def generate_financial_report(client: Groq, request: NewsReportGenerateRequest, 
         content=request.content,
     )
 
+    reasoning_options = {}
+    if model.startswith("openai/gpt-oss-"):
+        # GPT-OSS JSON mode requires reasoning output to be hidden or parsed.
+        reasoning_options["reasoning_format"] = "hidden"
+
     try:
         response = client.chat.completions.create(
             model=model,
@@ -127,8 +132,15 @@ def generate_financial_report(client: Groq, request: NewsReportGenerateRequest, 
             ],
             response_format={"type": "json_object"},
             max_completion_tokens=4000,
+            **reasoning_options,
         )
     except GroqError as error:
+        logger.error(
+            "Groq request details - status: %s, message: %s, body: %s",
+            getattr(error, "status_code", None),
+            str(error),
+            getattr(error, "body", None),
+        )
         logger.error(
             "Groq 서버 호출 실패 - newsId: %s, 예외: %s",
             request.newsId, type(error).__name__,

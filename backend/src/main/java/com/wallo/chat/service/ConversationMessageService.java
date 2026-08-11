@@ -11,7 +11,9 @@ import com.wallo.chat.dto.SendConversationMessageResponse;
 import com.wallo.chat.dto.SummarizeConversationRequest;
 import com.wallo.chat.dto.SummarizeConversationResponse;
 import com.wallo.goal.dto.GoalInterviewDto;
+import com.wallo.goal.service.GoalFeasibilityCalculator;
 import com.wallo.goal.service.GoalPersistenceService;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -51,6 +53,25 @@ public class ConversationMessageService {
                 .collect(Collectors.toList());
     }
 
+    public GoalInterviewDto.ActiveDraftResponse getActiveGoalInterview(
+            Long conversationId,
+            Long currentUserId
+    ) {
+        conversationService.validateOwnership(conversationId, currentUserId);
+        if (hasExistingFinancialGoal(currentUserId, conversationId)) {
+            return new GoalInterviewDto.ActiveDraftResponse(false, null, null);
+        }
+        GoalInterviewDto.Draft draft = goalPersistenceService.getActiveDraft(
+                currentUserId,
+                conversationId
+        );
+        return new GoalInterviewDto.ActiveDraftResponse(
+                draft != null,
+                draft,
+                GoalFeasibilityCalculator.calculate(draft, LocalDate.now())
+        );
+    }
+
     public SendConversationMessageResponse sendMessage(
             Long conversationId,
             Long currentUserId,
@@ -73,6 +94,10 @@ public class ConversationMessageService {
                 currentUserId,
                 conversationId
         );
+        boolean goalAlreadyExists = hasExistingFinancialGoal(currentUserId, conversationId);
+        if (goalAlreadyExists) {
+            goalDraft = null;
+        }
         ChatMessage userMessage = persistenceService.saveMessage(
                 conversationId,
                 USER_ROLE,
@@ -80,10 +105,11 @@ public class ConversationMessageService {
         );
         ChatResponse aiResponse = chatService.chat(
                 new ChatRequest(content, isFirstMessage, summary, history)
-                        .withGoalDraft(goalDraft),
+                        .withGoalDraft(goalDraft)
+                        .withGoalAlreadyExists(goalAlreadyExists),
                 currentUserId
         );
-        goalPersistenceService.applyResult(
+        GoalInterviewDto.Result persistedGoalInterview = goalPersistenceService.applyResult(
                 currentUserId,
                 conversationId,
                 aiResponse.goalInterview()
@@ -105,7 +131,10 @@ public class ConversationMessageService {
 
         return new SendConversationMessageResponse(
                 ChatMessageResponse.from(userMessage),
-                ChatMessageResponse.from(assistantMessage)
+                ChatMessageResponse.from(assistantMessage),
+                persistedGoalInterview == null
+                        ? aiResponse.goalInterview()
+                        : persistedGoalInterview
         );
     }
 
@@ -158,6 +187,11 @@ public class ConversationMessageService {
                 message.getRole().toLowerCase(),
                 message.getContent()
         );
+    }
+
+    private boolean hasExistingFinancialGoal(Long userId, Long conversationId) {
+        return goalPersistenceService.hasFinancialGoalForUser(userId)
+                || goalPersistenceService.hasFinancialGoal(userId, conversationId);
     }
 
     private void validateRequest(

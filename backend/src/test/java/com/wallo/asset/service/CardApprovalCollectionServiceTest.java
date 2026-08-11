@@ -19,6 +19,7 @@ import com.wallo.asset.classification.MerchantSectorCategoryRule;
 import com.wallo.asset.domain.Institution;
 import com.wallo.asset.dto.AssetSyncDto;
 import com.wallo.asset.mapper.AssetSyncMapper;
+import com.wallo.external.auth.MockCodefCredentialProvider;
 import com.wallo.external.client.CardApprovalClient;
 import com.wallo.external.dto.CodefDto;
 import java.time.Clock;
@@ -59,6 +60,7 @@ class CardApprovalCollectionServiceTest {
         );
         service = new CardApprovalCollectionService(
                 cardApprovalClient,
+                new MockCodefCredentialProvider("1", "mock_id", "mock_pw"),
                 new ObjectMapper(),
                 classifier,
                 new TransactionSourceKeyGenerator(),
@@ -92,6 +94,9 @@ class CardApprovalCollectionServiceTest {
         ArgumentCaptor<CodefDto.CardApprovalRequest> requestCaptor =
                 ArgumentCaptor.forClass(CodefDto.CardApprovalRequest.class);
         verify(cardApprovalClient).getApprovals(requestCaptor.capture());
+        assertEquals("1", requestCaptor.getValue().getLoginType());
+        assertEquals("mock_id", requestCaptor.getValue().getId());
+        assertEquals("mock_pw", requestCaptor.getValue().getPassword());
         assertEquals("20260701", requestCaptor.getValue().getStartDate());
         assertEquals("20260731", requestCaptor.getValue().getEndDate());
 

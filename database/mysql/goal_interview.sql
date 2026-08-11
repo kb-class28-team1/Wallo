@@ -35,14 +35,30 @@ CREATE TABLE IF NOT EXISTS FINANCIAL_GOALS (
     motivation VARCHAR(500) NULL,
     priority VARCHAR(20) NULL,
     initial_amount BIGINT NOT NULL DEFAULT 0,
-    monthly_contribution BIGINT NOT NULL DEFAULT 0,
+    required_monthly_amount BIGINT NOT NULL DEFAULT 0,
     status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_financial_goals_conversation (conversation_id),
     UNIQUE KEY uk_financial_goals_session (session_id),
+    UNIQUE KEY uk_financial_goals_user (user_id),
     INDEX idx_financial_goals_user_status (user_id, status, target_date),
     CONSTRAINT ck_financial_goals_status
         CHECK (status IN ('ACTIVE', 'ACHIEVED', 'CANCELLED'))
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS FINANCIAL_GOAL_ACCOUNTS (
+    goal_id BIGINT NOT NULL PRIMARY KEY,
+    account_id BIGINT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_financial_goal_accounts_account (account_id),
+    CONSTRAINT fk_financial_goal_accounts_goal
+        FOREIGN KEY (goal_id) REFERENCES FINANCIAL_GOALS(goal_id) ON DELETE CASCADE,
+    CONSTRAINT fk_financial_goal_accounts_account
+        FOREIGN KEY (account_id) REFERENCES ACCOUNTS(account_id) ON DELETE CASCADE
 ) ENGINE=InnoDB
   DEFAULT CHARSET=utf8mb4
   COLLATE=utf8mb4_unicode_ci;
@@ -54,3 +70,84 @@ CREATE TABLE IF NOT EXISTS FINANCIAL_GOALS (
 ALTER TABLE FINANCIAL_GOALS
     MODIFY motivation VARCHAR(500) NULL,
     MODIFY priority VARCHAR(20) NULL;
+
+-- 기존 컬럼을 사용 중인 환경에서는 계산값 컬럼으로 이름을 변경한다.
+SET @required_monthly_amount_exists = (
+    SELECT COUNT(*)
+    FROM information_schema.columns
+    WHERE table_schema = DATABASE()
+      AND table_name = 'FINANCIAL_GOALS'
+      AND column_name = 'required_monthly_amount'
+);
+SET @monthly_contribution_exists = (
+    SELECT COUNT(*)
+    FROM information_schema.columns
+    WHERE table_schema = DATABASE()
+      AND table_name = 'FINANCIAL_GOALS'
+      AND column_name = 'monthly_contribution'
+);
+SET @required_monthly_amount_rename_sql = IF(
+    @required_monthly_amount_exists = 0 AND @monthly_contribution_exists = 1,
+    'ALTER TABLE FINANCIAL_GOALS CHANGE COLUMN monthly_contribution required_monthly_amount BIGINT NOT NULL DEFAULT 0',
+    'SELECT 1'
+);
+PREPARE required_monthly_amount_rename_statement FROM @required_monthly_amount_rename_sql;
+EXECUTE required_monthly_amount_rename_statement;
+DEALLOCATE PREPARE required_monthly_amount_rename_statement;
+
+-- 컬럼을 변경한 기존 목표는 과거 사용자 입력값이 아니라 새 계산 규칙으로 보정한다.
+-- 이미 required_monthly_amount 컬럼이 있던 환경에는 적용하지 않는다.
+SET @required_monthly_amount_recalculate_sql = IF(
+    @required_monthly_amount_exists = 0 AND @monthly_contribution_exists = 1,
+    'UPDATE FINANCIAL_GOALS
+     SET required_monthly_amount = CASE
+         WHEN target_amount <= initial_amount THEN 0
+         WHEN target_date <= CURRENT_DATE THEN 0
+         ELSE CEIL(
+             (target_amount - initial_amount) /
+             (TIMESTAMPDIFF(MONTH, CURRENT_DATE, target_date)
+                 + (DAY(target_date) > DAY(CURRENT_DATE)))
+         )
+     END',
+    'SELECT 1'
+);
+PREPARE required_monthly_amount_recalculate_statement
+    FROM @required_monthly_amount_recalculate_sql;
+EXECUTE required_monthly_amount_recalculate_statement;
+DEALLOCATE PREPARE required_monthly_amount_recalculate_statement;
+
+-- 기존 FINANCIAL_GOALS 테이블에도 대화방당 목표 1개 제약을 적용한다.
+-- 이미 같은 conversation_id가 여러 건이면 아래 ALTER 전에 중복을 정리해야 한다.
+SET @goal_conversation_unique_exists = (
+    SELECT COUNT(*)
+    FROM information_schema.statistics
+    WHERE table_schema = DATABASE()
+      AND table_name = 'FINANCIAL_GOALS'
+      AND index_name = 'uk_financial_goals_conversation'
+);
+SET @goal_conversation_unique_sql = IF(
+    @goal_conversation_unique_exists = 0,
+    'ALTER TABLE FINANCIAL_GOALS ADD UNIQUE KEY uk_financial_goals_conversation (conversation_id)',
+    'SELECT 1'
+);
+PREPARE goal_conversation_unique_statement FROM @goal_conversation_unique_sql;
+EXECUTE goal_conversation_unique_statement;
+DEALLOCATE PREPARE goal_conversation_unique_statement;
+
+-- 기존 FINANCIAL_GOALS 테이블에도 사용자당 목표 1개 제약을 적용한다.
+-- 이미 같은 user_id가 여러 건이면 아래 ALTER 전에 중복을 정리해야 한다.
+SET @goal_user_unique_exists = (
+    SELECT COUNT(*)
+    FROM information_schema.statistics
+    WHERE table_schema = DATABASE()
+      AND table_name = 'FINANCIAL_GOALS'
+      AND index_name = 'uk_financial_goals_user'
+);
+SET @goal_user_unique_sql = IF(
+    @goal_user_unique_exists = 0,
+    'ALTER TABLE FINANCIAL_GOALS ADD UNIQUE KEY uk_financial_goals_user (user_id)',
+    'SELECT 1'
+);
+PREPARE goal_user_unique_statement FROM @goal_user_unique_sql;
+EXECUTE goal_user_unique_statement;
+DEALLOCATE PREPARE goal_user_unique_statement;

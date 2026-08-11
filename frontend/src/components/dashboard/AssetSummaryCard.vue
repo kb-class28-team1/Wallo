@@ -24,7 +24,10 @@ ChartJS.register(
 const props = defineProps({
   assets: {
     type: Object,
-    required: true,
+    default: () => ({
+      totalAssets: 0,
+      previousMonthTotalAssets: 0,
+    }),
   },
   chartData: {
     type: Object,

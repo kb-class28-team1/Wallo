@@ -62,14 +62,18 @@ class ConnectionControllerTest {
     @Test
     void connectAllAssetsKeepsExistingEndpoint() throws Exception {
         when(connectionService.connectAllAssets(eq(7L), any(ConnectionDto.Request.class)))
-                .thenReturn(new ConnectionDto.Response(Collections.emptyList()));
+                .thenReturn(new ConnectionDto.Response(
+                        Collections.emptyList(),
+                        ConnectionDto.AnnualSalaryLookupStatus.UNAVAILABLE
+                ));
 
         mockMvc.perform(post("/api/connections")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"consentAgreed\":true}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.results").isArray());
+                .andExpect(jsonPath("$.data.results").isArray())
+                .andExpect(jsonPath("$.data.annualSalaryLookupStatus").value("UNAVAILABLE"));
 
         verify(connectionService).connectAllAssets(eq(7L), any(ConnectionDto.Request.class));
     }

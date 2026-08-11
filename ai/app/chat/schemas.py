@@ -31,6 +31,7 @@ class ChatRequest(BaseModel):
         alias="financialContext",
     )
     goal_draft: GoalDraft | None = Field(default=None, alias="goalDraft")
+    goal_already_exists: bool = Field(default=False, alias="goalAlreadyExists")
 
 
 class GoalInterviewResponse(BaseModel):

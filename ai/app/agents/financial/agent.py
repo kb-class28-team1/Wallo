@@ -16,8 +16,10 @@ from app.core.config import get_groq_model
 
 logger = logging.getLogger("wallo_ai")
 ASSET_ANALYSIS_TOOL = "analyze_assets"
+PRODUCT_RECOMMENDATION_TOOL = "recommend_financial_products"
 DEFAULT_FINAL_COMPLETION_TOKENS = 500
 ASSET_ANALYSIS_FINAL_COMPLETION_TOKENS = 1200
+PRODUCT_RECOMMENDATION_FINAL_COMPLETION_TOKENS = 1000
 
 
 def parse_tool_arguments(raw_arguments: str) -> dict[str, Any]:
@@ -113,6 +115,13 @@ class FinancialAgent:
             final_options.update({
                 "reasoning_effort": "low",
                 "max_completion_tokens": ASSET_ANALYSIS_FINAL_COMPLETION_TOKENS,
+            })
+        elif self.selected_tool == PRODUCT_RECOMMENDATION_TOOL:
+            final_options.update({
+                "reasoning_effort": "low",
+                "max_completion_tokens": (
+                    PRODUCT_RECOMMENDATION_FINAL_COMPLETION_TOKENS
+                ),
             })
         final_completion = self.client.chat.completions.create(**final_options)
         answer = final_completion.choices[0].message.content or "도구 호출 결과를 정리하지 못했습니다."

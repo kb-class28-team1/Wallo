@@ -28,7 +28,6 @@ def complete_draft(state=InterviewState.CONFIRMATION):
         motivation="취업 3주년 기념 여행",
         priority=GoalPriority.HIGH,
         current_amount=2_000_000,
-        monthly_contribution=700_000,
     )
 
 
@@ -99,7 +98,7 @@ def test_natural_emergency_goal_reaches_review_even_when_model_extraction_fails(
     assert response.goal_interview.draft.title == "비상금 마련"
     assert response.goal_interview.draft.state == InterviewState.CONFIRMATION
     assert response.goal_interview.draft.missing_fields == []
-    assert "현재 계획으로 확정" in response.answer
+    assert "이 계획으로 확정" in response.answer
 
 
 def test_active_confirmation_is_confirmed_without_another_llm_call():
@@ -114,6 +113,48 @@ def test_active_confirmation_is_confirmed_without_another_llm_call():
     assert response.goal_interview.active is False
     assert response.goal_interview.draft.state == InterviewState.COMPLETED
     assert response.goal_interview.draft.confirmed is True
+    client.chat.completions.create.assert_not_called()
+
+
+def test_ui_confirmation_phrase_is_confirmed_without_another_llm_call():
+    client = Mock()
+
+    response = ChatService(client).chat(
+        ChatRequest(message="이대로 확정할게", goal_draft=complete_draft()),
+    )
+
+    assert response.goal_interview is not None
+    assert response.goal_interview.action == GoalInterviewAction.CONFIRM
+    assert response.goal_interview.active is False
+    assert response.goal_interview.draft.state == InterviewState.COMPLETED
+    assert response.goal_interview.draft.confirmed is True
+    client.chat.completions.create.assert_not_called()
+
+
+def test_confirmation_without_active_goal_does_not_start_an_empty_interview():
+    client = Mock()
+
+    response = ChatService(client).chat(
+        ChatRequest(message="확정할게", goalAlreadyExists=True),
+    )
+
+    assert response.goal_interview is None
+    assert "이미 금융 목표가 설정되어 있습니다" in response.answer
+    client.chat.completions.create.assert_not_called()
+
+
+def test_existing_goal_blocks_a_second_goal_interview():
+    client = Mock()
+
+    response = ChatService(client).chat(
+        ChatRequest(
+            message="새로운 여행 목표를 만들고 싶어",
+            goalAlreadyExists=True,
+        ),
+    )
+
+    assert response.goal_interview is None
+    assert "한 사람당 하나의 목표" in response.answer
     client.chat.completions.create.assert_not_called()
 
 
@@ -142,4 +183,4 @@ def test_goal_response_serializes_with_spring_camel_case_contract():
 
     assert payload["goalInterview"]["draft"]["goalType"] == "TRAVEL"
     assert payload["goalInterview"]["draft"]["targetAmount"] == 8_000_000
-    assert payload["goalInterview"]["draft"]["monthlyContribution"] == 700_000
+    assert "monthlyContribution" not in payload["goalInterview"]["draft"]

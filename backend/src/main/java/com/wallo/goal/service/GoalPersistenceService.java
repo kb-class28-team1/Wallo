@@ -6,7 +6,9 @@ import com.wallo.goal.domain.FinancialGoal;
 import com.wallo.goal.domain.GoalInterviewSession;
 import com.wallo.goal.dto.GoalInterviewDto;
 import com.wallo.goal.mapper.GoalMapper;
+import java.time.LocalDate;
 import java.util.List;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,6 +18,8 @@ public class GoalPersistenceService {
     private static final String ACTIVE = "ACTIVE";
     private static final String COMPLETED = "COMPLETED";
     private static final String CANCELLED = "CANCELLED";
+    private static final String EXISTING_GOAL_MESSAGE =
+            "이미 금융 목표가 설정되어 있습니다. 한 사람당 하나의 목표만 설정할 수 있습니다.";
 
     private final GoalMapper goalMapper;
     private final ObjectMapper objectMapper;
@@ -40,20 +44,40 @@ public class GoalPersistenceService {
         }
     }
 
+    public boolean hasFinancialGoal(Long userId, Long conversationId) {
+        return goalMapper.countFinancialGoals(userId, conversationId) > 0;
+    }
+
+    public boolean hasFinancialGoalForUser(Long userId) {
+        return goalMapper.countFinancialGoalsByUserId(userId) > 0;
+    }
+
     @Transactional
-    public void applyResult(
+    public GoalInterviewDto.Result applyResult(
             Long userId,
             Long conversationId,
             GoalInterviewDto.Result result
     ) {
         if (result == null || result.getDraft() == null || result.getAction() == null) {
-            return;
+            return result;
         }
+        GoalInterviewDto.Feasibility feasibility =
+                GoalFeasibilityCalculator.calculate(result.getDraft(), LocalDate.now());
         switch (result.getAction()) {
-            case CONTINUE -> saveDraft(userId, conversationId, result.getDraft());
-            case CONFIRM -> confirmGoal(userId, conversationId, result.getDraft());
-            case CANCEL -> finishSession(userId, conversationId, CANCELLED);
+            case CONTINUE -> {
+                saveDraft(userId, conversationId, result.getDraft());
+                return withFeasibility(result, feasibility);
+            }
+            case CONFIRM -> {
+                confirmGoal(userId, conversationId, result.getDraft(), feasibility);
+                return withFeasibility(result, feasibility);
+            }
+            case CANCEL -> {
+                finishSession(userId, conversationId, CANCELLED);
+                return result;
+            }
         }
+        return result;
     }
 
     private void saveDraft(
@@ -61,6 +85,14 @@ public class GoalPersistenceService {
             Long conversationId,
             GoalInterviewDto.Draft draft
     ) {
+        if (hasFinancialGoalForUser(userId)) {
+            throw new IllegalArgumentException(EXISTING_GOAL_MESSAGE);
+        }
+        if (hasFinancialGoal(userId, conversationId)) {
+            throw new IllegalStateException(
+                    "이 채팅방에는 이미 금융 목표가 설정되어 있습니다."
+            );
+        }
         String draftJson = serialize(draft);
         String lastQuestionField = firstMissingField(draft.getMissingFields());
         GoalInterviewSession session = goalMapper.findActiveSession(userId, conversationId);
@@ -87,9 +119,18 @@ public class GoalPersistenceService {
     private void confirmGoal(
             Long userId,
             Long conversationId,
-            GoalInterviewDto.Draft draft
+            GoalInterviewDto.Draft draft,
+            GoalInterviewDto.Feasibility feasibility
     ) {
-        validateConfirmedDraft(draft);
+        validateConfirmedDraft(draft, feasibility);
+        if (hasFinancialGoalForUser(userId)) {
+            throw new IllegalArgumentException(EXISTING_GOAL_MESSAGE);
+        }
+        if (hasFinancialGoal(userId, conversationId)) {
+            throw new IllegalStateException(
+                    "이 채팅방에는 이미 금융 목표가 설정되어 있습니다."
+            );
+        }
         GoalInterviewSession session = goalMapper.findActiveSession(userId, conversationId);
         if (session == null) {
             throw new IllegalStateException("확정할 목표 인터뷰가 없습니다.");
@@ -106,9 +147,13 @@ public class GoalPersistenceService {
         goal.setMotivation(draft.getMotivation());
         goal.setPriority(draft.getPriority());
         goal.setInitialAmount(draft.getCurrentAmount());
-        goal.setMonthlyContribution(draft.getMonthlyContribution());
+        goal.setRequiredMonthlyAmount(feasibility.getRequiredMonthlyAmount());
         goal.setStatus(ACTIVE);
-        goalMapper.insertGoal(goal);
+        try {
+            goalMapper.insertGoal(goal);
+        } catch (DuplicateKeyException exception) {
+            throw new IllegalArgumentException(EXISTING_GOAL_MESSAGE, exception);
+        }
 
         if (goalMapper.completeSession(session.getSessionId(), COMPLETED) != 1) {
             throw new IllegalStateException("목표 인터뷰를 완료 처리하지 못했습니다.");
@@ -122,7 +167,10 @@ public class GoalPersistenceService {
         }
     }
 
-    private void validateConfirmedDraft(GoalInterviewDto.Draft draft) {
+    private void validateConfirmedDraft(
+            GoalInterviewDto.Draft draft,
+            GoalInterviewDto.Feasibility feasibility
+    ) {
         boolean invalid = !draft.isConfirmed()
                 || !"COMPLETED".equals(draft.getState())
                 || blank(draft.getTitle())
@@ -132,8 +180,8 @@ public class GoalPersistenceService {
                 || draft.getTargetDate() == null
                 || draft.getCurrentAmount() == null
                 || draft.getCurrentAmount() < 0
-                || draft.getMonthlyContribution() == null
-                || draft.getMonthlyContribution() < 0;
+                || feasibility == null
+                || feasibility.getRequiredMonthlyAmount() == null;
         if (invalid) {
             throw new IllegalArgumentException("완성되지 않은 목표는 확정할 수 없습니다.");
         }
@@ -155,5 +203,17 @@ public class GoalPersistenceService {
 
     private boolean blank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private GoalInterviewDto.Result withFeasibility(
+            GoalInterviewDto.Result result,
+            GoalInterviewDto.Feasibility feasibility
+    ) {
+        return new GoalInterviewDto.Result(
+                result.getAction(),
+                result.isActive(),
+                result.getDraft(),
+                feasibility
+        );
     }
 }

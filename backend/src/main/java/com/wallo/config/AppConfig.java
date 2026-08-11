@@ -3,13 +3,24 @@ package com.wallo.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.wallo.external.auth.CodefAccessTokenProvider;
+import com.wallo.external.auth.CodefAuthorizedRequestFactory;
+import com.wallo.external.auth.CodefCredentialProvider;
+import com.wallo.external.auth.CodefPasswordEncryptor;
+import com.wallo.external.auth.ConfiguredCodefAccessTokenProvider;
+import com.wallo.external.auth.IdentityCodefPasswordEncryptor;
+import com.wallo.external.auth.MockCodefAccessTokenProvider;
+import com.wallo.external.auth.MockCodefCredentialProvider;
+import com.wallo.external.auth.RsaCodefPasswordEncryptor;
+import com.wallo.external.client.CodefMockApiUrlProvider;
+import com.wallo.external.client.CodefMockClient;
 import com.wallo.feed.analysis.FeedAnalysisClient;
 import com.wallo.feed.analysis.GeminiFeedAnalysisClient;
 import com.wallo.feed.analysis.MockFeedAnalysisClient;
 import java.time.Clock;
-import org.springframework.beans.factory.annotation.Value;
-import java.time.Clock;
 import java.time.ZoneId;
+import java.util.Locale;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
@@ -32,26 +43,94 @@ import org.springframework.web.client.RestTemplate;
         }
 )
 @PropertySource("classpath:application.properties")
-// 개발자 개인 로컬 값(DB 비밀번호 등)을 override하는 파일. gitignore 대상이라 커밋되지 않으며,
-// 파일이 없어도(다른 팀원/CI 환경) 부팅에 실패하지 않도록 ignoreResourceNotFound를 켠다.
-// 뒤에 선언된 PropertySource가 우선순위가 높아, 여기 있는 값이 application.properties보다 우선 적용된다.
 @PropertySource(value = "classpath:application-local.properties", ignoreResourceNotFound = true)
 public class AppConfig {
 
-    private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Seoul");
-
-    /**
-     * @Value("${...}") 형식의 설정값을 application.properties에서 치환한다.
-     *
-     * Spring Boot를 사용하지 않는 Legacy Spring에서는 이 빈을 직접 등록해야 한다.
-     */
     @Bean
     public static PropertySourcesPlaceholderConfigurer propertySourcesPlaceholderConfigurer() {
         return new PropertySourcesPlaceholderConfigurer();
     }
+
     @Bean
     public RestTemplate restTemplate() {
         return new RestTemplate();
+    }
+
+    @Bean
+    public CodefAccessTokenProvider codefAccessTokenProvider(
+            @Value("${codef.client.mode:mock}") String clientMode,
+            @Value("${codef.api.access-token:}") String apiAccessToken,
+            @Value("${codef.mock-api.access-token:mock-codef-token}") String mockAccessToken,
+            @Value("${codef.real-api.access-token:}") String realAccessToken
+    ) {
+        String accessToken = firstNonBlank(
+                apiAccessToken,
+                isMockMode(clientMode) ? mockAccessToken : realAccessToken
+        );
+        if (isMockMode(clientMode)) {
+            return new MockCodefAccessTokenProvider(accessToken);
+        }
+        return new ConfiguredCodefAccessTokenProvider(accessToken);
+    }
+
+    @Bean
+    public CodefCredentialProvider codefCredentialProvider(
+            @Value("${codef.mock.login-type:1}") String mockLoginType,
+            @Value("${codef.mock.id:mock_id}") String mockId,
+            @Value("${codef.mock.password:mock_pw}") String mockPassword
+    ) {
+        return new MockCodefCredentialProvider(mockLoginType, mockId, mockPassword);
+    }
+
+    @Bean(name = {
+            "codefClient",
+            "bankTransactionClient",
+            "cardApprovalClient",
+            "incomeProofClient"
+    })
+    public CodefMockClient codefClient(
+            RestTemplate restTemplate,
+            CodefAuthorizedRequestFactory requestFactory,
+            CodefPasswordEncryptor passwordEncryptor,
+            @Value("${codef.client.mode:mock}") String clientMode,
+            @Value("${codef.api.base-url:}") String apiBaseUrl,
+            @Value("${codef.api.path-prefix:}") String apiPathPrefix,
+            @Value("${codef.mock-api.base-url:http://localhost:8080}") String mockBaseUrl,
+            @Value("${codef.real-api.base-url:}") String realBaseUrl
+    ) {
+        if (!isMockMode(clientMode) && !isRealMode(clientMode)) {
+            throw new IllegalArgumentException(
+                    "Unsupported CODEF client mode: " + clientMode
+            );
+        }
+
+        String baseUrl = firstNonBlank(
+                apiBaseUrl,
+                isMockMode(clientMode) ? mockBaseUrl : realBaseUrl
+        );
+        String pathPrefix = firstNonBlank(
+                apiPathPrefix,
+                isMockMode(clientMode) ? "/mock/v1" : "/v1"
+        );
+
+        return new CodefMockClient(
+                restTemplate,
+                new CodefMockApiUrlProvider(baseUrl),
+                requestFactory,
+                passwordEncryptor,
+                pathPrefix
+        );
+    }
+
+    @Bean
+    public CodefPasswordEncryptor codefPasswordEncryptor(
+            @Value("${codef.client.mode:mock}") String clientMode,
+            @Value("${codef.real-api.public-key:}") String realPublicKey
+    ) {
+        if (isMockMode(clientMode)) {
+            return new IdentityCodefPasswordEncryptor();
+        }
+        return new RsaCodefPasswordEncryptor(realPublicKey);
     }
 
     @Bean
@@ -60,10 +139,15 @@ public class AppConfig {
             ObjectMapper objectMapper,
             @Value("${gemini.enabled:false}") boolean geminiEnabled,
             @Value("${gemini.api-key:}") String geminiApiKey,
-            @Value("${gemini.model:gemini-3.6-flash}") String geminiModel) {
+            @Value("${gemini.model:gemini-3.6-flash}") String geminiModel
+    ) {
         if (geminiEnabled && geminiApiKey != null && !geminiApiKey.isBlank()) {
             return new GeminiFeedAnalysisClient(
-                    restTemplate, objectMapper, geminiApiKey.trim(), geminiModel.trim());
+                    restTemplate,
+                    objectMapper,
+                    geminiApiKey.trim(),
+                    geminiModel.trim()
+            );
         }
         return new MockFeedAnalysisClient();
     }
@@ -83,5 +167,22 @@ public class AppConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
+    }
+
+    private boolean isMockMode(String clientMode) {
+        return clientMode == null
+                || clientMode.isBlank()
+                || "mock".equals(clientMode.trim().toLowerCase(Locale.ROOT));
+    }
+
+    private boolean isRealMode(String clientMode) {
+        String normalizedMode = clientMode == null
+                ? ""
+                : clientMode.trim().toLowerCase(Locale.ROOT);
+        return "sandbox".equals(normalizedMode) || "real".equals(normalizedMode);
+    }
+
+    private String firstNonBlank(String first, String fallback) {
+        return first != null && !first.isBlank() ? first.trim() : fallback;
     }
 }

@@ -1,6 +1,7 @@
 package com.wallo.asset.service;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -9,12 +10,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wallo.asset.domain.Institution;
 import com.wallo.asset.dto.AssetSyncDto;
 import com.wallo.asset.mapper.AssetMapper;
 import com.wallo.asset.mapper.AssetSyncMapper;
 import com.wallo.external.dto.CodefDto;
+import com.wallo.external.converter.ObjectMapperCodefAssetResponseMapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -34,7 +36,7 @@ class AssetSyncServiceTest {
     private final AssetSyncService assetSyncService = new AssetSyncService(
             assetSyncMapper,
             assetMapper,
-            new ObjectMapper(),
+            new ObjectMapperCodefAssetResponseMapper(new ObjectMapper()),
             cardApprovalCollectionService,
             bankTransactionCollectionService,
             new ConsumptionInsightCache(),
@@ -64,6 +66,38 @@ class AssetSyncServiceTest {
         verify(cardApprovalCollectionService).collectInitial(7L, 11L, institution);
         verify(assetSyncMapper, never()).updateTransactionByApproval(any());
         verify(assetSyncMapper, never()).insertTransaction(any());
+    }
+
+    @Test
+    void syncAccountBalancesUpsertsAccountsAndRecordsLastSync() {
+        Institution institution = new Institution(1L, "0004", "Wallo Bank", "BANK", "bank-logo");
+        Map<String, Object> data = Map.of(
+                "accounts", List.of(Map.of(
+                        "resAccount", "123456-01-789012",
+                        "resAccountDisplay", "123456-**-***012",
+                        "resAccountName", "Emergency fund",
+                        "resAccountBalance", "7250000",
+                        "resAccountEvalAmount", "7250000",
+                        "resAccountCurrency", "KRW",
+                        "resAccountStatus", "1",
+                        "resAccountSubtype", "CHECKING"
+                ))
+        );
+
+        assetSyncService.syncAccountBalances(
+                11L,
+                institution,
+                CodefDto.Response.success(data)
+        );
+
+        ArgumentCaptor<AssetSyncDto.Account> accountCaptor =
+                ArgumentCaptor.forClass(AssetSyncDto.Account.class);
+        verify(assetSyncMapper).upsertAccount(eq(11L), accountCaptor.capture());
+        assertEquals(7_250_000L, accountCaptor.getValue().getBalance());
+        assertEquals("ACTIVE", accountCaptor.getValue().getStatus());
+        verify(assetSyncMapper).updateConnectionLastSyncAt(11L);
+        verify(bankTransactionCollectionService, never()).collectInitial(anyLong(), anyLong(), any(), any());
+        verify(cardApprovalCollectionService, never()).collectInitial(anyLong(), anyLong(), any());
     }
 
     @Test
