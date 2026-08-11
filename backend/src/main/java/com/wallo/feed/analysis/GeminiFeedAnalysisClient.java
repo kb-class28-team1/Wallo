@@ -102,6 +102,10 @@ public class GeminiFeedAnalysisClient implements FeedAnalysisClient {
                   "summary": "절약 행동에 대한 짧은 한국어 설명",
                   "confidenceScore": 0.0
                 }
+                분석 범위는 위에서 지정한 category 한 가지만으로 제한합니다.
+                카테고리 코드: FOOD(식비), CAFE(카페), TRANSPORT(교통/차량), SHOPPING(쇼핑),
+                DELIVERY(배달), HOUSING(주거/통신), LIVING(생활), CULTURE(문화), HEALTH(건강), ETC(기타).
+                지정된 category의 절약 행동과 근거만 분석하고 다른 카테고리의 물품·행동은 무시하세요.
                 """.formatted(spendingType, category, spendingType, category);
     }
 
