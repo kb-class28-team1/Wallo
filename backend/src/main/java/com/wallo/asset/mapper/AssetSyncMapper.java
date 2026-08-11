@@ -16,6 +16,8 @@ public interface AssetSyncMapper {
 
     Long findCardId(@Param("connectionId") long connectionId, @Param("cardNumber") String cardNumber);
 
+    List<String> findActiveCardNumbers(@Param("connectionId") long connectionId);
+
     int upsertAssetSnapshot(
             @Param("userId") long userId,
             @Param("snapshot") AssetSyncDto.AssetSnapshot snapshot

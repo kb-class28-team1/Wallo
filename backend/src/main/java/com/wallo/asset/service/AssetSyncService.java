@@ -99,7 +99,9 @@ public class AssetSyncService {
         }
 
         List<NormalizedAccount> normalizedAccounts = upsertAccounts(connectionId, institution, data);
-        for (CodefDto.Card card : values(data.getCards())) {
+        for (CodefDto.Card card : values(data.getCards()).stream()
+                .filter(card -> isActiveAssetStatus(card.getResCardState()))
+                .toList()) {
             assetSyncMapper.upsertCard(connectionId, new AssetSyncDto.Card(
                     AssetIdentifierNormalizer.normalize(card.getResCardNo(), "card number"),
                     card.getResCardName(), defaultValue(card.getResCardType(), "CREDIT"),
@@ -206,6 +208,7 @@ public class AssetSyncService {
             CodefDto.AssetData data
     ) {
         List<NormalizedAccount> normalizedAccounts = values(data.getAccounts()).stream()
+                .filter(account -> isActiveAssetStatus(account.getResAccountStatus()))
                 .map(account -> new NormalizedAccount(
                         account,
                         AssetIdentifierNormalizer.normalize(account.getResAccount(), "account number")
@@ -219,7 +222,9 @@ public class AssetSyncService {
                     amount(defaultValue(account.getResAccountEvalAmount(), account.getResAccountBalance())),
                     defaultValue(account.getResAccountCurrency(), "KRW"), status(account.getResAccountStatus())));
         }
-        for (CodefDto.Loan loan : values(data.getLoans())) {
+        for (CodefDto.Loan loan : values(data.getLoans()).stream()
+                .filter(loan -> isActiveAssetStatus(loan.getResLoanStatus()))
+                .toList()) {
             String accountNumber = AssetIdentifierNormalizer.normalize(loan.getResLoanAccount(), "loan account number");
             assetSyncMapper.upsertAccount(connectionId, new AssetSyncDto.Account(
                     accountNumber, loan.getResLoanDisplay(), loan.getResLoanName(), "LOAN", "LOAN",
@@ -496,6 +501,12 @@ public class AssetSyncService {
 
     private String status(String value) {
         return "1".equals(value) || "ACTIVE".equals(value) ? "ACTIVE" : "INACTIVE";
+    }
+
+    private boolean isActiveAssetStatus(String value) {
+        // Legacy CODEF payloads may omit the status field; keep those assets eligible
+        // while treating explicit inactive values as non-syncable.
+        return blank(value) || "1".equals(value) || "ACTIVE".equalsIgnoreCase(value);
     }
 
     private String defaultValue(String value, String defaultValue) {

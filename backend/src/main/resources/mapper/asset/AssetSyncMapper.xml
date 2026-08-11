@@ -53,6 +53,14 @@
         WHERE connection_id = #{connectionId} AND card_number = #{cardNumber}
     </select>
 
+    <select id="findActiveCardNumbers" resultType="java.lang.String">
+        SELECT card_number
+        FROM CARDS
+        WHERE connection_id = #{connectionId}
+          AND status = 'ACTIVE'
+        ORDER BY card_id
+    </select>
+
     <insert id="upsertAssetSnapshot">
         INSERT INTO ASSET_SNAPSHOTS (user_id, snapshot_month, total_assets)
         VALUES (#{userId}, #{snapshot.month}, #{snapshot.totalAssets})

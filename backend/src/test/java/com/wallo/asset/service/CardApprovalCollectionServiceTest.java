@@ -3,6 +3,7 @@ package com.wallo.asset.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -68,6 +69,7 @@ class CardApprovalCollectionServiceTest {
                 clock,
                 new ConsumptionInsightCache()
         );
+        when(assetSyncMapper.findActiveCardNumbers(anyLong())).thenReturn(List.of("9876", "4321"));
         institution = new Institution(2L, "0311", "하나카드", "CARD", "card-logo");
     }
 
@@ -134,6 +136,24 @@ class CardApprovalCollectionServiceTest {
         verify(cardApprovalClient).getApprovals(requestCaptor.capture());
         assertEquals("20260503", requestCaptor.getValue().getStartDate());
         assertEquals("20260803", requestCaptor.getValue().getEndDate());
+    }
+
+    @Test
+    void excludesApprovalForInactiveCard() {
+        when(cardApprovalClient.getApprovals(any())).thenReturn(CodefDto.Response.success(List.of(
+                approval("9999", "10000001", "inactive card merchant", "food", "12000")
+        )));
+
+        AssetSyncDto.SyncStats stats = service.collectWithStats(
+                7L,
+                11L,
+                institution,
+                LocalDate.of(2026, 8, 1),
+                LocalDate.of(2026, 8, 3)
+        );
+
+        assertEquals(0, stats.total());
+        verify(assetSyncMapper, never()).upsertTransaction(any());
     }
 
     @Test
