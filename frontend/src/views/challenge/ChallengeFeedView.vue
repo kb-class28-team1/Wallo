@@ -69,6 +69,7 @@ const form = reactive({
   verifiedSavingAmount: null,
   analysisSummary: "",
   confidenceScore: 0,
+  analysisDetails: "",
 })
 
 const spendingTypes = [
@@ -293,6 +294,7 @@ const closeModal = () => {
     verifiedSavingAmount: null,
     analysisSummary: "",
     confidenceScore: 0,
+    analysisDetails: "",
   })
   if (fileInput.value) fileInput.value.value = ""
 }
@@ -354,6 +356,7 @@ const handleFile = async (event) => {
   form.savingAmountFeedback = ""
   form.verifiedSavingAmount = null
   form.analysisSummary = ""
+  form.analysisDetails = ""
 }
 const selectCategory = (category) => {
   form.category = category
@@ -363,6 +366,7 @@ const selectCategory = (category) => {
   form.verifiedSavingAmount = null
   form.analysisSummary = ""
   form.confidenceScore = 0
+  form.analysisDetails = ""
 }
 const validationMessage = ({ requireCaption = false } = {}) => {
   if (!form.file) return "사진이나 영상을 선택해 주세요."
@@ -389,6 +393,7 @@ const requestAnalysis = async () => {
     form.verifiedSavingAmount = null
     form.analysisSummary = result.summary
     form.confidenceScore = result.confidenceScore
+    form.analysisDetails = JSON.stringify(result)
   } catch (error) {
     openDialog({ message: error.message })
   } finally {
@@ -441,6 +446,7 @@ const uploadFeed = async () => {
     }
     data.append("analysisSummary", form.analysisSummary)
     data.append("confidenceScore", String(form.confidenceScore))
+    data.append("analysisDetails", form.analysisDetails)
     await createFeed(challengeId.value, data)
     closeModal()
     await Promise.all([loadFeeds(), loadMessages({ forceScroll: true })])
