@@ -3,15 +3,14 @@ package com.wallo.asset.mapper;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.wallo.asset.dto.AssetReportDto;
+import com.wallo.test.TestDatabase;
 
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.util.List;
-import java.util.UUID;
 import javax.sql.DataSource;
-import org.h2.jdbcx.JdbcDataSource;
 import org.apache.ibatis.session.SqlSession;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,15 +27,7 @@ class AssetReportMapperIntegrationTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        JdbcDataSource h2DataSource = new JdbcDataSource();
-        h2DataSource.setURL(
-                "jdbc:h2:mem:report_"
-                        + UUID.randomUUID()
-                        + ";MODE=MySQL;DB_CLOSE_DELAY=-1"
-        );
-        h2DataSource.setUser("sa");
-        h2DataSource.setPassword("");
-        dataSource = h2DataSource;
+        dataSource = TestDatabase.h2("report");
         sourceSequence = 0L;
 
         createTables();
@@ -112,48 +103,7 @@ class AssetReportMapperIntegrationTest {
     }
 
     private void createTables() throws Exception {
-        try (Connection connection = dataSource.getConnection();
-             Statement statement = connection.createStatement()) {
-            statement.execute("""
-                    CREATE TABLE USERS (
-                        id BIGINT PRIMARY KEY,
-                        annual_salary BIGINT NULL
-                    )
-                    """);
-            statement.execute("""
-                    CREATE TABLE CARDS (
-                        card_id BIGINT PRIMARY KEY,
-                        card_type VARCHAR(20) NOT NULL
-                    )
-                    """);
-            statement.execute("""
-                    CREATE TABLE TRANSACTIONS (
-                        transaction_id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                        user_id BIGINT NOT NULL,
-                        card_id BIGINT NULL,
-                        account_id BIGINT NULL,
-                        type VARCHAR(20) NOT NULL,
-                        category VARCHAR(50) NOT NULL,
-                        category_source VARCHAR(30) NOT NULL,
-                        category_confidence DECIMAL(5,4) NULL,
-                        classifier_version VARCHAR(30) NULL,
-                        amount BIGINT NOT NULL,
-                        merchant_name VARCHAR(100) NOT NULL,
-                        original_merchant_name VARCHAR(100) NULL,
-                        original_sector VARCHAR(100) NULL,
-                        external_approval_no VARCHAR(50) NULL,
-                        source_type VARCHAR(30) NOT NULL,
-                        source_organization_code VARCHAR(20) NOT NULL,
-                        source_transaction_id VARCHAR(100) NOT NULL,
-                        source_dedup_key CHAR(64) NOT NULL,
-                        transaction_date DATE NOT NULL,
-                        transaction_time TIME NOT NULL,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        UNIQUE (user_id, source_type, source_organization_code, source_dedup_key),
-                        INDEX idx_transactions_card_id (card_id)
-                    )
-                    """);
-        }
+        TestDatabase.initializeAssetMapperSchema(dataSource);
     }
 
     private void insertUser(long userId, long annualSalary) throws Exception {

@@ -4,16 +4,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.wallo.asset.dto.AssetSyncDto;
 import com.wallo.asset.service.TransactionSourceKeyGenerator;
+import com.wallo.test.TestDatabase;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.util.UUID;
 import javax.sql.DataSource;
 import org.apache.ibatis.session.SqlSession;
-import org.h2.jdbcx.JdbcDataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,15 +27,8 @@ class AssetSyncMapperIntegrationTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        JdbcDataSource h2DataSource = new JdbcDataSource();
-        h2DataSource.setURL(
-                "jdbc:h2:mem:asset_sync_" + UUID.randomUUID() + ";MODE=MySQL;DB_CLOSE_DELAY=-1"
-        );
-        h2DataSource.setUser("sa");
-        h2DataSource.setPassword("");
-        dataSource = h2DataSource;
-        createTransactionsTable();
-        createAssetSnapshotsTable();
+        dataSource = TestDatabase.h2("asset_sync");
+        TestDatabase.initializeAssetMapperSchema(dataSource);
 
         SqlSessionFactoryBean factoryBean = new SqlSessionFactoryBean();
         factoryBean.setDataSource(dataSource);
@@ -378,53 +370,4 @@ class AssetSyncMapperIntegrationTest {
         );
     }
 
-    private void createTransactionsTable() throws Exception {
-        try (Connection connection = dataSource.getConnection();
-             Statement statement = connection.createStatement()) {
-            statement.execute("""
-                    CREATE TABLE TRANSACTIONS (
-                        transaction_id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                        user_id BIGINT NOT NULL,
-                        card_id BIGINT NULL,
-                        account_id BIGINT NULL,
-                        type VARCHAR(20) NOT NULL,
-                        category VARCHAR(50) NOT NULL,
-                        category_source VARCHAR(30) NOT NULL,
-                        category_confidence DECIMAL(5,4) NULL,
-                        classifier_version VARCHAR(30) NULL,
-                        amount BIGINT NOT NULL,
-                        merchant_name VARCHAR(100) NOT NULL,
-                        original_merchant_name VARCHAR(100) NULL,
-                        original_sector VARCHAR(100) NULL,
-                        external_approval_no VARCHAR(50) NULL,
-                        source_type VARCHAR(30) NOT NULL,
-                        source_organization_code VARCHAR(20) NOT NULL,
-                        source_transaction_id VARCHAR(100) NOT NULL,
-                        source_dedup_key CHAR(64) NOT NULL,
-                        transaction_date DATE NOT NULL,
-                        transaction_time TIME NOT NULL,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        UNIQUE (user_id, source_type, source_organization_code, source_dedup_key),
-                        INDEX idx_transactions_card_id (card_id)
-                    )
-                    """);
-        }
-    }
-
-    private void createAssetSnapshotsTable() throws Exception {
-        try (Connection connection = dataSource.getConnection();
-             Statement statement = connection.createStatement()) {
-            statement.execute("""
-                    CREATE TABLE ASSET_SNAPSHOTS (
-                        asset_snapshot_id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                        user_id BIGINT NOT NULL,
-                        snapshot_month CHAR(7) NOT NULL,
-                        total_assets BIGINT NOT NULL,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        UNIQUE (user_id, snapshot_month)
-                    )
-                    """);
-        }
-    }
 }
