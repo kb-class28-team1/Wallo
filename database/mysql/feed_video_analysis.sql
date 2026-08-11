@@ -1,7 +1,9 @@
 -- 영상 분석의 물품 시세 캐시와 상세 결과를 위한 MySQL 8 migration
--- 기존 FEED_ANALYSIS 테이블을 만든 뒤 이 스크립트를 실행하세요.
+-- 현재 프로젝트의 데이터베이스 이름은 wallo입니다.
+-- 이 줄 덕분에 SQL 클라이언트에서 별도로 스키마를 선택하지 않아도 됩니다.
+USE `wallo`;
 
-CREATE TABLE IF NOT EXISTS FEED_PRICE_REFERENCE (
+CREATE TABLE IF NOT EXISTS `feed_price_reference` (
     id BIGINT NOT NULL AUTO_INCREMENT,
     normalized_item_name VARCHAR(150) NOT NULL,
     display_item_name VARCHAR(200) NOT NULL,
@@ -21,7 +23,7 @@ CREATE TABLE IF NOT EXISTS FEED_PRICE_REFERENCE (
     KEY idx_feed_price_reference_expiry (expires_at)
 );
 
-ALTER TABLE FEED_ANALYSIS
+ALTER TABLE `feed_analysis`
     ADD COLUMN IF NOT EXISTS reference_value BIGINT NOT NULL DEFAULT 0,
     ADD COLUMN IF NOT EXISTS actual_cost BIGINT NOT NULL DEFAULT 0,
     ADD COLUMN IF NOT EXISTS saving_difference BIGINT NOT NULL DEFAULT 0,
@@ -33,4 +35,4 @@ ALTER TABLE FEED_ANALYSIS
     ADD COLUMN IF NOT EXISTS analysis_feedback_at DATETIME NULL;
 
 -- 필요하면 운영 DB에서 아래 인덱스를 한 번만 추가하세요.
--- CREATE INDEX idx_feed_analysis_accuracy ON FEED_ANALYSIS (analysis_accuracy);
+-- CREATE INDEX idx_feed_analysis_accuracy ON feed_analysis (analysis_accuracy);

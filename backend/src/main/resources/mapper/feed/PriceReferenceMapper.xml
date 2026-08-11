@@ -19,7 +19,7 @@
 
     <select id="findByKey" resultMap="priceReferenceMap">
         SELECT *
-        FROM FEED_PRICE_REFERENCE
+        FROM feed_price_reference
         WHERE normalized_item_name = #{normalizedItemName}
           AND COALESCE(brand, '') = COALESCE(#{brand}, '')
           AND unit = #{unit}
@@ -29,7 +29,7 @@
     </select>
 
     <insert id="upsert" parameterType="com.wallo.feed.domain.PriceReferenceRow">
-        INSERT INTO FEED_PRICE_REFERENCE
+        INSERT INTO feed_price_reference
         (normalized_item_name, display_item_name, brand, unit, category, lowest_price,
          source, source_url, observed_at, expires_at, search_confidence)
         VALUES
