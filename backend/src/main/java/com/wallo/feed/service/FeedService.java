@@ -42,18 +42,21 @@ public class FeedService {
     private final FeedMapper feedMapper;
     private final FeedAnalysisClient analysisClient;
     private final ChallengeChatBroadcaster chatBroadcaster;
+    private final PriceReferenceService priceReferenceService;
 
     /** 분석 단위 테스트와 기존 호출부의 호환을 위한 생성자. */
     public FeedService(FeedMapper feedMapper, FeedAnalysisClient analysisClient) {
-        this(feedMapper, analysisClient, null);
+        this(feedMapper, analysisClient, null, null);
     }
 
     @Autowired
     public FeedService(FeedMapper feedMapper, FeedAnalysisClient analysisClient,
-                       ChallengeChatBroadcaster chatBroadcaster) {
+                       ChallengeChatBroadcaster chatBroadcaster,
+                       PriceReferenceService priceReferenceService) {
         this.feedMapper = feedMapper;
         this.analysisClient = analysisClient;
         this.chatBroadcaster = chatBroadcaster;
+        this.priceReferenceService = priceReferenceService;
     }
 
     public FeedListResponse getFeeds(Long userId, Long challengeId, boolean mineOnly) {
@@ -85,6 +88,9 @@ public class FeedService {
                     media, spendingType, normalizedCategory, feedbackSummary);
         } else {
             analysis = analysisClient.analyze(media, spendingType, normalizedCategory);
+        }
+        if (priceReferenceService != null) {
+            analysis = priceReferenceService.enrich(analysis);
         }
         return applyCategoryAverageFallback(userId, analysis);
     }
@@ -308,7 +314,9 @@ public class FeedService {
         String summary = appendHistoryFallbackSummary(analysis.summary(), historyDays);
         return new AnalysisResponse(
                 analysis.spendingType(), analysis.category(), estimatedAmount,
-                summary, analysis.confidenceScore());
+                summary, analysis.confidenceScore(), analysis.detectedItems(),
+                analysis.referenceValue(), analysis.actualCost(), analysis.savingDifference(),
+                analysis.priceReferences());
     }
 
     private boolean hasEnoughHistory(CategoryExpenseAverage average) {
