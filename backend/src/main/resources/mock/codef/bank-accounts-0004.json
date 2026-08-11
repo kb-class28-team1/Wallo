@@ -40,7 +40,6 @@
         "resLoanCurrency": "KRW"
       }
     ],
-    "totalSalary": "50000000",
     "assetSnapshots": [
       { "snapshotMonth": "2026-04", "totalAssets": "34200000" },
       { "snapshotMonth": "2026-05", "totalAssets": "35150000" },
