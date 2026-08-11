@@ -63,7 +63,10 @@ const form = reactive({
   file: null,
   category: "",
   caption: "",
+  aiEstimatedSavingAmount: 0,
   savingAmount: 0,
+  savingAmountFeedback: "",
+  verifiedSavingAmount: null,
   analysisSummary: "",
   confidenceScore: 0,
 })
@@ -72,6 +75,11 @@ const spendingTypes = [
   { value: "SPENT", label: "💸 썼다" },
   { value: "REDUCED", label: "✂️ 줄였다" },
   { value: "SAVED", label: "🐷 모았다" },
+]
+const savingFeedbackOptions = [
+  { value: "SAME", label: "AI 금액과 같아요" },
+  { value: "DIFFERENT", label: "실제 금액이 달라요" },
+  { value: "UNKNOWN", label: "확인하기 어려워요" },
 ]
 const categories = FEED_CATEGORY_CODES.map((value) => ({
   value,
@@ -279,7 +287,10 @@ const closeModal = () => {
     file: null,
     category: "",
     caption: "",
+    aiEstimatedSavingAmount: 0,
     savingAmount: 0,
+    savingAmountFeedback: "",
+    verifiedSavingAmount: null,
     analysisSummary: "",
     confidenceScore: 0,
   })
@@ -338,7 +349,20 @@ const handleFile = async (event) => {
   if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
   form.file = file
   previewUrl.value = URL.createObjectURL(file)
+  form.aiEstimatedSavingAmount = 0
+  form.savingAmount = 0
+  form.savingAmountFeedback = ""
+  form.verifiedSavingAmount = null
   form.analysisSummary = ""
+}
+const selectCategory = (category) => {
+  form.category = category
+  form.aiEstimatedSavingAmount = 0
+  form.savingAmount = 0
+  form.savingAmountFeedback = ""
+  form.verifiedSavingAmount = null
+  form.analysisSummary = ""
+  form.confidenceScore = 0
 }
 const validationMessage = ({ requireCaption = false } = {}) => {
   if (!form.file) return "사진이나 영상을 선택해 주세요."
@@ -359,7 +383,10 @@ const requestAnalysis = async () => {
   isAnalyzing.value = true
   try {
     const result = await analyzeFeed(challengeId.value, makeFormData())
-    form.savingAmount = result.estimatedSavingAmount
+    form.aiEstimatedSavingAmount = Number(result.estimatedSavingAmount) || 0
+    form.savingAmount = form.aiEstimatedSavingAmount
+    form.savingAmountFeedback = ""
+    form.verifiedSavingAmount = null
     form.analysisSummary = result.summary
     form.confidenceScore = result.confidenceScore
   } catch (error) {
@@ -368,15 +395,50 @@ const requestAnalysis = async () => {
     isAnalyzing.value = false
   }
 }
+const selectSavingAmountFeedback = (feedbackType) => {
+  form.savingAmountFeedback = feedbackType
+  if (feedbackType === "SAME") {
+    form.verifiedSavingAmount = form.aiEstimatedSavingAmount
+    form.savingAmount = form.aiEstimatedSavingAmount
+    return
+  }
+  if (feedbackType === "UNKNOWN") {
+    form.verifiedSavingAmount = null
+    form.savingAmount = form.aiEstimatedSavingAmount
+    return
+  }
+  form.verifiedSavingAmount = null
+}
+const updateVerifiedSavingAmount = () => {
+  if (form.savingAmountFeedback === "DIFFERENT") {
+    form.savingAmount = Math.max(0, Number(form.verifiedSavingAmount) || 0)
+  }
+}
+const savingAmountFeedbackError = () => {
+  if (!form.savingAmountFeedback) return "AI 금액과 실제 절약 금액을 확인해 주세요."
+  if (form.savingAmountFeedback === "DIFFERENT"
+      && (form.verifiedSavingAmount === null || form.verifiedSavingAmount === ""
+        || Number(form.verifiedSavingAmount) < 0)) {
+    return "실제 절약 금액을 입력해 주세요."
+  }
+  return ""
+}
 const uploadFeed = async () => {
   const invalid = validationMessage({ requireCaption: true })
   if (invalid) return openDialog({ message: invalid })
   if (!form.analysisSummary) return openDialog({ message: "먼저 AI 분석을 진행해 주세요." })
+  const feedbackError = savingAmountFeedbackError()
+  if (feedbackError) return openDialog({ message: feedbackError })
   isUploading.value = true
   try {
     const data = makeFormData()
     data.append("caption", form.caption)
     data.append("savingAmount", String(form.savingAmount))
+    data.append("aiEstimatedSavingAmount", String(form.aiEstimatedSavingAmount))
+    data.append("savingAmountFeedback", form.savingAmountFeedback)
+    if (form.verifiedSavingAmount !== null && form.verifiedSavingAmount !== "") {
+      data.append("verifiedSavingAmount", String(form.verifiedSavingAmount))
+    }
     data.append("analysisSummary", form.analysisSummary)
     data.append("confidenceScore", String(form.confidenceScore))
     await createFeed(challengeId.value, data)
@@ -698,7 +760,7 @@ onBeforeUnmount(() => {
               :key="item.value"
               type="button"
               :class="{ selected: form.category === item.value }"
-              @click="form.category = item.value"
+              @click="selectCategory(item.value)"
             >
               <i :class="['bi', item.icon]" aria-hidden="true"></i>
               {{ item.label }}
@@ -714,15 +776,48 @@ onBeforeUnmount(() => {
             </button>
           </div>
           <div class="result-box" :class="{ ready: form.analysisSummary }">
-            <span>🤖 AI 추정</span
+            <span>🤖 AI 추정 금액</span
             ><small>{{ form.analysisSummary || "분석하면 예상 절약 금액을 알려드려요." }}</small>
             <div>
               <input
-                v-model.number="form.savingAmount"
+                :value="form.aiEstimatedSavingAmount"
                 type="number"
                 min="0"
+                readonly
                 :disabled="!form.analysisSummary"
               /><b>원</b>
+            </div>
+            <div v-if="form.analysisSummary" class="saving-feedback-section">
+              <strong>이 금액이 실제로 아낀 금액과 같은가요?</strong>
+              <div class="saving-feedback-buttons">
+                <button
+                  v-for="option in savingFeedbackOptions"
+                  :key="option.value"
+                  type="button"
+                  :class="{ selected: form.savingAmountFeedback === option.value }"
+                  @click="selectSavingAmountFeedback(option.value)"
+                >
+                  {{ option.label }}
+                </button>
+              </div>
+              <div v-if="form.savingAmountFeedback === 'DIFFERENT'" class="verified-amount-row">
+                <label for="verified-saving-amount">실제 절약 금액</label>
+                <div>
+                  <input
+                    id="verified-saving-amount"
+                    v-model.number="form.verifiedSavingAmount"
+                    type="number"
+                    min="0"
+                    @input="updateVerifiedSavingAmount"
+                  /><b>원</b>
+                </div>
+              </div>
+              <small v-if="form.savingAmountFeedback === 'UNKNOWN'" class="feedback-help">
+                AI 추정 금액을 그대로 저장하지만 보정 학습에는 사용하지 않아요.
+              </small>
+              <small v-else-if="form.savingAmountFeedback === 'DIFFERENT'" class="feedback-help">
+                입력한 실제 금액이 피드에 저장되고 다음 분석의 보정 자료로 사용돼요.
+              </small>
             </div>
           </div>
           <label class="section-label" for="feed-caption">한줄요약 (필수)</label>
@@ -1433,6 +1528,57 @@ textarea {
   border: 1px solid #dedfeb;
   border-radius: 12px;
 }
+.saving-feedback-section {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #dfe8e3;
+}
+.saving-feedback-section > strong {
+  font-size: 0.9rem;
+}
+.saving-feedback-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.saving-feedback-buttons button {
+  min-height: 44px;
+  padding: 8px;
+  color: #61677a;
+  background: #fff;
+  border: 1px solid #d9dce8;
+  border-radius: 11px;
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+.saving-feedback-buttons button.selected {
+  color: #287b5b;
+  background: #e4faef;
+  border-color: #54bd8d;
+}
+.verified-amount-row {
+  display: grid;
+  gap: 7px;
+}
+.verified-amount-row label {
+  color: #626a7e;
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+.verified-amount-row > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.verified-amount-row input {
+  flex: 1;
+}
+.feedback-help {
+  color: #6e768a;
+  line-height: 1.45;
+}
 .result-box.ready {
   background: #f0fff7;
 }
@@ -1473,7 +1619,8 @@ textarea {
   border: 0;
 }
 .submit:disabled,
-.analysis-box button:disabled {
+.analysis-box button:disabled,
+.saving-feedback-buttons button:disabled {
   opacity: 0.55;
 }
 @keyframes focus-pulse {
