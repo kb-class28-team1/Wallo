@@ -21,6 +21,8 @@ import java.time.ZoneId;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 
 class PriceReferenceServiceTest {
@@ -108,6 +110,32 @@ class PriceReferenceServiceTest {
         assertEquals(543, rowCaptor.getValue().getLowestPrice());
         assertEquals(2_715, result.referenceValue());
         assertEquals(2_715, result.estimatedSavingAmount());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"권", "그루", "벌", "대", "마리", "장", "켤레", "송이"})
+    void convertsAdditionalKoreanCountUnits(String countUnit) {
+        String unit = "1" + countUnit;
+        PriceReferenceRow stored = row("테스트상품", "", unit, 1_000);
+        when(mapper.findBestMatch(anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(null, stored);
+        when(mapper.upsert(any())).thenReturn(1);
+        when(shoppingClient.search("테스트상품", "", unit))
+                .thenReturn(List.of(new ShoppingPriceCandidate(
+                        "테스트상품 10" + countUnit,
+                        10_000,
+                        "테스트몰",
+                        "https://example.com/product-" + countUnit,
+                        "")));
+
+        AnalysisResponse result = service.enrich(analysis(
+                "SAVED", 0, new DetectedItem(
+                        "테스트상품", "", unit, 2, 0, 0, 0.9, "두 개 확인")));
+
+        ArgumentCaptor<PriceReferenceRow> rowCaptor = ArgumentCaptor.forClass(PriceReferenceRow.class);
+        verify(mapper).upsert(rowCaptor.capture());
+        assertEquals(1_000, rowCaptor.getValue().getLowestPrice());
+        assertEquals(2_000, result.referenceValue());
     }
 
     @Test
