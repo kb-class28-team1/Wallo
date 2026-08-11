@@ -11,12 +11,13 @@ import {
   updateConversationTitle,
 } from "@/api/conversationApi"
 
-const toViewMessage = (message, animate = false) => ({
+const toViewMessage = (message, animate = false, consumptionAnalysis = null) => ({
   id: message.messageId,
   role: message.role.toLowerCase(),
   content: message.content,
   createdAt: message.createdAt,
   animate,
+  consumptionAnalysis: message.consumptionAnalysis ?? consumptionAnalysis,
 })
 
 export const useConversationStore = defineStore("conversation", () => {
@@ -213,7 +214,11 @@ export const useConversationStore = defineStore("conversation", () => {
         } else {
           messages.value.push(savedUserMessage)
         }
-        messages.value.push(toViewMessage(response.assistantMessage, true))
+        messages.value.push(toViewMessage(
+          response.assistantMessage,
+          true,
+          response.consumptionAnalysis ?? null,
+        ))
       }
 
       await fetchConversations(userId)
