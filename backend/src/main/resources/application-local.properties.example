@@ -6,3 +6,4 @@ shopping.price.serpapi.base-url=https://serpapi.com/search.json
 shopping.price.connect-timeout-ms=1500
 shopping.price.read-timeout-ms=4500
 shopping.price.max-results=20
+shopping.price.max-concurrency=3

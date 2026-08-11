@@ -23,6 +23,8 @@ import com.wallo.feed.price.ShoppingPriceClient;
 import java.time.Clock;
 import java.time.ZoneId;
 import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
@@ -173,6 +175,12 @@ public class AppConfig {
         requestFactory.setReadTimeout(Math.max(1_000, readTimeoutMs));
         return new SerpApiShoppingPriceClient(
                 new RestTemplate(requestFactory), baseUrl.trim(), apiKey.trim(), maxResults);
+    }
+
+    @Bean(destroyMethod = "shutdown")
+    public ExecutorService shoppingPriceExecutor(
+            @Value("${shopping.price.max-concurrency:3}") int maxConcurrency) {
+        return Executors.newFixedThreadPool(Math.max(1, Math.min(3, maxConcurrency)));
     }
 
     @Bean
