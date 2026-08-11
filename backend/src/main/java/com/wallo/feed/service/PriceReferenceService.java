@@ -34,10 +34,12 @@ public class PriceReferenceService {
     private static final int MAX_SEARCH_ITEMS = 3;
     private static final int MAX_PRICE = 10_000_000;
     private static final double MIN_SEARCH_CONFIDENCE = 0.55;
+    private static final String COUNT_UNIT_NAMES =
+            "개|병|봉|롤|구|팩|모|캔|매|박스|통|꼬치|권|그루|벌|대|마리|장|켤레|송이";
     private static final Pattern UNIT_TOKEN = Pattern.compile(
-            "(?i)(\\d+(?:\\.\\d+)?(?:ml|l|kg|g|개|병|봉|롤|구|팩|모|캔|매|박스|통|꼬치))");
+            "(?i)(\\d+(?:\\.\\d+)?(?:ml|l|kg|g|" + COUNT_UNIT_NAMES + "))");
     private static final Pattern COUNT_UNIT_TOKEN = Pattern.compile(
-            "(?i)(\\d+)\\s*(개|병|봉|롤|구|팩|모|캔|매|박스|통|꼬치)");
+            "(?i)(\\d+)\\s*(" + COUNT_UNIT_NAMES + ")");
     private static final List<String> EXCLUDED_TITLE_WORDS = List.of(
             "중고", "리퍼", "렌탈", "대여", "정기구독", "월납", "공병", "빈병");
 
@@ -181,7 +183,7 @@ public class PriceReferenceService {
         Matcher matcher = UNIT_TOKEN.matcher(normalized);
         while (matcher.find()) {
             String token = matcher.group(1).toLowerCase(Locale.ROOT);
-            if (token.matches("1(?:개|병|봉|롤|구|팩|모|캔|매|박스|통|꼬치)")) {
+            if (token.matches("1(?:" + COUNT_UNIT_NAMES + ")")) {
                 continue;
             }
             tokens.add(token);
