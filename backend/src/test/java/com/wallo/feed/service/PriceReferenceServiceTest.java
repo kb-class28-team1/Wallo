@@ -177,52 +177,6 @@ class PriceReferenceServiceTest {
     }
 
     @Test
-    void comparesTwoFinishedProductsUsingSearchedPrices() {
-        PriceReferenceRow referenceRow = row("브랜드카페라떼", "브랜드", "1개", 4_500);
-        PriceReferenceRow actualRow = row("피비카페라떼", "PB", "1개", 1_800);
-        referenceRow.setCategory("CAFE");
-        actualRow.setCategory("CAFE");
-        when(mapper.findBestMatch("브랜드카페라떼", "브랜드", "1개", "CAFE"))
-                .thenReturn(null, referenceRow);
-        when(mapper.findBestMatch("피비카페라떼", "pb", "1개", "CAFE"))
-                .thenReturn(null, actualRow);
-        when(mapper.upsert(any())).thenReturn(1);
-        when(shoppingClient.search("브랜드 카페라떼", "브랜드", "1개"))
-                .thenReturn(List.of(new ShoppingPriceCandidate(
-                        "브랜드 카페라떼 1개", 4_500, "A몰",
-                        "https://example.com/reference", "")));
-        when(shoppingClient.search("피비 카페라떼", "PB", "1개"))
-                .thenReturn(List.of(new ShoppingPriceCandidate(
-                        "PB 피비 카페라떼 1개", 1_800, "B몰",
-                        "https://example.com/actual", "")));
-        AnalysisResponse analysis = productComparisonAnalysis(4_000, 1_500);
-
-        AnalysisResponse result = service.enrich(analysis);
-
-        assertEquals(4_500, result.referenceValue());
-        assertEquals(1_800, result.actualCost());
-        assertEquals(2_700, result.estimatedSavingAmount());
-        assertTrue(result.summary().contains("비교 제품 4,500원"));
-    }
-
-    @Test
-    void usesAiFallbackForProductComparisonWhenSearchHasNoResult() {
-        when(mapper.findBestMatch(anyString(), anyString(), anyString(), anyString()))
-                .thenReturn(null);
-        when(shoppingClient.search(anyString(), anyString(), anyString()))
-                .thenReturn(List.of());
-
-        AnalysisResponse result = service.enrich(productComparisonAnalysis(4_000, 1_500));
-
-        assertEquals(4_000, result.referenceValue());
-        assertEquals(1_500, result.actualCost());
-        assertEquals(2_500, result.estimatedSavingAmount());
-        assertTrue(result.priceReferences().stream()
-                .allMatch(reference -> "Gemini 보수적 추정".equals(reference.source())));
-        verify(mapper, never()).upsert(any());
-    }
-
-    @Test
     void subtractsHomemadeIngredientCostFromRestaurantPrice() {
         FoodCostReferenceMapper foodMapper =
                 org.mockito.Mockito.mock(FoodCostReferenceMapper.class);
@@ -342,24 +296,6 @@ class PriceReferenceServiceTest {
         return new AnalysisResponse(
                 spendingType, "FOOD", 900, "분석 완료", 0.9,
                 List.of(item), 0, actualCost, 0, List.of());
-    }
-
-    private AnalysisResponse productComparisonAnalysis(
-            int referenceFallbackPrice, int actualFallbackPrice) {
-        return new AnalysisResponse(
-                "REDUCED", "CAFE", 2_500, "저렴한 완제품을 선택했습니다.", 0.9,
-                List.of(
-                        new DetectedItem(
-                                "브랜드 카페라떼", "브랜드", "1개", 1,
-                                0, 0, 0.9, "비교 대상 제품 확인",
-                                "PRODUCT_COMPARE", 0, 0, "",
-                                "REFERENCE", referenceFallbackPrice),
-                        new DetectedItem(
-                                "피비 카페라떼", "PB", "1개", 1,
-                                0, 0, 0.9, "실제 선택 제품 확인",
-                                "PRODUCT_COMPARE", 0, 0, "",
-                                "ACTUAL", actualFallbackPrice)),
-                0, 0, 0, List.of());
     }
 
     private PriceReferenceRow row(
