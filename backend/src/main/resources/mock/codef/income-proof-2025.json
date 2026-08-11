@@ -1,0 +1,26 @@
+{
+  "result": {
+    "code": "CF-00000",
+    "message": "success",
+    "extraMessage": ""
+  },
+  "data": {
+    "resPaymentDetailsStatusList": [
+      {
+        "resAttrYear": "2025",
+        "resType": "\uADFC\uB85C\uC18C\uB4DD",
+        "resPaidTotalAmt": "50000000"
+      },
+      {
+        "resAttrYear": "2025",
+        "resType": "\uC0AC\uC5C5\uC18C\uB4DD",
+        "resPaidTotalAmt": "12000000"
+      },
+      {
+        "resAttrYear": "2024",
+        "resType": "\uADFC\uB85C\uC18C\uB4DD",
+        "resPaidTotalAmt": "45000000"
+      }
+    ]
+  }
+}

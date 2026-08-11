@@ -84,6 +84,24 @@ public class CodefMockControllerTest {
     }
 
     @Test
+    public void incomeProofEndpointDelegatesToCodefMockService() throws Exception {
+        when(codefMockService.getIncomeProof(any()))
+                .thenReturn(CodefDto.Response.success("income-proof"));
+
+        String responseBody = mockMvc.perform(post("/mock/v1/kr/public/mw/issuance/proof-income")
+                        .header("Authorization", "Bearer mock-codef-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(incomeProofRequestJson()))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        assertTrue(responseBody.contains("CF-00000"));
+        verify(codefMockService).getIncomeProof(any());
+    }
+
+    @Test
     public void allMockEndpointsRejectMissingBearerToken() throws Exception {
         String[] paths = {
                 "/mock/v1/kr/bank/p/account/account-list",
@@ -91,7 +109,9 @@ public class CodefMockControllerTest {
                 "/mock/v1/kr/stock/p/account/account-list",
                 "/mock/v1/kr/card/p/approval-list",
                 "/mock/v1/kr/bank/p/account/transaction-list",
-                "/v1/kr/bank/p/account/transaction-list"
+                "/v1/kr/bank/p/account/transaction-list",
+                "/mock/v1/kr/public/mw/issuance/proof-income",
+                "/v1/kr/public/mw/issuance/proof-income"
         };
 
         for (String path : paths) {
@@ -145,6 +165,9 @@ public class CodefMockControllerTest {
         if (path.contains("transaction-list")) {
             return bankTransactionRequestJson();
         }
+        if (path.contains("proof-income")) {
+            return incomeProofRequestJson();
+        }
         return "{}";
     }
 
@@ -168,6 +191,17 @@ public class CodefMockControllerTest {
                 + "\"account\":\"123456-01-789012\","
                 + "\"startDate\":\"20260701\","
                 + "\"endDate\":\"20260731\""
+                + "}";
+    }
+
+    private String incomeProofRequestJson() {
+        return "{"
+                + "\"organization\":\"0001\","
+                + "\"loginType\":\"1\","
+                + "\"id\":\"mock_id\","
+                + "\"password\":\"mock_password\","
+                + "\"searchStartYear\":\"2025\","
+                + "\"searchEndYear\":\"2025\""
                 + "}";
     }
 

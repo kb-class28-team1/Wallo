@@ -24,19 +24,22 @@ public class ConnectionService {
     private final ConnectionMapper connectionMapper;
     private final AssetSyncService assetSyncService;
     private final CardWithdrawalReconciliationService cardWithdrawalReconciliationService;
+    private final AnnualSalarySyncService annualSalarySyncService;
 
     public ConnectionService(
             CodefClient codefClient,
             InstitutionService institutionService,
             ConnectionMapper connectionMapper,
             AssetSyncService assetSyncService,
-            CardWithdrawalReconciliationService cardWithdrawalReconciliationService
+            CardWithdrawalReconciliationService cardWithdrawalReconciliationService,
+            AnnualSalarySyncService annualSalarySyncService
     ) {
         this.codefClient = codefClient;
         this.institutionService = institutionService;
         this.connectionMapper = connectionMapper;
         this.assetSyncService = assetSyncService;
         this.cardWithdrawalReconciliationService = cardWithdrawalReconciliationService;
+        this.annualSalarySyncService = annualSalarySyncService;
     }
 
     @Transactional
@@ -69,22 +72,27 @@ public class ConnectionService {
         long syncStartedAt = System.nanoTime();
         syncAssets(userId, attempts);
         long syncElapsedMs = elapsedMillis(syncStartedAt);
+        long salarySyncStartedAt = System.nanoTime();
+        ConnectionDto.AnnualSalaryLookupStatus annualSalaryLookupStatus = syncAnnualSalary(userId);
+        long salarySyncElapsedMs = elapsedMillis(salarySyncStartedAt);
         long reconciliationStartedAt = System.nanoTime();
         cardWithdrawalReconciliationService.reconcile(userId);
         long reconciliationElapsedMs = elapsedMillis(reconciliationStartedAt);
         LOGGER.info(String.format(
                 Locale.ROOT,
                 "asset-connect summary institutions=%d success=%d connectionMs=%d saveMs=%d syncMs=%d "
-                        + "reconciliationMs=%d totalMs=%d",
+                        + "salaryLookupStatus=%s salarySyncMs=%d reconciliationMs=%d totalMs=%d",
                 attempts.size(),
                 results.stream().filter(result -> result.getStatus() == ConnectionDto.Status.SUCCESS).count(),
                 connectionElapsedMs,
                 saveElapsedMs,
                 syncElapsedMs,
+                annualSalaryLookupStatus,
+                salarySyncElapsedMs,
                 reconciliationElapsedMs,
                 elapsedMillis(totalStartedAt)
         ));
-        return new ConnectionDto.Response(results);
+        return new ConnectionDto.Response(results, annualSalaryLookupStatus);
     }
 
     @Transactional(readOnly = true)
@@ -118,6 +126,24 @@ public class ConnectionService {
                         elapsedMillis(startedAt)
                 ));
             }
+        }
+    }
+
+    private ConnectionDto.AnnualSalaryLookupStatus syncAnnualSalary(long userId) {
+        try {
+            ConnectionDto.AnnualSalaryLookupStatus status =
+                    annualSalarySyncService.syncAnnualSalary(userId);
+            return status == null
+                    ? ConnectionDto.AnnualSalaryLookupStatus.ERROR
+                    : status;
+        } catch (RuntimeException exception) {
+            LOGGER.warning(String.format(
+                    Locale.ROOT,
+                    "annual-salary-sync failed userId=%d reason=%s",
+                    userId,
+                    exception.getMessage()
+            ));
+            return ConnectionDto.AnnualSalaryLookupStatus.ERROR;
         }
     }
 
