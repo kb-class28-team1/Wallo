@@ -66,7 +66,8 @@ class GeminiFeedAnalysisClientTest {
                     assertTrue(prompt.contains("GATHERED"));
                     assertTrue(prompt.contains("actualCost는 0"));
                     assertTrue(prompt.contains("사용자가 직접 얻은 것으로"));
-                    assertTrue(prompt.contains("unit을 1kg"));
+                    assertTrue(prompt.contains("화면에서 확인한 실제 개체 수"));
+                    assertTrue(prompt.contains("kg·g 같은 무게 단위는 사용하지 마세요"));
                     assertTrue(prompt.contains("ingredientCostPerUnit"));
                     assertTrue(prompt.contains("실제로 보이는 재료"));
                 })

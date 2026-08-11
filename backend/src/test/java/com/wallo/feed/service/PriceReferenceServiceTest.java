@@ -28,6 +28,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 
@@ -321,28 +322,100 @@ class PriceReferenceServiceTest {
 
     @Test
     void searchesGatheredItemPriceEvenWhenVisualConfidenceIsLow() {
-        PriceReferenceRow stored = row("고구마", "", "1kg", 4_500);
-        when(mapper.findBestMatch("고구마", "", "1kg", "FOOD"))
+        PriceReferenceRow stored = row("고구마", "", "1개", 1_000);
+        when(mapper.findBestMatch("고구마", "", "1개", "FOOD"))
                 .thenReturn(null, stored);
         when(mapper.upsert(any())).thenReturn(1);
-        when(shoppingClient.search("고구마", "", "1kg"))
+        when(shoppingClient.search("고구마", "", "1개"))
                 .thenReturn(List.of(new ShoppingPriceCandidate(
-                        "국산 햇고구마 1kg", 4_500, "농산물몰",
+                        "국산 햇고구마 10개", 10_000, "농산물몰",
                         "https://example.com/sweet-potato", "")));
         AnalysisResponse input = new AnalysisResponse(
                 "REDUCED", "FOOD", 0, "고구마를 직접 수확했습니다.", 0.4,
                 List.of(new DetectedItem(
-                        "고구마", "", "1kg", 1, 0, 0, 0.4,
-                        "수확한 고구마가 보임", "GATHERED", 0, 0, "")),
+                        "고구마", "", "1개", 4, 0, 0, 0.4,
+                        "수확한 고구마 네 개가 보임", "GATHERED", 0, 0, "")),
                 0, 0, 0, List.of());
 
         AnalysisResponse result = service.enrich(input);
 
-        assertEquals(4_500, result.referenceValue());
-        assertEquals(4_500, result.estimatedSavingAmount());
+        assertEquals(4_000, result.referenceValue());
+        assertEquals(4_000, result.estimatedSavingAmount());
         assertEquals(0, result.actualCost());
-        assertTrue(result.summary().contains("고구마 1kg 시세 4,500원"));
+        assertTrue(result.summary().contains("고구마 1개 시세 1,000원 × 4"));
         verify(mapper).upsert(any());
+    }
+
+    @Test
+    void usesLowestRawItemPriceAndExcludesProcessedGatheredProducts() {
+        PriceReferenceRow cached = row("성게", "", "1개", 12_900);
+        PriceReferenceRow stored = row("성게", "", "1개", 5_000);
+        when(mapper.findBestMatch("성게", "", "1개", "FOOD"))
+                .thenReturn(cached, stored);
+        when(mapper.upsert(any())).thenReturn(1);
+        when(shoppingClient.search("성게", "", "1개"))
+                .thenReturn(List.of(
+                        new ShoppingPriceCandidate(
+                                "성게 모형 1개", 1_000, "소품몰",
+                                "https://example.com/model", ""),
+                        new ShoppingPriceCandidate(
+                                "성게알 100g", 3_000, "수산물몰",
+                                "https://example.com/roe", ""),
+                        new ShoppingPriceCandidate(
+                                "자연산 생물 성게 2개", 12_000, "수산물몰A",
+                                "https://example.com/two", ""),
+                        new ShoppingPriceCandidate(
+                                "산지직송 생물 성게 5개", 25_000, "수산물몰B",
+                                "https://example.com/five", "")));
+        AnalysisResponse input = new AnalysisResponse(
+                "REDUCED", "FOOD", 0, "성게를 직접 채집했습니다.", 0.9,
+                List.of(new DetectedItem(
+                        "성게", "", "1개", 2, 0, 0, 0.9,
+                        "성게 두 개가 보임", "GATHERED", 0, 0, "")),
+                0, 0, 0, List.of());
+
+        AnalysisResponse result = service.enrich(input);
+
+        ArgumentCaptor<PriceReferenceRow> rowCaptor =
+                ArgumentCaptor.forClass(PriceReferenceRow.class);
+        verify(mapper).upsert(rowCaptor.capture());
+        assertEquals(5_000, rowCaptor.getValue().getLowestPrice());
+        assertEquals("https://example.com/five", rowCaptor.getValue().getSourceUrl());
+        assertEquals(10_000, result.referenceValue());
+        assertTrue(result.summary().contains("성게 1개 시세 5,000원 × 2"));
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "조개, 개, 10, 10000, 1000, 3, 3000",
+            "참치, 마리, 2, 30000, 15000, 1, 15000"
+    })
+    void retriesGatheredSeafoodSearchWithRawProductWords(
+            String itemName, String countUnit, int packageQuantity, int packagePrice,
+            int expectedUnitPrice, int detectedQuantity, int expectedTotal) {
+        String unit = "1" + countUnit;
+        PriceReferenceRow stored = row(itemName, "", unit, expectedUnitPrice);
+        when(mapper.findBestMatch(itemName, "", unit, "FOOD"))
+                .thenReturn(null, stored);
+        when(mapper.upsert(any())).thenReturn(1);
+        when(shoppingClient.search(itemName, "", unit)).thenReturn(List.of());
+        when(shoppingClient.search(itemName + " 생물 원물", "", unit))
+                .thenReturn(List.of(new ShoppingPriceCandidate(
+                        "산지직송 생물 " + itemName + " " + packageQuantity + countUnit,
+                        packagePrice, "수산물몰",
+                        "https://example.com/seafood", "")));
+        AnalysisResponse input = new AnalysisResponse(
+                "REDUCED", "FOOD", 0, itemName + "를 직접 획득했습니다.", 0.8,
+                List.of(new DetectedItem(
+                        itemName, "", unit, detectedQuantity, 0, 0, 0.8,
+                        itemName + " 개체 확인", "GATHERED", 0, 0, "")),
+                0, 0, 0, List.of());
+
+        AnalysisResponse result = service.enrich(input);
+
+        assertEquals(expectedUnitPrice, result.detectedItems().get(0).unitPrice());
+        assertEquals(expectedTotal, result.referenceValue());
+        assertEquals(expectedTotal, result.estimatedSavingAmount());
     }
 
     private AnalysisResponse analysis(
