@@ -113,7 +113,13 @@ public class GeminiFeedAnalysisClient implements FeedAnalysisClient, SavingFeedb
                 detectedItems에는 현재 카테고리의 절약 금액 계산에 직접 필요한 물품만 최대 3개 작성하세요.
                 물품명, 브랜드, 한 묶음의 규격과 묶음 수량을 화면에서 확인할 수 있는 범위에서 작성하세요.
                 unit은 가격 비교 기준이 되는 한 묶음 규격입니다. 예: 1L×1개, 500ml×60병, 120g×5봉.
-                시장 가격은 직접 추정하지 마세요. 시세 검색과 계산은 서버가 별도로 수행합니다.
+                직접 요리하거나 음료·디저트를 만든 장면이 명확하면 comparisonType을 HOMEMADE로,
+                완제품을 구매하거나 사용한 장면이면 PRODUCT로 작성하세요.
+                HOMEMADE일 때 ingredientCostPerUnit은 일반적인 소량 구매 재료비를 사용한 1단위 예상 원가,
+                restaurantPricePerUnit은 음식점·카페의 보수적인 1단위 판매가를 원 단위 정수로 작성하세요.
+                ingredientBasis에는 핵심 재료와 원가 산정 근거를 짧게 작성하세요.
+                PRODUCT일 때 위 세 값은 각각 0, 0, 빈 문자열로 작성하세요.
+                PRODUCT의 시장 가격은 직접 추정하지 마세요. 상품 시세 검색과 최종 계산은 서버가 수행합니다.
 
                 {
                   "spendingType": "%s",
@@ -129,7 +135,11 @@ public class GeminiFeedAnalysisClient implements FeedAnalysisClient, SavingFeedb
                       "unit": "한 묶음 규격",
                       "quantity": 1,
                       "confidence": 0.0,
-                      "evidence": "화면에서 확인한 짧은 근거"
+                      "evidence": "화면에서 확인한 짧은 근거",
+                      "comparisonType": "PRODUCT 또는 HOMEMADE",
+                      "ingredientCostPerUnit": 0,
+                      "restaurantPricePerUnit": 0,
+                      "ingredientBasis": "HOMEMADE일 때 핵심 재료와 산정 근거"
                     }
                   ]
                 }
@@ -213,7 +223,11 @@ public class GeminiFeedAnalysisClient implements FeedAnalysisClient, SavingFeedb
                     0,
                     0,
                     confidence,
-                    item.path("evidence").asText("").trim()));
+                    item.path("evidence").asText("").trim(),
+                    item.path("comparisonType").asText("PRODUCT").trim(),
+                    Math.max(0, item.path("ingredientCostPerUnit").asInt(0)),
+                    Math.max(0, item.path("restaurantPricePerUnit").asInt(0)),
+                    item.path("ingredientBasis").asText("").trim()));
         }
         return List.copyOf(items);
     }

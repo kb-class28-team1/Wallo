@@ -38,7 +38,26 @@ public final class FeedDtos {
             int unitPrice,
             int totalValue,
             double confidence,
-            String evidence) {
+            String evidence,
+            String comparisonType,
+            int ingredientCostPerUnit,
+            int restaurantPricePerUnit,
+            String ingredientBasis) {
+
+        public DetectedItem(
+                String itemName, String brand, String unit, int quantity,
+                int unitPrice, int totalValue, double confidence, String evidence) {
+            this(itemName, brand, unit, quantity, unitPrice, totalValue, confidence, evidence,
+                    "PRODUCT", 0, 0, "");
+        }
+
+        public DetectedItem {
+            comparisonType = "HOMEMADE".equalsIgnoreCase(comparisonType)
+                    ? "HOMEMADE" : "PRODUCT";
+            ingredientCostPerUnit = Math.max(0, ingredientCostPerUnit);
+            restaurantPricePerUnit = Math.max(0, restaurantPricePerUnit);
+            ingredientBasis = ingredientBasis == null ? "" : ingredientBasis.trim();
+        }
     }
 
     public record PriceReference(
