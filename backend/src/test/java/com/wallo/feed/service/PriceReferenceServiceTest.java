@@ -322,13 +322,13 @@ class PriceReferenceServiceTest {
 
     @Test
     void searchesGatheredItemPriceEvenWhenVisualConfidenceIsLow() {
-        PriceReferenceRow stored = row("고구마", "", "1개", 1_000);
+        PriceReferenceRow stored = row("고구마", "", "1개", 1_125);
         when(mapper.findBestMatch("고구마", "", "1개", "FOOD"))
                 .thenReturn(null, stored);
         when(mapper.upsert(any())).thenReturn(1);
         when(shoppingClient.search("고구마", "", "1개"))
                 .thenReturn(List.of(new ShoppingPriceCandidate(
-                        "국산 햇고구마 10개", 10_000, "농산물몰",
+                        "국산 햇고구마 1kg", 4_500, "농산물몰",
                         "https://example.com/sweet-potato", "")));
         AnalysisResponse input = new AnalysisResponse(
                 "REDUCED", "FOOD", 0, "고구마를 직접 수확했습니다.", 0.4,
@@ -339,11 +339,38 @@ class PriceReferenceServiceTest {
 
         AnalysisResponse result = service.enrich(input);
 
-        assertEquals(4_000, result.referenceValue());
-        assertEquals(4_000, result.estimatedSavingAmount());
+        assertEquals(4_500, result.referenceValue());
+        assertEquals(4_500, result.estimatedSavingAmount());
         assertEquals(0, result.actualCost());
-        assertTrue(result.summary().contains("고구마 1개 시세 1,000원 × 4"));
+        assertTrue(result.summary().contains("고구마 1개 시세 1,125원 × 4"));
         verify(mapper).upsert(any());
+    }
+
+    @Test
+    void fallsBackToUnqualifiedSearchWhenGatheredItemIsSoldByWeight() {
+        PriceReferenceRow stored = row("고구마", "", "1개", 1_125);
+        when(mapper.findBestMatch("고구마", "", "1개", "FOOD"))
+                .thenReturn(null, stored);
+        when(mapper.upsert(any())).thenReturn(1);
+        when(shoppingClient.search("고구마", "", "1개")).thenReturn(List.of());
+        when(shoppingClient.search("고구마 생물 원물", "", "1개"))
+                .thenReturn(List.of());
+        when(shoppingClient.search("고구마", "", ""))
+                .thenReturn(List.of(new ShoppingPriceCandidate(
+                        "국산 햇고구마 1kg", 4_500, "농산물몰",
+                        "https://example.com/sweet-potato-by-weight", "")));
+        AnalysisResponse input = new AnalysisResponse(
+                "REDUCED", "FOOD", 0, "고구마를 직접 수확했습니다.", 0.8,
+                List.of(new DetectedItem(
+                        "고구마", "", "1개", 2, 0, 0, 0.8,
+                        "수확한 고구마 두 개가 보임", "GATHERED", 0, 0, "")),
+                0, 0, 0, List.of());
+
+        AnalysisResponse result = service.enrich(input);
+
+        assertEquals(2_250, result.referenceValue());
+        assertEquals(2_250, result.estimatedSavingAmount());
+        assertTrue(result.summary().contains("고구마 1개 시세 1,125원 × 2"));
     }
 
     @Test
