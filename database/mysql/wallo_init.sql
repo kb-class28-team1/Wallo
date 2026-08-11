@@ -23,6 +23,7 @@ DROP TABLE IF EXISTS GOAL_INTERVIEW_SESSIONS;
 DROP TABLE IF EXISTS CHAT_MESSAGES;
 DROP TABLE IF EXISTS CONVERSATIONS;
 DROP TABLE IF EXISTS MESSAGE;
+DROP TABLE IF EXISTS FEED_FOOD_COST_REFERENCE;
 DROP TABLE IF EXISTS FEED_PRICE_REFERENCE;
 DROP TABLE IF EXISTS FEED_ANALYSIS_FEEDBACK;
 DROP TABLE IF EXISTS FEED_ANALYSIS;
@@ -444,6 +445,28 @@ CREATE TABLE FEED_PRICE_REFERENCE
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_unicode_ci
     COMMENT ='영상 분석 물품 최저가 시세 캐시';
+
+CREATE TABLE FEED_FOOD_COST_REFERENCE
+(
+    id                   BIGINT AUTO_INCREMENT PRIMARY KEY,
+    normalized_dish_name VARCHAR(150)  NOT NULL,
+    display_dish_name    VARCHAR(200)  NOT NULL,
+    unit                 VARCHAR(50)   NOT NULL DEFAULT '1인분',
+    category             VARCHAR(30)   NOT NULL,
+    ingredient_cost      INT           NOT NULL,
+    restaurant_price     INT           NOT NULL,
+    restaurant_source    VARCHAR(100)  NOT NULL,
+    restaurant_source_url VARCHAR(1000) NULL,
+    ingredient_basis     VARCHAR(500)  NULL,
+    observed_at          DATETIME      NOT NULL,
+    search_confidence    DECIMAL(4, 3) NOT NULL DEFAULT 0.000,
+    created_at           DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at           DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_feed_food_cost_reference (normalized_dish_name, unit, category)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+    COMMENT ='직접 만든 음식의 재료비와 음식점 가격 비교 기준';
 
 CREATE TABLE MESSAGE
 (
