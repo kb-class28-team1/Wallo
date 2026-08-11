@@ -90,6 +90,7 @@ public class BankTransactionCollectionService {
             LocalDate endDate
     ) {
         validateCollectionRequest(accountNumber, institution, startDate, endDate);
+        String normalizedAccountNumber = AssetIdentifierNormalizer.normalize(accountNumber, "account number");
 
         long startedAt = System.nanoTime();
         long apiStartedAt = System.nanoTime();
@@ -123,7 +124,13 @@ public class BankTransactionCollectionService {
         int aiRequestCount = 0;
         long classificationStartedAt = System.nanoTime();
         List<PreparedBankTransaction> preparedTransactions = safeList(transactions).stream()
-                .map(source -> prepareTransaction(userId, accountId, accountNumber, institution, source))
+                .map(source -> prepareTransaction(
+                        userId,
+                        accountId,
+                        normalizedAccountNumber,
+                        institution,
+                        source
+                ))
                 .toList();
         preparedTransactions = TransactionBatchDeduplicator.deduplicate(
                 preparedTransactions,
@@ -194,16 +201,21 @@ public class BankTransactionCollectionService {
     private PreparedBankTransaction prepareTransaction(
             long userId,
             long accountId,
-            String accountNumber,
+            String normalizedAccountNumber,
             Institution institution,
             CodefDto.BankTransaction source
     ) {
         if (source == null) {
             throw new IllegalArgumentException("은행 거래내역이 비어 있습니다.");
         }
+        TransactionSourceIdentity sourceIdentity = sourceKeyGenerator.identityForNormalizedBankTransaction(
+                institution.getCodefOrganizationCode(),
+                normalizedAccountNumber,
+                source.getResTrNo()
+        );
         if (source.getResAccount() != null
                 && !source.getResAccount().isBlank()
-                && !AssetIdentifierNormalizer.normalize(accountNumber, "account number")
+                && !sourceIdentity.normalizedAssetIdentifier()
                         .equals(AssetIdentifierNormalizer.normalize(source.getResAccount(), "account number"))) {
             throw new IllegalArgumentException("요청 계좌와 응답 계좌가 일치하지 않습니다.");
         }
@@ -211,11 +223,6 @@ public class BankTransactionCollectionService {
         long accountIn = parseNonNegativeAmount(source.getResAccountIn());
         long accountOut = parseNonNegativeAmount(source.getResAccountOut());
         String description = defaultValue(source.getResAccountDesc(), "계좌 거래");
-        TransactionSourceIdentity sourceIdentity = sourceKeyGenerator.identityForBankTransaction(
-                institution.getCodefOrganizationCode(),
-                accountNumber,
-                source.getResTrNo()
-        );
         String normalizedKind = source.getTransactionKind() == null
                 ? ""
                 : source.getTransactionKind().trim().toUpperCase(Locale.ROOT);
@@ -474,7 +481,6 @@ public class BankTransactionCollectionService {
         if (accountNumber == null || accountNumber.isBlank()) {
             throw new IllegalArgumentException("계좌번호 값이 필요합니다.");
         }
-        AssetIdentifierNormalizer.normalize(accountNumber, "account number");
         if (startDate == null || endDate == null || startDate.isAfter(endDate)) {
             throw new IllegalArgumentException("은행 거래내역 조회 기간이 올바르지 않습니다.");
         }

@@ -39,6 +39,19 @@ class TransactionSourceKeyGeneratorTest {
     }
 
     @Test
+    void normalizedBankIdentityReusesCanonicalAccountWithoutChangingKey() {
+        TransactionSourceIdentity rawIdentity = generator.identityForBankTransaction(
+                "0004", "123456-01-789012", "BANK-202607-0001"
+        );
+        TransactionSourceIdentity normalizedIdentity = generator.identityForNormalizedBankTransaction(
+                "0004", "12345601789012", "BANK-202607-0001"
+        );
+
+        assertEquals(rawIdentity, normalizedIdentity);
+        assertEquals("12345601789012", normalizedIdentity.normalizedAssetIdentifier());
+    }
+
+    @Test
     void genericAssetTransactionKeyUsesSourceIdentity() {
         String firstKey = generator.forAssetTransaction(
                 "LOAN_TRANSACTION", "0004", "STUDENT-LOAN-2021-001", "LOAN-202607-0001"
@@ -67,6 +80,7 @@ class TransactionSourceKeyGeneratorTest {
         assertEquals("0004", identity.sourceOrganizationCode());
         assertEquals("BANK-202607-0001", identity.sourceTransactionId());
         assertEquals(64, identity.sourceDedupKey().length());
+        assertEquals("12345601789012", identity.normalizedAssetIdentifier());
     }
 
     @Test

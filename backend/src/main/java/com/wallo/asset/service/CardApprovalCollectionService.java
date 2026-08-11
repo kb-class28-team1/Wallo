@@ -185,9 +185,14 @@ public class CardApprovalCollectionService {
             throw new IllegalArgumentException("카드 승인내역이 비어 있습니다.");
         }
 
-        String cardNumber = AssetIdentifierNormalizer.normalize(approval.getResCardNo(), "card number");
-        Long cardId = resolveCardId(connectionId, cardNumber);
         String approvalNo = required(approval.getResApprovalNo(), "카드 승인번호");
+        TransactionSourceIdentity sourceIdentity = sourceKeyGenerator.identityForCardApproval(
+                institution.getCodefOrganizationCode(),
+                approval.getResCardNo(),
+                approvalNo
+        );
+        String cardNumber = sourceIdentity.normalizedAssetIdentifier();
+        Long cardId = resolveCardId(connectionId, cardNumber);
         String merchantName = defaultValue(approval.getResMemberName(), "카드 결제");
         long amount = parsePositiveAmount(approval.getResUsedAmount());
         LocalDate transactionDate = parseDate(approval.getResUsedDate());
@@ -196,11 +201,6 @@ public class CardApprovalCollectionService {
                 merchantName,
                 approval.getResMemberSector(),
                 amount
-        );
-        TransactionSourceIdentity sourceIdentity = sourceKeyGenerator.identityForCardApproval(
-                institution.getCodefOrganizationCode(),
-                cardNumber,
-                approvalNo
         );
         return new PreparedApproval(
                 userId,
@@ -314,13 +314,7 @@ public class CardApprovalCollectionService {
     }
 
     private Long resolveCardId(long connectionId, String cardNumber) {
-        if (cardNumber == null || cardNumber.isBlank()) {
-            return null;
-        }
-        Long cardId = assetSyncMapper.findCardId(
-                connectionId,
-                AssetIdentifierNormalizer.normalize(cardNumber, "card number")
-        );
+        Long cardId = assetSyncMapper.findCardId(connectionId, cardNumber);
         if (cardId == null) {
             throw new IllegalStateException("승인내역에 해당하는 연동 카드를 찾을 수 없습니다.");
         }

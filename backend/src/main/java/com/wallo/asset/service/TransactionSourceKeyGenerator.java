@@ -56,6 +56,25 @@ public class TransactionSourceKeyGenerator {
     }
 
     /**
+     * Builds a bank identity when the account number has already been
+     * canonicalized at the collection boundary.
+     */
+    TransactionSourceIdentity identityForNormalizedBankTransaction(
+            String organizationCode,
+            String normalizedAccountNumber,
+            String transactionId
+    ) {
+        return identityFromNormalized(
+                AssetTransactionConstants.BANK_TRANSACTION_SOURCE_TYPE,
+                organizationCode,
+                normalizedAccountNumber,
+                transactionId,
+                "account number",
+                "source transaction id"
+        );
+    }
+
+    /**
      * Generates a stable key for CODEF asset transactions that are not covered
      * by the card-approval or bank-account transaction endpoints (for example,
      * loan repayments and stock-account transactions).
@@ -94,22 +113,41 @@ public class TransactionSourceKeyGenerator {
             String assetFieldName,
             String transactionFieldName
     ) {
+        return identityFromNormalized(
+                sourceType,
+                organizationCode,
+                normalizeIdentity(assetNumber, assetFieldName),
+                transactionId,
+                assetFieldName,
+                transactionFieldName
+        );
+    }
+
+    private TransactionSourceIdentity identityFromNormalized(
+            String sourceType,
+            String organizationCode,
+            String normalizedAssetNumber,
+            String transactionId,
+            String assetFieldName,
+            String transactionFieldName
+    ) {
         String normalizedSourceType = required(sourceType, "source type");
         String normalizedOrganizationCode = required(organizationCode, "organization code");
-        String normalizedAssetNumber = normalizeIdentity(assetNumber, assetFieldName);
+        String canonicalAssetNumber = required(normalizedAssetNumber, assetFieldName);
         String normalizedTransactionId = required(transactionId, transactionFieldName);
         String canonicalValue = String.join(
                 "|",
                 normalizedSourceType,
                 normalizedOrganizationCode,
-                normalizedAssetNumber,
+                canonicalAssetNumber,
                 normalizedTransactionId
         );
         return new TransactionSourceIdentity(
                 normalizedSourceType,
                 normalizedOrganizationCode,
                 normalizedTransactionId,
-                sha256(canonicalValue)
+                sha256(canonicalValue),
+                canonicalAssetNumber
         );
     }
 

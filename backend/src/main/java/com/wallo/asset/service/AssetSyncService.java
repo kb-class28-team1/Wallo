@@ -69,7 +69,7 @@ public class AssetSyncService {
             ));
         }
 
-        upsertAccounts(connectionId, institution, data);
+        List<NormalizedAccount> normalizedAccounts = upsertAccounts(connectionId, institution, data);
         for (CodefDto.Card card : values(data.getCards())) {
             assetSyncMapper.upsertCard(connectionId, new AssetSyncDto.Card(
                     AssetIdentifierNormalizer.normalize(card.getResCardNo(), "card number"),
@@ -82,7 +82,7 @@ public class AssetSyncService {
         if (AssetTransactionConstants.CARD_INSTITUTION_TYPE.equals(institution.getInstitutionType())) {
             cardApprovalCollectionService.collectInitial(userId, connectionId, institution);
         } else if (AssetTransactionConstants.BANK_INSTITUTION_TYPE.equals(institution.getInstitutionType())) {
-            collectBankTransactions(userId, connectionId, institution, data.getAccounts());
+            collectBankTransactions(userId, connectionId, institution, normalizedAccounts);
             List<CodefDto.Transaction> loanTransactions = values(data.getTransactions()).stream()
                     .filter(source -> !blank(source.getResLoanAccount()))
                     .toList();
@@ -158,15 +158,21 @@ public class AssetSyncService {
         );
     }
 
-    private void upsertAccounts(
+    private List<NormalizedAccount> upsertAccounts(
             long connectionId,
             Institution institution,
             CodefDto.AssetData data
     ) {
-        for (CodefDto.Account account : values(data.getAccounts())) {
-            String accountNumber = AssetIdentifierNormalizer.normalize(account.getResAccount(), "account number");
+        List<NormalizedAccount> normalizedAccounts = values(data.getAccounts()).stream()
+                .map(account -> new NormalizedAccount(
+                        account,
+                        AssetIdentifierNormalizer.normalize(account.getResAccount(), "account number")
+                ))
+                .toList();
+        for (NormalizedAccount normalizedAccount : normalizedAccounts) {
+            CodefDto.Account account = normalizedAccount.source();
             assetSyncMapper.upsertAccount(connectionId, new AssetSyncDto.Account(
-                    accountNumber, account.getResAccountDisplay(), account.getResAccountName(),
+                    normalizedAccount.normalizedNumber(), account.getResAccountDisplay(), account.getResAccountName(),
                     institution.getInstitutionType(), account.getResAccountSubtype(), amount(account.getResAccountBalance()),
                     amount(defaultValue(account.getResAccountEvalAmount(), account.getResAccountBalance())),
                     defaultValue(account.getResAccountCurrency(), "KRW"), status(account.getResAccountStatus())));
@@ -178,6 +184,7 @@ public class AssetSyncService {
                     amount(loan.getResLoanBalance()), amount(loan.getResLoanBalance()),
                     defaultValue(loan.getResLoanCurrency(), "KRW"), status(loan.getResLoanStatus())));
         }
+        return normalizedAccounts;
     }
 
     private long elapsedMillis(long startedAt) {
@@ -188,12 +195,12 @@ public class AssetSyncService {
             long userId,
             long connectionId,
             Institution institution,
-            List<CodefDto.Account> accounts
+            List<NormalizedAccount> accounts
     ) {
-        for (CodefDto.Account account : values(accounts)) {
-            String accountNumber = AssetIdentifierNormalizer.normalize(account.getResAccount(), "account number");
+        for (NormalizedAccount normalizedAccount : values(accounts)) {
+            CodefDto.Account account = normalizedAccount.source();
             Long accountId = required(
-                    assetSyncMapper.findAccountId(connectionId, accountNumber)
+                    assetSyncMapper.findAccountId(connectionId, normalizedAccount.normalizedNumber())
             );
             bankTransactionCollectionService.collectInitial(
                     userId,
@@ -306,10 +313,8 @@ public class AssetSyncService {
         boolean cardTransaction = !blank(source.getResCardNo());
         boolean loanTransaction = !blank(source.getResLoanAccount());
         String assetNumber = cardTransaction
-                ? AssetIdentifierNormalizer.normalize(source.getResCardNo(), "card number")
-                : loanTransaction
-                        ? AssetIdentifierNormalizer.normalize(source.getResLoanAccount(), "loan account number")
-                        : AssetIdentifierNormalizer.normalize(source.getResAccount(), "account number");
+                ? source.getResCardNo()
+                : loanTransaction ? source.getResLoanAccount() : source.getResAccount();
         String sourceType = sourceType(cardTransaction, loanTransaction);
         String sourceOrganizationCode = institution.getCodefOrganizationCode();
         String sourceTransactionId = sourceTransactionId(cardTransaction, loanTransaction, source);
@@ -322,7 +327,7 @@ public class AssetSyncService {
         return new AssetTransactionIdentity(
                 cardTransaction,
                 loanTransaction,
-                assetNumber,
+                sourceIdentity.normalizedAssetIdentifier(),
                 sourceIdentity
         );
     }
@@ -365,6 +370,12 @@ public class AssetSyncService {
     private record PreparedAssetTransaction(
             CodefDto.Transaction source,
             AssetTransactionIdentity identity
+    ) {
+    }
+
+    private record NormalizedAccount(
+            CodefDto.Account source,
+            String normalizedNumber
     ) {
     }
 
