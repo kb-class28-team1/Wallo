@@ -18,11 +18,13 @@ import com.wallo.feed.price.RestaurantPriceCandidate;
 import com.wallo.feed.price.RestaurantPriceClient;
 import com.wallo.feed.price.ShoppingPriceCandidate;
 import com.wallo.feed.price.ShoppingPriceClient;
+import com.wallo.feed.service.RecipeIngredientCostService.RecipeCost;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -213,6 +215,40 @@ class PriceReferenceServiceTest {
         assertEquals(9_500, result.estimatedSavingAmount());
         assertTrue(result.summary().contains("음식점 판매가 12,500원"));
         verify(shoppingClient, never()).search(anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void replacesAiIngredientEstimateWithCalculatedRecipeCost() {
+        FoodCostReferenceMapper foodMapper =
+                org.mockito.Mockito.mock(FoodCostReferenceMapper.class);
+        RestaurantPriceClient restaurantClient =
+                org.mockito.Mockito.mock(RestaurantPriceClient.class);
+        RecipeIngredientCostService recipeCostService =
+                org.mockito.Mockito.mock(RecipeIngredientCostService.class);
+        Clock clock = Clock.fixed(
+                Instant.parse("2026-08-11T03:00:00Z"), ZoneId.of("Asia/Seoul"));
+        PriceReferenceService homemadeService = new PriceReferenceService(
+                mapper, shoppingClient, foodMapper, restaurantClient,
+                recipeCostService, Runnable::run, clock);
+        FoodCostReferenceRow cached = foodRow("파스타", "1인분", 4_500, 15_000);
+        cached.setCategory("FOOD");
+        when(foodMapper.findBestMatch("파스타", "1인분", "FOOD")).thenReturn(cached);
+        when(recipeCostService.calculate("파스타", "1인분", "FOOD"))
+                .thenReturn(Optional.of(new RecipeCost(
+                        3_750, "파스타면 100g 700원, 토마토소스 150g 1,500원")));
+        AnalysisResponse analysis = new AnalysisResponse(
+                "REDUCED", "FOOD", 0, "파스타를 직접 만들었습니다.", 0.9,
+                List.of(new DetectedItem(
+                        "파스타", "", "1인분", 1, 0, 0, 0.9, "조리 장면 확인",
+                        "HOMEMADE", 9_999, 15_000, "AI 총액 추정")),
+                0, 0, 0, List.of());
+
+        AnalysisResponse result = homemadeService.enrich(analysis);
+
+        assertEquals(3_750, result.actualCost());
+        assertEquals(11_250, result.estimatedSavingAmount());
+        assertTrue(result.detectedItems().get(0).ingredientBasis().contains("토마토소스"));
+        verify(foodMapper).upsert(cached);
     }
 
     @Test
