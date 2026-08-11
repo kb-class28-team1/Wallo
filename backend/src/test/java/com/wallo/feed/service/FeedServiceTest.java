@@ -15,6 +15,7 @@ import com.wallo.feed.domain.Feed;
 import com.wallo.feed.dto.FeedDtos.AnalysisResponse;
 import com.wallo.feed.dto.FeedDtos.CategoryExpenseAverage;
 import com.wallo.feed.mapper.FeedMapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -83,6 +84,27 @@ class FeedServiceTest {
                 .thenReturn(new AnalysisResponse("SPENT", "CAFE", 0, "소비 유형은 썼다입니다.", 0.9));
 
         AnalysisResponse result = feedService.analyze(7L, 10L, media(), "SPENT", "CAFE");
+
+        assertEquals(0, result.estimatedSavingAmount());
+        verify(feedMapper, never()).findCategoryExpenseAverage(
+                eq(7L), eq("CAFE"), any(LocalDate.class), any(LocalDate.class));
+    }
+
+    @Test
+    void doesNotReplaceCalculatedZeroWithCategoryAverage() {
+        PriceReferenceService priceReferenceService =
+                org.mockito.Mockito.mock(PriceReferenceService.class);
+        FeedService service = new FeedService(
+                feedMapper, analysisClient, null, priceReferenceService, new ObjectMapper());
+        AnalysisResponse raw = new AnalysisResponse(
+                "REDUCED", "CAFE", 900, "분석 완료", 0.9);
+        AnalysisResponse calculated = new AnalysisResponse(
+                "REDUCED", "CAFE", 0, "시세 계산 완료", 0.9,
+                java.util.List.of(), 2_000, 3_000, 0, java.util.List.of());
+        when(analysisClient.analyze(any(), eq("REDUCED"), eq("CAFE"))).thenReturn(raw);
+        when(priceReferenceService.enrich(raw)).thenReturn(calculated);
+
+        AnalysisResponse result = service.analyze(7L, 10L, media(), "REDUCED", "CAFE");
 
         assertEquals(0, result.estimatedSavingAmount());
         verify(feedMapper, never()).findCategoryExpenseAverage(

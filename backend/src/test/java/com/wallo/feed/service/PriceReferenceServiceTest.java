@@ -125,7 +125,7 @@ class PriceReferenceServiceTest {
     }
 
     @Test
-    void reducedTypeNeedsActualCostBeforeReplacingAiEstimate() {
+    void reducedTypeUsesReferenceValueWhenActualCostIsNotDetected() {
         when(mapper.findBestMatch(anyString(), anyString(), anyString(), anyString()))
                 .thenReturn(row("우유", "서울우유", "1L×1개", 2_360));
 
@@ -133,7 +133,20 @@ class PriceReferenceServiceTest {
                 "REDUCED", 0, new DetectedItem(
                         "우유", "서울우유", "1L×1개", 1, 0, 0, 0.9, "상품명 확인")));
 
-        assertEquals(900, result.estimatedSavingAmount());
+        assertEquals(2_360, result.estimatedSavingAmount());
+        assertEquals(2_360, result.savingDifference());
+    }
+
+    @Test
+    void keepsCalculatedZeroWhenActualCostIsHigherThanReferenceValue() {
+        when(mapper.findBestMatch(anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(row("우유", "서울우유", "1L×1개", 2_360));
+
+        AnalysisResponse result = service.enrich(analysis(
+                "REDUCED", 3_000, new DetectedItem(
+                        "우유", "서울우유", "1L×1개", 1, 0, 0, 0.9, "상품명 확인")));
+
+        assertEquals(0, result.estimatedSavingAmount());
         assertEquals(0, result.savingDifference());
     }
 
