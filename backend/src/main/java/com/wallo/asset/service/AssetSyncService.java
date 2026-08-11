@@ -89,25 +89,23 @@ public class AssetSyncService {
             List<CodefDto.Transaction> loanTransactions = values(data.getTransactions()).stream()
                     .filter(source -> !blank(source.getResLoanAccount()))
                     .toList();
-            List<CodefDto.Transaction> uniqueLoanTransactions = deduplicateAssetTransactions(
+            List<PreparedAssetTransaction> uniqueLoanTransactions = deduplicateAssetTransactions(
                     loanTransactions,
                     institution
             );
             transactionDuplicateCount = loanTransactions.size() - uniqueLoanTransactions.size();
-            for (CodefDto.Transaction source : uniqueLoanTransactions) {
-                if (!blank(source.getResLoanAccount())) {
-                    syncTransaction(userId, connectionId, institution, source);
-                }
+            for (PreparedAssetTransaction transaction : uniqueLoanTransactions) {
+                syncTransaction(userId, connectionId, transaction);
             }
         } else {
             List<CodefDto.Transaction> assetTransactions = values(data.getTransactions());
-            List<CodefDto.Transaction> uniqueAssetTransactions = deduplicateAssetTransactions(
+            List<PreparedAssetTransaction> uniqueAssetTransactions = deduplicateAssetTransactions(
                     assetTransactions,
                     institution
             );
             transactionDuplicateCount = assetTransactions.size() - uniqueAssetTransactions.size();
-            for (CodefDto.Transaction source : uniqueAssetTransactions) {
-                syncTransaction(userId, connectionId, institution, source);
+            for (PreparedAssetTransaction transaction : uniqueAssetTransactions) {
+                syncTransaction(userId, connectionId, transaction);
             }
         }
         upsertCurrentMonthSnapshot(userId, currentMonth);
@@ -211,34 +209,28 @@ public class AssetSyncService {
     private void syncTransaction(
             long userId,
             long connectionId,
-            Institution institution,
-            CodefDto.Transaction source
+            PreparedAssetTransaction prepared
     ) {
-        boolean cardTransaction = !blank(source.getResCardNo());
-        boolean loanTransaction = !blank(source.getResLoanAccount());
+        CodefDto.Transaction source = prepared.source();
+        AssetTransactionIdentity identity = prepared.identity();
+        boolean cardTransaction = identity.cardTransaction();
+        boolean loanTransaction = identity.loanTransaction();
         String cardNumber = cardTransaction
-                ? AssetIdentifierNormalizer.normalize(source.getResCardNo(), "card number")
+                ? identity.assetNumber()
                 : null;
         String accountNumber = cardTransaction
                 ? null
-                : loanTransaction
-                        ? AssetIdentifierNormalizer.normalize(source.getResLoanAccount(), "loan account number")
-                        : AssetIdentifierNormalizer.normalize(source.getResAccount(), "account number");
+                : identity.assetNumber();
         Long cardId = cardTransaction
                 ? required(assetSyncMapper.findCardId(connectionId, cardNumber))
                 : null;
         Long accountId = cardTransaction
                 ? null
                 : required(assetSyncMapper.findAccountId(connectionId, accountNumber));
-        String sourceType = sourceType(cardTransaction, loanTransaction);
+        String sourceType = identity.sourceType();
         TransactionRelationValidator.validate(sourceType, cardId, accountId);
-        String sourceTransactionId = sourceTransactionId(cardTransaction, loanTransaction, source);
-        String sourceDedupKey = sourceKeyGenerator.forAssetTransaction(
-                sourceType,
-                institution.getCodefOrganizationCode(),
-                cardTransaction ? cardNumber : accountNumber,
-                sourceTransactionId
-        );
+        String sourceTransactionId = identity.sourceTransactionId();
+        String sourceDedupKey = identity.sourceDedupKey();
         String merchantName = cardTransaction
                 ? defaultValue(source.getResUsedMerchantName(), "카드 결제")
                 : loanTransaction ? "학자금대출 상환" : defaultValue(source.getResAccountTrDesc(), "계좌 거래");
@@ -274,26 +266,32 @@ public class AssetSyncService {
                 java.math.BigDecimal.ONE,
                 CODEF_CLASSIFIER_VERSION,
                 sourceType,
-                institution.getCodefOrganizationCode(),
+                identity.sourceOrganizationCode(),
                 sourceTransactionId,
                 sourceDedupKey
         );
         assetSyncMapper.upsertTransaction(transaction);
     }
 
-    private List<CodefDto.Transaction> deduplicateAssetTransactions(
+    private List<PreparedAssetTransaction> deduplicateAssetTransactions(
             List<CodefDto.Transaction> transactions,
             Institution institution
     ) {
+        List<PreparedAssetTransaction> preparedTransactions = values(transactions).stream()
+                .map(source -> new PreparedAssetTransaction(
+                        source,
+                        resolveTransactionIdentity(institution, source)
+                ))
+                .toList();
         return TransactionBatchDeduplicator.deduplicate(
-                transactions,
-                source -> assetTransactionSourceDedupKey(institution, source),
-                this::sameAssetTransactionPayload,
+                preparedTransactions,
+                transaction -> transaction.identity().sourceDedupKey(),
+                (left, right) -> sameAssetTransactionPayload(left.source(), right.source()),
                 "ASSET_TRANSACTION"
         );
     }
 
-    private String assetTransactionSourceDedupKey(
+    private AssetTransactionIdentity resolveTransactionIdentity(
             Institution institution,
             CodefDto.Transaction source
     ) {
@@ -303,15 +301,27 @@ public class AssetSyncService {
         boolean cardTransaction = !blank(source.getResCardNo());
         boolean loanTransaction = !blank(source.getResLoanAccount());
         String assetNumber = cardTransaction
-                ? source.getResCardNo()
-                : loanTransaction ? source.getResLoanAccount() : source.getResAccount();
+                ? AssetIdentifierNormalizer.normalize(source.getResCardNo(), "card number")
+                : loanTransaction
+                        ? AssetIdentifierNormalizer.normalize(source.getResLoanAccount(), "loan account number")
+                        : AssetIdentifierNormalizer.normalize(source.getResAccount(), "account number");
         String sourceType = sourceType(cardTransaction, loanTransaction);
+        String sourceOrganizationCode = institution.getCodefOrganizationCode();
         String sourceTransactionId = sourceTransactionId(cardTransaction, loanTransaction, source);
-        return sourceKeyGenerator.forAssetTransaction(
+        String sourceDedupKey = sourceKeyGenerator.forAssetTransaction(
                 sourceType,
-                institution.getCodefOrganizationCode(),
+                sourceOrganizationCode,
                 assetNumber,
                 sourceTransactionId
+        );
+        return new AssetTransactionIdentity(
+                cardTransaction,
+                loanTransaction,
+                assetNumber,
+                sourceType,
+                sourceOrganizationCode,
+                sourceTransactionId,
+                sourceDedupKey
         );
     }
 
@@ -340,6 +350,23 @@ public class AssetSyncService {
                 && Objects.equals(left.getResLoanPaymentTime(), right.getResLoanPaymentTime())
                 && Objects.equals(left.getResLoanPaymentAmount(), right.getResLoanPaymentAmount())
                 && Objects.equals(left.getResLoanPaymentCategory(), right.getResLoanPaymentCategory());
+    }
+
+    private record AssetTransactionIdentity(
+            boolean cardTransaction,
+            boolean loanTransaction,
+            String assetNumber,
+            String sourceType,
+            String sourceOrganizationCode,
+            String sourceTransactionId,
+            String sourceDedupKey
+    ) {
+    }
+
+    private record PreparedAssetTransaction(
+            CodefDto.Transaction source,
+            AssetTransactionIdentity identity
+    ) {
     }
 
     private String sourceType(boolean cardTransaction, boolean loanTransaction) {
