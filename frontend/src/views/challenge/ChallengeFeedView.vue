@@ -65,6 +65,7 @@ const form = reactive({
   category: "",
   caption: "",
   savingAmount: 0,
+  savingAmountManuallyEdited: false,
   analysisSummary: "",
   confidenceScore: 0,
   analysisDetails: "",
@@ -287,6 +288,7 @@ const closeModal = () => {
     category: "",
     caption: "",
     savingAmount: 0,
+    savingAmountManuallyEdited: false,
     analysisSummary: "",
     confidenceScore: 0,
     analysisDetails: "",
@@ -361,6 +363,7 @@ const handleFile = async (event) => {
   form.file = file
   previewUrl.value = URL.createObjectURL(file)
   form.analysisSummary = ""
+  form.savingAmountManuallyEdited = false
   form.analysisDetails = ""
   form.detectedItems = []
   form.referenceValue = 0
@@ -381,6 +384,11 @@ const makeFormData = () => {
   data.append("category", form.category)
   return data
 }
+const normalizeSavingAmount = (value) => {
+  const amount = Number(value)
+  if (!Number.isFinite(amount)) return 0
+  return Math.max(0, Math.min(10_000_000, Math.round(amount)))
+}
 const requestAnalysis = async () => {
   const invalid = validationMessage()
   if (invalid) return openDialog({ message: invalid })
@@ -388,6 +396,7 @@ const requestAnalysis = async () => {
   try {
     const result = await analyzeFeed(challengeId.value, makeFormData())
     form.savingAmount = result.estimatedSavingAmount
+    form.savingAmountManuallyEdited = false
     form.analysisSummary = result.summary
     form.confidenceScore = result.confidenceScore
     form.analysisDetails = JSON.stringify(result)
@@ -410,7 +419,7 @@ const uploadFeed = async () => {
   try {
     const data = makeFormData()
     data.append("caption", form.caption)
-    data.append("savingAmount", String(form.savingAmount))
+    data.append("savingAmount", String(normalizeSavingAmount(form.savingAmount)))
     data.append("analysisSummary", form.analysisSummary)
     data.append("confidenceScore", String(form.confidenceScore))
     data.append("analysisDetails", form.analysisDetails)
@@ -768,14 +777,23 @@ onBeforeUnmount(() => {
           <div class="result-box" :class="{ ready: form.analysisSummary }">
             <span>🤖 AI 추정</span
             ><small>{{ form.analysisSummary || "분석하면 예상 절약 금액을 알려드려요." }}</small>
+            <label class="amount-edit-label" for="final-saving-amount">
+              최종 절약 금액 <em>(직접 수정 가능)</em>
+            </label>
             <div>
               <input
+                id="final-saving-amount"
                 v-model.number="form.savingAmount"
                 type="number"
                 min="0"
+                max="10000000"
                 :disabled="!form.analysisSummary"
+                @input="form.savingAmountManuallyEdited = true"
               /><b>원</b>
             </div>
+            <small v-if="form.savingAmountManuallyEdited" class="manual-amount-notice">
+              직접 입력한 금액이 피드와 분석 결과에 최종 저장됩니다.
+            </small>
           </div>
           <div v-if="form.analysisSummary && (form.detectedItems.length || form.referenceValue)" class="analysis-detail-box">
             <div class="analysis-value-grid">
@@ -1486,6 +1504,17 @@ textarea {
   margin-left: 8px;
   color: #969caf;
 }
+.amount-edit-label {
+  display: block;
+  margin-top: 13px;
+  color: #4e566d;
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+.amount-edit-label em {
+  color: #6d5ddd;
+  font-style: normal;
+}
 .result-box > div {
   display: flex;
   align-items: center;
@@ -1497,6 +1526,12 @@ textarea {
   padding: 12px;
   border: 1px solid #dedfeb;
   border-radius: 12px;
+}
+.manual-amount-notice {
+  display: block;
+  margin: 8px 0 0 !important;
+  color: #328665 !important;
+  font-size: 0.76rem;
 }
 .result-box.ready {
   background: #f0fff7;

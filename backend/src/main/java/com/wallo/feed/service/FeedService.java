@@ -40,6 +40,7 @@ public class FeedService {
     private static final int EXTENDED_HISTORY_DAYS = 90;
     private static final int MINIMUM_HISTORY_TRANSACTIONS = 3;
     private static final double MIN_DIRECT_ANALYSIS_CONFIDENCE = 0.65;
+    private static final int MAX_SAVING_AMOUNT = 10_000_000;
     private static final long MAX_FILE_SIZE = 50L * 1024 * 1024;
     private final FeedMapper feedMapper;
     private final FeedAnalysisClient analysisClient;
@@ -135,7 +136,7 @@ public class FeedService {
         feed.setThumbnailUrl(mediaType.equals("IMAGE") ? mediaUrl : null);
         feed.setMediaType(mediaType);
         feed.setSpendingType(spendingType);
-        feed.setSavingAmount(Math.max(0, savingAmount));
+        feed.setSavingAmount(clampSavingAmount(savingAmount));
         feed.setCategory(normalizedCategory);
         // 새 인증 글은 공통 지출 카테고리만 사용하며 기존 custom_category 데이터는 유지함.
         feed.setCustomCategory(null);
@@ -201,7 +202,7 @@ public class FeedService {
             throw new IllegalArgumentException("지원하지 않는 카테고리입니다.");
         }
         int savingAmount = request.savingAmount() == null
-                ? 0 : Math.max(0, request.savingAmount());
+                ? 0 : clampSavingAmount(request.savingAmount());
         int updated = feedMapper.updateFeed(
                 feedId, userId, challengeId, category, request.spendingType(),
                 blankToNull(request.caption()), savingAmount);
@@ -321,6 +322,10 @@ public class FeedService {
 
     private int toSavingAmount(long amount) {
         return (int) Math.min(Integer.MAX_VALUE, Math.max(0L, amount));
+    }
+
+    private int clampSavingAmount(int amount) {
+        return Math.max(0, Math.min(MAX_SAVING_AMOUNT, amount));
     }
 
     private String appendHistoryFallbackSummary(String summary, int historyDays) {
