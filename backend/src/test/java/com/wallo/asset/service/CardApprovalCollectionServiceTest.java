@@ -265,6 +265,39 @@ class CardApprovalCollectionServiceTest {
         verify(assetSyncMapper, never()).upsertTransaction(any());
     }
 
+    @Test
+    void missingCardNumberDoesNotWriteTransaction() {
+        when(cardApprovalClient.getApprovals(any())).thenReturn(CodefDto.Response.success(List.of(
+                approval(null, "10000001", "merchant", "sector", "12000")
+        )));
+
+        assertThrows(IllegalArgumentException.class, () -> service.collect(
+                7L,
+                11L,
+                institution,
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 7, 31)
+        ));
+        verify(assetSyncMapper, never()).upsertTransaction(any());
+    }
+
+    @Test
+    void missingApprovalNumberDoesNotWriteTransaction() {
+        when(cardApprovalClient.getApprovals(any())).thenReturn(CodefDto.Response.success(List.of(
+                approval("9876", null, "merchant", "sector", "12000")
+        )));
+        when(assetSyncMapper.findCardId(11L, "9876")).thenReturn(21L);
+
+        assertThrows(IllegalArgumentException.class, () -> service.collect(
+                7L,
+                11L,
+                institution,
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 7, 31)
+        ));
+        verify(assetSyncMapper, never()).upsertTransaction(any());
+    }
+
     private CodefDto.CardApproval approval(
             String cardNumber,
             String approvalNo,

@@ -9,6 +9,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.wallo.asset.domain.Institution;
 import com.wallo.asset.dto.AssetSyncDto;
@@ -296,6 +297,74 @@ class AssetSyncServiceTest {
         assetSyncService.sync(7L, 11L, institution, CodefDto.Response.success(data));
 
         verify(assetSyncMapper).upsertTransaction(any(AssetSyncDto.Transaction.class));
+    }
+
+    @Test
+    void missingLoanPaymentNumberDoesNotWriteTransaction() {
+        Institution institution = new Institution(1L, "0004", "Wallo Bank", "BANK", "bank-logo");
+        Map<String, Object> data = Map.of(
+                "loans", List.of(Map.of(
+                        "resLoanName", "Student loan",
+                        "resLoanAccount", "STUDENT-LOAN-2021-001",
+                        "resLoanDisplay", "STUDENT-LOAN-****-001",
+                        "resLoanBalance", "4800000",
+                        "resLoanStatus", "1",
+                        "resLoanCurrency", "KRW"
+                )),
+                "transactions", List.of(Map.of(
+                        "resLoanAccount", "STUDENT-LOAN-2021-001",
+                        "resLoanPaymentNo", "",
+                        "resLoanPaymentDate", "2026-07-25",
+                        "resLoanPaymentTime", "09:00:00",
+                        "resLoanPaymentAmount", "150000",
+                        "resLoanPaymentCategory", "LOAN_REPAYMENT"
+                ))
+        );
+        when(assetSyncMapper.findAccountId(11L, "STUDENTLOAN2021001")).thenReturn(379L);
+
+        assertThrows(IllegalArgumentException.class, () -> assetSyncService.sync(
+                7L,
+                11L,
+                institution,
+                CodefDto.Response.success(data)
+        ));
+        verify(assetSyncMapper, never()).upsertTransaction(any());
+    }
+
+    @Test
+    void missingStockTransactionNumberDoesNotWriteTransaction() {
+        Institution institution = new Institution(3L, "0081", "Wallo Securities", "STOCK", "stock-logo");
+        Map<String, Object> data = Map.of(
+                "accounts", List.of(Map.of(
+                        "resAccount", "12345678-01",
+                        "resAccountDisplay", "123456**-**",
+                        "resAccountName", "Investment account",
+                        "resAccountBalance", "350000",
+                        "resAccountEvalAmount", "14500000",
+                        "resAccountCurrency", "KRW",
+                        "resAccountStatus", "1",
+                        "resAccountSubtype", "STOCK"
+                )),
+                "transactions", List.of(Map.of(
+                        "resAccount", "12345678-01",
+                        "resAccountTrNo", "",
+                        "resAccountTrDate", "2026-07-24",
+                        "resAccountTrTime", "10:05:00",
+                        "resAccountTrType", "INCOME",
+                        "resAccountTrAmount", "180000",
+                        "resAccountTrDesc", "Dividend",
+                        "resAccountTrCategory", "INVESTMENT"
+                ))
+        );
+        when(assetSyncMapper.findAccountId(11L, "1234567801")).thenReturn(41L);
+
+        assertThrows(IllegalArgumentException.class, () -> assetSyncService.sync(
+                7L,
+                11L,
+                institution,
+                CodefDto.Response.success(data)
+        ));
+        verify(assetSyncMapper, never()).upsertTransaction(any());
     }
 
     @Test

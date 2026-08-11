@@ -332,6 +332,23 @@ class BankTransactionCollectionServiceTest {
         verify(assetSyncMapper, never()).upsertTransaction(any());
     }
 
+    @Test
+    void missingBankTransactionNumberDoesNotWriteTransaction() {
+        when(bankTransactionClient.getTransactions(any())).thenReturn(CodefDto.Response.success(List.of(
+                transaction(null, "3000000", "0", "income", "INCOME")
+        )));
+
+        assertThrows(IllegalArgumentException.class, () -> service.collect(
+                7L,
+                31L,
+                "123456-01-789012",
+                institution,
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 7, 31)
+        ));
+        verify(assetSyncMapper, never()).upsertTransaction(any());
+    }
+
     private CodefDto.BankTransaction transaction(
             String transactionId,
             String accountIn,
