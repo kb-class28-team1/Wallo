@@ -76,6 +76,29 @@ class AssetSyncMapperIntegrationTest {
     }
 
     @Test
+    void sameSourceTransactionIdCanExistWhenSourceDedupKeysDiffer() throws Exception {
+        TransactionSourceKeyGenerator keyGenerator = new TransactionSourceKeyGenerator();
+        String firstKey = keyGenerator.forBankTransaction(
+                "0004", "123456-01-789012", "BANK-202607-0001"
+        );
+        String secondKey = keyGenerator.forBankTransaction(
+                "0004", "987654-01-321098", "BANK-202607-0001"
+        );
+
+        assetSyncMapper.upsertTransaction(bankTransaction(301L, 3_000_000L, firstKey));
+        assetSyncMapper.upsertTransaction(bankTransaction(402L, 3_100_000L, secondKey));
+
+        try (Connection connection = dataSource.getConnection();
+             Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(
+                     "SELECT COUNT(*) AS row_count FROM TRANSACTIONS"
+             )) {
+            resultSet.next();
+            assertEquals(2, resultSet.getInt("row_count"));
+        }
+    }
+
+    @Test
     void reconnectionWithNewCardIdKeepsOneApprovalAndUpdatesCardRelation() throws Exception {
         TransactionSourceKeyGenerator keyGenerator = new TransactionSourceKeyGenerator();
         String sourceDedupKey = keyGenerator.forCardApproval("0311", "2468-0000-0000-1357", "87654321");
