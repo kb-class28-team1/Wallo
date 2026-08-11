@@ -113,9 +113,17 @@ class TransactionReconciliationMapperIntegrationTest {
                         amount BIGINT NOT NULL,
                         merchant_name VARCHAR(100) NOT NULL,
                         original_merchant_name VARCHAR(100) NULL,
-                        source_type VARCHAR(30) NULL,
+                        original_sector VARCHAR(100) NULL,
+                        external_approval_no VARCHAR(50) NULL,
+                        source_type VARCHAR(30) NOT NULL,
+                        source_organization_code VARCHAR(20) NOT NULL,
+                        source_transaction_id VARCHAR(100) NOT NULL,
+                        source_dedup_key CHAR(64) NOT NULL,
                         transaction_date DATE NOT NULL,
-                        transaction_time TIME NOT NULL
+                        transaction_time TIME NOT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE (user_id, source_type, source_organization_code, source_dedup_key),
+                        INDEX idx_transactions_card_id (card_id)
                     )
                     """);
             statement.execute("INSERT INTO CARDS (card_id, card_type) VALUES (1, 'CHECK'), (2, 'CREDIT')");
@@ -123,19 +131,24 @@ class TransactionReconciliationMapperIntegrationTest {
                     INSERT INTO TRANSACTIONS (
                         transaction_id, user_id, card_id, type, category, category_source,
                         amount, merchant_name, original_merchant_name, source_type,
+                        source_organization_code, source_transaction_id, source_dedup_key,
                         transaction_date, transaction_time
                     ) VALUES
                         (1, 7, NULL, 'TRANSFER', 'SEND', 'BANK_DIRECTION',
                          38000, '체크가맹_배달의민족', '체크가맹_배달의민족', 'BANK_TRANSACTION',
+                         '0004', 'BANK-1', 'transaction-reconciliation-1',
                          '2026-07-26', '19:30:00'),
                         (2, 7, NULL, 'TRANSFER', 'SEND', 'BANK_DIRECTION',
                          50000, '김철수', '김철수', 'BANK_TRANSACTION',
+                         '0004', 'BANK-2', 'transaction-reconciliation-2',
                          '2026-07-28', '14:20:00'),
                         (3, 7, 1, 'EXPENSE', 'DELIVERY', 'MERCHANT_KEYWORD',
                          38000, '배달의민족', '배달의민족', 'CARD_APPROVAL',
+                         '0311', 'CARD-1', 'transaction-reconciliation-3',
                          '2026-07-26', '19:30:00'),
                         (4, 7, 2, 'EXPENSE', 'TRANSPORT', 'MERCHANT_SECTOR',
                          50000, 'SK에너지', 'SK에너지', 'CARD_APPROVAL',
+                         '0311', 'CARD-2', 'transaction-reconciliation-4',
                          '2026-07-27', '10:00:00')
                     """);
         }

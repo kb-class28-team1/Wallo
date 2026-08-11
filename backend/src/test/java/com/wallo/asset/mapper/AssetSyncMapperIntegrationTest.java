@@ -380,7 +380,9 @@ class AssetSyncMapperIntegrationTest {
                         source_dedup_key CHAR(64) NOT NULL,
                         transaction_date DATE NOT NULL,
                         transaction_time TIME NOT NULL,
-                        UNIQUE (user_id, source_type, source_organization_code, source_dedup_key)
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE (user_id, source_type, source_organization_code, source_dedup_key),
+                        INDEX idx_transactions_card_id (card_id)
                     )
                     """);
         }

@@ -99,6 +99,33 @@ class ExpenseMapperIntegrationTest {
                     CREATE TABLE TRANSACTIONS (
                         transaction_id BIGINT PRIMARY KEY,
                         user_id BIGINT NOT NULL,
+                        card_id BIGINT NULL,
+                        account_id BIGINT NULL,
+                        type VARCHAR(20) NOT NULL,
+                        category VARCHAR(50) NOT NULL,
+                        category_source VARCHAR(30) NOT NULL,
+                        category_confidence DECIMAL(5,4) NULL,
+                        classifier_version VARCHAR(30) NULL,
+                        amount BIGINT NOT NULL,
+                        merchant_name VARCHAR(100) NOT NULL,
+                        original_merchant_name VARCHAR(100) NULL,
+                        original_sector VARCHAR(100) NULL,
+                        external_approval_no VARCHAR(50) NULL,
+                        source_type VARCHAR(30) NOT NULL,
+                        source_organization_code VARCHAR(20) NOT NULL,
+                        source_transaction_id VARCHAR(100) NOT NULL,
+                        source_dedup_key CHAR(64) NOT NULL,
+                        transaction_date DATE NOT NULL,
+                        transaction_time TIME NOT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE (user_id, source_type, source_organization_code, source_dedup_key),
+                        INDEX idx_transactions_card_id (card_id)
+                    )
+                    """);
+            statement.execute("""
+                    CREATE TABLE TRANSACTIONS_INPUT (
+                        transaction_id BIGINT PRIMARY KEY,
+                        user_id BIGINT NOT NULL,
                         type VARCHAR(20) NOT NULL,
                         category VARCHAR(50) NOT NULL,
                         amount BIGINT NOT NULL,
@@ -108,7 +135,7 @@ class ExpenseMapperIntegrationTest {
                     )
                     """);
             statement.execute("""
-                    INSERT INTO TRANSACTIONS (
+                    INSERT INTO TRANSACTIONS_INPUT (
                         transaction_id, user_id, type, category, amount,
                         merchant_name, transaction_date, transaction_time
                     ) VALUES
@@ -122,6 +149,21 @@ class ExpenseMapperIntegrationTest {
                         (8, 7, 'EXPENSE', 'OTHER', 70, '기타 상점', '2026-07-01', '15:00:00'),
                         (9, 7, 'EXPENSE', 'ETC', 40, '동네 상점', '2026-07-01', '16:00:00')
                     """);
+            statement.execute("""
+                    INSERT INTO TRANSACTIONS (
+                        transaction_id, user_id, card_id, account_id, type, category,
+                        category_source, amount, merchant_name,
+                        source_type, source_organization_code, source_transaction_id,
+                        source_dedup_key, transaction_date, transaction_time
+                    )
+                    SELECT transaction_id, user_id, NULL, NULL, type, category,
+                           'TEST', amount, merchant_name,
+                           'TEST_TRANSACTION', 'TEST', CONCAT('EXP-', transaction_id),
+                           LPAD(CAST(transaction_id AS VARCHAR), 64, '0'),
+                           transaction_date, transaction_time
+                    FROM TRANSACTIONS_INPUT
+                    """);
+            statement.execute("DROP TABLE TRANSACTIONS_INPUT");
         }
     }
 }
