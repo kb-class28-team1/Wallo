@@ -14,6 +14,7 @@ import com.wallo.asset.classification.ExpenseCategoryClassifier;
 import com.wallo.asset.domain.Institution;
 import com.wallo.asset.dto.AssetSyncDto;
 import com.wallo.asset.mapper.AssetSyncMapper;
+import com.wallo.external.auth.MockCodefCredentialProvider;
 import com.wallo.external.client.BankTransactionClient;
 import com.wallo.external.dto.CodefDto;
 import java.time.Clock;
@@ -43,6 +44,7 @@ class BankTransactionCollectionServiceTest {
         );
         service = new BankTransactionCollectionService(
                 bankTransactionClient,
+                new MockCodefCredentialProvider("1", "mock_id", "mock_pw"),
                 new ObjectMapper(),
                 categoryClassifier,
                 new TransactionSourceKeyGenerator(),
@@ -91,6 +93,9 @@ class BankTransactionCollectionServiceTest {
         ArgumentCaptor<CodefDto.BankTransactionRequest> requestCaptor =
                 ArgumentCaptor.forClass(CodefDto.BankTransactionRequest.class);
         verify(bankTransactionClient).getTransactions(requestCaptor.capture());
+        assertEquals("1", requestCaptor.getValue().getLoginType());
+        assertEquals("mock_id", requestCaptor.getValue().getId());
+        assertEquals("mock_pw", requestCaptor.getValue().getPassword());
         assertEquals("123456-01-789012", requestCaptor.getValue().getAccount());
         assertEquals("20260701", requestCaptor.getValue().getStartDate());
         assertEquals("20260731", requestCaptor.getValue().getEndDate());

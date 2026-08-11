@@ -15,6 +15,7 @@ import com.wallo.asset.exception.ConnectionConsentRequiredException;
 import com.wallo.asset.exception.ConnectionNotFoundException;
 import com.wallo.asset.mapper.ConnectionMapper;
 import com.wallo.common.exception.ErrorCode;
+import com.wallo.external.auth.MockCodefCredentialProvider;
 import com.wallo.external.client.CodefClient;
 import com.wallo.external.dto.CodefDto;
 import java.time.LocalDateTime;
@@ -33,6 +34,7 @@ public class ConnectionServiceTest {
     private final AnnualSalarySyncService annualSalarySyncService = mock(AnnualSalarySyncService.class);
     private final ConnectionService connectionService = new ConnectionService(
             codefClient,
+            new MockCodefCredentialProvider("1", "mock_id", "mock_pw"),
             institutionService,
             connectionMapper,
             assetSyncService,
