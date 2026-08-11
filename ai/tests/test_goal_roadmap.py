@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.agents.roadmap.generator import generate_goal_roadmap
+from app.agents.roadmap.generator import generate_goal_roadmap, save_goal_roadmap
 from app.agents.roadmap.models import RoadmapGoal
 
 
@@ -65,3 +65,15 @@ def test_rejects_roadmap_whose_last_step_does_not_match_goal():
 
     with pytest.raises(ValueError, match="마지막 단계 금액"):
         generate_goal_roadmap(client, goal())
+
+
+def test_saves_generated_roadmap_as_json(tmp_path):
+    completions = FakeCompletions(valid_roadmap())
+    client = SimpleNamespace(chat=SimpleNamespace(completions=completions))
+    roadmap = generate_goal_roadmap(client, goal())
+
+    output = save_goal_roadmap(roadmap, tmp_path / "roadmap.json")
+    payload = json.loads(output.read_text(encoding="utf-8"))
+
+    assert payload["steps"][0]["stepNumber"] == 1
+    assert payload["steps"][-1]["targetAmount"] == 10_000_000

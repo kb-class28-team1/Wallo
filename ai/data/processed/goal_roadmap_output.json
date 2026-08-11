@@ -1,199 +1,77 @@
 {
-  "summary": "2026년 8월부터 2027년 11월까지 매월 500,000원을 예치해 현재 2,000,000원을 포함해 총 10,000,000원을 비상금으로 마련한다. 16개월 동안 매달 목표 금액을 단계적으로 증가시키며, 매월 말 잔액을 확인하고 예산을 조정해 목표를 확실히 달성한다.",
-  "strategy": "정기적 월별 예치와 목표 금액 추적을 통해 비상금 목표를 체계적으로 달성한다. 매달 예치액을 자동이체로 설정해 실수 없이 적립하고, 매월 말 잔액을 확인해 진행 상황을 점검한다. 필요 시 예산을 재조정해 목표 달성 속도를 유지한다.",
+  "summary": "24개월 동안 매달 416,667원을 저축하며, 비상금과 예비 자금을 별도로 확보해 결혼 자금 1,000만 원을 목표로 한다.",
+  "strategy": "매달 일정 금액을 저축하고, 비상금과 예비 자금을 별도로 확보하여 결혼 자금 목표를 체계적으로 달성한다. 필요 시 저축액을 조정하고, 수익 추구형 투자 대신 안전한 저축 상품을 활용한다.",
   "steps": [
     {
       "stepNumber": 1,
       "title": "1단계 목표",
-      "description": "첫 달 예치금 확인 및 목표 금액 업데이트",
-      "targetDate": "2026-08-31",
-      "targetAmount": 2500000,
-      "monthlyContribution": 500000,
+      "description": "목표 설정 및 예산 검토",
+      "targetDate": "2026-09-01",
+      "targetAmount": 416667,
+      "monthlyContribution": 416667,
       "actionItems": [
-        "현재 잔액 2,000,000원 확인",
-        "월 500,000원 예치 완료",
-        "예산 계획 재검토"
+        "결혼 예산 총액과 예상 비용을 상세히 산정",
+        "월별 저축 목표를 재확인"
       ]
     },
     {
       "stepNumber": 2,
       "title": "2단계 목표",
-      "description": "두 번째 달 예치금 확인 및 목표 금액 업데이트",
-      "targetDate": "2026-09-30",
-      "targetAmount": 3000000,
-      "monthlyContribution": 500000,
+      "description": "저축 계좌 개설 및 자동이체 설정",
+      "targetDate": "2026-09-15",
+      "targetAmount": 833334,
+      "monthlyContribution": 416667,
       "actionItems": [
-        "월 500,000원 예치 완료",
-        "비상금 비율 재확인"
+        "전용 결혼자금 저축계좌 개설",
+        "급여일 직후 자동이체 설정"
       ]
     },
     {
       "stepNumber": 3,
       "title": "3단계 목표",
-      "description": "세 번째 달 예치금 확인 및 목표 금액 업데이트",
-      "targetDate": "2026-10-31",
-      "targetAmount": 3500000,
-      "monthlyContribution": 500000,
+      "description": "비상 상황 대비 예비 자금 확보",
+      "targetDate": "2027-01-01",
+      "targetAmount": 1250000,
+      "monthlyContribution": 416667,
       "actionItems": [
-        "월 500,000원 예치 완료",
-        "비상금 비율 재확인"
+        "비상금 3개월 생활비 확보",
+        "비상금 사용 조건 명확화"
       ]
     },
     {
       "stepNumber": 4,
       "title": "4단계 목표",
-      "description": "네 번째 달 예치금 확인 및 목표 금액 업데이트",
-      "targetDate": "2026-11-30",
-      "targetAmount": 4000000,
-      "monthlyContribution": 500000,
+      "description": "중간 점검 및 조정",
+      "targetDate": "2027-07-01",
+      "targetAmount": 2500000,
+      "monthlyContribution": 416667,
       "actionItems": [
-        "월 500,000원 예치 완료",
-        "비상금 비율 재확인"
+        "저축 진행 상황 점검",
+        "필요 시 월 저축액 조정"
       ]
     },
     {
       "stepNumber": 5,
       "title": "5단계 목표",
-      "description": "다섯 번째 달 예치금 확인 및 목표 금액 업데이트",
-      "targetDate": "2026-12-31",
-      "targetAmount": 4500000,
-      "monthlyContribution": 500000,
+      "description": "추가 저축 및 투자 검토",
+      "targetDate": "2028-01-01",
+      "targetAmount": 7500000,
+      "monthlyContribution": 416667,
       "actionItems": [
-        "월 500,000원 예치 완료",
-        "비상금 비율 재확인"
+        "안전한 저축 상품(예: 예금, 적금) 활용",
+        "수익 추구형 투자 자산은 제외"
       ]
     },
     {
       "stepNumber": 6,
       "title": "6단계 목표",
-      "description": "여섯 번째 달 예치금 확인 및 목표 금액 업데이트",
-      "targetDate": "2027-01-31",
-      "targetAmount": 5000000,
-      "monthlyContribution": 500000,
-      "actionItems": [
-        "월 500,000원 예치 완료",
-        "비상금 비율 재확인"
-      ]
-    },
-    {
-      "stepNumber": 7,
-      "title": "7단계 목표",
-      "description": "일곱 번째 달 예치금 확인 및 목표 금액 업데이트",
-      "targetDate": "2027-02-28",
-      "targetAmount": 5500000,
-      "monthlyContribution": 500000,
-      "actionItems": [
-        "월 500,000원 예치 완료",
-        "비상금 비율 재확인"
-      ]
-    },
-    {
-      "stepNumber": 8,
-      "title": "8단계 목표",
-      "description": "여덟 번째 달 예치금 확인 및 목표 금액 업데이트",
-      "targetDate": "2027-03-31",
-      "targetAmount": 6000000,
-      "monthlyContribution": 500000,
-      "actionItems": [
-        "월 500,000원 예치 완료",
-        "비상금 비율 재확인"
-      ]
-    },
-    {
-      "stepNumber": 9,
-      "title": "9단계 목표",
-      "description": "아홉 번째 달 예치금 확인 및 목표 금액 업데이트",
-      "targetDate": "2027-04-30",
-      "targetAmount": 6500000,
-      "monthlyContribution": 500000,
-      "actionItems": [
-        "월 500,000원 예치 완료",
-        "비상금 비율 재확인"
-      ]
-    },
-    {
-      "stepNumber": 10,
-      "title": "10단계 목표",
-      "description": "열 번째 달 예치금 확인 및 목표 금액 업데이트",
-      "targetDate": "2027-05-31",
-      "targetAmount": 7000000,
-      "monthlyContribution": 500000,
-      "actionItems": [
-        "월 500,000원 예치 완료",
-        "비상금 비율 재확인"
-      ]
-    },
-    {
-      "stepNumber": 11,
-      "title": "11단계 목표",
-      "description": "열한 번째 달 예치금 확인 및 목표 금액 업데이트",
-      "targetDate": "2027-06-30",
-      "targetAmount": 7500000,
-      "monthlyContribution": 500000,
-      "actionItems": [
-        "월 500,000원 예치 완료",
-        "비상금 비율 재확인"
-      ]
-    },
-    {
-      "stepNumber": 12,
-      "title": "12단계 목표",
-      "description": "열두 번째 달 예치금 확인 및 목표 금액 업데이트",
-      "targetDate": "2027-07-31",
-      "targetAmount": 8000000,
-      "monthlyContribution": 500000,
-      "actionItems": [
-        "월 500,000원 예치 완료",
-        "비상금 비율 재확인"
-      ]
-    },
-    {
-      "stepNumber": 13,
-      "title": "13단계 목표",
-      "description": "열세 번째 달 예치금 확인 및 목표 금액 업데이트",
-      "targetDate": "2027-08-31",
-      "targetAmount": 8500000,
-      "monthlyContribution": 500000,
-      "actionItems": [
-        "월 500,000원 예치 완료",
-        "비상금 비율 재확인"
-      ]
-    },
-    {
-      "stepNumber": 14,
-      "title": "14단계 목표",
-      "description": "열네 번째 달 예치금 확인 및 목표 금액 업데이트",
-      "targetDate": "2027-09-30",
-      "targetAmount": 9000000,
-      "monthlyContribution": 500000,
-      "actionItems": [
-        "월 500,000원 예치 완료",
-        "비상금 비율 재확인"
-      ]
-    },
-    {
-      "stepNumber": 15,
-      "title": "15단계 목표",
-      "description": "열다섯 번째 달 예치금 확인 및 목표 금액 업데이트",
-      "targetDate": "2027-10-31",
-      "targetAmount": 9500000,
-      "monthlyContribution": 500000,
-      "actionItems": [
-        "월 500,000원 예치 완료",
-        "비상금 비율 재확인"
-      ]
-    },
-    {
-      "stepNumber": 16,
-      "title": "16단계 목표",
-      "description": "목표 달성 및 비상금 완성",
-      "targetDate": "2027-11-30",
+      "description": "최종 목표 달성 및 사용 계획 확정",
+      "targetDate": "2028-08-11",
       "targetAmount": 10000000,
-      "monthlyContribution": 500000,
+      "monthlyContribution": 416667,
       "actionItems": [
-        "최종 500,000원 예치 완료",
-        "비상금 10,000,000원 확인",
-        "비상금 사용 계획 수립"
+        "결혼 예산 최종 확인",
+        "자금 배분 계획 수립"
       ]
     }
   ]
