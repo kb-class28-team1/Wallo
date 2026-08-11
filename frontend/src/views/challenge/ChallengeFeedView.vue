@@ -64,8 +64,10 @@ const form = reactive({
   category: "",
   caption: "",
   savingAmount: 0,
+  aiEstimatedAmount: null,
   analysisSummary: "",
   confidenceScore: 0,
+  analysisStatus: "NOT_STARTED",
 })
 
 const spendingTypes = [
@@ -81,6 +83,12 @@ const categoryLabel = (value, custom) =>
   custom || EXPENSE_CATEGORY_META[value]?.label || value || "기타"
 const spendingLabel = (value) => spendingTypes.find((item) => item.value === value)?.label || value
 const isVideoFile = computed(() => form.file?.type?.startsWith("video/"))
+const canConfirmSavingAmount = computed(() =>
+  ["AI_COMPLETED", "AI_FAILED", "MANUAL"].includes(form.analysisStatus),
+)
+const analysisTitle = computed(() =>
+  form.analysisStatus === "AI_FAILED" ? "✍️ 수기 입력" : "🤖 AI 추정",
+)
 const roomTitle = computed(() => `${challengeName.value} 채팅방`)
 const DEFAULT_SPENDING_TYPE = "REDUCED"
 
@@ -280,8 +288,10 @@ const closeModal = () => {
     category: "",
     caption: "",
     savingAmount: 0,
+    aiEstimatedAmount: null,
     analysisSummary: "",
     confidenceScore: 0,
+    analysisStatus: "NOT_STARTED",
   })
   if (fileInput.value) fileInput.value.value = ""
 }
@@ -328,6 +338,13 @@ const removeFeed = async (feed) => {
   }
 }
 const chooseFile = () => fileInput.value?.click()
+const resetAnalysis = () => {
+  form.savingAmount = 0
+  form.aiEstimatedAmount = null
+  form.analysisSummary = ""
+  form.confidenceScore = 0
+  form.analysisStatus = "NOT_STARTED"
+}
 const handleFile = async (event) => {
   const file = event.target.files?.[0]
   if (!file) return
@@ -338,11 +355,15 @@ const handleFile = async (event) => {
   if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
   form.file = file
   previewUrl.value = URL.createObjectURL(file)
-  form.analysisSummary = ""
+  resetAnalysis()
 }
 const validationMessage = ({ requireCaption = false } = {}) => {
   if (!form.file) return "사진이나 영상을 선택해 주세요."
   if (!form.category) return "세부 카테고리를 선택해 주세요."
+  if (!canConfirmSavingAmount.value) return "먼저 AI 분석을 진행해 주세요."
+  if (!Number.isFinite(form.savingAmount) || form.savingAmount < 0) {
+    return "절약 금액을 0원 이상 입력해 주세요."
+  }
   if (requireCaption && !form.caption.trim()) return "한줄요약을 작성해주세요"
   return ""
 }
@@ -359,11 +380,19 @@ const requestAnalysis = async () => {
   isAnalyzing.value = true
   try {
     const result = await analyzeFeed(challengeId.value, makeFormData())
-    form.savingAmount = result.estimatedSavingAmount
+    form.aiEstimatedAmount = Number.isFinite(result.estimatedSavingAmount)
+      ? result.estimatedSavingAmount : null
+    form.savingAmount = form.aiEstimatedAmount ?? 0
     form.analysisSummary = result.summary
     form.confidenceScore = result.confidenceScore
+    form.analysisStatus = "AI_COMPLETED"
   } catch (error) {
-    openDialog({ message: error.message })
+    form.aiEstimatedAmount = null
+    form.savingAmount = 0
+    form.confidenceScore = 0
+    form.analysisStatus = "AI_FAILED"
+    form.analysisSummary = "AI 분석에 실패했습니다. 절약 금액을 직접 입력해 주세요."
+    await openDialog({ message: `${error.message}\nAI 분석 없이 금액을 직접 입력할 수 있습니다.` })
   } finally {
     isAnalyzing.value = false
   }
@@ -371,7 +400,6 @@ const requestAnalysis = async () => {
 const uploadFeed = async () => {
   const invalid = validationMessage({ requireCaption: true })
   if (invalid) return openDialog({ message: invalid })
-  if (!form.analysisSummary) return openDialog({ message: "먼저 AI 분석을 진행해 주세요." })
   isUploading.value = true
   try {
     const data = makeFormData()
@@ -379,6 +407,14 @@ const uploadFeed = async () => {
     data.append("savingAmount", String(form.savingAmount))
     data.append("analysisSummary", form.analysisSummary)
     data.append("confidenceScore", String(form.confidenceScore))
+    if (form.aiEstimatedAmount !== null) {
+      data.append("aiEstimatedAmount", String(form.aiEstimatedAmount))
+    }
+    const feedbackType = form.analysisStatus === "AI_COMPLETED"
+      ? form.savingAmount === form.aiEstimatedAmount ? "ACCEPTED" : "ADJUSTED"
+      : "MANUAL"
+    data.append("feedbackType", feedbackType)
+    data.append("analysisStatus", form.analysisStatus === "AI_FAILED" ? "AI_FAILED" : "AI_COMPLETED")
     await createFeed(challengeId.value, data)
     closeModal()
     await Promise.all([loadFeeds(), loadMessages({ forceScroll: true })])
@@ -577,7 +613,12 @@ onBeforeUnmount(() => {
                   </button>
                 </div>
               </div>
-              <span>🤖 AI 분석 완료 · 절약 금액 {{ formatWon(feed.savingAmount) }}</span>
+              <span>
+                {{ feed.analysisStatus === "AI_FAILED" || feed.analysisStatus === "MANUAL"
+                  ? "✍️ 사용자 입력 금액"
+                  : "🤖 AI 분석 · 사용자 확인 금액" }}
+                {{ formatWon(feed.savingAmount) }}
+              </span>
             </footer>
           </article>
         </main>
@@ -698,7 +739,7 @@ onBeforeUnmount(() => {
               :key="item.value"
               type="button"
               :class="{ selected: form.category === item.value }"
-              @click="form.category = item.value"
+              @click="form.category = item.value; resetAnalysis()"
             >
               <i :class="['bi', item.icon]" aria-hidden="true"></i>
               {{ item.label }}
@@ -713,15 +754,15 @@ onBeforeUnmount(() => {
               {{ isAnalyzing ? "분석 중..." : "✨ AI에게 분석 맡기기" }}
             </button>
           </div>
-          <div class="result-box" :class="{ ready: form.analysisSummary }">
-            <span>🤖 AI 추정</span
+          <div class="result-box" :class="{ ready: canConfirmSavingAmount }">
+            <span>{{ analysisTitle }}</span
             ><small>{{ form.analysisSummary || "분석하면 예상 절약 금액을 알려드려요." }}</small>
             <div>
               <input
                 v-model.number="form.savingAmount"
                 type="number"
                 min="0"
-                :disabled="!form.analysisSummary"
+                :disabled="!canConfirmSavingAmount"
               /><b>원</b>
             </div>
           </div>
