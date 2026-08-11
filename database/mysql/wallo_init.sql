@@ -390,7 +390,16 @@ CREATE TABLE FEED_ANALYSIS
     detected_objects         JSON         NULL,
     detected_actions         JSON         NULL,
     analysis_tags             JSON         NULL,
-    confidence_score         DECIMAL(5, 4) NULL
+    confidence_score         DECIMAL(5, 4) NULL,
+    reference_value          BIGINT       NOT NULL DEFAULT 0,
+    actual_cost              BIGINT       NOT NULL DEFAULT 0,
+    saving_difference        BIGINT       NOT NULL DEFAULT 0,
+    detected_items_json      JSON         NULL,
+    price_references_json    JSON         NULL,
+    analyzed_at              DATETIME     NULL,
+    analysis_accuracy        VARCHAR(20)  NULL,
+    analysis_feedback_note   VARCHAR(500) NULL,
+    analysis_feedback_at     DATETIME     NULL
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_unicode_ci
