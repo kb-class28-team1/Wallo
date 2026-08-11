@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS `feed_price_reference` (
     id BIGINT NOT NULL AUTO_INCREMENT,
     normalized_item_name VARCHAR(150) NOT NULL,
     display_item_name VARCHAR(200) NOT NULL,
-    brand VARCHAR(100) NULL,
+    brand VARCHAR(100) NOT NULL DEFAULT '',
     unit VARCHAR(50) NOT NULL DEFAULT '개',
     category VARCHAR(30) NULL,
     lowest_price INT NOT NULL,

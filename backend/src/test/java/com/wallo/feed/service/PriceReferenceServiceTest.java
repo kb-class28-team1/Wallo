@@ -24,8 +24,8 @@ class PriceReferenceServiceTest {
     void searchesCacheMissStoresLowestPriceAndCalculatesDifference() {
         DetectedItem item = new DetectedItem("생수", "", "개", 2, 0, 0, 0.9, "상품명이 보임");
         PriceReferenceRow stored = row(1_200);
-        when(mapper.findByKey("생수", null, "개")).thenReturn(null, stored);
-        when(searchClient.findLowestPrice("생수", null, "개", "SHOPPING"))
+        when(mapper.findByKey("생수", "", "개")).thenReturn(null, stored);
+        when(searchClient.findLowestPrice("생수", "", "개", "SHOPPING"))
                 .thenReturn(Optional.of(new PriceSearchClient.PriceSearchResult(
                         "생수", null, "개", 1_200, "판매 페이지", "https://example.com/water", 0.9)));
 

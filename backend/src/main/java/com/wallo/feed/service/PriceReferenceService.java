@@ -35,7 +35,7 @@ public class PriceReferenceService {
             if (item == null || item.itemName() == null || item.itemName().isBlank()) continue;
             int quantity = Math.max(1, Math.min(999, item.quantity()));
             String normalizedName = normalize(item.itemName());
-            String brand = blankToNull(item.brand());
+            String brand = item.brand() == null ? "" : item.brand().trim();
             String unit = item.unit() == null || item.unit().isBlank() ? "개" : item.unit().trim();
             PriceReferenceRow row = priceReferenceMapper.findByKey(normalizedName, brand, unit);
             if (row == null || row.getLowestPrice() == null || row.getLowestPrice() <= 0) {
