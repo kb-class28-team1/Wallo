@@ -156,7 +156,7 @@ public class PriceReferenceService {
                     analysis.category());
             if (isUsable(cached)) {
                 resolvedRows.put(index, cached);
-            } else if (item.confidence() >= MIN_SEARCH_CONFIDENCE) {
+            } else if (isGathered(item) || item.confidence() >= MIN_SEARCH_CONFIDENCE) {
                 searches.put(index, CompletableFuture.supplyAsync(
                         () -> findLowestCandidate(item, analysis.category()), searchExecutor)
                         .exceptionally(exception -> Optional.empty()));
