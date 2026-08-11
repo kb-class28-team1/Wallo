@@ -35,7 +35,9 @@ public class PriceReferenceService {
     private static final int MAX_PRICE = 10_000_000;
     private static final double MIN_SEARCH_CONFIDENCE = 0.55;
     private static final Pattern UNIT_TOKEN = Pattern.compile(
-            "(?i)(\\d+(?:\\.\\d+)?(?:ml|l|kg|g|개|병|봉|롤|구|팩|모|캔|매|박스|통))");
+            "(?i)(\\d+(?:\\.\\d+)?(?:ml|l|kg|g|개|병|봉|롤|구|팩|모|캔|매|박스|통|꼬치))");
+    private static final Pattern COUNT_UNIT_TOKEN = Pattern.compile(
+            "(?i)(\\d+)\\s*(개|병|봉|롤|구|팩|모|캔|매|박스|통|꼬치)");
     private static final List<String> EXCLUDED_TITLE_WORDS = List.of(
             "중고", "리퍼", "렌탈", "대여", "정기구독", "월납", "공병", "빈병");
 
@@ -110,7 +112,46 @@ public class PriceReferenceService {
     private Optional<ShoppingPriceCandidate> findLowestCandidate(DetectedItem item) {
         return shoppingPriceClient.search(item.itemName(), item.brand(), item.unit()).stream()
                 .filter(candidate -> matches(item, candidate))
+                .map(candidate -> normalizePackagePrice(item, candidate))
                 .min(Comparator.comparingInt(ShoppingPriceCandidate::price));
+    }
+
+    private ShoppingPriceCandidate normalizePackagePrice(
+            DetectedItem item, ShoppingPriceCandidate candidate) {
+        String countUnit = singleCountUnit(item.unit());
+        if (countUnit == null) {
+            return candidate;
+        }
+        int packageQuantity = packageQuantity(candidate.title(), countUnit);
+        if (packageQuantity <= 1) {
+            return candidate;
+        }
+        int unitPrice = Math.max(1,
+                (int) Math.ceil((double) candidate.price() / packageQuantity));
+        return new ShoppingPriceCandidate(
+                candidate.title(), unitPrice, candidate.source(),
+                candidate.sourceUrl(), candidate.delivery());
+    }
+
+    private String singleCountUnit(String unit) {
+        Matcher matcher = COUNT_UNIT_TOKEN.matcher(normalizeUnit(unit));
+        while (matcher.find()) {
+            if (Integer.parseInt(matcher.group(1)) == 1) {
+                return matcher.group(2).toLowerCase(Locale.ROOT);
+            }
+        }
+        return null;
+    }
+
+    private int packageQuantity(String title, String countUnit) {
+        Pattern packagePattern = Pattern.compile(
+                "(?i)(\\d+)\\s*" + Pattern.quote(countUnit) + "(?:입)?");
+        Matcher matcher = packagePattern.matcher(normalizeKey(title));
+        int quantity = 1;
+        while (matcher.find()) {
+            quantity = Math.max(quantity, Integer.parseInt(matcher.group(1)));
+        }
+        return quantity;
     }
 
     private boolean matches(DetectedItem item, ShoppingPriceCandidate candidate) {
@@ -140,7 +181,7 @@ public class PriceReferenceService {
         Matcher matcher = UNIT_TOKEN.matcher(normalized);
         while (matcher.find()) {
             String token = matcher.group(1).toLowerCase(Locale.ROOT);
-            if (token.matches("1(?:개|병|봉|롤|구|팩|모|캔|매|박스|통)")) {
+            if (token.matches("1(?:개|병|봉|롤|구|팩|모|캔|매|박스|통|꼬치)")) {
                 continue;
             }
             tokens.add(token);
