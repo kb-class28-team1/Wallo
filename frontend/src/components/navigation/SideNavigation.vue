@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from "vue"
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import { RouterLink, useRoute, useRouter } from "vue-router"
 import { getCurrentChallenge } from "@/api/challengeApi"
 import AppDialog from "@/components/common/AppDialog.vue"
@@ -20,6 +20,64 @@ const utilityMenus = [
   { icon: "📇", label: "금융 리포트", to: "/reports" },
   { icon: "⚙️", label: "설정", to: "/users/profile" },
 ]
+
+const savingsTips = [
+  "장보러 가기 전에 사야 할 물건들 적어놓고 가기",
+  "당장 쓰지 않는 목돈은 파킹통장에 넣어두기",
+  "체크카드 사용하면 소비 통제에 도움됨",
+  "안 쓰는 구독 상품은 해제하기",
+  "알뜰폰 요금제 사용하기",
+  "배달 음식 주문 전에 냉장고 속 재료 확인하기",
+  "사고 싶은 물건은 장바구니에 넣고 하루 기다리기",
+  "할인한다는 이유로 필요 없는 물건 사지 않기",
+  "무료 배송 금액을 맞추려고 불필요한 물건 담지 않기",
+  "월급날 저축할 금액 먼저 떼어두기",
+  "일주일에 하루는 무지출 데이로 보내기",
+  "편의점 가기 전에 물과 간식 챙겨가기",
+  "일주일 식단 정한 뒤 장보기",
+  "유통기한 짧은 음식부터 먹기",
+  "대용량 상품은 단가 비교 후 구매하기",
+  "중고 거래 전 새 상품 가격과 배송비 비교하기",
+  "옷 사기 전에 비슷한 옷이 있는지 확인하기",
+  "사용하지 않는 멀티탭 전원 끄기",
+  "외출 전에 에어컨과 난방 전원 확인하기",
+  "포인트와 쿠폰 만료일 미리 확인하기",
+  "카드 결제 알림 켜두기",
+  "가까운 거리는 걸어가거나 자전거 이용하기",
+  "소액 결제도 주간 예산 안에서 사용하기",
+  "할부 결제 전에 총 결제 금액 확인하기",
+  "매달 고정비 목록 점검하기",
+  "사용하지 않는 앱 자동결제 해지하기",
+  "냉동실에 있는 식재료부터 활용하기",
+  "카페 가기 전에 텀블러와 쿠폰 챙기기",
+  "하루 지출을 자기 전에 기록하기",
+  "비상용품은 필요한 만큼만 구매하기",
+  "소비하기 전에 꼭 필요한지 한 번 더 생각하기",
+]
+
+const getTodayKey = () => {
+  const today = new Date()
+  return Math.floor(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()) / 86400000)
+}
+
+const todayKey = ref(getTodayKey())
+const dailySavingsTip = computed(() => savingsTips[Math.abs(todayKey.value) % savingsTips.length])
+let dailyTipTimer
+
+const scheduleDailyTipRefresh = () => {
+  const now = new Date()
+  const nextDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1)
+  dailyTipTimer = window.setTimeout(
+    () => {
+      todayKey.value = getTodayKey()
+      scheduleDailyTipRefresh()
+    },
+    Math.max(nextDay.getTime() - now.getTime(), 1000),
+  )
+}
+
+onMounted(scheduleDailyTipRefresh)
+onBeforeUnmount(() => window.clearTimeout(dailyTipTimer))
 
 const route = useRoute()
 const router = useRouter()
@@ -240,7 +298,9 @@ const moveToMyChallenge = () => {
 
     <div class="sidebar-card mt-auto text-center">
       <img :src="thinkingPenguin" class="sidebar-card-image" alt="생각하는 왈로 캐릭터" />
-      <p class="sidebar-card-text mb-0">뭔가 넣을 공간</p>
+      <p class="sidebar-card-text mb-0" :title="dailySavingsTip" aria-live="polite">
+        {{ dailySavingsTip }}
+      </p>
     </div>
   </aside>
   <AppDialog
@@ -478,9 +538,9 @@ const moveToMyChallenge = () => {
 
 .sidebar-card-text {
   color: #7b849b;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
 @media (max-width: 767.98px) {
