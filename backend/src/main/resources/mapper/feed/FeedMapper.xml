@@ -45,9 +45,10 @@
     <resultMap id="analysisFeedbackSummaryMap"
                type="com.wallo.feed.dto.FeedDtos$AnalysisFeedbackSummary">
         <constructor>
-            <arg column="high_count" javaType="long"/>
-            <arg column="accurate_count" javaType="long"/>
-            <arg column="low_count" javaType="long"/>
+            <!-- MyBatis의 long 별칭은 Long 래퍼 타입이므로, record의 primitive long 생성자에는 _long을 사용한다. -->
+            <arg column="high_count" javaType="_long"/>
+            <arg column="accurate_count" javaType="_long"/>
+            <arg column="low_count" javaType="_long"/>
         </constructor>
     </resultMap>
 
