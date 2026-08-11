@@ -8,10 +8,14 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.wallo.feed.domain.FoodCostReferenceRow;
 import com.wallo.feed.domain.PriceReferenceRow;
 import com.wallo.feed.dto.FeedDtos.AnalysisResponse;
 import com.wallo.feed.dto.FeedDtos.DetectedItem;
+import com.wallo.feed.mapper.FoodCostReferenceMapper;
 import com.wallo.feed.mapper.PriceReferenceMapper;
+import com.wallo.feed.price.RestaurantPriceCandidate;
+import com.wallo.feed.price.RestaurantPriceClient;
 import com.wallo.feed.price.ShoppingPriceCandidate;
 import com.wallo.feed.price.ShoppingPriceClient;
 import java.time.Clock;
@@ -139,6 +143,47 @@ class PriceReferenceServiceTest {
     }
 
     @Test
+    void subtractsHomemadeIngredientCostFromRestaurantPrice() {
+        FoodCostReferenceMapper foodMapper =
+                org.mockito.Mockito.mock(FoodCostReferenceMapper.class);
+        RestaurantPriceClient restaurantClient =
+                org.mockito.Mockito.mock(RestaurantPriceClient.class);
+        Clock clock = Clock.fixed(
+                Instant.parse("2026-08-11T03:00:00Z"), ZoneId.of("Asia/Seoul"));
+        PriceReferenceService homemadeService = new PriceReferenceService(
+                mapper, shoppingClient, foodMapper, restaurantClient, Runnable::run, clock);
+        FoodCostReferenceRow stored = foodRow("당고", "1꼬치", 600, 2_500);
+        when(foodMapper.findBestMatch("당고", "1꼬치", "CAFE"))
+                .thenReturn(null, stored);
+        when(foodMapper.upsert(any())).thenReturn(1);
+        when(restaurantClient.search("당고", "1꼬치")).thenReturn(List.of(
+                new RestaurantPriceCandidate(
+                        "카페 수제 당고 1꼬치", 2_500, "카페A", "https://example.com/cafe-a"),
+                new RestaurantPriceCandidate(
+                        "당고 전문점 1꼬치", 3_000, "카페B", "https://example.com/cafe-b")));
+        AnalysisResponse analysis = new AnalysisResponse(
+                "REDUCED", "CAFE", 0, "당고를 직접 만들었습니다.", 0.9,
+                List.of(new DetectedItem(
+                        "당고", "", "1꼬치", 5, 0, 0, 0.9, "다섯 꼬치 확인",
+                        "HOMEMADE", 600, 2_000, "쌀가루와 소스")),
+                0, 0, 0, List.of());
+
+        AnalysisResponse result = homemadeService.enrich(analysis);
+
+        ArgumentCaptor<FoodCostReferenceRow> rowCaptor =
+                ArgumentCaptor.forClass(FoodCostReferenceRow.class);
+        verify(foodMapper).upsert(rowCaptor.capture());
+        assertEquals(600, rowCaptor.getValue().getIngredientCost());
+        assertEquals(2_500, rowCaptor.getValue().getRestaurantPrice());
+        assertEquals(12_500, result.referenceValue());
+        assertEquals(3_000, result.actualCost());
+        assertEquals(9_500, result.savingDifference());
+        assertEquals(9_500, result.estimatedSavingAmount());
+        assertTrue(result.summary().contains("음식점 판매가 12,500원"));
+        verify(shoppingClient, never()).search(anyString(), anyString(), anyString());
+    }
+
+    @Test
     void doesNotSearchLowConfidenceItems() {
         when(mapper.findBestMatch(anyString(), anyString(), anyString(), anyString()))
                 .thenReturn(null);
@@ -196,6 +241,23 @@ class PriceReferenceServiceTest {
         row.setLowestPrice(price);
         row.setSource("테스트몰");
         row.setSourceUrl("https://example.com/product");
+        row.setObservedAt(LocalDateTime.of(2026, 8, 11, 12, 0));
+        row.setSearchConfidence(0.9);
+        return row;
+    }
+
+    private FoodCostReferenceRow foodRow(
+            String name, String unit, int ingredientCost, int restaurantPrice) {
+        FoodCostReferenceRow row = new FoodCostReferenceRow();
+        row.setNormalizedDishName(name);
+        row.setDisplayDishName(name);
+        row.setUnit(unit);
+        row.setCategory("CAFE");
+        row.setIngredientCost(ingredientCost);
+        row.setRestaurantPrice(restaurantPrice);
+        row.setRestaurantSource("테스트 카페");
+        row.setRestaurantSourceUrl("https://example.com/menu");
+        row.setIngredientBasis("재료 원가 테스트");
         row.setObservedAt(LocalDateTime.of(2026, 8, 11, 12, 0));
         row.setSearchConfidence(0.9);
         return row;
