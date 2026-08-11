@@ -4,12 +4,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.wallo.feed.analysis.FeedAnalysisClient;
+import com.wallo.feed.domain.Feed;
 import com.wallo.feed.dto.FeedDtos.AnalysisResponse;
 import com.wallo.feed.dto.FeedDtos.CategoryExpenseAverage;
 import com.wallo.feed.mapper.FeedMapper;
@@ -94,6 +96,48 @@ class FeedServiceTest {
                 "   ", 1_000, "분석 완료", 0.8));
 
         verify(feedMapper, never()).insertFeed(any());
+    }
+
+    @Test
+    void storesCalculatedPriceEvidenceWhenCreatingFeed() {
+        when(feedMapper.insertFeed(any(Feed.class))).thenAnswer(invocation -> {
+            Feed feed = invocation.getArgument(0);
+            feed.setId(51L);
+            return 1;
+        });
+        String analysisDetails = """
+                {
+                  "spendingType":"SAVED",
+                  "category":"FOOD",
+                  "estimatedSavingAmount":2360,
+                  "summary":"우유 구매를 줄였어요.",
+                  "confidenceScore":0.9,
+                  "detectedItems":[{
+                    "itemName":"우유",
+                    "brand":"서울우유",
+                    "unit":"1L×1개",
+                    "quantity":1,
+                    "unitPrice":2360,
+                    "totalValue":2360,
+                    "confidence":0.9,
+                    "evidence":"상품명 확인"
+                  }],
+                  "referenceValue":2360,
+                  "actualCost":0,
+                  "savingDifference":2360,
+                  "priceReferences":[]
+                }
+                """;
+
+        feedService.create(
+                7L, 10L, media(), "SAVED", "FOOD", null,
+                "오늘의 절약", 2_360, 2_360, "우유 구매를 줄였어요.", 0.9,
+                "SAME", 2_360, null, analysisDetails);
+
+        verify(feedMapper).insertAnalysis(
+                eq(51L), eq("SAVED"), eq("FOOD"), eq(2_360),
+                eq("우유 구매를 줄였어요."), eq(0.9),
+                eq(2_360L), eq(0L), eq(2_360L), contains("서울우유"), eq("[]"));
     }
 
     private MultipartFile media() {
