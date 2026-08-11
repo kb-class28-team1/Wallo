@@ -63,6 +63,8 @@ class GeminiFeedAnalysisClientTest {
                             .path("text").asText();
                     assertTrue(prompt.contains("detectedItems"));
                     assertTrue(prompt.contains("comparisonType"));
+                    assertTrue(prompt.contains("GATHERED"));
+                    assertTrue(prompt.contains("actualCost는 0"));
                     assertTrue(prompt.contains("ingredientCostPerUnit"));
                     assertTrue(prompt.contains("실제로 보이는 재료"));
                 })

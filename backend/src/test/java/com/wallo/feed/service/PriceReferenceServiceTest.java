@@ -291,6 +291,34 @@ class PriceReferenceServiceTest {
         assertEquals(0, result.savingDifference());
     }
 
+    @Test
+    void valuesGatheredItemsWithZeroActualCost() {
+        when(mapper.findBestMatch("조기", "", "1마리", "FOOD"))
+                .thenReturn(row("조기", "", "1마리", 8_000));
+        AnalysisResponse input = new AnalysisResponse(
+                "REDUCED", "FOOD", 0, "갯벌에서 조기를 직접 채집했습니다.", 0.9,
+                List.of(
+                        new DetectedItem(
+                                "조기", "", "1마리", 1, 0, 0, 0.9,
+                                "직접 잡은 조기 한 마리 확인", "GATHERED", 0, 0, ""),
+                        new DetectedItem(
+                                "채집 바구니", "", "1개", 1, 0, 0, 0.8,
+                                "조기를 담은 바구니", "PRODUCT", 0, 0, "")),
+                0, 4_000, 0, List.of());
+
+        AnalysisResponse result = service.enrich(input);
+
+        assertEquals(8_000, result.referenceValue());
+        assertEquals(0, result.actualCost());
+        assertEquals(8_000, result.savingDifference());
+        assertEquals(8_000, result.estimatedSavingAmount());
+        assertEquals(1, result.detectedItems().size());
+        assertEquals("GATHERED", result.detectedItems().get(0).comparisonType());
+        assertTrue(result.summary().contains("실제 비용 0원"));
+        assertTrue(result.summary().contains("조기 1마리 시세 8,000원"));
+        assertTrue(result.summary().contains("총 가치는 8,000원"));
+    }
+
     private AnalysisResponse analysis(
             String spendingType, long actualCost, DetectedItem item) {
         return new AnalysisResponse(
