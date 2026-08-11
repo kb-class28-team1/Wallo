@@ -105,11 +105,13 @@ CREATE TABLE CONSUMPTION_ANALYSIS_RESULTS
 (
     analysis_result_id BIGINT      NOT NULL AUTO_INCREMENT PRIMARY KEY,
     user_id            BIGINT      NOT NULL,
+    assistant_message_id BIGINT    NOT NULL,
     request_message    TEXT        NOT NULL,
     calculated_result  JSON        NOT NULL,
     ai_response        TEXT        NOT NULL,
     generated_at       DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-    INDEX idx_consumption_analysis_user_generated (user_id, generated_at)
+    INDEX idx_consumption_analysis_user_generated (user_id, generated_at),
+    UNIQUE INDEX uk_consumption_analysis_message (assistant_message_id)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_unicode_ci
@@ -846,7 +848,9 @@ ALTER TABLE CHAT_MESSAGES
 
 ALTER TABLE CONSUMPTION_ANALYSIS_RESULTS
     ADD CONSTRAINT fk_consumption_analysis_user
-        FOREIGN KEY (user_id) REFERENCES USERS (id) ON DELETE CASCADE;
+        FOREIGN KEY (user_id) REFERENCES USERS (id) ON DELETE CASCADE,
+    ADD CONSTRAINT fk_consumption_analysis_message
+        FOREIGN KEY (assistant_message_id) REFERENCES CHAT_MESSAGES (message_id) ON DELETE CASCADE;
 
 ALTER TABLE GOAL_INTERVIEW_SESSIONS
     -- active_key가 user_id와 conversation_id를 사용하는 Stored Generated Column이므로

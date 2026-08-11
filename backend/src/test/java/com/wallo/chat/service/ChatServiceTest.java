@@ -24,13 +24,11 @@ class ChatServiceTest {
     private final ChatService chatService = new ChatService(pythonAiClient, assetService);
 
     @Test
-    void savesConsumptionCalculationAndAiResponse() {
+    void sendsConsumptionContextAndReturnsCalculation() {
         ConsumptionAnalysisContextService contextService =
                 mock(ConsumptionAnalysisContextService.class);
-        ConsumptionAnalysisResultService resultService =
-                mock(ConsumptionAnalysisResultService.class);
         ChatService service = new ChatService(
-                pythonAiClient, assetService, contextService, resultService);
+                pythonAiClient, assetService, contextService);
         GoalAssetContextDto.Response financialContext = emptyContext(true);
         com.wallo.asset.dto.ConsumptionAnalysisContextDto consumptionContext =
                 new com.wallo.asset.dto.ConsumptionAnalysisContextDto(List.of(), null);
@@ -42,19 +40,17 @@ class ChatServiceTest {
         when(pythonAiClient.chat(request.withFinancialContext(financialContext)
                 .withConsumptionContext(consumptionContext))).thenReturn(aiResponse);
 
-        service.chat(request, 7L);
+        ChatResponse response = service.chat(request, 7L);
 
-        verify(resultService).save(7L, request.message(), calculation, "분석 결과입니다.");
+        assertEquals(calculation, response.consumptionAnalysis());
     }
 
     @Test
-    void doesNotSaveNonConsumptionResponse() {
+    void returnsNonConsumptionResponseWithoutCalculation() {
         ConsumptionAnalysisContextService contextService =
                 mock(ConsumptionAnalysisContextService.class);
-        ConsumptionAnalysisResultService resultService =
-                mock(ConsumptionAnalysisResultService.class);
         ChatService service = new ChatService(
-                pythonAiClient, assetService, contextService, resultService);
+                pythonAiClient, assetService, contextService);
         GoalAssetContextDto.Response financialContext = emptyContext(true);
         com.wallo.asset.dto.ConsumptionAnalysisContextDto consumptionContext =
                 new com.wallo.asset.dto.ConsumptionAnalysisContextDto(List.of(), null);
@@ -65,9 +61,9 @@ class ChatServiceTest {
                 .withConsumptionContext(consumptionContext)))
                 .thenReturn(new ChatResponse("안녕하세요.", null));
 
-        service.chat(request, 7L);
+        ChatResponse response = service.chat(request, 7L);
 
-        verifyNoInteractions(resultService);
+        assertEquals(null, response.consumptionAnalysis());
     }
 
     @Test

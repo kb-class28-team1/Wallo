@@ -16,20 +16,17 @@ public class ChatService {
     private final PythonAiClient pythonAiClient;
     private final AssetService assetService;
     private final ConsumptionAnalysisContextService consumptionAnalysisContextService;
-    private final ConsumptionAnalysisResultService consumptionAnalysisResultService;
 
     @Autowired
     public ChatService(PythonAiClient pythonAiClient, AssetService assetService,
-                       ConsumptionAnalysisContextService consumptionAnalysisContextService,
-                       ConsumptionAnalysisResultService consumptionAnalysisResultService) {
+                       ConsumptionAnalysisContextService consumptionAnalysisContextService) {
         this.pythonAiClient = pythonAiClient;
         this.assetService = assetService;
         this.consumptionAnalysisContextService = consumptionAnalysisContextService;
-        this.consumptionAnalysisResultService = consumptionAnalysisResultService;
     }
 
     ChatService(PythonAiClient pythonAiClient, AssetService assetService) {
-        this(pythonAiClient, assetService, null, null);
+        this(pythonAiClient, assetService, null);
     }
 
     public ChatResponse chat(ChatRequest request, long currentUserId) {
@@ -47,15 +44,6 @@ public class ChatService {
                     consumptionAnalysisContextService.getContext(currentUserId));
         }
         ChatResponse response = pythonAiClient.chat(aiRequest);
-        if (consumptionAnalysisResultService != null
-                && response.consumptionAnalysis() != null) {
-            consumptionAnalysisResultService.save(
-                    currentUserId,
-                    request.message(),
-                    response.consumptionAnalysis(),
-                    response.answer()
-            );
-        }
         return response;
     }
 

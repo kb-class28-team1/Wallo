@@ -12,8 +12,16 @@ public final class ConsumptionAnalysisResultDto {
     @AllArgsConstructor
     public static class SaveCommand {
         private long userId;
+        private long assistantMessageId;
         private String requestMessage;
         private String calculatedResultJson;
         private String aiResponse;
+    }
+
+    @Getter
+    @AllArgsConstructor
+    public static class StoredResult {
+        private long assistantMessageId;
+        private String calculatedResultJson;
     }
 }
