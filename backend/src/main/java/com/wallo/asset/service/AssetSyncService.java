@@ -1,11 +1,11 @@
 package com.wallo.asset.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wallo.asset.domain.Institution;
 import com.wallo.asset.dto.AssetSyncDto;
 import com.wallo.asset.mapper.AssetMapper;
 import com.wallo.asset.mapper.AssetSyncMapper;
 import com.wallo.external.dto.CodefDto;
+import com.wallo.external.mapper.CodefAssetResponseMapper;
 import java.time.Clock;
 import java.time.DateTimeException;
 import java.time.LocalDate;
@@ -24,7 +24,7 @@ public class AssetSyncService {
 
     private final AssetSyncMapper assetSyncMapper;
     private final AssetMapper assetMapper;
-    private final ObjectMapper objectMapper;
+    private final CodefAssetResponseMapper codefAssetResponseMapper;
     private final CardApprovalCollectionService cardApprovalCollectionService;
     private final BankTransactionCollectionService bankTransactionCollectionService;
     private final ConsumptionInsightCache consumptionInsightCache;
@@ -33,7 +33,7 @@ public class AssetSyncService {
     public AssetSyncService(
             AssetSyncMapper assetSyncMapper,
             AssetMapper assetMapper,
-            ObjectMapper objectMapper,
+            CodefAssetResponseMapper codefAssetResponseMapper,
             CardApprovalCollectionService cardApprovalCollectionService,
             BankTransactionCollectionService bankTransactionCollectionService,
             ConsumptionInsightCache consumptionInsightCache,
@@ -41,7 +41,7 @@ public class AssetSyncService {
     ) {
         this.assetSyncMapper = assetSyncMapper;
         this.assetMapper = assetMapper;
-        this.objectMapper = objectMapper;
+        this.codefAssetResponseMapper = codefAssetResponseMapper;
         this.cardApprovalCollectionService = cardApprovalCollectionService;
         this.bankTransactionCollectionService = bankTransactionCollectionService;
         this.consumptionInsightCache = consumptionInsightCache;
@@ -50,7 +50,7 @@ public class AssetSyncService {
 
     public void sync(long userId, long connectionId, Institution institution, CodefDto.Response response) {
         long startedAt = System.nanoTime();
-        CodefDto.AssetData data = objectMapper.convertValue(response.getData(), CodefDto.AssetData.class);
+        CodefDto.AssetData data = codefAssetResponseMapper.toAssetData(response);
         YearMonth currentMonth = YearMonth.from(LocalDate.now(clock));
 
         for (CodefDto.AssetSnapshot snapshot : values(data.getAssetSnapshots())) {
@@ -114,7 +114,7 @@ public class AssetSyncService {
             return;
         }
 
-        CodefDto.AssetData data = objectMapper.convertValue(response.getData(), CodefDto.AssetData.class);
+        CodefDto.AssetData data = codefAssetResponseMapper.toAssetData(response);
         upsertAccounts(connectionId, institution, data);
         assetSyncMapper.updateConnectionLastSyncAt(connectionId);
     }
