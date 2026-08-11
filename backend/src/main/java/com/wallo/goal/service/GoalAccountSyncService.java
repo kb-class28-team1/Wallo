@@ -2,6 +2,7 @@ package com.wallo.goal.service;
 
 import com.wallo.asset.domain.Institution;
 import com.wallo.asset.service.AssetSyncService;
+import com.wallo.external.CodefResponseValidator;
 import com.wallo.external.client.CodefClient;
 import com.wallo.external.dto.CodefDto;
 import com.wallo.goal.dto.GoalAccountDto;
@@ -17,8 +18,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class GoalAccountSyncService {
 
     private static final Logger LOGGER = Logger.getLogger(GoalAccountSyncService.class.getName());
-    private static final String CODEF_SUCCESS_CODE = "CF-00000";
-
     private final GoalAccountMapper goalAccountMapper;
     private final CodefClient codefClient;
     private final AssetSyncService assetSyncService;
@@ -52,9 +51,7 @@ public class GoalAccountSyncService {
                     LOGGER.warning(String.format(
                             "goal account sync failed: institution=%s code=%s",
                             target.getCodefOrganizationCode(),
-                            response == null || response.getResult() == null
-                                    ? "NO_RESPONSE"
-                                    : response.getResult().getCode()
+                            CodefResponseValidator.codeOrDefault(response, "NO_RESPONSE")
                     ));
                     continue;
                 }
@@ -88,9 +85,7 @@ public class GoalAccountSyncService {
     }
 
     private boolean isSuccess(CodefDto.Response response) {
-        return response != null
-                && response.getResult() != null
-                && CODEF_SUCCESS_CODE.equals(response.getResult().getCode());
+        return CodefResponseValidator.isSuccess(response);
     }
 
     private <T> List<T> values(List<T> values) {

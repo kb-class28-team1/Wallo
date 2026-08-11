@@ -190,6 +190,49 @@ class CardApprovalCollectionServiceTest {
     }
 
     @Test
+    void removesRepeatedApprovalWithTheSameSourceIdentity() {
+        CodefDto.CardApproval first = approval(
+                "9876", "10000001", "배달의민족", "요식/음료", "12000"
+        );
+        CodefDto.CardApproval duplicate = approval(
+                "9876", "10000001", "배달의민족", "요식/음료", "12000"
+        );
+        when(cardApprovalClient.getApprovals(any())).thenReturn(
+                CodefDto.Response.success(List.of(first, duplicate))
+        );
+        when(assetSyncMapper.findCardId(11L, "9876")).thenReturn(21L);
+
+        int collectedCount = service.collect(
+                7L,
+                11L,
+                institution,
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 7, 31)
+        );
+
+        assertEquals(1, collectedCount);
+        verify(assetSyncMapper).upsertTransaction(any(AssetSyncDto.Transaction.class));
+    }
+
+    @Test
+    void rejectsConflictingApprovalPayloadWithTheSameSourceIdentity() {
+        when(cardApprovalClient.getApprovals(any())).thenReturn(CodefDto.Response.success(List.of(
+                approval("9876", "10000001", "배달의민족", "요식/음료", "12000"),
+                approval("9876", "10000001", "배달의민족", "요식/음료", "13000")
+        )));
+        when(assetSyncMapper.findCardId(11L, "9876")).thenReturn(21L);
+
+        assertThrows(IllegalArgumentException.class, () -> service.collect(
+                7L,
+                11L,
+                institution,
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 7, 31)
+        ));
+        verify(assetSyncMapper, never()).upsertTransaction(any());
+    }
+
+    @Test
     void failedCodefResponseDoesNotWriteTransactions() {
         when(cardApprovalClient.getApprovals(any())).thenReturn(
                 CodefDto.Response.failure("CF-99999", "Mock API 호출 실패", "")
@@ -211,6 +254,39 @@ class CardApprovalCollectionServiceTest {
                 approval("9876", "10000001", "배달의민족", "요식/음료", "not-a-number")
         )));
         when(assetSyncMapper.findCardId(eq(11L), eq("9876"))).thenReturn(21L);
+
+        assertThrows(IllegalArgumentException.class, () -> service.collect(
+                7L,
+                11L,
+                institution,
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 7, 31)
+        ));
+        verify(assetSyncMapper, never()).upsertTransaction(any());
+    }
+
+    @Test
+    void missingCardNumberDoesNotWriteTransaction() {
+        when(cardApprovalClient.getApprovals(any())).thenReturn(CodefDto.Response.success(List.of(
+                approval(null, "10000001", "merchant", "sector", "12000")
+        )));
+
+        assertThrows(IllegalArgumentException.class, () -> service.collect(
+                7L,
+                11L,
+                institution,
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 7, 31)
+        ));
+        verify(assetSyncMapper, never()).upsertTransaction(any());
+    }
+
+    @Test
+    void missingApprovalNumberDoesNotWriteTransaction() {
+        when(cardApprovalClient.getApprovals(any())).thenReturn(CodefDto.Response.success(List.of(
+                approval("9876", null, "merchant", "sector", "12000")
+        )));
+        when(assetSyncMapper.findCardId(11L, "9876")).thenReturn(21L);
 
         assertThrows(IllegalArgumentException.class, () -> service.collect(
                 7L,

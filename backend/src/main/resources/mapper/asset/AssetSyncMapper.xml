@@ -61,26 +61,6 @@
             updated_at = CURRENT_TIMESTAMP
     </insert>
 
-    <update id="updateTransactionByApproval">
-        UPDATE TRANSACTIONS
-        SET card_id = #{transaction.cardId}, account_id = #{transaction.accountId},
-            type = #{transaction.type}, category = #{transaction.category}, amount = #{transaction.amount},
-            merchant_name = #{transaction.merchantName}, transaction_date = #{transaction.date},
-            transaction_time = #{transaction.time}
-        WHERE user_id = #{transaction.userId} AND external_approval_no = #{transaction.approvalNo}
-    </update>
-
-    <insert id="insertTransaction">
-        INSERT INTO TRANSACTIONS (
-            user_id, card_id, account_id, type, category, amount, merchant_name,
-            external_approval_no, transaction_date, transaction_time
-        ) VALUES (
-            #{transaction.userId}, #{transaction.cardId}, #{transaction.accountId},
-            #{transaction.type}, #{transaction.category}, #{transaction.amount}, #{transaction.merchantName},
-            #{transaction.approvalNo}, #{transaction.date}, #{transaction.time}
-        )
-    </insert>
-
     <insert id="upsertTransaction">
         INSERT INTO TRANSACTIONS (
             user_id, card_id, account_id, type, category, amount, merchant_name,
@@ -98,8 +78,8 @@
             #{transaction.date}, #{transaction.time}
         )
         ON DUPLICATE KEY UPDATE
-            card_id = VALUES(card_id),
-            account_id = VALUES(account_id),
+            card_id = COALESCE(VALUES(card_id), card_id),
+            account_id = COALESCE(VALUES(account_id), account_id),
             type = VALUES(type),
             category = CASE
                 WHEN category_source = 'AI' AND #{transaction.categorySource} = 'FALLBACK'

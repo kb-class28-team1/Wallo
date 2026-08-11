@@ -4,16 +4,18 @@ import com.wallo.asset.domain.Institution;
 import com.wallo.asset.dto.AssetSyncDto;
 import com.wallo.asset.mapper.AssetMapper;
 import com.wallo.asset.mapper.AssetSyncMapper;
+import com.wallo.external.CodefDateTime;
+import com.wallo.external.CodefResponseValidator;
 import com.wallo.external.dto.CodefDto;
 import com.wallo.external.converter.CodefAssetResponseMapper;
 import java.time.Clock;
-import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.YearMonth;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.logging.Logger;
 import org.springframework.stereotype.Service;
 
@@ -27,6 +29,7 @@ public class AssetSyncService {
     private final CodefAssetResponseMapper codefAssetResponseMapper;
     private final CardApprovalCollectionService cardApprovalCollectionService;
     private final BankTransactionCollectionService bankTransactionCollectionService;
+    private final TransactionSourceKeyGenerator sourceKeyGenerator;
     private final ConsumptionInsightCache consumptionInsightCache;
     private final Clock clock;
 
@@ -36,6 +39,7 @@ public class AssetSyncService {
             CodefAssetResponseMapper codefAssetResponseMapper,
             CardApprovalCollectionService cardApprovalCollectionService,
             BankTransactionCollectionService bankTransactionCollectionService,
+            TransactionSourceKeyGenerator sourceKeyGenerator,
             ConsumptionInsightCache consumptionInsightCache,
             Clock clock
     ) {
@@ -44,12 +48,14 @@ public class AssetSyncService {
         this.codefAssetResponseMapper = codefAssetResponseMapper;
         this.cardApprovalCollectionService = cardApprovalCollectionService;
         this.bankTransactionCollectionService = bankTransactionCollectionService;
+        this.sourceKeyGenerator = sourceKeyGenerator;
         this.consumptionInsightCache = consumptionInsightCache;
         this.clock = clock;
     }
 
     public void sync(long userId, long connectionId, Institution institution, CodefDto.Response response) {
         long startedAt = System.nanoTime();
+        CodefResponseValidator.requireSuccess(response, "Asset synchronization");
         CodefDto.AssetData data = codefAssetResponseMapper.toAssetData(response);
         YearMonth currentMonth = YearMonth.from(LocalDate.now(clock));
 
@@ -63,26 +69,40 @@ public class AssetSyncService {
             ));
         }
 
-        upsertAccounts(connectionId, institution, data);
+        List<NormalizedAccount> normalizedAccounts = upsertAccounts(connectionId, institution, data);
         for (CodefDto.Card card : values(data.getCards())) {
             assetSyncMapper.upsertCard(connectionId, new AssetSyncDto.Card(
-                    card.getResCardNo(), card.getResCardName(), defaultValue(card.getResCardType(), "CREDIT"),
+                    AssetIdentifierNormalizer.normalize(card.getResCardNo(), "card number"),
+                    card.getResCardName(), defaultValue(card.getResCardType(), "CREDIT"),
                     status(card.getResCardState()), card.getResValidPeriod()));
         }
         long assetStageElapsedMs = elapsedMillis(startedAt);
         long transactionStageStartedAt = System.nanoTime();
-        if ("CARD".equals(institution.getInstitutionType())) {
+        int transactionDuplicateCount = 0;
+        if (AssetTransactionConstants.CARD_INSTITUTION_TYPE.equals(institution.getInstitutionType())) {
             cardApprovalCollectionService.collectInitial(userId, connectionId, institution);
-        } else if ("BANK".equals(institution.getInstitutionType())) {
-            collectBankTransactions(userId, connectionId, institution, data.getAccounts());
-            for (CodefDto.Transaction source : values(data.getTransactions())) {
-                if (!blank(source.getResLoanAccount())) {
-                    syncTransaction(userId, connectionId, source);
-                }
+        } else if (AssetTransactionConstants.BANK_INSTITUTION_TYPE.equals(institution.getInstitutionType())) {
+            collectBankTransactions(userId, connectionId, institution, normalizedAccounts);
+            List<CodefDto.Transaction> loanTransactions = values(data.getTransactions()).stream()
+                    .filter(source -> !blank(source.getResLoanAccount()))
+                    .toList();
+            List<PreparedAssetTransaction> uniqueLoanTransactions = deduplicateAssetTransactions(
+                    loanTransactions,
+                    institution
+            );
+            transactionDuplicateCount = loanTransactions.size() - uniqueLoanTransactions.size();
+            for (PreparedAssetTransaction transaction : uniqueLoanTransactions) {
+                syncTransaction(userId, connectionId, transaction);
             }
         } else {
-            for (CodefDto.Transaction source : values(data.getTransactions())) {
-                syncTransaction(userId, connectionId, source);
+            List<CodefDto.Transaction> assetTransactions = values(data.getTransactions());
+            List<PreparedAssetTransaction> uniqueAssetTransactions = deduplicateAssetTransactions(
+                    assetTransactions,
+                    institution
+            );
+            transactionDuplicateCount = assetTransactions.size() - uniqueAssetTransactions.size();
+            for (PreparedAssetTransaction transaction : uniqueAssetTransactions) {
+                syncTransaction(userId, connectionId, transaction);
             }
         }
         upsertCurrentMonthSnapshot(userId, currentMonth);
@@ -91,6 +111,7 @@ public class AssetSyncService {
         LOGGER.info(String.format(
                 Locale.ROOT,
                 "asset-sync-service organization=%s type=%s snapshots=%d accounts=%d loans=%d cards=%d "
+                        + "transactionDuplicates=%d "
                         + "assetStageMs=%d transactionStageMs=%d totalMs=%d",
                 institution.getCodefOrganizationCode(),
                 institution.getInstitutionType(),
@@ -98,6 +119,7 @@ public class AssetSyncService {
                 values(data.getAccounts()).size(),
                 values(data.getLoans()).size(),
                 values(data.getCards()).size(),
+                transactionDuplicateCount,
                 assetStageElapsedMs,
                 elapsedMillis(transactionStageStartedAt),
                 elapsedMillis(startedAt)
@@ -110,7 +132,8 @@ public class AssetSyncService {
             Institution institution,
             CodefDto.Response response
     ) {
-        if (response == null || response.getData() == null) {
+        CodefResponseValidator.requireSuccess(response, "Account balance synchronization");
+        if (response.getData() == null) {
             return;
         }
 
@@ -135,24 +158,33 @@ public class AssetSyncService {
         );
     }
 
-    private void upsertAccounts(
+    private List<NormalizedAccount> upsertAccounts(
             long connectionId,
             Institution institution,
             CodefDto.AssetData data
     ) {
-        for (CodefDto.Account account : values(data.getAccounts())) {
+        List<NormalizedAccount> normalizedAccounts = values(data.getAccounts()).stream()
+                .map(account -> new NormalizedAccount(
+                        account,
+                        AssetIdentifierNormalizer.normalize(account.getResAccount(), "account number")
+                ))
+                .toList();
+        for (NormalizedAccount normalizedAccount : normalizedAccounts) {
+            CodefDto.Account account = normalizedAccount.source();
             assetSyncMapper.upsertAccount(connectionId, new AssetSyncDto.Account(
-                    account.getResAccount(), account.getResAccountDisplay(), account.getResAccountName(),
+                    normalizedAccount.normalizedNumber(), account.getResAccountDisplay(), account.getResAccountName(),
                     institution.getInstitutionType(), account.getResAccountSubtype(), amount(account.getResAccountBalance()),
                     amount(defaultValue(account.getResAccountEvalAmount(), account.getResAccountBalance())),
                     defaultValue(account.getResAccountCurrency(), "KRW"), status(account.getResAccountStatus())));
         }
         for (CodefDto.Loan loan : values(data.getLoans())) {
+            String accountNumber = AssetIdentifierNormalizer.normalize(loan.getResLoanAccount(), "loan account number");
             assetSyncMapper.upsertAccount(connectionId, new AssetSyncDto.Account(
-                    loan.getResLoanAccount(), loan.getResLoanDisplay(), loan.getResLoanName(), "LOAN", "LOAN",
+                    accountNumber, loan.getResLoanDisplay(), loan.getResLoanName(), "LOAN", "LOAN",
                     amount(loan.getResLoanBalance()), amount(loan.getResLoanBalance()),
                     defaultValue(loan.getResLoanCurrency(), "KRW"), status(loan.getResLoanStatus())));
         }
+        return normalizedAccounts;
     }
 
     private long elapsedMillis(long startedAt) {
@@ -163,11 +195,12 @@ public class AssetSyncService {
             long userId,
             long connectionId,
             Institution institution,
-            List<CodefDto.Account> accounts
+            List<NormalizedAccount> accounts
     ) {
-        for (CodefDto.Account account : values(accounts)) {
+        for (NormalizedAccount normalizedAccount : values(accounts)) {
+            CodefDto.Account account = normalizedAccount.source();
             Long accountId = required(
-                    assetSyncMapper.findAccountId(connectionId, account.getResAccount())
+                    assetSyncMapper.findAccountId(connectionId, normalizedAccount.normalizedNumber())
             );
             bankTransactionCollectionService.collectInitial(
                     userId,
@@ -178,32 +211,196 @@ public class AssetSyncService {
         }
     }
 
-    private void syncTransaction(long userId, long connectionId, CodefDto.Transaction source) {
-        boolean cardTransaction = !blank(source.getResCardNo());
-        boolean loanTransaction = !blank(source.getResLoanAccount());
-        Long cardId = cardTransaction ? required(assetSyncMapper.findCardId(connectionId, source.getResCardNo())) : null;
-        String accountNumber = loanTransaction ? source.getResLoanAccount() : source.getResAccount();
-        Long accountId = cardTransaction ? null : required(assetSyncMapper.findAccountId(connectionId, accountNumber));
+    private void syncTransaction(
+            long userId,
+            long connectionId,
+            PreparedAssetTransaction prepared
+    ) {
+        CodefDto.Transaction source = prepared.source();
+        AssetTransactionIdentity identity = prepared.identity();
+        boolean cardTransaction = identity.cardTransaction();
+        boolean loanTransaction = identity.loanTransaction();
+        String cardNumber = cardTransaction
+                ? identity.assetNumber()
+                : null;
+        String accountNumber = cardTransaction
+                ? null
+                : identity.assetNumber();
+        Long cardId = cardTransaction
+                ? required(assetSyncMapper.findCardId(connectionId, cardNumber))
+                : null;
+        Long accountId = cardTransaction
+                ? null
+                : required(assetSyncMapper.findAccountId(connectionId, accountNumber));
+        TransactionSourceIdentity sourceIdentity = identity.sourceIdentity();
+        String sourceType = sourceIdentity.sourceType();
+        TransactionRelationValidator.validate(sourceType, cardId, accountId);
+        String sourceTransactionId = sourceIdentity.sourceTransactionId();
+        String sourceDedupKey = sourceIdentity.sourceDedupKey();
+        String merchantName = cardTransaction
+                ? defaultValue(source.getResUsedMerchantName(), "카드 결제")
+                : loanTransaction ? "학자금대출 상환" : defaultValue(source.getResAccountTrDesc(), "계좌 거래");
+        String type = cardTransaction || loanTransaction
+                ? AssetTransactionConstants.EXPENSE_TYPE
+                : defaultValue(source.getResAccountTrType(), AssetTransactionConstants.EXPENSE_TYPE);
+        String category = cardTransaction
+                ? defaultValue(source.getResUsedCategory(), "OTHER")
+                : loanTransaction
+                        ? defaultValue(source.getResLoanPaymentCategory(), "LOAN_REPAYMENT")
+                        : defaultValue(source.getResAccountTrCategory(), "OTHER");
+        long amount = amount(cardTransaction ? source.getResUsedAmount()
+                : loanTransaction ? source.getResLoanPaymentAmount() : source.getResAccountTrAmount());
+        LocalDate date = CodefDateTime.parseIsoDate(
+                cardTransaction ? source.getResUsedDate()
+                        : loanTransaction ? source.getResLoanPaymentDate() : source.getResAccountTrDate(),
+                "Asset transaction date"
+        );
+        LocalTime time = CodefDateTime.parseIsoTime(
+                cardTransaction ? source.getResUsedTime()
+                        : loanTransaction ? source.getResLoanPaymentTime() : source.getResAccountTrTime(),
+                "Asset transaction time"
+        );
 
         AssetSyncDto.Transaction transaction = new AssetSyncDto.Transaction(
-                userId, cardId, accountId,
-                cardTransaction || loanTransaction ? "EXPENSE" : defaultValue(source.getResAccountTrType(), "EXPENSE"),
-                cardTransaction ? defaultValue(source.getResUsedCategory(), "OTHER")
-                        : loanTransaction ? defaultValue(source.getResLoanPaymentCategory(), "LOAN_REPAYMENT")
-                                : defaultValue(source.getResAccountTrCategory(), "OTHER"),
-                amount(cardTransaction ? source.getResUsedAmount()
-                        : loanTransaction ? source.getResLoanPaymentAmount() : source.getResAccountTrAmount()),
-                cardTransaction ? defaultValue(source.getResUsedMerchantName(), "카드 결제")
-                        : loanTransaction ? "학자금대출 상환" : defaultValue(source.getResAccountTrDesc(), "계좌 거래"),
-                cardTransaction ? source.getResCardApprovalNo()
-                        : loanTransaction ? source.getResLoanPaymentNo() : source.getResAccountTrNo(),
-                LocalDate.parse(cardTransaction ? source.getResUsedDate()
-                        : loanTransaction ? source.getResLoanPaymentDate() : source.getResAccountTrDate()),
-                LocalTime.parse(cardTransaction ? source.getResUsedTime()
-                        : loanTransaction ? source.getResLoanPaymentTime() : source.getResAccountTrTime()));
-        if (assetSyncMapper.updateTransactionByApproval(transaction) == 0) {
-            assetSyncMapper.insertTransaction(transaction);
+                userId,
+                cardId,
+                accountId,
+                type,
+                category,
+                amount,
+                merchantName,
+                merchantName,
+                null,
+                sourceTransactionId,
+                date,
+                time,
+                AssetTransactionConstants.CODEF_CATEGORY_SOURCE,
+                java.math.BigDecimal.ONE,
+                AssetTransactionConstants.CODEF_CLASSIFIER_VERSION,
+                sourceType,
+                sourceIdentity.sourceOrganizationCode(),
+                sourceTransactionId,
+                sourceDedupKey
+        );
+        assetSyncMapper.upsertTransaction(transaction);
+    }
+
+    private List<PreparedAssetTransaction> deduplicateAssetTransactions(
+            List<CodefDto.Transaction> transactions,
+            Institution institution
+    ) {
+        List<PreparedAssetTransaction> preparedTransactions = values(transactions).stream()
+                .map(source -> new PreparedAssetTransaction(
+                        source,
+                        resolveTransactionIdentity(institution, source)
+                ))
+                .toList();
+        return TransactionBatchDeduplicator.deduplicate(
+                preparedTransactions,
+                transaction -> transaction.identity().sourceIdentity().sourceDedupKey(),
+                (left, right) -> sameAssetTransactionPayload(left.source(), right.source()),
+                "ASSET_TRANSACTION"
+        );
+    }
+
+    private AssetTransactionIdentity resolveTransactionIdentity(
+            Institution institution,
+            CodefDto.Transaction source
+    ) {
+        if (source == null) {
+            throw new IllegalArgumentException("CODEF asset transaction is required.");
         }
+        boolean cardTransaction = !blank(source.getResCardNo());
+        boolean loanTransaction = !blank(source.getResLoanAccount());
+        String assetNumber = cardTransaction
+                ? source.getResCardNo()
+                : loanTransaction ? source.getResLoanAccount() : source.getResAccount();
+        String sourceType = sourceType(cardTransaction, loanTransaction);
+        String sourceOrganizationCode = institution.getCodefOrganizationCode();
+        String sourceTransactionId = sourceTransactionId(cardTransaction, loanTransaction, source);
+        TransactionSourceIdentity sourceIdentity = sourceKeyGenerator.identityForAssetTransaction(
+                sourceType,
+                sourceOrganizationCode,
+                assetNumber,
+                sourceTransactionId
+        );
+        return new AssetTransactionIdentity(
+                cardTransaction,
+                loanTransaction,
+                sourceIdentity.normalizedAssetIdentifier(),
+                sourceIdentity
+        );
+    }
+
+    private boolean sameAssetTransactionPayload(
+            CodefDto.Transaction left,
+            CodefDto.Transaction right
+    ) {
+        return Objects.equals(left.getResAccount(), right.getResAccount())
+                && Objects.equals(left.getResAccountTrNo(), right.getResAccountTrNo())
+                && Objects.equals(left.getResAccountTrDate(), right.getResAccountTrDate())
+                && Objects.equals(left.getResAccountTrTime(), right.getResAccountTrTime())
+                && Objects.equals(left.getResAccountTrType(), right.getResAccountTrType())
+                && Objects.equals(left.getResAccountTrAmount(), right.getResAccountTrAmount())
+                && Objects.equals(left.getResAccountTrDesc(), right.getResAccountTrDesc())
+                && Objects.equals(left.getResAccountTrCategory(), right.getResAccountTrCategory())
+                && Objects.equals(left.getResCardNo(), right.getResCardNo())
+                && Objects.equals(left.getResCardApprovalNo(), right.getResCardApprovalNo())
+                && Objects.equals(left.getResUsedDate(), right.getResUsedDate())
+                && Objects.equals(left.getResUsedTime(), right.getResUsedTime())
+                && Objects.equals(left.getResUsedAmount(), right.getResUsedAmount())
+                && Objects.equals(left.getResUsedMerchantName(), right.getResUsedMerchantName())
+                && Objects.equals(left.getResUsedCategory(), right.getResUsedCategory())
+                && Objects.equals(left.getResLoanAccount(), right.getResLoanAccount())
+                && Objects.equals(left.getResLoanPaymentNo(), right.getResLoanPaymentNo())
+                && Objects.equals(left.getResLoanPaymentDate(), right.getResLoanPaymentDate())
+                && Objects.equals(left.getResLoanPaymentTime(), right.getResLoanPaymentTime())
+                && Objects.equals(left.getResLoanPaymentAmount(), right.getResLoanPaymentAmount())
+                && Objects.equals(left.getResLoanPaymentCategory(), right.getResLoanPaymentCategory());
+    }
+
+    private record AssetTransactionIdentity(
+            boolean cardTransaction,
+            boolean loanTransaction,
+            String assetNumber,
+            TransactionSourceIdentity sourceIdentity
+    ) {
+    }
+
+    private record PreparedAssetTransaction(
+            CodefDto.Transaction source,
+            AssetTransactionIdentity identity
+    ) {
+    }
+
+    private record NormalizedAccount(
+            CodefDto.Account source,
+            String normalizedNumber
+    ) {
+    }
+
+    private String sourceType(boolean cardTransaction, boolean loanTransaction) {
+        if (cardTransaction) {
+            return AssetTransactionConstants.CARD_APPROVAL_SOURCE_TYPE;
+        }
+        if (loanTransaction) {
+            return AssetTransactionConstants.LOAN_TRANSACTION_SOURCE_TYPE;
+        }
+        return AssetTransactionConstants.STOCK_TRANSACTION_SOURCE_TYPE;
+    }
+
+    private String sourceTransactionId(
+            boolean cardTransaction,
+            boolean loanTransaction,
+            CodefDto.Transaction source
+    ) {
+        String transactionId = cardTransaction
+                ? source.getResCardApprovalNo()
+                : loanTransaction ? source.getResLoanPaymentNo() : source.getResAccountTrNo();
+        if (blank(transactionId)) {
+            throw new IllegalArgumentException("CODEF source transaction id is required.");
+        }
+        return transactionId.trim();
     }
 
     private <T> List<T> values(List<T> values) {
@@ -221,11 +418,7 @@ public class AssetSyncService {
     }
 
     private String snapshotMonth(String value) {
-        try {
-            return YearMonth.parse(value).toString();
-        } catch (DateTimeException exception) {
-            throw new IllegalArgumentException("Invalid asset snapshot month: " + value, exception);
-        }
+        return CodefDateTime.parseYearMonth(value, "Asset snapshot month").toString();
     }
 
     private String status(String value) {

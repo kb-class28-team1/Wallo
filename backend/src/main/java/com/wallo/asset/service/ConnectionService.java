@@ -8,6 +8,7 @@ import com.wallo.asset.mapper.ConnectionMapper;
 import com.wallo.external.auth.CodefCredential;
 import com.wallo.external.auth.CodefCredentialProvider;
 import com.wallo.external.client.CodefClient;
+import com.wallo.external.CodefResponseValidator;
 import com.wallo.external.dto.CodefDto;
 import java.util.ArrayList;
 import java.util.List;
@@ -206,18 +207,13 @@ public class ConnectionService {
             return createConnectionResult(institution, ConnectionDto.Status.SUCCESS, ConnectionDto.SUCCESS_MESSAGE);
         }
 
-        String message = ConnectionDto.FAILED_MESSAGE;
-        if (response != null && response.getResult() != null && response.getResult().getMessage() != null) {
-            message = response.getResult().getMessage();
-        }
+        String message = CodefResponseValidator.messageOrDefault(response, ConnectionDto.FAILED_MESSAGE);
 
         return createConnectionResult(institution, ConnectionDto.Status.FAILED, message);
     }
 
     private boolean isCodefSuccess(CodefDto.Response response) {
-        return response != null
-                && response.getResult() != null
-                && ConnectionDto.CODEF_SUCCESS_CODE.equals(response.getResult().getCode());
+        return CodefResponseValidator.isSuccess(response);
     }
 
     private ConnectionDto.Result createConnectionResult(
