@@ -114,10 +114,15 @@ public class PriceReferenceService {
     }
 
     private AnalysisResponse enrichSafely(AnalysisResponse analysis) {
-        List<DetectedItem> items = analysis.detectedItems().stream()
+        List<DetectedItem> detectedItems = analysis.detectedItems().stream()
                 .filter(item -> item != null && item.itemName() != null && !item.itemName().isBlank())
                 .limit(MAX_SEARCH_ITEMS)
                 .toList();
+        boolean productComparisonRequested = detectedItems.stream()
+                .anyMatch(this::isProductComparison);
+        List<DetectedItem> items = productComparisonRequested
+                ? detectedItems.stream().filter(this::isProductComparison).toList()
+                : detectedItems;
         Map<Integer, PriceReferenceRow> resolvedRows = new HashMap<>();
         Map<Integer, FoodCostReferenceRow> resolvedFoodRows = new HashMap<>();
         Map<Integer, RecipeCost> recipeCosts = new HashMap<>();
@@ -432,10 +437,14 @@ public class PriceReferenceService {
             List<DetectedItem> items,
             Map<Integer, PriceReferenceRow> rows,
             Map<Integer, FoodCostReferenceRow> foodRows) {
+        boolean productComparisonRequested = items.stream().anyMatch(this::isProductComparison);
         List<DetectedItem> resolvedItems = new ArrayList<>();
         List<PriceReference> references = new ArrayList<>();
         long referenceValue = 0;
         long ingredientCostTotal = 0;
+        long comparedActualCost = 0;
+        boolean comparisonReferenceFound = false;
+        boolean comparisonActualFound = false;
         for (int index = 0; index < items.size(); index++) {
             DetectedItem item = items.get(index);
             FoodCostReferenceRow foodRow = foodRows.get(index);
@@ -451,7 +460,7 @@ public class PriceReferenceService {
                         item.itemName(), item.brand(), normalizeDisplayUnit(item.unit()), quantity,
                         restaurantPrice, totalValue, item.confidence(), item.evidence(),
                         "HOMEMADE", ingredientCost, restaurantPrice,
-                        foodRow.getIngredientBasis()));
+                        foodRow.getIngredientBasis(), "NONE", 0));
                 references.add(new PriceReference(
                         item.itemName(), "", foodRow.getUnit(), restaurantPrice,
                         foodRow.getRestaurantSource(), foodRow.getRestaurantSourceUrl(),
@@ -459,27 +468,51 @@ public class PriceReferenceService {
                 continue;
             }
             PriceReferenceRow row = rows.get(index);
-            int unitPrice = isUsable(row) ? Math.min(MAX_PRICE, row.getLowestPrice()) : 0;
+            int unitPrice = isUsable(row)
+                    ? Math.min(MAX_PRICE, row.getLowestPrice())
+                    : isProductComparison(item)
+                    ? Math.min(MAX_PRICE, item.fallbackUnitPrice()) : 0;
             int quantity = Math.max(1, Math.min(99, item.quantity()));
             int totalValue = safeMultiply(unitPrice, quantity);
-            referenceValue = Math.min(10_000_000_000L, referenceValue + totalValue);
+            if (isProductComparison(item)) {
+                if ("REFERENCE".equals(item.comparisonRole()) && unitPrice > 0) {
+                    referenceValue = Math.min(10_000_000_000L, referenceValue + totalValue);
+                    comparisonReferenceFound = true;
+                } else if ("ACTUAL".equals(item.comparisonRole()) && unitPrice > 0) {
+                    comparedActualCost = Math.min(
+                            10_000_000_000L, comparedActualCost + totalValue);
+                    comparisonActualFound = true;
+                }
+            } else {
+                referenceValue = Math.min(10_000_000_000L, referenceValue + totalValue);
+            }
             resolvedItems.add(new DetectedItem(
                     item.itemName(), item.brand(), normalizeDisplayUnit(item.unit()), quantity,
                     unitPrice, totalValue, item.confidence(), item.evidence(),
                     item.comparisonType(), item.ingredientCostPerUnit(),
-                    item.restaurantPricePerUnit(), item.ingredientBasis()));
+                    item.restaurantPricePerUnit(), item.ingredientBasis(),
+                    item.comparisonRole(), item.fallbackUnitPrice()));
             if (unitPrice > 0) {
                 references.add(new PriceReference(
-                        item.itemName(), row.getBrand(), row.getUnit(), unitPrice,
-                        row.getSource(), row.getSourceUrl(), row.getObservedAt()));
+                        item.itemName(), isUsable(row) ? row.getBrand() : item.brand(),
+                        isUsable(row) ? row.getUnit() : normalizeDisplayUnit(item.unit()),
+                        unitPrice,
+                        isUsable(row) ? row.getSource() : "Gemini 보수적 추정",
+                        isUsable(row) ? row.getSourceUrl() : null,
+                        isUsable(row) ? row.getObservedAt() : null));
             }
         }
 
         long actualCost = analysis.actualCost() > 0
-                ? analysis.actualCost() : ingredientCostTotal;
+                ? analysis.actualCost()
+                : productComparisonRequested ? comparedActualCost : ingredientCostTotal;
         long difference = calculateDifference(
                 analysis.spendingType(), referenceValue, actualCost);
+        boolean completeProductComparison = !productComparisonRequested
+                || (comparisonReferenceFound
+                && (comparisonActualFound || analysis.actualCost() > 0));
         boolean calculatedFromReference = referenceValue > 0
+                && completeProductComparison
                 && ("SAVED".equals(analysis.spendingType())
                 || "REDUCED".equals(analysis.spendingType()));
         int estimatedAmount = calculatedFromReference
@@ -489,7 +522,8 @@ public class PriceReferenceService {
                 analysis.spendingType(), analysis.category(), estimatedAmount,
                 appendPriceSummary(
                         analysis.summary(), referenceValue, actualCost, difference,
-                        ingredientCostTotal > 0),
+                        ingredientCostTotal > 0,
+                        productComparisonRequested && completeProductComparison),
                 analysis.confidenceScore(), resolvedItems, referenceValue, actualCost,
                 difference, references);
     }
@@ -509,12 +543,16 @@ public class PriceReferenceService {
 
     private String appendPriceSummary(
             String summary, long referenceValue, long actualCost, long difference,
-            boolean homemadeComparison) {
+            boolean homemadeComparison, boolean productComparison) {
         if (referenceValue <= 0) {
             return summary;
         }
         String priceSummary;
-        if (homemadeComparison) {
+        if (productComparison) {
+            priceSummary = String.format(Locale.KOREA,
+                    "비교 제품 %,d원과 실제 선택 제품 %,d원의 차액은 %,d원입니다.",
+                    referenceValue, actualCost, difference);
+        } else if (homemadeComparison) {
             priceSummary = String.format(Locale.KOREA,
                     "음식점 판매가 %,d원과 재료비 %,d원을 비교한 절약 차액은 %,d원입니다.",
                     referenceValue, actualCost, difference);
@@ -546,6 +584,12 @@ public class PriceReferenceService {
 
     private boolean isHomemade(DetectedItem item) {
         return item != null && "HOMEMADE".equals(item.comparisonType());
+    }
+
+    private boolean isProductComparison(DetectedItem item) {
+        return item != null && "PRODUCT_COMPARE".equals(item.comparisonType())
+                && ("REFERENCE".equals(item.comparisonRole())
+                || "ACTUAL".equals(item.comparisonRole()));
     }
 
     private int safeMultiply(int price, int quantity) {
