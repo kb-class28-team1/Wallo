@@ -7,6 +7,8 @@ import com.wallo.asset.domain.Institution;
 import com.wallo.asset.dto.AssetSyncDto;
 import com.wallo.asset.dto.ConnectionDto;
 import com.wallo.asset.mapper.AssetSyncMapper;
+import com.wallo.external.auth.CodefCredential;
+import com.wallo.external.auth.CodefCredentialProvider;
 import com.wallo.external.client.BankTransactionClient;
 import com.wallo.external.dto.CodefDto;
 import java.math.BigDecimal;
@@ -52,6 +54,7 @@ public class BankTransactionCollectionService {
     private static final Logger LOGGER = Logger.getLogger(BankTransactionCollectionService.class.getName());
 
     private final BankTransactionClient bankTransactionClient;
+    private final CodefCredentialProvider codefCredentialProvider;
     private final ObjectMapper objectMapper;
     private final ExpenseCategoryClassifier categoryClassifier;
     private final TransactionSourceKeyGenerator sourceKeyGenerator;
@@ -61,6 +64,7 @@ public class BankTransactionCollectionService {
 
     public BankTransactionCollectionService(
             BankTransactionClient bankTransactionClient,
+            CodefCredentialProvider codefCredentialProvider,
             ObjectMapper objectMapper,
             ExpenseCategoryClassifier categoryClassifier,
             TransactionSourceKeyGenerator sourceKeyGenerator,
@@ -69,6 +73,7 @@ public class BankTransactionCollectionService {
             ConsumptionInsightCache consumptionInsightCache
     ) {
         this.bankTransactionClient = bankTransactionClient;
+        this.codefCredentialProvider = codefCredentialProvider;
         this.objectMapper = objectMapper;
         this.categoryClassifier = categoryClassifier;
         this.sourceKeyGenerator = sourceKeyGenerator;
@@ -106,12 +111,16 @@ public class BankTransactionCollectionService {
 
         long startedAt = System.nanoTime();
         long apiStartedAt = System.nanoTime();
+        CodefCredential credential = codefCredentialProvider.getCredential(
+                userId,
+                institution.getCodefOrganizationCode()
+        );
         CodefDto.Response response = bankTransactionClient.getTransactions(
                 new CodefDto.BankTransactionRequest(
                         institution.getCodefOrganizationCode(),
-                        ConnectionDto.MOCK_LOGIN_TYPE,
-                        ConnectionDto.MOCK_ID,
-                        ConnectionDto.MOCK_PASSWORD,
+                        credential.loginType(),
+                        credential.id(),
+                        credential.password(),
                         accountNumber,
                         startDate.format(REQUEST_DATE_FORMATTER),
                         endDate.format(REQUEST_DATE_FORMATTER)
