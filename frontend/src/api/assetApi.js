@@ -1,4 +1,5 @@
 import httpClient from "@/api/httpClient";
+import { getApiErrorCode, getApiErrorMessage } from "@/commonUtils/apiError";
 
 const formatDate = (date) => {
   const year = date.getFullYear();
@@ -74,10 +75,20 @@ export const getTaxSettlement = async (year) => {
 };
 
 export const updateAnnualSalary = async (annualSalary) => {
-  const response = await httpClient.patch("/api/users/profile", {
-    annualSalary,
-  });
+  try {
+    const response = await httpClient.patch("/api/users/profile", {
+      annualSalary,
+    });
 
-  return response.data;
+    return response.data;
+  } catch (error) {
+    const apiError = new Error(
+      getApiErrorMessage(error, "연봉을 저장하는 중 오류가 발생했습니다."),
+    );
+    apiError.code = getApiErrorCode(error);
+    apiError.status = error.response?.status;
+    apiError.response = error.response;
+    throw apiError;
+  }
 };
 

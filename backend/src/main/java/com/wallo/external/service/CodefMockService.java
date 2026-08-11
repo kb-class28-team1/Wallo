@@ -49,6 +49,8 @@ public class CodefMockService {
             "0311", "card-approval-list-0311.json",
             "0301", "card-approval-list-0301.json"
     );
+    private static final int INCOME_PROOF_FIXTURE_YEAR = 2025;
+    private static final String INCOME_PROOF_FIXTURE = "income-proof-2025.json";
     private static final DateTimeFormatter REQUEST_DATE_FORMATTER = DateTimeFormatter.BASIC_ISO_DATE;
 
     private final ObjectMapper objectMapper;
@@ -181,6 +183,35 @@ public class CodefMockService {
         return CodefDto.Response.success(filteredTransactions);
     }
 
+    public CodefDto.Response getIncomeProof(CodefDto.IncomeProofRequest request) {
+        String requiredField = firstMissingIncomeProofField(
+                request == null ? null : request.getOrganization(),
+                request == null ? null : request.getLoginType(),
+                request == null ? null : request.getId(),
+                request == null ? null : request.getPassword(),
+                request == null ? null : request.getSearchStartYear(),
+                request == null ? null : request.getSearchEndYear()
+        );
+        if (requiredField != null) {
+            return invalidRequest(requiredField + " is required.");
+        }
+
+        Integer startYear = parseYear(request.getSearchStartYear());
+        Integer endYear = parseYear(request.getSearchEndYear());
+        if (startYear == null || endYear == null || startYear > endYear) {
+            return invalidRequest("searchStartYear and searchEndYear must be YYYY.");
+        }
+        if (INCOME_PROOF_FIXTURE_YEAR < startYear || INCOME_PROOF_FIXTURE_YEAR > endYear) {
+            return CodefDto.Response.failure(
+                    "CF-40400",
+                    "Income proof mock response is unavailable for the requested year.",
+                    String.valueOf(INCOME_PROOF_FIXTURE_YEAR)
+            );
+        }
+
+        return load(INCOME_PROOF_FIXTURE);
+    }
+
     private String firstMissingCommonField(
             String organization,
             String loginType,
@@ -195,6 +226,23 @@ public class CodefMockService {
         if (isBlank(password)) return "password";
         if (isBlank(startDate)) return "startDate";
         if (isBlank(endDate)) return "endDate";
+        return null;
+    }
+
+    private String firstMissingIncomeProofField(
+            String organization,
+            String loginType,
+            String id,
+            String password,
+            String searchStartYear,
+            String searchEndYear
+    ) {
+        if (isBlank(organization)) return "organization";
+        if (isBlank(loginType)) return "loginType";
+        if (isBlank(id)) return "id";
+        if (isBlank(password)) return "password";
+        if (isBlank(searchStartYear)) return "searchStartYear";
+        if (isBlank(searchEndYear)) return "searchEndYear";
         return null;
     }
 
@@ -230,6 +278,17 @@ public class CodefMockService {
 
     private boolean isEightDigitDate(String value) {
         return value != null && value.matches("\\d{8}");
+    }
+
+    private Integer parseYear(String value) {
+        if (value == null || !value.matches("\\d{4}")) {
+            return null;
+        }
+        try {
+            return Integer.valueOf(value);
+        } catch (NumberFormatException exception) {
+            return null;
+        }
     }
 
     private boolean isSuccess(CodefDto.Response response) {

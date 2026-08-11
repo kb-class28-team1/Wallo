@@ -6,6 +6,7 @@ uvicorn[standard]
 # 금융감독원 금융용어사전 크롤러(ai/scripts/crawl_fss_terms.py) 전용
 requests
 beautifulsoup4
+selenium
 
 # 재정경제부 시사경제용어사전 Excel 변환기(ai/scripts/extract_moef_terms.py) 전용
 pandas

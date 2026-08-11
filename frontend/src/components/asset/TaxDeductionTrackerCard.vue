@@ -1,19 +1,51 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
 import { storeToRefs } from "pinia";
-import { useReportStore } from "@/stores/assetReportStore.js";
-import { formatNumber } from "@/commonUtils/formatters";
+import {
+  ANNUAL_SALARY_LOOKUP_STATUS,
+  useReportStore,
+} from "@/stores/assetReportStore.js";
+import { formatNumber, formatWon } from "@/commonUtils/formatters";
 
 const reportStore = useReportStore();
 const {
   taxSettlement,
   isTaxSettlementLoading,
   taxSettlementError,
+  annualSalaryLookupStatus,
   isAnnualSalarySaving,
   annualSalaryError,
-} = storeToRefs(reportStore);
-const salaryModalVisible = ref(false);
+} =
+  storeToRefs(reportStore);
 const annualSalaryInput = ref("");
+const manualSalaryError = ref("");
+
+const annualSalary = computed(() =>
+  Number(taxSettlement.value?.annualSalary ?? 0),
+);
+
+const formattedAnnualSalary = computed(() =>
+  annualSalary.value > 0 ? formatWon(annualSalary.value) : "조회 결과 없음",
+);
+
+const isAnnualSalaryUnavailable = computed(
+  () => annualSalaryLookupStatus.value === ANNUAL_SALARY_LOOKUP_STATUS.UNAVAILABLE,
+);
+
+const isTaxSettlementError = computed(
+  () =>
+    !isAnnualSalaryUnavailable.value &&
+    (annualSalaryLookupStatus.value === ANNUAL_SALARY_LOOKUP_STATUS.ERROR ||
+      Boolean(taxSettlementError.value) ||
+      Boolean(annualSalaryError.value)),
+);
+
+const taxSettlementErrorMessage = computed(
+  () =>
+    taxSettlementError.value ||
+    annualSalaryError.value ||
+    "소득공제 달성률을 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+);
 
 const achievementRate = computed(() => {
   const spentAmount = Number(taxSettlement.value?.cardSpentYtd ?? 0);
@@ -30,27 +62,55 @@ const progressRate = computed(() =>
   Math.min(Math.max(achievementRate.value, 0), 100),
 );
 
-const salaryModalTitle = computed(() =>
-  Number(taxSettlement.value?.annualSalary ?? 0) > 0 ? "연봉 수정" : "연봉 입력",
-);
-
 const achievementMessage = computed(() => {
   if (achievementRate.value >= 100) {
     return "연봉 25% 기준을 달성했습니다!";
   }
 
   if (achievementRate.value >= 90) {
-    return "곧 카드 소득공제 기준을 채웁니다!";
+    return "곧 카드 소득공제 기준을 채울 수 있어요!";
   }
 
   return `카드 사용액이 연봉 25% 기준의 ${achievementRate.value}%에 도달했어요.`;
 });
 
 const loadTaxSettlement = async () => {
+  if (
+    annualSalaryLookupStatus.value === ANNUAL_SALARY_LOOKUP_STATUS.UNAVAILABLE ||
+    annualSalaryLookupStatus.value === ANNUAL_SALARY_LOOKUP_STATUS.ERROR
+  ) {
+    return;
+  }
+
   try {
     await reportStore.fetchTaxSettlement();
   } catch {
-    // 오류 상태와 연봉 입력 필요 상태는 Pinia에서 각각 처리합니다.
+    // 조회 오류와 재시도 상태는 Pinia에서 관리합니다.
+  }
+};
+
+const formatManualSalaryInput = () => {
+  const numericValue = String(annualSalaryInput.value).replace(/[^0-9]/g, "");
+
+  annualSalaryInput.value = numericValue ? formatNumber(numericValue) : "";
+  manualSalaryError.value = "";
+  reportStore.annualSalaryError = null;
+};
+
+const submitManualSalary = async () => {
+  const salary = Number(String(annualSalaryInput.value).replaceAll(",", ""));
+
+  if (!Number.isFinite(salary) || salary <= 0) {
+    manualSalaryError.value = "연봉은 0원보다 큰 금액으로 입력해 주세요.";
+    return;
+  }
+
+  try {
+    await reportStore.saveAnnualSalary(salary);
+    annualSalaryInput.value = "";
+    manualSalaryError.value = "";
+  } catch {
+    manualSalaryError.value = annualSalaryError.value;
   }
 };
 
@@ -58,45 +118,7 @@ const retryTaxSettlement = async () => {
   try {
     await reportStore.fetchTaxSettlement();
   } catch {
-    // 다시 시도 결과는 Pinia 상태를 통해 카드에 표시합니다.
-  }
-};
-
-const openSalaryModal = () => {
-  const currentSalary = Number(taxSettlement.value?.annualSalary ?? 0);
-
-  annualSalaryInput.value = currentSalary > 0 ? formatNumber(currentSalary) : "";
-  reportStore.annualSalaryError = null;
-  salaryModalVisible.value = true;
-};
-
-const closeSalaryModal = () => {
-  if (isAnnualSalarySaving.value) {
-    return;
-  }
-
-  salaryModalVisible.value = false;
-};
-
-const formatSalaryInput = () => {
-  const numericValue = String(annualSalaryInput.value).replace(/[^0-9]/g, "");
-
-  annualSalaryInput.value = numericValue ? formatNumber(numericValue) : "";
-};
-
-const saveSalary = async () => {
-  const salary = Number(String(annualSalaryInput.value).replaceAll(",", ""));
-
-  if (!Number.isFinite(salary) || salary <= 0) {
-    reportStore.annualSalaryError = "연봉은 0원보다 큰 금액으로 입력해 주세요.";
-    return;
-  }
-
-  try {
-    await reportStore.saveAnnualSalary(salary);
-    salaryModalVisible.value = false;
-  } catch {
-    // 저장 오류는 모달 안에서 안내합니다.
+    // 재시도 결과는 Pinia 상태를 통해 카드에 표시합니다.
   }
 };
 
@@ -119,10 +141,59 @@ onMounted(loadTaxSettlement);
         <p class="text-secondary mb-0 mt-3">카드 사용 내역을 계산하고 있습니다.</p>
       </div>
 
-      <div v-else-if="taxSettlementError" class="tax-deduction-state text-center">
+      <div
+        v-else-if="isAnnualSalaryUnavailable"
+        class="tax-deduction-state manual-salary-state"
+      >
+        <i class="bi bi-pencil-square text-primary fs-2" aria-hidden="true"></i>
+        <p class="fw-semibold mb-1 mt-3">세전 연봉을 자동으로 조회하지 못했습니다.</p>
+        <p class="small text-secondary mb-3">
+          연봉을 직접 입력하면 소득공제 달성률을 계산할 수 있습니다.
+        </p>
+
+        <form class="manual-salary-form" @submit.prevent="submitManualSalary">
+          <label for="manualAnnualSalary" class="visually-hidden">세전 연봉</label>
+          <div class="input-group">
+            <input
+              id="manualAnnualSalary"
+              v-model="annualSalaryInput"
+              type="text"
+              class="form-control"
+              inputmode="numeric"
+              autocomplete="off"
+              placeholder="예: 50,000,000"
+              required
+              :disabled="isAnnualSalarySaving"
+              @input="formatManualSalaryInput"
+            />
+            <span class="input-group-text">원</span>
+          </div>
+          <p
+            v-if="manualSalaryError || annualSalaryError"
+            class="small text-danger mb-2"
+            role="alert"
+          >
+            {{ manualSalaryError || annualSalaryError }}
+          </p>
+          <button
+            type="submit"
+            class="btn btn-primary w-100"
+            :disabled="isAnnualSalarySaving"
+          >
+            <span
+              v-if="isAnnualSalarySaving"
+              class="spinner-border spinner-border-sm me-2"
+              aria-hidden="true"
+            ></span>
+            {{ isAnnualSalarySaving ? "저장 중..." : "수동 연봉 입력" }}
+          </button>
+        </form>
+      </div>
+
+      <div v-else-if="isTaxSettlementError" class="tax-deduction-state text-center">
         <i class="bi bi-exclamation-circle text-danger fs-2" aria-hidden="true"></i>
         <p class="fw-semibold mb-1 mt-3">소득공제 달성률을 불러오지 못했습니다.</p>
-        <p class="small text-secondary mb-3">{{ taxSettlementError }}</p>
+        <p class="small text-secondary mb-3">{{ taxSettlementErrorMessage }}</p>
         <button
           type="button"
           class="btn btn-outline-danger"
@@ -132,16 +203,24 @@ onMounted(loadTaxSettlement);
         </button>
       </div>
 
-      <div v-else-if="taxSettlement" class="tax-deduction-content">
+      <div
+        v-else-if="annualSalaryLookupStatus === ANNUAL_SALARY_LOOKUP_STATUS.AVAILABLE && taxSettlement"
+        class="tax-deduction-content"
+      >
+        <div class="annual-salary-summary mb-4">
+          <span class="tax-deduction-label">자동 조회된 세전 연봉</span>
+          <strong class="annual-salary-value">{{ formattedAnnualSalary }}</strong>
+        </div>
+
         <div class="d-flex align-items-end justify-content-between gap-3 mb-3">
-          <span class="tax-deduction-label">연봉 25% 도달률</span>
+          <span class="tax-deduction-label">연봉 25% 달성률</span>
           <strong class="tax-deduction-rate">{{ achievementRate }}%</strong>
         </div>
 
         <div
           class="progress tax-deduction-progress"
           role="progressbar"
-          aria-label="연봉 25% 도달률"
+          aria-label="연봉 25% 달성률"
           :aria-valuenow="progressRate"
           aria-valuemin="0"
           aria-valuemax="100"
@@ -155,111 +234,17 @@ onMounted(loadTaxSettlement);
         <p class="tax-deduction-message mb-0">
           {{ achievementMessage }}
         </p>
-
-        <button
-          type="button"
-          class="btn salary-edit-button"
-          @click="openSalaryModal"
-        >
-          연봉 수정하기
-          <span aria-hidden="true">&gt;</span>
-        </button>
       </div>
 
       <div v-else class="tax-deduction-state text-center">
         <i class="bi bi-wallet2 text-secondary fs-2" aria-hidden="true"></i>
-        <p class="fw-semibold mb-1 mt-3">연봉 정보가 필요합니다.</p>
-        <p class="small text-secondary mb-3">
-          연봉을 입력하면 카드 소득공제 도달률을 계산할 수 있습니다.
+        <p class="fw-semibold mb-1 mt-3">세전 연봉 정보가 없습니다.</p>
+        <p class="small text-secondary mb-0">
+          금융기관 연결을 완료하면 CODEF에서 세전 연봉을 자동 조회합니다.
         </p>
-        <button type="button" class="btn btn-primary" @click="openSalaryModal">
-          연봉 입력하기
-        </button>
       </div>
     </div>
   </article>
-
-  <div v-if="salaryModalVisible" class="modal-backdrop fade show"></div>
-  <div
-    v-if="salaryModalVisible"
-    class="modal fade show d-block"
-    tabindex="-1"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="salaryModalTitle"
-    @click.self="closeSalaryModal"
-    @keydown.esc="closeSalaryModal"
-  >
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-        <div class="modal-header">
-          <h2 id="salaryModalTitle" class="modal-title h5 fw-bold">
-            {{ salaryModalTitle }}
-          </h2>
-          <button
-            type="button"
-            class="btn-close"
-            aria-label="닫기"
-            @click="closeSalaryModal"
-          ></button>
-        </div>
-
-        <form @submit.prevent="saveSalary">
-          <div class="modal-body">
-            <div
-              v-if="annualSalaryError"
-              class="alert alert-danger py-2"
-              role="alert"
-            >
-              {{ annualSalaryError }}
-            </div>
-
-            <label for="annualSalary" class="form-label fw-semibold">연봉</label>
-            <div class="input-group">
-              <input
-                id="annualSalary"
-                v-model="annualSalaryInput"
-                type="text"
-                class="form-control"
-                inputmode="numeric"
-                autocomplete="off"
-                required
-                :disabled="isAnnualSalarySaving"
-                @input="formatSalaryInput"
-              />
-              <span class="input-group-text">원</span>
-            </div>
-            <p class="small text-secondary mb-0 mt-2">
-              입력한 연봉을 기준으로 신용카드 소득공제 도달률을 계산합니다.
-            </p>
-          </div>
-
-          <div class="modal-footer">
-            <button
-              type="button"
-              class="btn btn-light"
-              :disabled="isAnnualSalarySaving"
-              @click="closeSalaryModal"
-            >
-              취소
-            </button>
-            <button
-              type="submit"
-              class="btn btn-primary"
-              :disabled="isAnnualSalarySaving"
-            >
-              <span
-                v-if="isAnnualSalarySaving"
-                class="spinner-border spinner-border-sm me-2"
-                aria-hidden="true"
-              ></span>
-              {{ isAnnualSalarySaving ? "저장 중..." : "저장" }}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
 </template>
 
 <style scoped>
@@ -283,6 +268,18 @@ onMounted(loadTaxSettlement);
   padding-top: 30px;
 }
 
+.annual-salary-summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.annual-salary-value {
+  color: #5f50d2;
+  font-size: 1.25rem;
+}
+
 .tax-deduction-state {
   display: flex;
   min-height: 220px;
@@ -290,6 +287,11 @@ onMounted(loadTaxSettlement);
   flex-direction: column;
   align-items: center;
   justify-content: center;
+}
+
+.manual-salary-form {
+  width: 100%;
+  max-width: 360px;
 }
 
 .tax-deduction-label {
@@ -320,23 +322,6 @@ onMounted(loadTaxSettlement);
   line-height: 1.7;
 }
 
-.salary-edit-button {
-  align-self: flex-end;
-  margin-top: auto;
-  padding: 24px 0 0;
-  border: 0;
-  color: #5f50d2;
-  font-weight: 700;
-  text-decoration: none;
-}
-
-.salary-edit-button:hover,
-.salary-edit-button:focus {
-  color: #3f31ad;
-  text-decoration: underline;
-  text-underline-offset: 4px;
-}
-
 @media (max-width: 991.98px) {
   .tax-deduction-body {
     min-height: auto;
@@ -347,6 +332,12 @@ onMounted(loadTaxSettlement);
 @media (max-width: 575.98px) {
   .tax-deduction-body {
     padding: 26px 22px;
+  }
+
+  .annual-salary-summary {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
   }
 }
 </style>
