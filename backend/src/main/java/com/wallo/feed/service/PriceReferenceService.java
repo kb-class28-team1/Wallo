@@ -11,6 +11,7 @@ import com.wallo.feed.price.RestaurantPriceCandidate;
 import com.wallo.feed.price.RestaurantPriceClient;
 import com.wallo.feed.price.ShoppingPriceCandidate;
 import com.wallo.feed.price.ShoppingPriceClient;
+import com.wallo.feed.service.RecipeIngredientCostService.RecipeCost;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -52,6 +53,7 @@ public class PriceReferenceService {
     private final ShoppingPriceClient shoppingPriceClient;
     private final FoodCostReferenceMapper foodCostReferenceMapper;
     private final RestaurantPriceClient restaurantPriceClient;
+    private final RecipeIngredientCostService recipeIngredientCostService;
     private final Executor searchExecutor;
     private final Clock clock;
 
@@ -61,12 +63,14 @@ public class PriceReferenceService {
             ShoppingPriceClient shoppingPriceClient,
             FoodCostReferenceMapper foodCostReferenceMapper,
             RestaurantPriceClient restaurantPriceClient,
+            RecipeIngredientCostService recipeIngredientCostService,
             @Qualifier("shoppingPriceExecutor") Executor searchExecutor,
             Clock clock) {
         this.priceReferenceMapper = priceReferenceMapper;
         this.shoppingPriceClient = shoppingPriceClient;
         this.foodCostReferenceMapper = foodCostReferenceMapper;
         this.restaurantPriceClient = restaurantPriceClient;
+        this.recipeIngredientCostService = recipeIngredientCostService;
         this.searchExecutor = searchExecutor;
         this.clock = clock;
     }
@@ -77,7 +81,19 @@ public class PriceReferenceService {
             ShoppingPriceClient shoppingPriceClient,
             Executor searchExecutor,
             Clock clock) {
-        this(priceReferenceMapper, shoppingPriceClient, null, null, searchExecutor, clock);
+        this(priceReferenceMapper, shoppingPriceClient, null, null, null, searchExecutor, clock);
+    }
+
+    /** 기존 홈메이드 음식 단위 테스트와 호출부의 호환을 위한 생성자. */
+    public PriceReferenceService(
+            PriceReferenceMapper priceReferenceMapper,
+            ShoppingPriceClient shoppingPriceClient,
+            FoodCostReferenceMapper foodCostReferenceMapper,
+            RestaurantPriceClient restaurantPriceClient,
+            Executor searchExecutor,
+            Clock clock) {
+        this(priceReferenceMapper, shoppingPriceClient, foodCostReferenceMapper,
+                restaurantPriceClient, null, searchExecutor, clock);
     }
 
     public AnalysisResponse enrich(AnalysisResponse analysis) {
@@ -101,20 +117,25 @@ public class PriceReferenceService {
                 .toList();
         Map<Integer, PriceReferenceRow> resolvedRows = new HashMap<>();
         Map<Integer, FoodCostReferenceRow> resolvedFoodRows = new HashMap<>();
+        Map<Integer, RecipeCost> recipeCosts = new HashMap<>();
         Map<Integer, CompletableFuture<Optional<ShoppingPriceCandidate>>> searches =
                 new LinkedHashMap<>();
         Map<Integer, CompletableFuture<Optional<RestaurantPriceCandidate>>> restaurantSearches =
                 new LinkedHashMap<>();
 
         for (int index = 0; index < items.size(); index++) {
+            int itemIndex = index;
             DetectedItem item = items.get(index);
             if (isHomemade(item) && foodCostReferenceMapper != null) {
+                findRecipeCost(item, analysis.category())
+                        .ifPresent(cost -> recipeCosts.put(itemIndex, cost));
                 FoodCostReferenceRow cached = foodCostReferenceMapper.findBestMatch(
                         normalizeKey(item.itemName()), normalizeUnit(item.unit()), analysis.category());
                 if (isUsable(cached)) {
+                    applyRecipeCost(cached, recipeCosts.get(index));
                     resolvedFoodRows.put(index, cached);
                 } else if (item.confidence() >= MIN_SEARCH_CONFIDENCE
-                        && item.ingredientCostPerUnit() > 0) {
+                        && (item.ingredientCostPerUnit() > 0 || recipeCosts.containsKey(index))) {
                     restaurantSearches.put(index, CompletableFuture.supplyAsync(
                             () -> findRestaurantCandidate(item), searchExecutor)
                             .exceptionally(exception -> Optional.empty()));
@@ -150,7 +171,8 @@ public class PriceReferenceService {
                     restaurantSearches.values().toArray(CompletableFuture[]::new)).join();
             restaurantSearches.forEach((index, future) -> {
                 FoodCostReferenceRow stored = storeFoodCost(
-                        items.get(index), analysis.category(), future.join().orElse(null));
+                        items.get(index), analysis.category(), future.join().orElse(null),
+                        recipeCosts.get(index));
                 if (stored != null) {
                     resolvedFoodRows.put(index, stored);
                 }
@@ -289,8 +311,11 @@ public class PriceReferenceService {
     }
 
     private FoodCostReferenceRow storeFoodCost(
-            DetectedItem item, String category, RestaurantPriceCandidate candidate) {
-        int ingredientCost = Math.min(MAX_PRICE, item.ingredientCostPerUnit());
+            DetectedItem item, String category, RestaurantPriceCandidate candidate,
+            RecipeCost recipeCost) {
+        int ingredientCost = recipeCost == null
+                ? Math.min(MAX_PRICE, item.ingredientCostPerUnit())
+                : Math.min(MAX_PRICE, recipeCost.ingredientCost());
         int restaurantPrice = candidate == null
                 ? Math.min(MAX_PRICE, item.restaurantPricePerUnit())
                 : Math.min(MAX_PRICE, candidate.price());
@@ -308,7 +333,8 @@ public class PriceReferenceService {
         row.setRestaurantSource(limit(
                 candidate == null ? "Gemini 예상 음식점 가격" : candidate.source(), 100));
         row.setRestaurantSourceUrl(candidate == null ? null : limit(candidate.sourceUrl(), 1000));
-        row.setIngredientBasis(limit(item.ingredientBasis(), 500));
+        row.setIngredientBasis(limit(
+                recipeCost == null ? item.ingredientBasis() : recipeCost.ingredientBasis(), 500));
         row.setObservedAt(LocalDateTime.now(clock));
         row.setSearchConfidence(candidate == null
                 ? Math.min(0.65, item.confidence())
@@ -316,6 +342,35 @@ public class PriceReferenceService {
         foodCostReferenceMapper.upsert(row);
         return foodCostReferenceMapper.findBestMatch(
                 row.getNormalizedDishName(), normalizeUnit(row.getUnit()), category);
+    }
+
+    private Optional<RecipeCost> findRecipeCost(DetectedItem item, String category) {
+        if (recipeIngredientCostService == null) {
+            return Optional.empty();
+        }
+        try {
+            return recipeIngredientCostService.calculate(
+                    normalizeKey(item.itemName()), normalizeUnit(item.unit()), category);
+        } catch (DataAccessException exception) {
+            // 신규 레시피 테이블이 아직 적용되지 않은 환경에서도 기존 분석은 유지한다.
+            log.warn("레시피 재료 시세 조회에 실패해 AI 재료비를 사용합니다: {}",
+                    exception.getClass().getSimpleName());
+            return Optional.empty();
+        }
+    }
+
+    private void applyRecipeCost(FoodCostReferenceRow row, RecipeCost recipeCost) {
+        if (row == null || recipeCost == null) {
+            return;
+        }
+        String ingredientBasis = limit(recipeCost.ingredientBasis(), 500);
+        boolean changed = !Integer.valueOf(recipeCost.ingredientCost()).equals(row.getIngredientCost())
+                || !ingredientBasis.equals(row.getIngredientBasis());
+        row.setIngredientCost(recipeCost.ingredientCost());
+        row.setIngredientBasis(ingredientBasis);
+        if (changed) {
+            foodCostReferenceMapper.upsert(row);
+        }
     }
 
     private AnalysisResponse calculate(
