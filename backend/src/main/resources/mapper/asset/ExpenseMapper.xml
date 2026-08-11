@@ -71,4 +71,18 @@
           AND category &lt;&gt; 'CARD_WITHDRAWAL'
     </select>
 
+    <select id="selectAllExpenseTransactions"
+            resultType="com.wallo.asset.dto.ExpenseDto$AnalysisTransaction">
+        SELECT
+            transaction_date AS date,
+            transaction_time AS time,
+            CASE WHEN category = 'OTHER' THEN 'ETC' ELSE category END AS category,
+            amount,
+            merchant_name AS merchantName
+        FROM TRANSACTIONS
+        WHERE user_id = #{userId}
+          AND type = 'EXPENSE'
+        ORDER BY transaction_date ASC, transaction_time ASC, transaction_id ASC
+    </select>
+
 </mapper>
