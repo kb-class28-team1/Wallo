@@ -3,7 +3,6 @@ package com.wallo.feed.controller;
 import com.wallo.auth.CurrentUserProvider;
 import com.wallo.feed.domain.Feed;
 import com.wallo.feed.dto.FeedDtos.AnalysisResponse;
-import com.wallo.feed.dto.FeedDtos.AnalysisFeedbackRequest;
 import com.wallo.feed.dto.FeedDtos.FeedListResponse;
 import com.wallo.feed.dto.FeedDtos.MessageRequest;
 import com.wallo.feed.dto.FeedDtos.RoomResponse;
@@ -50,21 +49,11 @@ public class FeedController {
             @RequestParam String caption,
             @RequestParam(defaultValue = "0") int savingAmount,
             @RequestParam(defaultValue = "") String analysisSummary,
-            @RequestParam(defaultValue = "0") double confidenceScore,
-            @RequestParam(defaultValue = "") String analysisDetails) {
+            @RequestParam(defaultValue = "0") double confidenceScore) {
         Feed feed = feedService.create(currentUserProvider.getCurrentUserId(), challengeId,
                 media, spendingType, category, customCategory, caption, savingAmount,
-                analysisSummary, confidenceScore, analysisDetails);
+                analysisSummary, confidenceScore);
         return ResponseEntity.status(HttpStatus.CREATED).body(feed);
-    }
-
-    @PatchMapping("/feeds/{feedId}/analysis-accuracy")
-    public ResponseEntity<Void> rateAnalysis(
-            @PathVariable Long challengeId,
-            @PathVariable Long feedId,
-            @RequestBody AnalysisFeedbackRequest request) {
-        feedService.rateAnalysis(currentUserProvider.getCurrentUserId(), challengeId, feedId, request);
-        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/feeds/{feedId}/like")

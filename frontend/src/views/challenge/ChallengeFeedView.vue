@@ -12,7 +12,6 @@ import {
   getFeeds,
   getRoomMessages,
   addFeedLike,
-  rateFeedAnalysis,
 } from "@/api/feedApi"
 import {
   EXPENSE_CATEGORY_META,
@@ -65,15 +64,8 @@ const form = reactive({
   category: "",
   caption: "",
   savingAmount: 0,
-  savingAmountManuallyEdited: false,
   analysisSummary: "",
   confidenceScore: 0,
-  analysisDetails: "",
-  detectedItems: [],
-  referenceValue: 0,
-  actualCost: 0,
-  savingDifference: 0,
-  priceReferences: [],
 })
 
 const spendingTypes = [
@@ -288,15 +280,8 @@ const closeModal = () => {
     category: "",
     caption: "",
     savingAmount: 0,
-    savingAmountManuallyEdited: false,
     analysisSummary: "",
     confidenceScore: 0,
-    analysisDetails: "",
-    detectedItems: [],
-    referenceValue: 0,
-    actualCost: 0,
-    savingDifference: 0,
-    priceReferences: [],
   })
   if (fileInput.value) fileInput.value.value = ""
 }
@@ -342,15 +327,6 @@ const removeFeed = async (feed) => {
     deletingFeedId.value = null
   }
 }
-const rateAnalysis = async (feed, rating) => {
-  if (!isMyFeed(feed) || feed.analysisAccuracy) return
-  try {
-    await rateFeedAnalysis(challengeId.value, feed.id, { rating })
-    feed.analysisAccuracy = rating
-  } catch (error) {
-    openDialog({ message: error.message })
-  }
-}
 const chooseFile = () => fileInput.value?.click()
 const handleFile = async (event) => {
   const file = event.target.files?.[0]
@@ -363,13 +339,6 @@ const handleFile = async (event) => {
   form.file = file
   previewUrl.value = URL.createObjectURL(file)
   form.analysisSummary = ""
-  form.savingAmountManuallyEdited = false
-  form.analysisDetails = ""
-  form.detectedItems = []
-  form.referenceValue = 0
-  form.actualCost = 0
-  form.savingDifference = 0
-  form.priceReferences = []
 }
 const validationMessage = ({ requireCaption = false } = {}) => {
   if (!form.file) return "사진이나 영상을 선택해 주세요."
@@ -384,11 +353,6 @@ const makeFormData = () => {
   data.append("category", form.category)
   return data
 }
-const normalizeSavingAmount = (value) => {
-  const amount = Number(value)
-  if (!Number.isFinite(amount)) return 0
-  return Math.max(0, Math.min(10_000_000, Math.round(amount)))
-}
 const requestAnalysis = async () => {
   const invalid = validationMessage()
   if (invalid) return openDialog({ message: invalid })
@@ -396,15 +360,8 @@ const requestAnalysis = async () => {
   try {
     const result = await analyzeFeed(challengeId.value, makeFormData())
     form.savingAmount = result.estimatedSavingAmount
-    form.savingAmountManuallyEdited = false
     form.analysisSummary = result.summary
     form.confidenceScore = result.confidenceScore
-    form.analysisDetails = JSON.stringify(result)
-    form.detectedItems = result.detectedItems || []
-    form.referenceValue = result.referenceValue || 0
-    form.actualCost = result.actualCost || 0
-    form.savingDifference = result.savingDifference || 0
-    form.priceReferences = result.priceReferences || []
   } catch (error) {
     openDialog({ message: error.message })
   } finally {
@@ -419,10 +376,9 @@ const uploadFeed = async () => {
   try {
     const data = makeFormData()
     data.append("caption", form.caption)
-    data.append("savingAmount", String(normalizeSavingAmount(form.savingAmount)))
+    data.append("savingAmount", String(form.savingAmount))
     data.append("analysisSummary", form.analysisSummary)
     data.append("confidenceScore", String(form.confidenceScore))
-    data.append("analysisDetails", form.analysisDetails)
     await createFeed(challengeId.value, data)
     closeModal()
     await Promise.all([loadFeeds(), loadMessages({ forceScroll: true })])
@@ -622,23 +578,6 @@ onBeforeUnmount(() => {
                 </div>
               </div>
               <span>🤖 AI 분석 완료 · 절약 금액 {{ formatWon(feed.savingAmount) }}</span>
-              <div v-if="isMyFeed(feed)" class="analysis-feedback">
-                <small>이 분석은 얼마나 정확했나요?</small>
-                <button
-                  v-for="rating in [
-                    { value: 'HIGH', label: '높음' },
-                    { value: 'ACCURATE', label: '정확' },
-                    { value: 'LOW', label: '낮음' },
-                  ]"
-                  :key="rating.value"
-                  type="button"
-                  :class="{ selected: feed.analysisAccuracy === rating.value }"
-                  :disabled="Boolean(feed.analysisAccuracy)"
-                  @click.stop="rateAnalysis(feed, rating.value)"
-                >
-                  {{ rating.label }}
-                </button>
-              </div>
             </footer>
           </article>
         </main>
@@ -777,35 +716,13 @@ onBeforeUnmount(() => {
           <div class="result-box" :class="{ ready: form.analysisSummary }">
             <span>🤖 AI 추정</span
             ><small>{{ form.analysisSummary || "분석하면 예상 절약 금액을 알려드려요." }}</small>
-            <label class="amount-edit-label" for="final-saving-amount">
-              최종 절약 금액 <em>(직접 수정 가능)</em>
-            </label>
             <div>
               <input
-                id="final-saving-amount"
                 v-model.number="form.savingAmount"
                 type="number"
                 min="0"
-                max="10000000"
                 :disabled="!form.analysisSummary"
-                @input="form.savingAmountManuallyEdited = true"
               /><b>원</b>
-            </div>
-            <small v-if="form.savingAmountManuallyEdited" class="manual-amount-notice">
-              직접 입력한 금액이 피드와 분석 결과에 최종 저장됩니다.
-            </small>
-          </div>
-          <div v-if="form.analysisSummary && (form.detectedItems.length || form.referenceValue)" class="analysis-detail-box">
-            <div class="analysis-value-grid">
-              <span>시세 기준 가치 <b>{{ formatWon(form.referenceValue) }}</b></span>
-              <span>영상 속 실제 비용 <b>{{ form.actualCost ? formatWon(form.actualCost) : "확인 불가" }}</b></span>
-              <span>계산된 차액 <b>{{ form.savingDifference ? formatWon(form.savingDifference) : "확인 불가" }}</b></span>
-            </div>
-            <div v-if="form.detectedItems.length" class="detected-item-list">
-              <small>영상에서 확인한 물품</small>
-              <span v-for="item in form.detectedItems" :key="`${item.itemName}-${item.unit}`">
-                {{ item.itemName }} {{ item.quantity }}{{ item.unit }} · {{ item.unitPrice ? formatWon(item.unitPrice) : "시세 확인 중" }}
-              </span>
             </div>
           </div>
           <label class="section-label" for="feed-caption">한줄요약 (필수)</label>
@@ -1504,17 +1421,6 @@ textarea {
   margin-left: 8px;
   color: #969caf;
 }
-.amount-edit-label {
-  display: block;
-  margin-top: 13px;
-  color: #4e566d;
-  font-size: 0.82rem;
-  font-weight: 850;
-}
-.amount-edit-label em {
-  color: #6d5ddd;
-  font-style: normal;
-}
 .result-box > div {
   display: flex;
   align-items: center;
@@ -1527,82 +1433,11 @@ textarea {
   border: 1px solid #dedfeb;
   border-radius: 12px;
 }
-.manual-amount-notice {
-  display: block;
-  margin: 8px 0 0 !important;
-  color: #328665 !important;
-  font-size: 0.76rem;
-}
 .result-box.ready {
   background: #f0fff7;
 }
 .result-box.ready > span {
   color: #328665;
-}
-.analysis-detail-box {
-  margin-top: 10px;
-  padding: 14px;
-  color: #50586e;
-  background: #f8f7ff;
-  border: 1px solid #e5e1ff;
-  border-radius: 14px;
-  font-size: 0.82rem;
-}
-.analysis-value-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-}
-.analysis-value-grid span,
-.detected-item-list span,
-.detected-item-list small {
-  display: block;
-}
-.analysis-value-grid b {
-  display: block;
-  margin-top: 3px;
-  color: #5f50ca;
-}
-.detected-item-list {
-  display: grid;
-  gap: 4px;
-  margin-top: 12px;
-  padding-top: 10px;
-  border-top: 1px solid #e7e4f5;
-}
-.detected-item-list small {
-  margin-bottom: 2px;
-  color: #7a8093;
-  font-weight: 800;
-}
-.analysis-feedback {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 10px;
-}
-.analysis-feedback small {
-  width: 100%;
-  color: #aeb8d4;
-}
-.analysis-feedback button {
-  padding: 5px 9px;
-  color: #c3cae1;
-  background: transparent;
-  border: 1px solid #ffffff2a;
-  border-radius: 999px;
-  font-size: 0.72rem;
-}
-.analysis-feedback button.selected,
-.analysis-feedback button:hover:not(:disabled) {
-  color: #fff;
-  background: #6f61dc;
-  border-color: #8e82ff;
-}
-.analysis-feedback button:disabled {
-  cursor: default;
-  opacity: 0.75;
 }
 textarea {
   min-height: 84px;

@@ -6,9 +6,6 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.wallo.feed.analysis.FeedAnalysisClient;
 import com.wallo.feed.analysis.GeminiFeedAnalysisClient;
 import com.wallo.feed.analysis.MockFeedAnalysisClient;
-import com.wallo.feed.analysis.PriceSearchClient;
-import com.wallo.feed.analysis.GeminiPriceSearchClient;
-import com.wallo.feed.analysis.NoopPriceSearchClient;
 import java.time.Clock;
 import org.springframework.beans.factory.annotation.Value;
 import java.time.Clock;
@@ -65,29 +62,12 @@ public class AppConfig {
             ObjectMapper objectMapper,
             @Value("${gemini.enabled:false}") boolean geminiEnabled,
             @Value("${gemini.api-key:}") String geminiApiKey,
-            @Value("${gemini.model:gemini-3.6-flash}") String geminiModel,
-            @Value("${gemini.thinking-level:high}") String geminiThinkingLevel,
-            @Value("${gemini.media-resolution:high}") String geminiMediaResolution) {
-        if (geminiEnabled && geminiApiKey != null && !geminiApiKey.isBlank()) {
-            return new GeminiFeedAnalysisClient(
-                    restTemplate, objectMapper, geminiApiKey.trim(), geminiModel.trim(),
-                    geminiThinkingLevel, geminiMediaResolution);
-        }
-        return new MockFeedAnalysisClient();
-    }
-
-    @Bean
-    public PriceSearchClient priceSearchClient(
-            RestTemplate restTemplate,
-            ObjectMapper objectMapper,
-            @Value("${gemini.enabled:false}") boolean geminiEnabled,
-            @Value("${gemini.api-key:}") String geminiApiKey,
             @Value("${gemini.model:gemini-3.6-flash}") String geminiModel) {
         if (geminiEnabled && geminiApiKey != null && !geminiApiKey.isBlank()) {
-            return new GeminiPriceSearchClient(
+            return new GeminiFeedAnalysisClient(
                     restTemplate, objectMapper, geminiApiKey.trim(), geminiModel.trim());
         }
-        return new NoopPriceSearchClient();
+        return new MockFeedAnalysisClient();
     }
 
     @Bean
