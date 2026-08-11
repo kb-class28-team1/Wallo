@@ -49,8 +49,7 @@ class GeminiFeedAnalysisClientTest {
 
         JsonNode request = requestCaptor.getValue().getBody();
         assertEquals("MEDIA_RESOLUTION_HIGH",
-                request.path("contents").path(0).path("parts").path(0)
-                        .path("media_resolution").path("level").asText());
+                request.path("generationConfig").path("mediaResolution").asText());
         assertEquals("high", request.path("generationConfig")
                 .path("thinkingConfig").path("thinkingLevel").asText());
         assertEquals("application/json", request.path("generationConfig")

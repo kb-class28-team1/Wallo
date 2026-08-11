@@ -91,12 +91,13 @@ public class GeminiFeedAnalysisClient implements FeedAnalysisClient, ContextAwar
         ObjectNode inlineData = mediaPart.putObject("inline_data");
         inlineData.put("mime_type", resolveMimeType(media));
         inlineData.put("data", Base64.getEncoder().encodeToString(media.getBytes()));
-        mediaPart.putObject("media_resolution")
-                .put("level", "MEDIA_RESOLUTION_" + mediaResolution.toUpperCase(Locale.ROOT));
         parts.addObject().put("text", buildPrompt(spendingType, category, feedbackSummary));
 
         ObjectNode generationConfig = request.putObject("generationConfig");
         generationConfig.putObject("thinkingConfig").put("thinkingLevel", thinkingLevel);
+        // v1beta에서는 미디어별 설정 대신 요청 전체 설정으로 전달해야 한다.
+        generationConfig.put("mediaResolution",
+                "MEDIA_RESOLUTION_" + mediaResolution.toUpperCase(Locale.ROOT));
         ObjectNode textFormat = generationConfig.putObject("responseFormat").putObject("text");
         textFormat.put("mimeType", "application/json");
         textFormat.set("schema", analysisSchema());
