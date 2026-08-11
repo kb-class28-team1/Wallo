@@ -24,7 +24,12 @@ public interface FeedMapper {
     int insertFeed(Feed feed);
     int insertAnalysis(@Param("feedId") Long feedId, @Param("spendingType") String spendingType,
                        @Param("category") String category, @Param("amount") int amount,
-                       @Param("summary") String summary, @Param("confidence") double confidence);
+                       @Param("summary") String summary, @Param("confidence") double confidence,
+                       @Param("referenceValue") long referenceValue,
+                       @Param("actualCost") long actualCost,
+                       @Param("savingDifference") long savingDifference,
+                       @Param("detectedItemsJson") String detectedItemsJson,
+                       @Param("priceReferencesJson") String priceReferencesJson);
     int insertSavingAmountFeedback(
             @Param("feedId") Long feedId,
             @Param("userId") Long userId,

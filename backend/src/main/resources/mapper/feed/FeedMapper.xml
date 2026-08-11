@@ -107,8 +107,12 @@
     <insert id="insertAnalysis">
         INSERT INTO FEED_ANALYSIS
         (feed_id, recommended_spending_type, recommended_category,
-         estimated_saving_amount, analysis_summary, confidence_score)
-        VALUES (#{feedId}, #{spendingType}, #{category}, #{amount}, #{summary}, #{confidence})
+         estimated_saving_amount, analysis_summary, confidence_score,
+         reference_value, actual_cost, saving_difference,
+         detected_items_json, price_references_json, analyzed_at)
+        VALUES (#{feedId}, #{spendingType}, #{category}, #{amount}, #{summary}, #{confidence},
+                #{referenceValue}, #{actualCost}, #{savingDifference},
+                #{detectedItemsJson}, #{priceReferencesJson}, CURRENT_TIMESTAMP)
     </insert>
     <insert id="insertSavingAmountFeedback">
         INSERT INTO FEED_ANALYSIS_FEEDBACK

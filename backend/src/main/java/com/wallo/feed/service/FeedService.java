@@ -1,5 +1,7 @@
 package com.wallo.feed.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wallo.feed.analysis.FeedAnalysisClient;
 import com.wallo.feed.analysis.SavingFeedbackAwareFeedAnalysisClient;
 import com.wallo.feed.domain.Feed;
@@ -43,20 +45,23 @@ public class FeedService {
     private final FeedAnalysisClient analysisClient;
     private final ChallengeChatBroadcaster chatBroadcaster;
     private final PriceReferenceService priceReferenceService;
+    private final ObjectMapper objectMapper;
 
     /** 분석 단위 테스트와 기존 호출부의 호환을 위한 생성자. */
     public FeedService(FeedMapper feedMapper, FeedAnalysisClient analysisClient) {
-        this(feedMapper, analysisClient, null, null);
+        this(feedMapper, analysisClient, null, null, new ObjectMapper());
     }
 
     @Autowired
     public FeedService(FeedMapper feedMapper, FeedAnalysisClient analysisClient,
                        ChallengeChatBroadcaster chatBroadcaster,
-                       PriceReferenceService priceReferenceService) {
+                       PriceReferenceService priceReferenceService,
+                       ObjectMapper objectMapper) {
         this.feedMapper = feedMapper;
         this.analysisClient = analysisClient;
         this.chatBroadcaster = chatBroadcaster;
         this.priceReferenceService = priceReferenceService;
+        this.objectMapper = objectMapper;
     }
 
     public FeedListResponse getFeeds(Long userId, Long challengeId, boolean mineOnly) {
@@ -102,7 +107,7 @@ public class FeedService {
         double confidenceScore) {
         return create(userId, challengeId, media, spendingType, category, customCategory,
                 caption, savingAmount, savingAmount, analysisSummary, confidenceScore,
-                "UNKNOWN", null, null);
+                "UNKNOWN", null, null, null);
     }
 
     @Transactional
@@ -112,6 +117,18 @@ public class FeedService {
                        String analysisSummary, double confidenceScore,
                        String savingAmountFeedback, Integer verifiedSavingAmount,
                        String savingAmountFeedbackNote) {
+        return create(userId, challengeId, media, spendingType, category, customCategory,
+                caption, savingAmount, aiEstimatedSavingAmount, analysisSummary, confidenceScore,
+                savingAmountFeedback, verifiedSavingAmount, savingAmountFeedbackNote, null);
+    }
+
+    @Transactional
+    public Feed create(Long userId, Long challengeId, MultipartFile media,
+                       String spendingType, String category, String customCategory,
+                       String caption, int savingAmount, int aiEstimatedSavingAmount,
+                       String analysisSummary, double confidenceScore,
+                       String savingAmountFeedback, Integer verifiedSavingAmount,
+                       String savingAmountFeedbackNote, String analysisDetails) {
         requireMember(userId, challengeId);
         String normalizedCategory = normalizeCategory(category);
         validate(media, spendingType, normalizedCategory);
@@ -145,8 +162,14 @@ public class FeedService {
         feed.setCaption(blankToNull(caption));
         feed.setAnalysisSummary(blankToNull(analysisSummary));
         feedMapper.insertFeed(feed);
+        AnalysisResponse details = parseAnalysisDetails(analysisDetails);
         feedMapper.insertAnalysis(feed.getId(), spendingType, normalizedCategory,
-                normalizedAiAmount, analysisSummary, confidenceScore);
+                normalizedAiAmount, analysisSummary, confidenceScore,
+                details == null ? 0 : safeLong(details.referenceValue()),
+                details == null ? 0 : safeLong(details.actualCost()),
+                details == null ? 0 : safeLong(details.savingDifference()),
+                details == null ? null : toJson(details.detectedItems()),
+                details == null ? null : toJson(details.priceReferences()));
         feedMapper.insertSavingAmountFeedback(
                 feed.getId(), userId, normalizedCategory, normalizedAiAmount,
                 normalizedFeedback, normalizedVerifiedAmount,
@@ -354,5 +377,29 @@ public class FeedService {
 
     private String blankToNull(String value) {
         return value == null || value.trim().isEmpty() ? null : value.trim();
+    }
+
+    private AnalysisResponse parseAnalysisDetails(String analysisDetails) {
+        if (analysisDetails == null || analysisDetails.isBlank()
+                || analysisDetails.length() > 100_000) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(analysisDetails, AnalysisResponse.class);
+        } catch (JsonProcessingException exception) {
+            return null;
+        }
+    }
+
+    private String toJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException exception) {
+            return null;
+        }
+    }
+
+    private long safeLong(long value) {
+        return Math.max(0, Math.min(10_000_000_000L, value));
     }
 }
