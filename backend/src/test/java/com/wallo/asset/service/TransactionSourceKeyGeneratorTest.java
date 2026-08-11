@@ -36,4 +36,21 @@ class TransactionSourceKeyGeneratorTest {
         assertNotEquals(firstKey, otherAccountKey);
         assertEquals(64, firstKey.length());
     }
+
+    @Test
+    void genericAssetTransactionKeyUsesSourceIdentity() {
+        String firstKey = generator.forAssetTransaction(
+                "LOAN_TRANSACTION", "0004", "STUDENT-LOAN-2021-001", "LOAN-202607-0001"
+        );
+        String sameKey = generator.forAssetTransaction(
+                "LOAN_TRANSACTION", "0004", "STUDENTLOAN2021001", "LOAN-202607-0001"
+        );
+        String otherSourceTypeKey = generator.forAssetTransaction(
+                "STOCK_TRANSACTION", "0004", "STUDENT-LOAN-2021-001", "LOAN-202607-0001"
+        );
+
+        assertEquals(firstKey, sameKey);
+        assertNotEquals(firstKey, otherSourceTypeKey);
+        assertEquals(64, firstKey.length());
+    }
 }

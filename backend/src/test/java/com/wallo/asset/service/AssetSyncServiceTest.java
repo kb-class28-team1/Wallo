@@ -39,6 +39,7 @@ class AssetSyncServiceTest {
             new ObjectMapperCodefAssetResponseMapper(new ObjectMapper()),
             cardApprovalCollectionService,
             bankTransactionCollectionService,
+            new TransactionSourceKeyGenerator(),
             new ConsumptionInsightCache(),
             Clock.fixed(Instant.parse("2026-08-06T00:00:00Z"), ZoneId.of("Asia/Seoul"))
     );
@@ -64,8 +65,6 @@ class AssetSyncServiceTest {
 
         verify(assetSyncMapper).upsertCard(eq(11L), any(AssetSyncDto.Card.class));
         verify(cardApprovalCollectionService).collectInitial(7L, 11L, institution);
-        verify(assetSyncMapper, never()).updateTransactionByApproval(any());
-        verify(assetSyncMapper, never()).insertTransaction(any());
     }
 
     @Test
@@ -143,8 +142,6 @@ class AssetSyncServiceTest {
         verify(assetSyncMapper, times(2)).upsertAssetSnapshot(
                 eq(7L), any(AssetSyncDto.AssetSnapshot.class)
         );
-        verify(assetSyncMapper, never()).updateTransactionByApproval(any());
-        verify(assetSyncMapper, never()).insertTransaction(any());
     }
 
     @Test
@@ -181,6 +178,87 @@ class AssetSyncServiceTest {
         verify(assetSyncMapper).upsertAssetSnapshot(eq(7L), snapshotCaptor.capture());
         assertEquals("2026-08", snapshotCaptor.getValue().getMonth());
         assertEquals(53_400_000L, snapshotCaptor.getValue().getTotalAssets());
+    }
+
+    @Test
+    void upsertsLoanTransactionWithStableSourceIdentity() {
+        Institution institution = new Institution(1L, "0004", "Wallo Bank", "BANK", "bank-logo");
+        Map<String, Object> data = Map.of(
+                "loans", List.of(Map.of(
+                        "resLoanName", "일반 상환 학자금대출",
+                        "resLoanAccount", "STUDENT-LOAN-2021-001",
+                        "resLoanDisplay", "STUDENT-LOAN-****-001",
+                        "resLoanBalance", "4800000",
+                        "resLoanStatus", "1",
+                        "resLoanCurrency", "KRW"
+                )),
+                "transactions", List.of(Map.of(
+                        "resLoanAccount", "STUDENT-LOAN-2021-001",
+                        "resLoanPaymentNo", "LOAN-202607-0001",
+                        "resLoanPaymentDate", "2026-07-25",
+                        "resLoanPaymentTime", "09:00:00",
+                        "resLoanPaymentAmount", "150000",
+                        "resLoanPaymentCategory", "LOAN_REPAYMENT"
+                ))
+        );
+        when(assetSyncMapper.findAccountId(11L, "STUDENT-LOAN-2021-001")).thenReturn(379L);
+
+        assetSyncService.sync(7L, 11L, institution, CodefDto.Response.success(data));
+
+        ArgumentCaptor<AssetSyncDto.Transaction> transactionCaptor =
+                ArgumentCaptor.forClass(AssetSyncDto.Transaction.class);
+        verify(assetSyncMapper).upsertTransaction(transactionCaptor.capture());
+        AssetSyncDto.Transaction transaction = transactionCaptor.getValue();
+        assertEquals(379L, transaction.getAccountId());
+        assertEquals("LOAN_TRANSACTION", transaction.getSourceType());
+        assertEquals("0004", transaction.getSourceOrganizationCode());
+        assertEquals("LOAN-202607-0001", transaction.getSourceTransactionId());
+        assertEquals("LOAN-202607-0001", transaction.getApprovalNo());
+        assertEquals("LOAN_REPAYMENT", transaction.getCategory());
+        assertEquals("CODEF", transaction.getCategorySource());
+        assertEquals(64, transaction.getSourceDedupKey().length());
+    }
+
+    @Test
+    void upsertsStockTransactionWithStableSourceIdentity() {
+        Institution institution = new Institution(3L, "0081", "Wallo Securities", "STOCK", "stock-logo");
+        Map<String, Object> data = Map.of(
+                "accounts", List.of(Map.of(
+                        "resAccount", "12345678-01",
+                        "resAccountDisplay", "123456**-**",
+                        "resAccountName", "Investment account",
+                        "resAccountBalance", "350000",
+                        "resAccountEvalAmount", "14500000",
+                        "resAccountCurrency", "KRW",
+                        "resAccountStatus", "1",
+                        "resAccountSubtype", "STOCK"
+                )),
+                "transactions", List.of(Map.of(
+                        "resAccount", "12345678-01",
+                        "resAccountTrNo", "STOCK-202607-0001",
+                        "resAccountTrDate", "2026-07-24",
+                        "resAccountTrTime", "10:05:00",
+                        "resAccountTrType", "INCOME",
+                        "resAccountTrAmount", "180000",
+                        "resAccountTrDesc", "배당금",
+                        "resAccountTrCategory", "INVESTMENT"
+                ))
+        );
+        when(assetSyncMapper.findAccountId(11L, "12345678-01")).thenReturn(41L);
+
+        assetSyncService.sync(7L, 11L, institution, CodefDto.Response.success(data));
+
+        ArgumentCaptor<AssetSyncDto.Transaction> transactionCaptor =
+                ArgumentCaptor.forClass(AssetSyncDto.Transaction.class);
+        verify(assetSyncMapper).upsertTransaction(transactionCaptor.capture());
+        AssetSyncDto.Transaction transaction = transactionCaptor.getValue();
+        assertEquals(41L, transaction.getAccountId());
+        assertEquals("STOCK_TRANSACTION", transaction.getSourceType());
+        assertEquals("0081", transaction.getSourceOrganizationCode());
+        assertEquals("STOCK-202607-0001", transaction.getSourceTransactionId());
+        assertEquals("INCOME", transaction.getType());
+        assertEquals("INVESTMENT", transaction.getCategory());
+        assertEquals(64, transaction.getSourceDedupKey().length());
     }
 
     @Test

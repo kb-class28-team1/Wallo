@@ -20,6 +20,11 @@ import org.springframework.stereotype.Service;
 @Service
 public class AssetSyncService {
 
+    private static final String CARD_APPROVAL_SOURCE_TYPE = "CARD_APPROVAL";
+    private static final String LOAN_TRANSACTION_SOURCE_TYPE = "LOAN_TRANSACTION";
+    private static final String STOCK_TRANSACTION_SOURCE_TYPE = "STOCK_TRANSACTION";
+    private static final String CODEF_CATEGORY_SOURCE = "CODEF";
+    private static final String CODEF_CLASSIFIER_VERSION = "codef-v1";
     private static final Logger LOGGER = Logger.getLogger(AssetSyncService.class.getName());
 
     private final AssetSyncMapper assetSyncMapper;
@@ -27,6 +32,7 @@ public class AssetSyncService {
     private final CodefAssetResponseMapper codefAssetResponseMapper;
     private final CardApprovalCollectionService cardApprovalCollectionService;
     private final BankTransactionCollectionService bankTransactionCollectionService;
+    private final TransactionSourceKeyGenerator sourceKeyGenerator;
     private final ConsumptionInsightCache consumptionInsightCache;
     private final Clock clock;
 
@@ -36,6 +42,7 @@ public class AssetSyncService {
             CodefAssetResponseMapper codefAssetResponseMapper,
             CardApprovalCollectionService cardApprovalCollectionService,
             BankTransactionCollectionService bankTransactionCollectionService,
+            TransactionSourceKeyGenerator sourceKeyGenerator,
             ConsumptionInsightCache consumptionInsightCache,
             Clock clock
     ) {
@@ -44,6 +51,7 @@ public class AssetSyncService {
         this.codefAssetResponseMapper = codefAssetResponseMapper;
         this.cardApprovalCollectionService = cardApprovalCollectionService;
         this.bankTransactionCollectionService = bankTransactionCollectionService;
+        this.sourceKeyGenerator = sourceKeyGenerator;
         this.consumptionInsightCache = consumptionInsightCache;
         this.clock = clock;
     }
@@ -77,12 +85,12 @@ public class AssetSyncService {
             collectBankTransactions(userId, connectionId, institution, data.getAccounts());
             for (CodefDto.Transaction source : values(data.getTransactions())) {
                 if (!blank(source.getResLoanAccount())) {
-                    syncTransaction(userId, connectionId, source);
+                    syncTransaction(userId, connectionId, institution, source);
                 }
             }
         } else {
             for (CodefDto.Transaction source : values(data.getTransactions())) {
-                syncTransaction(userId, connectionId, source);
+                syncTransaction(userId, connectionId, institution, source);
             }
         }
         upsertCurrentMonthSnapshot(userId, currentMonth);
@@ -178,32 +186,93 @@ public class AssetSyncService {
         }
     }
 
-    private void syncTransaction(long userId, long connectionId, CodefDto.Transaction source) {
+    private void syncTransaction(
+            long userId,
+            long connectionId,
+            Institution institution,
+            CodefDto.Transaction source
+    ) {
         boolean cardTransaction = !blank(source.getResCardNo());
         boolean loanTransaction = !blank(source.getResLoanAccount());
-        Long cardId = cardTransaction ? required(assetSyncMapper.findCardId(connectionId, source.getResCardNo())) : null;
+        Long cardId = cardTransaction
+                ? required(assetSyncMapper.findCardId(connectionId, source.getResCardNo()))
+                : null;
         String accountNumber = loanTransaction ? source.getResLoanAccount() : source.getResAccount();
-        Long accountId = cardTransaction ? null : required(assetSyncMapper.findAccountId(connectionId, accountNumber));
+        Long accountId = cardTransaction
+                ? null
+                : required(assetSyncMapper.findAccountId(connectionId, accountNumber));
+        String sourceType = sourceType(cardTransaction, loanTransaction);
+        String sourceTransactionId = sourceTransactionId(cardTransaction, loanTransaction, source);
+        String sourceDedupKey = sourceKeyGenerator.forAssetTransaction(
+                sourceType,
+                institution.getCodefOrganizationCode(),
+                cardTransaction ? source.getResCardNo() : accountNumber,
+                sourceTransactionId
+        );
+        String merchantName = cardTransaction
+                ? defaultValue(source.getResUsedMerchantName(), "카드 결제")
+                : loanTransaction ? "학자금대출 상환" : defaultValue(source.getResAccountTrDesc(), "계좌 거래");
+        String type = cardTransaction || loanTransaction
+                ? "EXPENSE"
+                : defaultValue(source.getResAccountTrType(), "EXPENSE");
+        String category = cardTransaction
+                ? defaultValue(source.getResUsedCategory(), "OTHER")
+                : loanTransaction
+                        ? defaultValue(source.getResLoanPaymentCategory(), "LOAN_REPAYMENT")
+                        : defaultValue(source.getResAccountTrCategory(), "OTHER");
+        long amount = amount(cardTransaction ? source.getResUsedAmount()
+                : loanTransaction ? source.getResLoanPaymentAmount() : source.getResAccountTrAmount());
+        LocalDate date = LocalDate.parse(cardTransaction ? source.getResUsedDate()
+                : loanTransaction ? source.getResLoanPaymentDate() : source.getResAccountTrDate());
+        LocalTime time = LocalTime.parse(cardTransaction ? source.getResUsedTime()
+                : loanTransaction ? source.getResLoanPaymentTime() : source.getResAccountTrTime());
 
         AssetSyncDto.Transaction transaction = new AssetSyncDto.Transaction(
-                userId, cardId, accountId,
-                cardTransaction || loanTransaction ? "EXPENSE" : defaultValue(source.getResAccountTrType(), "EXPENSE"),
-                cardTransaction ? defaultValue(source.getResUsedCategory(), "OTHER")
-                        : loanTransaction ? defaultValue(source.getResLoanPaymentCategory(), "LOAN_REPAYMENT")
-                                : defaultValue(source.getResAccountTrCategory(), "OTHER"),
-                amount(cardTransaction ? source.getResUsedAmount()
-                        : loanTransaction ? source.getResLoanPaymentAmount() : source.getResAccountTrAmount()),
-                cardTransaction ? defaultValue(source.getResUsedMerchantName(), "카드 결제")
-                        : loanTransaction ? "학자금대출 상환" : defaultValue(source.getResAccountTrDesc(), "계좌 거래"),
-                cardTransaction ? source.getResCardApprovalNo()
-                        : loanTransaction ? source.getResLoanPaymentNo() : source.getResAccountTrNo(),
-                LocalDate.parse(cardTransaction ? source.getResUsedDate()
-                        : loanTransaction ? source.getResLoanPaymentDate() : source.getResAccountTrDate()),
-                LocalTime.parse(cardTransaction ? source.getResUsedTime()
-                        : loanTransaction ? source.getResLoanPaymentTime() : source.getResAccountTrTime()));
-        if (assetSyncMapper.updateTransactionByApproval(transaction) == 0) {
-            assetSyncMapper.insertTransaction(transaction);
+                userId,
+                cardId,
+                accountId,
+                type,
+                category,
+                amount,
+                merchantName,
+                merchantName,
+                null,
+                sourceTransactionId,
+                date,
+                time,
+                CODEF_CATEGORY_SOURCE,
+                java.math.BigDecimal.ONE,
+                CODEF_CLASSIFIER_VERSION,
+                sourceType,
+                institution.getCodefOrganizationCode(),
+                sourceTransactionId,
+                sourceDedupKey
+        );
+        assetSyncMapper.upsertTransaction(transaction);
+    }
+
+    private String sourceType(boolean cardTransaction, boolean loanTransaction) {
+        if (cardTransaction) {
+            return CARD_APPROVAL_SOURCE_TYPE;
         }
+        if (loanTransaction) {
+            return LOAN_TRANSACTION_SOURCE_TYPE;
+        }
+        return STOCK_TRANSACTION_SOURCE_TYPE;
+    }
+
+    private String sourceTransactionId(
+            boolean cardTransaction,
+            boolean loanTransaction,
+            CodefDto.Transaction source
+    ) {
+        String transactionId = cardTransaction
+                ? source.getResCardApprovalNo()
+                : loanTransaction ? source.getResLoanPaymentNo() : source.getResAccountTrNo();
+        if (blank(transactionId)) {
+            throw new IllegalArgumentException("CODEF source transaction id is required.");
+        }
+        return transactionId.trim();
     }
 
     private <T> List<T> values(List<T> values) {

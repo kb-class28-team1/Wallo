@@ -39,6 +39,27 @@ public class TransactionSourceKeyGenerator {
         return sha256(canonicalValue);
     }
 
+    /**
+     * Generates a stable key for CODEF asset transactions that are not covered
+     * by the card-approval or bank-account transaction endpoints (for example,
+     * loan repayments and stock-account transactions).
+     */
+    public String forAssetTransaction(
+            String sourceType,
+            String organizationCode,
+            String assetNumber,
+            String transactionId
+    ) {
+        String canonicalValue = String.join(
+                "|",
+                required(sourceType, "source type"),
+                required(organizationCode, "organization code"),
+                normalizeIdentity(assetNumber, "asset number"),
+                required(transactionId, "source transaction id")
+        );
+        return sha256(canonicalValue);
+    }
+
     private String sha256(String value) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
