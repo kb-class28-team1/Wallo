@@ -30,6 +30,13 @@ public interface AssetSyncMapper {
             @Param("sourceDedupKey") String sourceDedupKey
     );
 
+    Long findExistingTransactionId(
+            @Param("userId") long userId,
+            @Param("sourceType") String sourceType,
+            @Param("sourceOrganizationCode") String sourceOrganizationCode,
+            @Param("sourceDedupKey") String sourceDedupKey
+    );
+
     List<AssetSyncDto.ReconciliationCandidate> selectBankWithdrawalCandidates(
             @Param("userId") long userId
     );

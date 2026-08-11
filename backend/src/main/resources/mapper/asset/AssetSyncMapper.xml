@@ -125,6 +125,16 @@
         LIMIT 1
     </select>
 
+    <select id="findExistingTransactionId" resultType="java.lang.Long">
+        SELECT transaction_id
+        FROM TRANSACTIONS
+        WHERE user_id = #{userId}
+          AND source_type = #{sourceType}
+          AND source_organization_code = #{sourceOrganizationCode}
+          AND source_dedup_key = #{sourceDedupKey}
+        LIMIT 1
+    </select>
+
     <select id="selectBankWithdrawalCandidates"
             resultType="com.wallo.asset.dto.AssetSyncDto$ReconciliationCandidate">
         SELECT
