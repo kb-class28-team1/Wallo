@@ -46,9 +46,16 @@ public class PriceReferenceService {
             "(?i)(\\d+(?:\\.\\d+)?(?:ml|l|kg|g|" + COUNT_UNIT_NAMES + "))");
     private static final Pattern COUNT_UNIT_TOKEN = Pattern.compile(
             "(?i)(\\d+)\\s*(" + COUNT_UNIT_NAMES + ")");
+    private static final Pattern GATHERED_PACKAGE_COUNT_TOKEN = Pattern.compile(
+            "(?i)(\\d+)\\s*(?:개|마리|미|송이|그루)(?:입)?");
     private static final Pattern PRODUCT_WORD_TOKEN = Pattern.compile("[0-9a-zA-Z가-힣]+");
     private static final List<String> EXCLUDED_TITLE_WORDS = List.of(
             "중고", "리퍼", "렌탈", "대여", "정기구독", "월납", "공병", "빈병");
+    private static final List<String> GATHERED_EXCLUDED_TITLE_WORDS = List.of(
+            "통조림", "캔참치", "참치캔", "성게알", "필렛", "스테이크",
+            "말랭이", "가루", "분말", "즙", "주스", "칩", "스낵",
+            "모종", "씨앗", "종자", "모형", "장난감", "인형", "키링",
+            "껍데기", "껍질");
     private static final List<String> GENERIC_CAFE_PRODUCT_WORDS = List.of(
             "커피", "캔커피", "컵커피", "카페라떼", "라떼", "아메리카노", "음료", "편의점");
 
@@ -156,6 +163,11 @@ public class PriceReferenceService {
                     analysis.category());
             if (isUsable(cached)) {
                 resolvedRows.put(index, cached);
+                if (isGathered(item)) {
+                    searches.put(index, CompletableFuture.supplyAsync(
+                            () -> findLowestCandidate(item, analysis.category()), searchExecutor)
+                            .exceptionally(exception -> Optional.empty()));
+                }
             } else if (isGathered(item) || item.confidence() >= MIN_SEARCH_CONFIDENCE) {
                 searches.put(index, CompletableFuture.supplyAsync(
                         () -> findLowestCandidate(item, analysis.category()), searchExecutor)
@@ -166,6 +178,10 @@ public class PriceReferenceService {
         if (!searches.isEmpty()) {
             CompletableFuture.allOf(searches.values().toArray(CompletableFuture[]::new)).join();
             searches.forEach((index, future) -> future.join().ifPresent(candidate -> {
+                PriceReferenceRow cached = resolvedRows.get(index);
+                if (isUsable(cached) && cached.getLowestPrice() <= candidate.price()) {
+                    return;
+                }
                 PriceReferenceRow stored = store(items.get(index), analysis.category(), candidate);
                 if (stored != null) {
                     resolvedRows.put(index, stored);
@@ -222,6 +238,16 @@ public class PriceReferenceService {
             DetectedItem item, String category) {
         List<ShoppingPriceCandidate> candidates = shoppingPriceClient
                 .search(item.itemName(), item.brand(), item.unit());
+        if (isGathered(item)) {
+            Optional<ShoppingPriceCandidate> gatheredMatch = lowestGatheredCandidate(
+                    item, candidates);
+            if (gatheredMatch.isPresent()) {
+                return gatheredMatch;
+            }
+            List<ShoppingPriceCandidate> rawProductCandidates = shoppingPriceClient.search(
+                    item.itemName() + " 생물 원물", "", item.unit());
+            return lowestGatheredCandidate(item, rawProductCandidates);
+        }
         Optional<ShoppingPriceCandidate> strictMatch = candidates.stream()
                 .filter(candidate -> matches(item, candidate))
                 .map(candidate -> normalizePackagePrice(item, candidate))
@@ -234,6 +260,32 @@ public class PriceReferenceService {
                 .filter(candidate -> matchesCafeProduct(item, candidate))
                 .map(candidate -> normalizePackagePrice(item, candidate))
                 .min(Comparator.comparingInt(ShoppingPriceCandidate::price));
+    }
+
+    private Optional<ShoppingPriceCandidate> lowestGatheredCandidate(
+            DetectedItem item, List<ShoppingPriceCandidate> candidates) {
+        return candidates.stream()
+                .filter(candidate -> matchesGatheredItem(item, candidate))
+                .map(candidate -> normalizeGatheredPackagePrice(item, candidate))
+                .min(Comparator.comparingInt(ShoppingPriceCandidate::price));
+    }
+
+    private ShoppingPriceCandidate normalizeGatheredPackagePrice(
+            DetectedItem item, ShoppingPriceCandidate candidate) {
+        Matcher matcher = GATHERED_PACKAGE_COUNT_TOKEN.matcher(
+                normalizeKey(candidate.title()));
+        int packageQuantity = 1;
+        while (matcher.find()) {
+            packageQuantity = Math.max(packageQuantity, Integer.parseInt(matcher.group(1)));
+        }
+        if (packageQuantity <= 1) {
+            return normalizePackagePrice(item, candidate);
+        }
+        int unitPrice = Math.max(1,
+                (int) Math.ceil((double) candidate.price() / packageQuantity));
+        return new ShoppingPriceCandidate(
+                candidate.title(), unitPrice, candidate.source(),
+                candidate.sourceUrl(), candidate.delivery());
     }
 
     private ShoppingPriceCandidate normalizePackagePrice(
@@ -291,6 +343,15 @@ public class PriceReferenceService {
             return false;
         }
         return requiredUnitTokens(item.unit()).stream().allMatch(title::contains);
+    }
+
+    private boolean matchesGatheredItem(
+            DetectedItem item, ShoppingPriceCandidate candidate) {
+        if (!matches(item, candidate)) {
+            return false;
+        }
+        String title = normalizeKey(candidate.title());
+        return GATHERED_EXCLUDED_TITLE_WORDS.stream().noneMatch(title::contains);
     }
 
     private boolean matchesCafeProduct(
