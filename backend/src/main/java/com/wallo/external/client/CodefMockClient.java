@@ -3,6 +3,7 @@ package com.wallo.external.client;
 import com.wallo.external.auth.CodefAuthorizedRequestFactory;
 import com.wallo.external.auth.CodefPasswordEncryptor;
 import com.wallo.external.auth.IdentityCodefPasswordEncryptor;
+import com.wallo.external.CodefConstants;
 import com.wallo.external.dto.CodefDto;
 import org.springframework.http.HttpMethod;
 import org.springframework.web.client.RestClientException;
@@ -15,9 +16,6 @@ public class CodefMockClient
         implements CodefClient, BankTransactionClient, CardApprovalClient, IncomeProofClient {
 
     private static final String DEFAULT_MOCK_PATH_PREFIX = "/mock/v1";
-    private static final String BANK = "BANK";
-    private static final String CARD = "CARD";
-    private static final String STOCK = "STOCK";
     private static final String BANK_TRANSACTION_PATH = "/kr/bank/p/account/transaction-list";
     private static final String CARD_APPROVAL_PATH = "/kr/card/p/approval-list";
     private static final String INCOME_PROOF_PATH = "/kr/public/mw/issuance/proof-income";
@@ -160,20 +158,24 @@ public class CodefMockClient
                     CodefDto.Response.class
             ).getBody();
         } catch (RestClientException exception) {
-            return CodefDto.Response.failure("CF-99999", failureMessage, exception.getMessage());
+            return CodefDto.Response.failure(
+                    CodefConstants.CLIENT_FAILURE_CODE,
+                    failureMessage,
+                    exception.getMessage()
+            );
         }
     }
 
     private String resolveAssetPath(String institutionType) {
-        if (BANK.equals(institutionType)) {
+        if (CodefConstants.BANK_INSTITUTION_TYPE.equals(institutionType)) {
             return "/kr/bank/p/account/account-list";
         }
 
-        if (CARD.equals(institutionType)) {
+        if (CodefConstants.CARD_INSTITUTION_TYPE.equals(institutionType)) {
             return "/kr/card/p/account/card-list";
         }
 
-        if (STOCK.equals(institutionType)) {
+        if (CodefConstants.STOCK_INSTITUTION_TYPE.equals(institutionType)) {
             return "/kr/stock/p/account/account-list";
         }
 

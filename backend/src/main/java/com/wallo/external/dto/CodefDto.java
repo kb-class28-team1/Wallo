@@ -1,6 +1,7 @@
 package com.wallo.external.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.wallo.external.CodefConstants;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -73,7 +74,7 @@ public final class CodefDto {
         private Object data;
 
         public static Response success(Object data) {
-            return new Response(new Result("CF-00000", "성공", ""), data);
+            return new Response(new Result(CodefConstants.SUCCESS_CODE, "성공", ""), data);
         }
 
         public static Response failure(String code, String message, String extraMessage) {
