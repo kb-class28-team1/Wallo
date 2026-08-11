@@ -70,6 +70,7 @@ const form = reactive({
   analysisSummary: "",
   confidenceScore: 0,
   analysisDetails: "",
+  analysisFailed: false,
 })
 
 const spendingTypes = [
@@ -295,6 +296,7 @@ const closeModal = () => {
     analysisSummary: "",
     confidenceScore: 0,
     analysisDetails: "",
+    analysisFailed: false,
   })
   if (fileInput.value) fileInput.value.value = ""
 }
@@ -357,6 +359,7 @@ const handleFile = async (event) => {
   form.verifiedSavingAmount = null
   form.analysisSummary = ""
   form.analysisDetails = ""
+  form.analysisFailed = false
 }
 const selectCategory = (category) => {
   form.category = category
@@ -367,6 +370,7 @@ const selectCategory = (category) => {
   form.analysisSummary = ""
   form.confidenceScore = 0
   form.analysisDetails = ""
+  form.analysisFailed = false
 }
 const validationMessage = ({ requireCaption = false } = {}) => {
   if (!form.file) return "사진이나 영상을 선택해 주세요."
@@ -387,6 +391,7 @@ const requestAnalysis = async () => {
   isAnalyzing.value = true
   try {
     const result = await analyzeFeed(challengeId.value, makeFormData())
+    form.analysisFailed = false
     form.aiEstimatedSavingAmount = Number(result.estimatedSavingAmount) || 0
     form.savingAmount = form.aiEstimatedSavingAmount
     form.savingAmountFeedback = ""
@@ -395,7 +400,17 @@ const requestAnalysis = async () => {
     form.confidenceScore = result.confidenceScore
     form.analysisDetails = JSON.stringify(result)
   } catch (error) {
-    openDialog({ message: error.message })
+    form.analysisFailed = true
+    form.aiEstimatedSavingAmount = 0
+    form.savingAmount = null
+    form.savingAmountFeedback = "UNKNOWN"
+    form.verifiedSavingAmount = null
+    form.analysisSummary = "AI 분석에 실패해 사용자가 절약 금액을 직접 입력했습니다."
+    form.confidenceScore = 0
+    form.analysisDetails = ""
+    await openDialog({
+      message: `${error.message}\n절약 금액을 직접 입력하면 피드는 계속 올릴 수 있어요.`,
+    })
   } finally {
     isAnalyzing.value = false
   }
@@ -432,13 +447,20 @@ const uploadFeed = async () => {
   const invalid = validationMessage({ requireCaption: true })
   if (invalid) return openDialog({ message: invalid })
   if (!form.analysisSummary) return openDialog({ message: "먼저 AI 분석을 진행해 주세요." })
-  const feedbackError = savingAmountFeedbackError()
-  if (feedbackError) return openDialog({ message: feedbackError })
+  if (form.analysisFailed
+      && (form.savingAmount === null || form.savingAmount === ""
+        || Number(form.savingAmount) < 0)) {
+    return openDialog({ message: "절약 금액을 직접 입력해 주세요." })
+  }
+  if (!form.analysisFailed) {
+    const feedbackError = savingAmountFeedbackError()
+    if (feedbackError) return openDialog({ message: feedbackError })
+  }
   isUploading.value = true
   try {
     const data = makeFormData()
     data.append("caption", form.caption)
-    data.append("savingAmount", String(form.savingAmount))
+    data.append("savingAmount", String(Math.max(0, Number(form.savingAmount) || 0)))
     data.append("aiEstimatedSavingAmount", String(form.aiEstimatedSavingAmount))
     data.append("savingAmountFeedback", form.savingAmountFeedback)
     if (form.verifiedSavingAmount !== null && form.verifiedSavingAmount !== "") {
@@ -782,10 +804,18 @@ onBeforeUnmount(() => {
             </button>
           </div>
           <div class="result-box" :class="{ ready: form.analysisSummary }">
-            <span>🤖 AI 추정 금액</span
+            <span>{{ form.analysisFailed ? "✍️ 직접 입력 금액" : "🤖 AI 추정 금액" }}</span
             ><small>{{ form.analysisSummary || "분석하면 예상 절약 금액을 알려드려요." }}</small>
             <div>
               <input
+                v-if="form.analysisFailed"
+                v-model.number="form.savingAmount"
+                type="number"
+                min="0"
+                placeholder="절약한 금액을 입력하세요"
+              />
+              <input
+                v-else
                 :value="form.aiEstimatedSavingAmount"
                 type="number"
                 min="0"
@@ -793,7 +823,7 @@ onBeforeUnmount(() => {
                 :disabled="!form.analysisSummary"
               /><b>원</b>
             </div>
-            <div v-if="form.analysisSummary" class="saving-feedback-section">
+            <div v-if="form.analysisSummary && !form.analysisFailed" class="saving-feedback-section">
               <strong>실제 금액과 같나요?</strong>
               <div class="saving-feedback-buttons">
                 <button
