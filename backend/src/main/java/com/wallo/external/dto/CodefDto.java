@@ -55,6 +55,19 @@ public final class CodefDto {
     @Setter
     @NoArgsConstructor
     @AllArgsConstructor
+    public static class IncomeProofRequest {
+        private String organization;
+        private String loginType;
+        private String id;
+        private String password;
+        private String searchStartYear;
+        private String searchEndYear;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class Response {
         private Result result;
         private Object data;
@@ -88,6 +101,24 @@ public final class CodefDto {
         private List<Card> cards;
         private List<Transaction> transactions;
         private List<AssetSnapshot> assetSnapshots;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class IncomeProofData {
+        private List<PaymentDetails> resPaymentDetailsStatusList;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class PaymentDetails {
+        private String resAttrYear;
+        private String resType;
+        private String resPaidTotalAmt;
     }
 
     @Getter

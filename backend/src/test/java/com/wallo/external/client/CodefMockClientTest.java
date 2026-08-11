@@ -53,7 +53,9 @@ class CodefMockClientTest {
                 "Bearer mock-codef-token",
                 entityCaptor.getValue().getHeaders().getFirst("Authorization")
         );
-        assertEquals(request, entityCaptor.getValue().getBody());
+        CodefDto.Request sentRequest = (CodefDto.Request) entityCaptor.getValue().getBody();
+        assertEquals(request.getInstitutionType(), sentRequest.getInstitutionType());
+        assertEquals(request.getPassword(), sentRequest.getPassword());
     }
 
     @Test
@@ -89,7 +91,10 @@ class CodefMockClientTest {
                 "Bearer mock-codef-token",
                 entityCaptor.getValue().getHeaders().getFirst("Authorization")
         );
-        assertEquals(request, entityCaptor.getValue().getBody());
+        CodefDto.BankTransactionRequest sentRequest =
+                (CodefDto.BankTransactionRequest) entityCaptor.getValue().getBody();
+        assertEquals(request.getAccount(), sentRequest.getAccount());
+        assertEquals(request.getPassword(), sentRequest.getPassword());
     }
 
     @Test
@@ -119,6 +124,76 @@ class CodefMockClientTest {
                 "Bearer mock-codef-token",
                 entityCaptor.getValue().getHeaders().getFirst("Authorization")
         );
-        assertEquals(request, entityCaptor.getValue().getBody());
+        CodefDto.CardApprovalRequest sentRequest =
+                (CodefDto.CardApprovalRequest) entityCaptor.getValue().getBody();
+        assertEquals(request.getOrganization(), sentRequest.getOrganization());
+        assertEquals(request.getPassword(), sentRequest.getPassword());
+    }
+
+    @Test
+    void callsIncomeProofMockEndpointWithBearerToken() {
+        CodefDto.IncomeProofRequest request = new CodefDto.IncomeProofRequest(
+                "0001", "1", "mock_id", "mock_pw", "2025", "2025"
+        );
+        CodefDto.Response expected = CodefDto.Response.success("income-proof");
+        when(restTemplate.exchange(
+                eq("http://localhost:8080/mock/v1/kr/public/mw/issuance/proof-income"),
+                eq(HttpMethod.POST),
+                any(HttpEntity.class),
+                eq(CodefDto.Response.class)
+        )).thenReturn(ResponseEntity.ok(expected));
+
+        CodefDto.Response actual = client.getIncomeProof(request);
+
+        assertEquals(expected, actual);
+        ArgumentCaptor<HttpEntity> entityCaptor = ArgumentCaptor.forClass(HttpEntity.class);
+        verify(restTemplate).exchange(
+                eq("http://localhost:8080/mock/v1/kr/public/mw/issuance/proof-income"),
+                eq(HttpMethod.POST),
+                entityCaptor.capture(),
+                eq(CodefDto.Response.class)
+        );
+        assertEquals(
+                "Bearer mock-codef-token",
+                entityCaptor.getValue().getHeaders().getFirst("Authorization")
+        );
+        CodefDto.IncomeProofRequest sentRequest =
+                (CodefDto.IncomeProofRequest) entityCaptor.getValue().getBody();
+        assertEquals(request.getSearchStartYear(), sentRequest.getSearchStartYear());
+        assertEquals(request.getPassword(), sentRequest.getPassword());
+    }
+
+    @Test
+    void usesConfiguredSandboxBaseUrlPathAndPasswordEncryptor() {
+        CodefMockClient configuredClient = new CodefMockClient(
+                restTemplate,
+                new CodefMockApiUrlProvider("https://sandbox.codef.example/"),
+                requestFactory,
+                password -> "encrypted(" + password + ")",
+                "/v1"
+        );
+        CodefDto.Request request = new CodefDto.Request(
+                "0004", "BANK", "1", "real_id", "real_pw"
+        );
+        CodefDto.Response expected = CodefDto.Response.success("accounts");
+        when(restTemplate.exchange(
+                eq("https://sandbox.codef.example/v1/kr/bank/p/account/account-list"),
+                eq(HttpMethod.POST),
+                any(HttpEntity.class),
+                eq(CodefDto.Response.class)
+        )).thenReturn(ResponseEntity.ok(expected));
+
+        CodefDto.Response actual = configuredClient.connectInstitution(request);
+
+        assertEquals(expected, actual);
+        ArgumentCaptor<HttpEntity> entityCaptor = ArgumentCaptor.forClass(HttpEntity.class);
+        verify(restTemplate).exchange(
+                eq("https://sandbox.codef.example/v1/kr/bank/p/account/account-list"),
+                eq(HttpMethod.POST),
+                entityCaptor.capture(),
+                eq(CodefDto.Response.class)
+        );
+        CodefDto.Request sentRequest = (CodefDto.Request) entityCaptor.getValue().getBody();
+        assertEquals("encrypted(real_pw)", sentRequest.getPassword());
     }
 }
