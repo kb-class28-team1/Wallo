@@ -1,6 +1,3 @@
-import json
-from pathlib import Path
-
 from groq import Groq
 
 from app.agents.roadmap.models import GoalRoadmap, RoadmapGoal
@@ -27,13 +24,6 @@ goalType이 EMERGENCY_FUND이면 다음 행동을 단계별로 자연스럽게 �
 - 목표 달성 후 유지·보충 점검 주기 결정
 비상금을 소비하거나 수익 추구형 투자자산에 넣도록 권하지 마세요.
 """.strip()
-
-DEFAULT_ROADMAP_OUTPUT = (
-    Path(__file__).resolve().parents[3]
-    / "data"
-    / "processed"
-    / "goal_roadmap_output.json"
-)
 
 TOOL_NAME = "submit_goal_roadmap"
 TOOL_SCHEMA = {
@@ -81,21 +71,3 @@ def generate_goal_roadmap(client: Groq, goal: RoadmapGoal, model: str | None = N
     ]
     roadmap = roadmap.model_copy(update={"steps": normalized_steps})
     return roadmap.validate_for(goal)
-
-
-def save_goal_roadmap(
-    roadmap: GoalRoadmap,
-    output_path: Path = DEFAULT_ROADMAP_OUTPUT,
-) -> Path:
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    temporary_path = output_path.with_suffix(output_path.suffix + ".tmp")
-    temporary_path.write_text(
-        json.dumps(
-            roadmap.model_dump(by_alias=True, mode="json"),
-            ensure_ascii=False,
-            indent=2,
-        ),
-        encoding="utf-8",
-    )
-    temporary_path.replace(output_path)
-    return output_path

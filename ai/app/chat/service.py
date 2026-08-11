@@ -8,8 +8,8 @@ from app.agents.financial.tools.financial_goal import NAME as FINANCIAL_GOAL_TOO
 from app.agents.goal.agent import GoalAgent
 from app.agents.goal.models import GoalDraft, GoalInterviewAction, InterviewState
 from app.agents.goal.service import calculate_feasibility
-from app.agents.roadmap.generator import generate_goal_roadmap, save_goal_roadmap
-from app.agents.roadmap.models import RoadmapGoal
+from app.agents.roadmap.generator import generate_goal_roadmap
+from app.agents.roadmap.models import GoalRoadmap, RoadmapGoal
 from app.chat.schemas import ChatRequest, ChatResponse, GoalInterviewResponse
 from app.chat.title_service import generate_conversation_title
 
@@ -93,18 +93,28 @@ class ChatService:
             confirmed = draft.model_copy(
                 update={"state": InterviewState.COMPLETED, "confirmed": True},
             )
-            roadmap_message = self._generate_confirmed_goal_roadmap(confirmed)
+            roadmap, roadmap_error = self._generate_confirmed_goal_roadmap(confirmed)
+            roadmap_message = (
+                f"AI 로드맵 {len(roadmap.steps)}단계를 생성했습니다."
+                if roadmap is not None
+                else "AI 로드맵 생성에 실패했지만 목표는 정상적으로 확정됩니다."
+            )
             return (
                 f"'{confirmed.title}' 목표를 확정했습니다. {roadmap_message}",
                 GoalInterviewResponse(
                     action=GoalInterviewAction.CONFIRM,
                     active=False,
                     draft=confirmed,
+                    roadmap=roadmap,
+                    roadmap_error=roadmap_error,
                 ),
             )
         return self._run_goal_agent(request, draft)
 
-    def _generate_confirmed_goal_roadmap(self, draft: GoalDraft) -> str:
+    def _generate_confirmed_goal_roadmap(
+        self,
+        draft: GoalDraft,
+    ) -> tuple[GoalRoadmap | None, str | None]:
         try:
             feasibility = calculate_feasibility(draft)
             if feasibility.required_monthly_amount is None:
@@ -128,16 +138,14 @@ class ChatService:
                     motivation=draft.motivation,
                 ),
             )
-            output_path = save_goal_roadmap(roadmap)
             logger.info(
-                "[AI ROADMAP] generated steps=%s output=%s",
+                "[AI ROADMAP] generated steps=%s",
                 len(roadmap.steps),
-                output_path,
             )
-            return f"AI 로드맵 {len(roadmap.steps)}단계를 생성했습니다."
-        except Exception:
+            return roadmap, None
+        except Exception as error:
             logger.exception("[AI ROADMAP] generation failed after goal confirmation")
-            return "다만 AI 로드맵 생성에 실패했습니다. 목표는 정상적으로 확정됩니다."
+            return None, str(error)[:500]
 
     def _normalize_message(self, message: str) -> str:
         return re.sub(r"[\s.!?~]+", "", message).lower()

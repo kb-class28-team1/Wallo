@@ -1,7 +1,7 @@
 import json
 from datetime import date
 from types import SimpleNamespace
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 from app.agents.goal.models import (
     GoalDraft,
@@ -165,13 +165,13 @@ def test_confirmation_generates_and_saves_goal_roadmap():
         SimpleNamespace(content=None, tool_calls=[roadmap_call]),
     )
 
-    with patch("app.chat.service.save_goal_roadmap") as save:
-        response = ChatService(client).chat(
-            ChatRequest(message="확정해줘", goal_draft=complete_draft()),
-        )
+    response = ChatService(client).chat(
+        ChatRequest(message="확정해줘", goal_draft=complete_draft()),
+    )
 
     assert "AI 로드맵 2단계를 생성했습니다" in response.answer
-    save.assert_called_once()
+    assert response.goal_interview.roadmap is not None
+    assert len(response.goal_interview.roadmap.steps) == 2
 
 
 def test_confirmation_without_active_goal_does_not_start_an_empty_interview():
