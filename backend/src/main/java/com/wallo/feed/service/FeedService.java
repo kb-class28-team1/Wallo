@@ -274,7 +274,8 @@ public class FeedService {
     private AnalysisResponse applyCategoryAverageFallback(Long userId, AnalysisResponse analysis) {
         if (analysis == null || "SPENT".equals(analysis.spendingType())
                 || (analysis.estimatedSavingAmount() > 0
-                && analysis.confidenceScore() >= MIN_DIRECT_ANALYSIS_CONFIDENCE)) {
+                && (analysis.confidenceScore() >= MIN_DIRECT_ANALYSIS_CONFIDENCE
+                || analysis.savingDifference() > 0))) {
             return analysis;
         }
 

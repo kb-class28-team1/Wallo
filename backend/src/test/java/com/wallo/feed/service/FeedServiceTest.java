@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import com.wallo.feed.analysis.FeedAnalysisClient;
 import com.wallo.feed.dto.FeedDtos.AnalysisResponse;
+import com.wallo.feed.dto.FeedDtos.AnalysisFeedbackRequest;
 import com.wallo.feed.dto.FeedDtos.CategoryExpenseAverage;
 import com.wallo.feed.mapper.FeedMapper;
 import java.time.LocalDate;
@@ -101,6 +102,15 @@ class FeedServiceTest {
         assertEquals(0, result.estimatedSavingAmount());
         verify(feedMapper, never()).findCategoryExpenseAverage(
                 eq(7L), eq("CAFE"), any(LocalDate.class), any(LocalDate.class));
+    }
+
+    @Test
+    void storesUsersAnalysisAccuracyFeedback() {
+        when(feedMapper.updateAnalysisAccuracy(11L, 7L, 10L, "HIGH", null)).thenReturn(1);
+
+        feedService.rateAnalysis(7L, 10L, 11L, new AnalysisFeedbackRequest("HIGH", null));
+
+        verify(feedMapper).updateAnalysisAccuracy(11L, 7L, 10L, "HIGH", null);
     }
 
     @Test

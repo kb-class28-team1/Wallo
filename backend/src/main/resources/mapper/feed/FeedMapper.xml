@@ -42,6 +42,14 @@
         <result property="transactionCount" column="transaction_count"/>
         <result property="averageAmount" column="average_amount"/>
     </resultMap>
+    <resultMap id="analysisFeedbackSummaryMap"
+               type="com.wallo.feed.dto.FeedDtos$AnalysisFeedbackSummary">
+        <constructor>
+            <arg column="high_count" javaType="long"/>
+            <arg column="accurate_count" javaType="long"/>
+            <arg column="low_count" javaType="long"/>
+        </constructor>
+    </resultMap>
 
     <select id="isChallengeMember" resultType="int">
         SELECT COUNT(*) FROM USERS
@@ -62,7 +70,7 @@
           )
           AND transaction_date BETWEEN #{startDate} AND #{endDate}
     </select>
-    <select id="findAnalysisFeedbackSummary" resultType="com.wallo.feed.dto.FeedDtos$AnalysisFeedbackSummary">
+    <select id="findAnalysisFeedbackSummary" resultMap="analysisFeedbackSummaryMap">
         SELECT
             COALESCE(SUM(fa.analysis_accuracy = 'HIGH'), 0) AS high_count,
             COALESCE(SUM(fa.analysis_accuracy = 'ACCURATE'), 0) AS accurate_count,
