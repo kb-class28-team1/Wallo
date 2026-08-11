@@ -3,15 +3,14 @@ package com.wallo.asset.mapper;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.wallo.asset.dto.AssetReportDto;
+import com.wallo.test.TestDatabase;
 
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.util.List;
-import java.util.UUID;
 import javax.sql.DataSource;
-import org.h2.jdbcx.JdbcDataSource;
 import org.apache.ibatis.session.SqlSession;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,18 +23,12 @@ class AssetReportMapperIntegrationTest {
     private DataSource dataSource;
     private SqlSession sqlSession;
     private AssetReportMapper assetReportMapper;
+    private long sourceSequence;
 
     @BeforeEach
     void setUp() throws Exception {
-        JdbcDataSource h2DataSource = new JdbcDataSource();
-        h2DataSource.setURL(
-                "jdbc:h2:mem:report_"
-                        + UUID.randomUUID()
-                        + ";MODE=MySQL;DB_CLOSE_DELAY=-1"
-        );
-        h2DataSource.setUser("sa");
-        h2DataSource.setPassword("");
-        dataSource = h2DataSource;
+        dataSource = TestDatabase.h2("report");
+        sourceSequence = 0L;
 
         createTables();
 
@@ -110,32 +103,7 @@ class AssetReportMapperIntegrationTest {
     }
 
     private void createTables() throws Exception {
-        try (Connection connection = dataSource.getConnection();
-             Statement statement = connection.createStatement()) {
-            statement.execute("""
-                    CREATE TABLE USERS (
-                        id BIGINT PRIMARY KEY,
-                        annual_salary BIGINT NULL
-                    )
-                    """);
-            statement.execute("""
-                    CREATE TABLE CARDS (
-                        card_id BIGINT PRIMARY KEY,
-                        card_type VARCHAR(20) NOT NULL
-                    )
-                    """);
-            statement.execute("""
-                    CREATE TABLE TRANSACTIONS (
-                        transaction_id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                        user_id BIGINT NOT NULL,
-                        card_id BIGINT NULL,
-                        type VARCHAR(20) NOT NULL,
-                        category VARCHAR(50) NOT NULL,
-                        amount BIGINT NOT NULL,
-                        transaction_date DATE NOT NULL
-                    )
-                    """);
-        }
+        TestDatabase.initializeAssetMapperSchema(dataSource);
     }
 
     private void insertUser(long userId, long annualSalary) throws Exception {
@@ -167,24 +135,7 @@ class AssetReportMapperIntegrationTest {
             long amount,
             String transactionDate
     ) throws Exception {
-        try (Connection connection = dataSource.getConnection();
-             PreparedStatement statement = connection.prepareStatement("""
-                     INSERT INTO TRANSACTIONS (
-                         user_id,
-                         card_id,
-                         type,
-                         category,
-                         amount,
-                         transaction_date
-                     ) VALUES (?, ?, ?, 'ETC', ?, ?)
-                     """)) {
-            statement.setLong(1, userId);
-            statement.setLong(2, cardId);
-            statement.setString(3, type);
-            statement.setLong(4, amount);
-            statement.setDate(5, Date.valueOf(transactionDate));
-            statement.executeUpdate();
-        }
+        insertTransaction(userId, cardId, type, "ETC", amount, transactionDate);
     }
 
     private void insertTransaction(
@@ -194,21 +145,58 @@ class AssetReportMapperIntegrationTest {
             long amount,
             String transactionDate
     ) throws Exception {
+        insertTransaction(userId, null, type, category, amount, transactionDate);
+    }
+
+    private void insertTransaction(
+            long userId,
+            Long cardId,
+            String type,
+            String category,
+            long amount,
+            String transactionDate
+    ) throws Exception {
+        String sourceType = cardId == null ? "TEST_TRANSACTION" : "CARD_APPROVAL";
+        String sourceTransactionId = sourceType + "-" + (++sourceSequence);
+        String sourceDedupKey = String.format("%064d", sourceSequence);
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement("""
                      INSERT INTO TRANSACTIONS (
                          user_id,
+                         card_id,
+                         account_id,
                          type,
                          category,
+                         category_source,
+                         category_confidence,
+                         classifier_version,
                          amount,
-                         transaction_date
-                     ) VALUES (?, ?, ?, ?, ?)
+                         merchant_name,
+                         original_merchant_name,
+                         original_sector,
+                         external_approval_no,
+                         source_type,
+                         source_organization_code,
+                         source_transaction_id,
+                         source_dedup_key,
+                         transaction_date,
+                         transaction_time
+                     ) VALUES (?, ?, NULL, ?, ?, 'TEST', NULL, NULL, ?,
+                               'test merchant', NULL, NULL, NULL, ?, 'TEST', ?, ?, ?, '00:00:00')
                      """)) {
             statement.setLong(1, userId);
-            statement.setString(2, type);
-            statement.setString(3, category);
-            statement.setLong(4, amount);
-            statement.setDate(5, Date.valueOf(transactionDate));
+            if (cardId == null) {
+                statement.setNull(2, java.sql.Types.BIGINT);
+            } else {
+                statement.setLong(2, cardId);
+            }
+            statement.setString(3, type);
+            statement.setString(4, category);
+            statement.setLong(5, amount);
+            statement.setString(6, sourceType);
+            statement.setString(7, sourceTransactionId);
+            statement.setString(8, sourceDedupKey);
+            statement.setDate(9, Date.valueOf(transactionDate));
             statement.executeUpdate();
         }
     }

@@ -1,6 +1,7 @@
 package com.wallo.external.controller;
 
 import com.wallo.external.auth.CodefAccessTokenProvider;
+import com.wallo.external.CodefConstants;
 import com.wallo.external.dto.CodefDto;
 import com.wallo.external.service.CodefMockService;
 import javax.servlet.http.HttpServletRequest;
@@ -90,7 +91,7 @@ public class CodefMockController {
             return null;
         }
         return CodefDto.Response.failure(
-                "CF-40100",
+                CodefConstants.AUTHENTICATION_FAILURE_CODE,
                 "인증 정보가 올바르지 않습니다.",
                 "유효한 Authorization Bearer 토큰이 필요합니다."
         );

@@ -73,25 +73,6 @@ public final class AssetSyncDto {
                 String category,
                 long amount,
                 String merchantName,
-                String approvalNo,
-                LocalDate date,
-                LocalTime time
-        ) {
-            this(
-                    userId, cardId, accountId, type, category, amount, merchantName,
-                    merchantName, null, approvalNo, date, time,
-                    "LEGACY", null, null, null, null, null, null
-            );
-        }
-
-        public Transaction(
-                long userId,
-                Long cardId,
-                Long accountId,
-                String type,
-                String category,
-                long amount,
-                String merchantName,
                 String originalMerchantName,
                 String originalSector,
                 String approvalNo,
@@ -120,10 +101,17 @@ public final class AssetSyncDto {
             this.categorySource = categorySource;
             this.categoryConfidence = categoryConfidence;
             this.classifierVersion = classifierVersion;
-            this.sourceType = sourceType;
-            this.sourceOrganizationCode = sourceOrganizationCode;
-            this.sourceTransactionId = sourceTransactionId;
-            this.sourceDedupKey = sourceDedupKey;
+            this.sourceType = requiredSourceField(sourceType, "sourceType");
+            this.sourceOrganizationCode = requiredSourceField(sourceOrganizationCode, "sourceOrganizationCode");
+            this.sourceTransactionId = requiredSourceField(sourceTransactionId, "sourceTransactionId");
+            this.sourceDedupKey = requiredSourceField(sourceDedupKey, "sourceDedupKey");
+        }
+
+        private String requiredSourceField(String value, String fieldName) {
+            if (value == null || value.isBlank()) {
+                throw new IllegalArgumentException(fieldName + " is required for a persisted transaction.");
+            }
+            return value.trim();
         }
     }
 

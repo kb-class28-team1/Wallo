@@ -2,14 +2,15 @@ package com.wallo.external.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.wallo.external.CodefConstants;
+import com.wallo.external.CodefDateTime;
+import com.wallo.external.CodefResponseValidator;
 import com.wallo.external.dto.CodefDto;
 import java.io.IOException;
-import java.time.DateTimeException;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalInt;
 import java.util.Set;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
@@ -51,8 +52,6 @@ public class CodefMockService {
     );
     private static final int INCOME_PROOF_FIXTURE_YEAR = 2025;
     private static final String INCOME_PROOF_FIXTURE = "income-proof-2025.json";
-    private static final DateTimeFormatter REQUEST_DATE_FORMATTER = DateTimeFormatter.BASIC_ISO_DATE;
-
     private final ObjectMapper objectMapper;
 
     public CodefMockService(ObjectMapper objectMapper) {
@@ -78,7 +77,7 @@ public class CodefMockService {
         if ((BANK_ACCOUNT_LIST_PATH.equals(requestPath) || CARD_ACCOUNT_LIST_PATH.equals(requestPath))
                 && fixtureFileName == null) {
             return CodefDto.Response.failure(
-                    "CF-40400",
+                    CodefConstants.NOT_FOUND_CODE,
                     "지원하지 않는 은행 기관입니다.",
                     organization
             );
@@ -98,7 +97,7 @@ public class CodefMockService {
         if (requiredField != null) {
             return invalidRequest(requiredField + " 값이 필요합니다.");
         }
-        DateRange range = parseDateRange(request.getStartDate(), request.getEndDate());
+        CodefDateTime.DateRange range = parseDateRange(request.getStartDate(), request.getEndDate());
         if (range == null) {
             return invalidRequest("startDate와 endDate는 유효한 YYYYMMDD 형식이어야 합니다.");
         }
@@ -106,7 +105,7 @@ public class CodefMockService {
         String fixtureFileName = CARD_APPROVAL_FIXTURE_BY_ORGANIZATION.get(request.getOrganization());
         if (fixtureFileName == null) {
             return CodefDto.Response.failure(
-                    "CF-40400",
+                    CodefConstants.NOT_FOUND_CODE,
                     "지원하지 않는 카드 기관입니다.",
                     request.getOrganization()
             );
@@ -146,20 +145,20 @@ public class CodefMockService {
         Set<String> availableAccounts = MOCK_BANK_ACCOUNTS_BY_ORGANIZATION.get(request.getOrganization());
         if (availableAccounts == null) {
             return CodefDto.Response.failure(
-                    "CF-40400",
+                    CodefConstants.NOT_FOUND_CODE,
                     "지원하지 않는 은행 기관입니다.",
                     request.getOrganization()
             );
         }
         if (!availableAccounts.contains(request.getAccount())) {
             return CodefDto.Response.failure(
-                    "CF-40401",
+                    CodefConstants.ACCOUNT_NOT_FOUND_CODE,
                     "계좌를 찾을 수 없습니다.",
                     request.getAccount()
             );
         }
 
-        DateRange range = parseDateRange(request.getStartDate(), request.getEndDate());
+        CodefDateTime.DateRange range = parseDateRange(request.getStartDate(), request.getEndDate());
         if (range == null) {
             return invalidRequest("startDate와 endDate는 유효한 YYYYMMDD 형식이어야 합니다.");
         }
@@ -203,7 +202,7 @@ public class CodefMockService {
         }
         if (INCOME_PROOF_FIXTURE_YEAR < startYear || INCOME_PROOF_FIXTURE_YEAR > endYear) {
             return CodefDto.Response.failure(
-                    "CF-40400",
+                    CodefConstants.NOT_FOUND_CODE,
                     "Income proof mock response is unavailable for the requested year.",
                     String.valueOf(INCOME_PROOF_FIXTURE_YEAR)
             );
@@ -252,53 +251,32 @@ public class CodefMockService {
             return objectMapper.readValue(resource.getInputStream(), CodefDto.Response.class);
         } catch (IOException exception) {
             return CodefDto.Response.failure(
-                    "CF-40400",
+                    CodefConstants.NOT_FOUND_CODE,
                     "Mock 응답 파일을 찾을 수 없습니다.",
                     exception.getMessage()
             );
         }
     }
 
-    private DateRange parseDateRange(String startDate, String endDate) {
-        if (!isEightDigitDate(startDate) || !isEightDigitDate(endDate)) {
-            return null;
-        }
-
-        try {
-            LocalDate parsedStartDate = LocalDate.parse(startDate, REQUEST_DATE_FORMATTER);
-            LocalDate parsedEndDate = LocalDate.parse(endDate, REQUEST_DATE_FORMATTER);
-            if (parsedStartDate.isAfter(parsedEndDate)) {
-                return null;
-            }
-            return new DateRange(parsedStartDate, parsedEndDate);
-        } catch (DateTimeException exception) {
-            return null;
-        }
-    }
-
-    private boolean isEightDigitDate(String value) {
-        return value != null && value.matches("\\d{8}");
+    private CodefDateTime.DateRange parseDateRange(String startDate, String endDate) {
+        return CodefDateTime.parseDateRange(startDate, endDate).orElse(null);
     }
 
     private Integer parseYear(String value) {
-        if (value == null || !value.matches("\\d{4}")) {
-            return null;
-        }
-        try {
-            return Integer.valueOf(value);
-        } catch (NumberFormatException exception) {
-            return null;
-        }
+        OptionalInt year = CodefDateTime.parseYear(value);
+        return year.isPresent() ? year.getAsInt() : null;
     }
 
     private boolean isSuccess(CodefDto.Response response) {
-        return response != null
-                && response.getResult() != null
-                && "CF-00000".equals(response.getResult().getCode());
+        return CodefResponseValidator.isSuccess(response);
     }
 
     private CodefDto.Response invalidRequest(String extraMessage) {
-        return CodefDto.Response.failure("CF-40000", "요청값이 올바르지 않습니다.", extraMessage);
+        return CodefDto.Response.failure(
+                CodefConstants.INVALID_REQUEST_CODE,
+                "요청값이 올바르지 않습니다.",
+                extraMessage
+        );
     }
 
     private boolean isBlank(String value) {
@@ -309,14 +287,4 @@ public class CodefMockService {
         return values == null ? Collections.emptyList() : values;
     }
 
-    private record DateRange(LocalDate startDate, LocalDate endDate) {
-        private boolean contains(String basicIsoDate) {
-            try {
-                LocalDate date = LocalDate.parse(basicIsoDate, REQUEST_DATE_FORMATTER);
-                return !date.isBefore(startDate) && !date.isAfter(endDate);
-            } catch (DateTimeException exception) {
-                return false;
-            }
-        }
-    }
 }

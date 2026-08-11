@@ -17,8 +17,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class CardWithdrawalReconciliationService {
 
-    static final String CARD_WITHDRAWAL = "CARD_WITHDRAWAL";
-    static final String SEND = "SEND";
+    static final String CARD_WITHDRAWAL = AssetTransactionConstants.CARD_WITHDRAWAL_CATEGORY;
+    static final String SEND = AssetTransactionConstants.SEND_CATEGORY;
     private static final long MAX_DATE_DIFFERENCE_DAYS = 2L;
 
     private final AssetSyncMapper assetSyncMapper;

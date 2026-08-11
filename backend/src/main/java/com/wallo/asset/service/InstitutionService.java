@@ -29,9 +29,9 @@ public class InstitutionService {
     public ConnectionDto.InstitutionResponse getInstitutions() {
         List<Institution> institutions = institutionMapper.findActiveInstitutions();
         return new ConnectionDto.InstitutionResponse(
-                itemsOfType(institutions, "BANK"),
-                itemsOfType(institutions, "CARD"),
-                itemsOfType(institutions, "STOCK")
+                itemsOfType(institutions, AssetTransactionConstants.BANK_INSTITUTION_TYPE),
+                itemsOfType(institutions, AssetTransactionConstants.CARD_INSTITUTION_TYPE),
+                itemsOfType(institutions, AssetTransactionConstants.STOCK_INSTITUTION_TYPE)
         );
     }
 
