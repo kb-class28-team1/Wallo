@@ -77,9 +77,9 @@ const spendingTypes = [
   { value: "SAVED", label: "🐷 모았다" },
 ]
 const savingFeedbackOptions = [
-  { value: "SAME", label: "AI 금액과 같아요" },
-  { value: "DIFFERENT", label: "실제 금액이 달라요" },
-  { value: "UNKNOWN", label: "확인하기 어려워요" },
+  { value: "SAME", label: "같아요" },
+  { value: "DIFFERENT", label: "달라요" },
+  { value: "UNKNOWN", label: "몰라요" },
 ]
 const categories = FEED_CATEGORY_CODES.map((value) => ({
   value,
@@ -788,7 +788,7 @@ onBeforeUnmount(() => {
               /><b>원</b>
             </div>
             <div v-if="form.analysisSummary" class="saving-feedback-section">
-              <strong>이 금액이 실제로 아낀 금액과 같은가요?</strong>
+              <strong>실제 금액과 같나요?</strong>
               <div class="saving-feedback-buttons">
                 <button
                   v-for="option in savingFeedbackOptions"
@@ -1528,8 +1528,9 @@ textarea {
   border: 1px solid #dedfeb;
   border-radius: 12px;
 }
-.saving-feedback-section {
+.result-box > div.saving-feedback-section {
   display: grid;
+  align-items: stretch;
   gap: 10px;
   margin-top: 16px;
   padding-top: 14px;
@@ -1542,16 +1543,19 @@ textarea {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
+  width: 100%;
 }
 .saving-feedback-buttons button {
-  min-height: 44px;
-  padding: 8px;
+  min-width: 0;
+  min-height: 40px;
+  padding: 9px 6px;
   color: #61677a;
   background: #fff;
   border: 1px solid #d9dce8;
   border-radius: 11px;
-  font-size: 0.78rem;
+  font-size: 0.86rem;
   font-weight: 750;
+  white-space: nowrap;
 }
 .saving-feedback-buttons button.selected {
   color: #287b5b;
@@ -1561,6 +1565,7 @@ textarea {
 .verified-amount-row {
   display: grid;
   gap: 7px;
+  width: 100%;
 }
 .verified-amount-row label {
   color: #626a7e;
