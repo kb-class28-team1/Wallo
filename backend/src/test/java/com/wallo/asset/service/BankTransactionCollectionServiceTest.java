@@ -180,6 +180,71 @@ class BankTransactionCollectionServiceTest {
     }
 
     @Test
+    void acceptsEquivalentAccountFormattingFromCodefResponse() {
+        CodefDto.BankTransaction source = transaction(
+                "BANK-FORMATTED-1", "3000000", "0", "월급", "INCOME"
+        );
+        source.setResAccount("12345601789012");
+        when(bankTransactionClient.getTransactions(any())).thenReturn(
+                CodefDto.Response.success(List.of(source))
+        );
+
+        service.collect(
+                7L,
+                31L,
+                "123456-01-789012",
+                institution,
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 7, 31)
+        );
+
+        verify(assetSyncMapper).upsertTransaction(any(AssetSyncDto.Transaction.class));
+    }
+
+    @Test
+    void removesRepeatedBankTransactionWithTheSameSourceIdentity() {
+        CodefDto.BankTransaction first = transaction(
+                "BANK-DUPLICATE-1", "3000000", "0", "월급", "INCOME"
+        );
+        CodefDto.BankTransaction duplicate = transaction(
+                "BANK-DUPLICATE-1", "3000000", "0", "월급", "INCOME"
+        );
+        when(bankTransactionClient.getTransactions(any())).thenReturn(
+                CodefDto.Response.success(List.of(first, duplicate))
+        );
+
+        int collectedCount = service.collect(
+                7L,
+                31L,
+                "123456-01-789012",
+                institution,
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 7, 31)
+        );
+
+        assertEquals(1, collectedCount);
+        verify(assetSyncMapper).upsertTransaction(any(AssetSyncDto.Transaction.class));
+    }
+
+    @Test
+    void rejectsConflictingBankPayloadWithTheSameSourceIdentity() {
+        when(bankTransactionClient.getTransactions(any())).thenReturn(CodefDto.Response.success(List.of(
+                transaction("BANK-DUPLICATE-1", "3000000", "0", "월급", "INCOME"),
+                transaction("BANK-DUPLICATE-1", "3100000", "0", "월급", "INCOME")
+        )));
+
+        assertThrows(IllegalArgumentException.class, () -> service.collect(
+                7L,
+                31L,
+                "123456-01-789012",
+                institution,
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 7, 31)
+        ));
+        verify(assetSyncMapper, never()).upsertTransaction(any());
+    }
+
+    @Test
     void reusesExistingCardPaymentClassificationWithoutCallingClassifier() {
         when(bankTransactionClient.getTransactions(any())).thenReturn(CodefDto.Response.success(List.of(
                 transaction("BANK-CARD-1", "0", "12000", "unknown store", "CARD_PAYMENT")
@@ -257,6 +322,23 @@ class BankTransactionCollectionServiceTest {
         );
 
         assertThrows(IllegalStateException.class, () -> service.collect(
+                7L,
+                31L,
+                "123456-01-789012",
+                institution,
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 7, 31)
+        ));
+        verify(assetSyncMapper, never()).upsertTransaction(any());
+    }
+
+    @Test
+    void missingBankTransactionNumberDoesNotWriteTransaction() {
+        when(bankTransactionClient.getTransactions(any())).thenReturn(CodefDto.Response.success(List.of(
+                transaction(null, "3000000", "0", "income", "INCOME")
+        )));
+
+        assertThrows(IllegalArgumentException.class, () -> service.collect(
                 7L,
                 31L,
                 "123456-01-789012",

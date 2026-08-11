@@ -1,5 +1,6 @@
 package com.wallo.asset.dto;
 
+import com.wallo.external.CodefConstants;
 import java.util.List;
 import java.util.ArrayList;
 import java.time.LocalDateTime;
@@ -14,7 +15,9 @@ public final class ConnectionDto {
     private ConnectionDto() {
     }
 
-    public static final String CODEF_SUCCESS_CODE = "CF-00000";
+    /** @deprecated use {@link CodefConstants#SUCCESS_CODE}. */
+    @Deprecated
+    public static final String CODEF_SUCCESS_CODE = CodefConstants.SUCCESS_CODE;
     public static final String SUCCESS_MESSAGE = "연동 완료";
     public static final String FAILED_MESSAGE = "연동 실패";
 

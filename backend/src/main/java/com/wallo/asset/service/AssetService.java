@@ -102,7 +102,9 @@ public class AssetService {
     private long goalContextAmount(GoalAssetContextDto.AccountRecord record) {
         String accountType = record.getAccountType();
         if (accountType != null
-                && "STOCK".equals(accountType.trim().toUpperCase(Locale.ROOT))) {
+                && AssetTransactionConstants.STOCK_INSTITUTION_TYPE.equals(
+                        accountType.trim().toUpperCase(Locale.ROOT)
+                )) {
             return record.getEvaluationAmount();
         }
         return record.getBalance();
