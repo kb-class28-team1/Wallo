@@ -14,6 +14,16 @@
           AND target_month = #{targetMonth}
     </select>
 
+    <select id="selectBudgets" resultType="com.wallo.asset.dto.BudgetDto$Budget">
+        SELECT
+            budget_id AS budgetId,
+            target_month AS targetMonth,
+            total_amount AS totalAmount
+        FROM BUDGETS
+        WHERE user_id = #{userId}
+        ORDER BY target_month ASC
+    </select>
+
     <insert id="upsertBudget">
         INSERT INTO BUDGETS (
             user_id,
