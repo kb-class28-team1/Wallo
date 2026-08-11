@@ -38,6 +38,13 @@
         <result property="transactionCount" column="transaction_count"/>
         <result property="averageAmount" column="average_amount"/>
     </resultMap>
+    <resultMap id="savingAmountFeedbackSummaryMap"
+               type="com.wallo.feed.dto.FeedDtos$SavingAmountFeedbackSummary">
+        <result property="totalCount" column="total_count"/>
+        <result property="sameCount" column="same_count"/>
+        <result property="differentCount" column="different_count"/>
+        <result property="averageDifference" column="average_difference"/>
+    </resultMap>
 
     <select id="isChallengeMember" resultType="int">
         SELECT COUNT(*) FROM USERS
@@ -57,6 +64,21 @@
               OR (#{category} = 'ETC' AND category = 'OTHER')
           )
           AND transaction_date BETWEEN #{startDate} AND #{endDate}
+    </select>
+    <select id="findSavingAmountFeedbackSummary" resultMap="savingAmountFeedbackSummaryMap">
+        SELECT
+            COUNT(*) AS total_count,
+            COALESCE(SUM(feedback_type = 'SAME'), 0) AS same_count,
+            COALESCE(SUM(feedback_type = 'DIFFERENT'), 0) AS different_count,
+            COALESCE(ROUND(AVG(verified_amount - ai_estimated_amount), 0), 0)
+                AS average_difference
+        FROM FEED_ANALYSIS_FEEDBACK ff
+        JOIN FEED f ON f.id = ff.feed_id
+        WHERE ff.user_id = #{userId}
+          AND f.category = #{category}
+          AND f.status = 'ACTIVE'
+          AND ff.feedback_type IN ('SAME', 'DIFFERENT')
+          AND ff.created_at &gt;= DATE_SUB(CURRENT_DATE, INTERVAL 90 DAY)
     </select>
     <select id="findChallengeName" resultType="string">
         SELECT name FROM CHALLENGE WHERE id = #{challengeId}
@@ -87,6 +109,14 @@
         (feed_id, recommended_spending_type, recommended_category,
          estimated_saving_amount, analysis_summary, confidence_score)
         VALUES (#{feedId}, #{spendingType}, #{category}, #{amount}, #{summary}, #{confidence})
+    </insert>
+    <insert id="insertSavingAmountFeedback">
+        INSERT INTO FEED_ANALYSIS_FEEDBACK
+        (feed_id, user_id, category, ai_estimated_amount, feedback_type,
+         verified_amount, note)
+        VALUES
+        (#{feedId}, #{userId}, #{category}, #{aiAmount}, #{feedbackType},
+         #{verifiedAmount}, #{note})
     </insert>
     <insert id="insertFeedShareMessage">
         INSERT INTO MESSAGE (challenge_id, user_id, message_type, reference_feed_id, content)

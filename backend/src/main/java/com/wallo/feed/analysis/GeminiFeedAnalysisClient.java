@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.wallo.chat.client.AiServerException;
 import com.wallo.feed.dto.FeedDtos.AnalysisResponse;
+import com.wallo.feed.dto.FeedDtos.SavingAmountFeedbackSummary;
 import java.io.IOException;
 import java.util.Base64;
 import java.util.Locale;
@@ -23,7 +24,7 @@ import org.springframework.web.multipart.MultipartFile;
  * <p>작은 이미지/영상의 첫 연결을 위한 구현이며, 파일 자체를 Base64 inline data로 전송한다.
  * API 키는 생성자에서만 받고 로그나 응답에 노출하지 않는다.</p>
  */
-public class GeminiFeedAnalysisClient implements FeedAnalysisClient {
+public class GeminiFeedAnalysisClient implements FeedAnalysisClient, SavingFeedbackAwareFeedAnalysisClient {
     private static final String API_ENDPOINT =
             "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s";
     private static final String DEFAULT_SUMMARY = "Gemini가 업로드한 미디어를 분석했습니다.";
@@ -44,8 +45,15 @@ public class GeminiFeedAnalysisClient implements FeedAnalysisClient {
     @Override
     public AnalysisResponse analyze(
             MultipartFile media, String spendingType, String category) {
+        return analyze(media, spendingType, category, null);
+    }
+
+    @Override
+    public AnalysisResponse analyze(
+            MultipartFile media, String spendingType, String category,
+            SavingAmountFeedbackSummary feedbackSummary) {
         try {
-            ObjectNode request = buildRequest(media, spendingType, category);
+            ObjectNode request = buildRequest(media, spendingType, category, feedbackSummary);
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
 
@@ -63,13 +71,14 @@ public class GeminiFeedAnalysisClient implements FeedAnalysisClient {
     }
 
     private ObjectNode buildRequest(
-            MultipartFile media, String spendingType, String category) throws IOException {
+            MultipartFile media, String spendingType, String category,
+            SavingAmountFeedbackSummary feedbackSummary) throws IOException {
         ObjectNode request = objectMapper.createObjectNode();
         ArrayNode contents = request.putArray("contents");
         ObjectNode content = contents.addObject();
         ArrayNode parts = content.putArray("parts");
 
-        parts.addObject().put("text", buildPrompt(spendingType, category));
+        parts.addObject().put("text", buildPrompt(spendingType, category, feedbackSummary));
         ObjectNode mediaPart = parts.addObject();
         ObjectNode inlineData = mediaPart.putObject("inline_data");
         inlineData.put("mime_type", resolveMimeType(media));
@@ -80,7 +89,9 @@ public class GeminiFeedAnalysisClient implements FeedAnalysisClient {
         return request;
     }
 
-    private String buildPrompt(String spendingType, String category) {
+    private String buildPrompt(
+            String spendingType, String category,
+            SavingAmountFeedbackSummary feedbackSummary) {
         return """
                 당신은 절약 챌린지의 인증 사진 또는 영상을 분석하는 AI입니다.
                 업로드한 미디어에서 사용자가 실천한 절약 행동의 근거를 간단히 확인하고,
@@ -106,7 +117,22 @@ public class GeminiFeedAnalysisClient implements FeedAnalysisClient {
                 카테고리 코드: FOOD(식비), CAFE(카페), TRANSPORT(교통/차량), SHOPPING(쇼핑),
                 DELIVERY(배달), HOUSING(주거/통신), LIVING(생활), CULTURE(문화), HEALTH(건강), ETC(기타).
                 지정된 category의 절약 행동과 근거만 분석하고 다른 카테고리의 물품·행동은 무시하세요.
-                """.formatted(spendingType, category, spendingType, category);
+                과거 사용자 검증 요약: %s
+                """.formatted(
+                spendingType, category, spendingType, category,
+                feedbackPrompt(feedbackSummary));
+    }
+
+    private String feedbackPrompt(SavingAmountFeedbackSummary feedbackSummary) {
+        if (feedbackSummary == null || feedbackSummary.getTotalCount() < 3) {
+            return "검증 데이터가 부족하므로 금액을 임의로 보정하지 마세요.";
+        }
+        return "최근 검증 " + feedbackSummary.getTotalCount() + "건 중 같음 "
+                + feedbackSummary.getSameCount() + "건, 다름 "
+                + feedbackSummary.getDifferentCount() + "건입니다. "
+                + "실제 금액-현재 AI 금액의 평균 차이는 "
+                + feedbackSummary.getAverageDifference() + "원입니다. "
+                + "이 값을 참고하되 영상 근거가 우선입니다.";
     }
 
     private AnalysisResponse toAnalysisResponse(

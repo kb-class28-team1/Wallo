@@ -1,6 +1,7 @@
 package com.wallo.feed.service;
 
 import com.wallo.feed.analysis.FeedAnalysisClient;
+import com.wallo.feed.analysis.SavingFeedbackAwareFeedAnalysisClient;
 import com.wallo.feed.domain.Feed;
 import com.wallo.feed.domain.FeedMessage;
 import com.wallo.feed.dto.FeedDtos.AnalysisResponse;
@@ -9,6 +10,7 @@ import com.wallo.feed.dto.FeedDtos.FeedListResponse;
 import com.wallo.feed.dto.FeedDtos.LikeResponse;
 import com.wallo.feed.dto.FeedDtos.MessageRequest;
 import com.wallo.feed.dto.FeedDtos.RoomResponse;
+import com.wallo.feed.dto.FeedDtos.SavingAmountFeedbackSummary;
 import com.wallo.feed.dto.FeedDtos.UpdateFeedRequest;
 import com.wallo.feed.mapper.FeedMapper;
 import com.wallo.feed.websocket.ChallengeChatBroadcaster;
@@ -28,6 +30,8 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 public class FeedService {
     private static final Set<String> SPENDING_TYPES = Set.of("SPENT", "REDUCED", "SAVED");
+    private static final Set<String> SAVING_AMOUNT_FEEDBACK_TYPES =
+            Set.of("SAME", "DIFFERENT", "UNKNOWN");
     private static final Set<String> FEED_CATEGORIES = Set.of(
             "FOOD", "CAFE", "TRANSPORT", "SHOPPING", "DELIVERY",
             "HOUSING", "LIVING", "CULTURE", "HEALTH", "ETC");
@@ -73,7 +77,15 @@ public class FeedService {
         requireMember(userId, challengeId);
         String normalizedCategory = normalizeCategory(category);
         validate(media, spendingType, normalizedCategory);
-        AnalysisResponse analysis = analysisClient.analyze(media, spendingType, normalizedCategory);
+        SavingAmountFeedbackSummary feedbackSummary = feedMapper.findSavingAmountFeedbackSummary(
+                userId, normalizedCategory);
+        AnalysisResponse analysis;
+        if (analysisClient instanceof SavingFeedbackAwareFeedAnalysisClient feedbackAwareClient) {
+            analysis = feedbackAwareClient.analyze(
+                    media, spendingType, normalizedCategory, feedbackSummary);
+        } else {
+            analysis = analysisClient.analyze(media, spendingType, normalizedCategory);
+        }
         return applyCategoryAverageFallback(userId, analysis);
     }
 
@@ -82,10 +94,32 @@ public class FeedService {
                        String spendingType, String category, String customCategory,
                        String caption, int savingAmount, String analysisSummary,
         double confidenceScore) {
+        return create(userId, challengeId, media, spendingType, category, customCategory,
+                caption, savingAmount, savingAmount, analysisSummary, confidenceScore,
+                "UNKNOWN", null, null);
+    }
+
+    @Transactional
+    public Feed create(Long userId, Long challengeId, MultipartFile media,
+                       String spendingType, String category, String customCategory,
+                       String caption, int savingAmount, int aiEstimatedSavingAmount,
+                       String analysisSummary, double confidenceScore,
+                       String savingAmountFeedback, Integer verifiedSavingAmount,
+                       String savingAmountFeedbackNote) {
         requireMember(userId, challengeId);
         String normalizedCategory = normalizeCategory(category);
         validate(media, spendingType, normalizedCategory);
         validateCaption(caption);
+        String normalizedFeedback = normalizeSavingAmountFeedback(savingAmountFeedback);
+        int normalizedAiAmount = clampAmount(aiEstimatedSavingAmount);
+        int finalSavingAmount = clampAmount(savingAmount);
+        Integer normalizedVerifiedAmount = normalizeVerifiedSavingAmount(
+                normalizedFeedback, normalizedAiAmount, verifiedSavingAmount);
+        if ("SAME".equals(normalizedFeedback)) {
+            finalSavingAmount = normalizedAiAmount;
+        } else if ("DIFFERENT".equals(normalizedFeedback)) {
+            finalSavingAmount = normalizedVerifiedAmount;
+        }
         String mediaType = media.getContentType() != null
                 && media.getContentType().toLowerCase(Locale.ROOT).startsWith("video/")
                 ? "VIDEO" : "IMAGE";
@@ -98,7 +132,7 @@ public class FeedService {
         feed.setThumbnailUrl(mediaType.equals("IMAGE") ? mediaUrl : null);
         feed.setMediaType(mediaType);
         feed.setSpendingType(spendingType);
-        feed.setSavingAmount(Math.max(0, savingAmount));
+        feed.setSavingAmount(finalSavingAmount);
         feed.setCategory(normalizedCategory);
         // 새 인증 글은 공통 지출 카테고리만 사용하며 기존 custom_category 데이터는 유지함.
         feed.setCustomCategory(null);
@@ -106,7 +140,11 @@ public class FeedService {
         feed.setAnalysisSummary(blankToNull(analysisSummary));
         feedMapper.insertFeed(feed);
         feedMapper.insertAnalysis(feed.getId(), spendingType, normalizedCategory,
-                feed.getSavingAmount(), analysisSummary, confidenceScore);
+                normalizedAiAmount, analysisSummary, confidenceScore);
+        feedMapper.insertSavingAmountFeedback(
+                feed.getId(), userId, normalizedCategory, normalizedAiAmount,
+                normalizedFeedback, normalizedVerifiedAmount,
+                blankToNull(savingAmountFeedbackNote));
         feedMapper.insertFeedShareMessage(challengeId, userId, feed.getId());
         publishMessageAfterCommit(challengeId, feedMapper.findMessageByLastInsertId());
         return feed;
@@ -206,6 +244,28 @@ public class FeedService {
         if (caption == null || caption.isBlank()) {
             throw new IllegalArgumentException("한줄요약을 작성해주세요");
         }
+    }
+
+    private String normalizeSavingAmountFeedback(String feedback) {
+        String normalized = feedback == null ? "UNKNOWN" : feedback.trim().toUpperCase(Locale.ROOT);
+        if (!SAVING_AMOUNT_FEEDBACK_TYPES.contains(normalized)) {
+            throw new IllegalArgumentException("절약 금액 확인 방법을 선택해 주세요.");
+        }
+        return normalized;
+    }
+
+    private Integer normalizeVerifiedSavingAmount(
+            String feedback, int aiAmount, Integer verifiedAmount) {
+        if ("UNKNOWN".equals(feedback)) return null;
+        if ("SAME".equals(feedback)) return aiAmount;
+        if (verifiedAmount == null || verifiedAmount < 0) {
+            throw new IllegalArgumentException("실제 절약 금액을 입력해 주세요.");
+        }
+        return clampAmount(verifiedAmount);
+    }
+
+    private int clampAmount(int amount) {
+        return Math.min(10_000_000, Math.max(0, amount));
     }
 
     private String normalizeCategory(String category) {
