@@ -46,8 +46,11 @@ public class PriceReferenceService {
             "(?i)(\\d+(?:\\.\\d+)?(?:ml|l|kg|g|" + COUNT_UNIT_NAMES + "))");
     private static final Pattern COUNT_UNIT_TOKEN = Pattern.compile(
             "(?i)(\\d+)\\s*(" + COUNT_UNIT_NAMES + ")");
+    private static final Pattern PRODUCT_WORD_TOKEN = Pattern.compile("[0-9a-zA-Z가-힣]+");
     private static final List<String> EXCLUDED_TITLE_WORDS = List.of(
             "중고", "리퍼", "렌탈", "대여", "정기구독", "월납", "공병", "빈병");
+    private static final List<String> GENERIC_CAFE_PRODUCT_WORDS = List.of(
+            "커피", "캔커피", "컵커피", "카페라떼", "라떼", "아메리카노", "음료", "편의점");
 
     private final PriceReferenceMapper priceReferenceMapper;
     private final ShoppingPriceClient shoppingPriceClient;
@@ -151,7 +154,7 @@ public class PriceReferenceService {
                 resolvedRows.put(index, cached);
             } else if (item.confidence() >= MIN_SEARCH_CONFIDENCE) {
                 searches.put(index, CompletableFuture.supplyAsync(
-                        () -> findLowestCandidate(item), searchExecutor)
+                        () -> findLowestCandidate(item, analysis.category()), searchExecutor)
                         .exceptionally(exception -> Optional.empty()));
             }
         }
@@ -211,9 +214,20 @@ public class PriceReferenceService {
                 candidate.title(), unitPrice, candidate.source(), candidate.sourceUrl());
     }
 
-    private Optional<ShoppingPriceCandidate> findLowestCandidate(DetectedItem item) {
-        return shoppingPriceClient.search(item.itemName(), item.brand(), item.unit()).stream()
+    private Optional<ShoppingPriceCandidate> findLowestCandidate(
+            DetectedItem item, String category) {
+        List<ShoppingPriceCandidate> candidates = shoppingPriceClient
+                .search(item.itemName(), item.brand(), item.unit());
+        Optional<ShoppingPriceCandidate> strictMatch = candidates.stream()
                 .filter(candidate -> matches(item, candidate))
+                .map(candidate -> normalizePackagePrice(item, candidate))
+                .min(Comparator.comparingInt(ShoppingPriceCandidate::price));
+        if (strictMatch.isPresent() || !"CAFE".equals(category)) {
+            return strictMatch;
+        }
+        // OCR이 상품명을 길게 붙이거나 용량을 조금 다르게 읽은 편의점 음료만 핵심 단어로 재검증한다.
+        return candidates.stream()
+                .filter(candidate -> matchesCafeProduct(item, candidate))
                 .map(candidate -> normalizePackagePrice(item, candidate))
                 .min(Comparator.comparingInt(ShoppingPriceCandidate::price));
     }
@@ -257,9 +271,7 @@ public class PriceReferenceService {
     }
 
     private boolean matches(DetectedItem item, ShoppingPriceCandidate candidate) {
-        if (candidate == null || candidate.price() <= 0 || candidate.price() > MAX_PRICE
-                || candidate.title() == null || candidate.sourceUrl() == null
-                || !candidate.sourceUrl().startsWith("http")) {
+        if (!isValidCandidate(candidate)) {
             return false;
         }
         String title = normalizeKey(candidate.title());
@@ -275,6 +287,48 @@ public class PriceReferenceService {
             return false;
         }
         return requiredUnitTokens(item.unit()).stream().allMatch(title::contains);
+    }
+
+    private boolean matchesCafeProduct(
+            DetectedItem item, ShoppingPriceCandidate candidate) {
+        if (!isValidCandidate(candidate)) {
+            return false;
+        }
+        String title = normalizeKey(candidate.title());
+        if (EXCLUDED_TITLE_WORDS.stream().anyMatch(title::contains)) {
+            return false;
+        }
+        String brand = normalizeKey(item.brand());
+        if (!brand.isBlank() && !title.contains(brand)) {
+            return false;
+        }
+
+        String itemName = normalizeKey(item.itemName());
+        List<String> matchingWords = productWords(candidate.title()).stream()
+                .filter(itemName::contains)
+                .distinct()
+                .toList();
+        boolean hasSpecificWord = matchingWords.stream()
+                .anyMatch(word -> !GENERIC_CAFE_PRODUCT_WORDS.contains(word));
+        return matchingWords.size() >= 2 && hasSpecificWord;
+    }
+
+    private boolean isValidCandidate(ShoppingPriceCandidate candidate) {
+        return candidate != null && candidate.price() > 0 && candidate.price() <= MAX_PRICE
+                && candidate.title() != null && candidate.sourceUrl() != null
+                && candidate.sourceUrl().startsWith("http");
+    }
+
+    private List<String> productWords(String value) {
+        List<String> words = new ArrayList<>();
+        Matcher matcher = PRODUCT_WORD_TOKEN.matcher(value == null ? "" : value);
+        while (matcher.find()) {
+            String word = normalizeKey(matcher.group());
+            if (word.length() >= 2 && !UNIT_TOKEN.matcher(word).matches()) {
+                words.add(word);
+            }
+        }
+        return words;
     }
 
     private List<String> requiredUnitTokens(String unit) {
