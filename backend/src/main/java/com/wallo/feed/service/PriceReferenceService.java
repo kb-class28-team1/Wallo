@@ -48,8 +48,8 @@ public class PriceReferenceService {
             "(?i)(\\d+)\\s*(" + COUNT_UNIT_NAMES + ")");
     private static final Pattern GATHERED_PACKAGE_COUNT_TOKEN = Pattern.compile(
             "(?i)(\\d+)\\s*(?:개|마리|미|송이|그루)(?:입)?");
-    private static final Pattern GATHERED_WEIGHT_TOKEN = Pattern.compile(
-            "(?i)(\\d+(?:\\.\\d+)?)\\s*(kg|g)");
+    private static final Pattern GATHERED_COUNT_RANGE_TOKEN = Pattern.compile(
+            "(?i)(\\d+)\\s*(?:~|-|–|부터)\\s*(\\d+)\\s*(?:개|마리|미|송이|그루|알|입)");
     private static final Pattern PRODUCT_WORD_TOKEN = Pattern.compile("[0-9a-zA-Z가-힣]+");
     private static final List<String> EXCLUDED_TITLE_WORDS = List.of(
             "중고", "리퍼", "렌탈", "대여", "정기구독", "월납", "공병", "빈병");
@@ -58,25 +58,6 @@ public class PriceReferenceService {
             "말랭이", "가루", "분말", "즙", "주스", "칩", "스낵",
             "모종", "씨앗", "종자", "모형", "장난감", "인형", "키링",
             "껍데기", "껍질");
-    private static final Map<String, Integer> GATHERED_AVERAGE_GRAMS = Map.ofEntries(
-            Map.entry("고구마", 250),
-            Map.entry("감자", 200),
-            Map.entry("양파", 200),
-            Map.entry("토마토", 150),
-            Map.entry("사과", 300),
-            Map.entry("배", 500),
-            Map.entry("귤", 100),
-            Map.entry("오렌지", 250),
-            Map.entry("복숭아", 200),
-            Map.entry("자두", 70),
-            Map.entry("조개", 40),
-            Map.entry("바지락", 25),
-            Map.entry("홍합", 50),
-            Map.entry("전복", 100),
-            Map.entry("성게", 125),
-            Map.entry("버섯", 30),
-            Map.entry("당근", 150),
-            Map.entry("고추", 20));
     private static final List<String> GENERIC_CAFE_PRODUCT_WORDS = List.of(
             "커피", "캔커피", "컵커피", "카페라떼", "라떼", "아메리카노", "음료", "편의점");
 
@@ -271,9 +252,13 @@ public class PriceReferenceService {
             if (gatheredMatch.isPresent()) {
                 return gatheredMatch;
             }
-            // 고구마·감자처럼 쇼핑몰이 1개가 아닌 1kg 묶음으로만 등록하는 물품의 재검색 경로다.
-            return lowestGatheredCandidate(
-                    item, shoppingPriceClient.search(item.itemName(), "", ""));
+            List<ShoppingPriceCandidate> countCandidates = shoppingPriceClient.search(
+                    item.itemName() + " 판매 단위 개수", "", "");
+            gatheredMatch = lowestGatheredCandidate(item, countCandidates);
+            if (gatheredMatch.isPresent()) {
+                return gatheredMatch;
+            }
+            return Optional.empty();
         }
         Optional<ShoppingPriceCandidate> strictMatch = candidates.stream()
                 .filter(candidate -> matches(item, candidate))
@@ -293,24 +278,15 @@ public class PriceReferenceService {
             DetectedItem item, List<ShoppingPriceCandidate> candidates) {
         return candidates.stream()
                 .filter(candidate -> matchesGatheredItem(item, candidate))
+                .filter(candidate -> hasGatheredPackageCount(candidate.title()))
                 .map(candidate -> normalizeGatheredPackagePrice(item, candidate))
                 .min(Comparator.comparingInt(ShoppingPriceCandidate::price));
     }
 
     private ShoppingPriceCandidate normalizeGatheredPackagePrice(
             DetectedItem item, ShoppingPriceCandidate candidate) {
-        String normalizedTitle = normalizeKey(candidate.title());
-        Matcher matcher = GATHERED_PACKAGE_COUNT_TOKEN.matcher(normalizedTitle);
-        int packageQuantity = 1;
-        while (matcher.find()) {
-            packageQuantity = Math.max(packageQuantity, Integer.parseInt(matcher.group(1)));
-        }
-        Integer averageGrams = averageGatheredItemGrams(item.itemName());
-        int packageWeightGrams = packageWeightGrams(normalizedTitle);
-        if (packageWeightGrams > 0 && averageGrams != null && packageQuantity <= 1) {
-            packageQuantity = Math.max(1,
-                    (int) Math.round((double) packageWeightGrams / averageGrams));
-        }
+        String normalizedTitle = normalizePackageTitle(candidate.title());
+        int packageQuantity = gatheredPackageQuantity(normalizedTitle);
         if (packageQuantity <= 1) {
             return normalizePackagePrice(item, candidate);
         }
@@ -321,24 +297,27 @@ public class PriceReferenceService {
                 candidate.sourceUrl(), candidate.delivery());
     }
 
-    private int packageWeightGrams(String normalizedTitle) {
-        Matcher matcher = GATHERED_WEIGHT_TOKEN.matcher(normalizedTitle);
-        double grams = 0;
-        while (matcher.find()) {
-            double value = Double.parseDouble(matcher.group(1));
-            grams = Math.max(grams, "kg".equalsIgnoreCase(matcher.group(2))
-                    ? value * 1_000 : value);
-        }
-        return grams <= 0 ? 0 : (int) Math.round(grams);
+    private boolean hasGatheredPackageCount(String title) {
+        return gatheredPackageQuantity(normalizePackageTitle(title)) > 0;
     }
 
-    private Integer averageGatheredItemGrams(String itemName) {
-        String normalizedName = normalizeKey(itemName);
-        return GATHERED_AVERAGE_GRAMS.entrySet().stream()
-                .filter(entry -> normalizedName.contains(entry.getKey()))
-                .map(Map.Entry::getValue)
-                .findFirst()
-                .orElse(null);
+    private String normalizePackageTitle(String value) {
+        return value == null ? "" : value.toLowerCase(Locale.ROOT).replace(" ", "");
+    }
+
+    private int gatheredPackageQuantity(String normalizedTitle) {
+        Matcher rangeMatcher = GATHERED_COUNT_RANGE_TOKEN.matcher(normalizedTitle);
+        if (rangeMatcher.find()) {
+            int lower = Integer.parseInt(rangeMatcher.group(1));
+            int upper = Integer.parseInt(rangeMatcher.group(2));
+            return Math.max(1, (int) Math.round((lower + upper) / 2.0));
+        }
+        Matcher matcher = GATHERED_PACKAGE_COUNT_TOKEN.matcher(normalizedTitle);
+        int packageQuantity = 0;
+        while (matcher.find()) {
+            packageQuantity = Math.max(packageQuantity, Integer.parseInt(matcher.group(1)));
+        }
+        return packageQuantity;
     }
 
     private ShoppingPriceCandidate normalizePackagePrice(
