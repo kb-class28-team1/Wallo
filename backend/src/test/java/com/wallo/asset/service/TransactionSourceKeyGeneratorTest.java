@@ -2,6 +2,7 @@ package com.wallo.asset.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.Test;
 
@@ -52,5 +53,25 @@ class TransactionSourceKeyGeneratorTest {
         assertEquals(firstKey, sameKey);
         assertNotEquals(firstKey, otherSourceTypeKey);
         assertEquals(64, firstKey.length());
+    }
+
+    @Test
+    void assetIdentifierNormalizerUsesOneCanonicalCardAndAccountFormat() {
+        assertEquals(
+                "12345601789012",
+                AssetIdentifierNormalizer.normalize(" 123456-01-789012 ", "account number")
+        );
+        assertEquals(
+                "4321000000008765",
+                AssetIdentifierNormalizer.normalize("4321 0000-0000 8765", "card number")
+        );
+    }
+
+    @Test
+    void assetIdentifierNormalizerRejectsMissingIdentity() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> AssetIdentifierNormalizer.normalize("- -", "account number")
+        );
     }
 }

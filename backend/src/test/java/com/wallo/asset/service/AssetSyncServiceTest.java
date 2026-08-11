@@ -63,7 +63,10 @@ class AssetSyncServiceTest {
 
         assetSyncService.sync(7L, 11L, institution, CodefDto.Response.success(data));
 
-        verify(assetSyncMapper).upsertCard(eq(11L), any(AssetSyncDto.Card.class));
+        ArgumentCaptor<AssetSyncDto.Card> cardCaptor =
+                ArgumentCaptor.forClass(AssetSyncDto.Card.class);
+        verify(assetSyncMapper).upsertCard(eq(11L), cardCaptor.capture());
+        assertEquals("9876000000004321", cardCaptor.getValue().getNumber());
         verify(cardApprovalCollectionService).collectInitial(7L, 11L, institution);
     }
 
@@ -92,6 +95,7 @@ class AssetSyncServiceTest {
         ArgumentCaptor<AssetSyncDto.Account> accountCaptor =
                 ArgumentCaptor.forClass(AssetSyncDto.Account.class);
         verify(assetSyncMapper).upsertAccount(eq(11L), accountCaptor.capture());
+        assertEquals("12345601789012", accountCaptor.getValue().getNumber());
         assertEquals(7_250_000L, accountCaptor.getValue().getBalance());
         assertEquals("ACTIVE", accountCaptor.getValue().getStatus());
         verify(assetSyncMapper).updateConnectionLastSyncAt(11L);
@@ -128,8 +132,8 @@ class AssetSyncServiceTest {
                         "resAccountTrNo", "legacy-bank-transaction"
                 ))
         );
-        when(assetSyncMapper.findAccountId(11L, "123456-01-789012")).thenReturn(31L);
-        when(assetSyncMapper.findAccountId(11L, "987654-01-321098")).thenReturn(32L);
+        when(assetSyncMapper.findAccountId(11L, "12345601789012")).thenReturn(31L);
+        when(assetSyncMapper.findAccountId(11L, "98765401321098")).thenReturn(32L);
 
         assetSyncService.sync(7L, 11L, institution, CodefDto.Response.success(data));
 
@@ -201,7 +205,7 @@ class AssetSyncServiceTest {
                         "resLoanPaymentCategory", "LOAN_REPAYMENT"
                 ))
         );
-        when(assetSyncMapper.findAccountId(11L, "STUDENT-LOAN-2021-001")).thenReturn(379L);
+        when(assetSyncMapper.findAccountId(11L, "STUDENTLOAN2021001")).thenReturn(379L);
 
         assetSyncService.sync(7L, 11L, institution, CodefDto.Response.success(data));
 
@@ -244,7 +248,7 @@ class AssetSyncServiceTest {
                         "resAccountTrCategory", "INVESTMENT"
                 ))
         );
-        when(assetSyncMapper.findAccountId(11L, "12345678-01")).thenReturn(41L);
+        when(assetSyncMapper.findAccountId(11L, "1234567801")).thenReturn(41L);
 
         assetSyncService.sync(7L, 11L, institution, CodefDto.Response.success(data));
 

@@ -213,7 +213,8 @@ public class BankTransactionCollectionService {
         }
         if (source.getResAccount() != null
                 && !source.getResAccount().isBlank()
-                && !accountNumber.equals(source.getResAccount())) {
+                && !AssetIdentifierNormalizer.normalize(accountNumber, "account number")
+                        .equals(AssetIdentifierNormalizer.normalize(source.getResAccount(), "account number"))) {
             throw new IllegalArgumentException("요청 계좌와 응답 계좌가 일치하지 않습니다.");
         }
 
@@ -479,6 +480,7 @@ public class BankTransactionCollectionService {
         if (accountNumber == null || accountNumber.isBlank()) {
             throw new IllegalArgumentException("계좌번호 값이 필요합니다.");
         }
+        AssetIdentifierNormalizer.normalize(accountNumber, "account number");
         if (startDate == null || endDate == null || startDate.isAfter(endDate)) {
             throw new IllegalArgumentException("은행 거래내역 조회 기간이 올바르지 않습니다.");
         }

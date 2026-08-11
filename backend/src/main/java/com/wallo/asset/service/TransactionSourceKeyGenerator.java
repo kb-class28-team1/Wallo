@@ -77,8 +77,6 @@ public class TransactionSourceKeyGenerator {
     }
 
     private String normalizeIdentity(String value, String fieldName) {
-        return required(value, fieldName)
-                .replace("-", "")
-                .replace(" ", "");
+        return AssetIdentifierNormalizer.normalize(value, fieldName);
     }
 }

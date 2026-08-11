@@ -187,7 +187,7 @@ public class CardApprovalCollectionService {
             throw new IllegalArgumentException("카드 승인내역이 비어 있습니다.");
         }
 
-        String cardNumber = required(approval.getResCardNo(), "카드번호");
+        String cardNumber = AssetIdentifierNormalizer.normalize(approval.getResCardNo(), "card number");
         Long cardId = resolveCardId(connectionId, cardNumber);
         String approvalNo = required(approval.getResApprovalNo(), "카드 승인번호");
         String merchantName = defaultValue(approval.getResMemberName(), "카드 결제");
@@ -318,7 +318,10 @@ public class CardApprovalCollectionService {
         if (cardNumber == null || cardNumber.isBlank()) {
             return null;
         }
-        Long cardId = assetSyncMapper.findCardId(connectionId, cardNumber);
+        Long cardId = assetSyncMapper.findCardId(
+                connectionId,
+                AssetIdentifierNormalizer.normalize(cardNumber, "card number")
+        );
         if (cardId == null) {
             throw new IllegalStateException("승인내역에 해당하는 연동 카드를 찾을 수 없습니다.");
         }

@@ -180,6 +180,28 @@ class BankTransactionCollectionServiceTest {
     }
 
     @Test
+    void acceptsEquivalentAccountFormattingFromCodefResponse() {
+        CodefDto.BankTransaction source = transaction(
+                "BANK-FORMATTED-1", "3000000", "0", "월급", "INCOME"
+        );
+        source.setResAccount("12345601789012");
+        when(bankTransactionClient.getTransactions(any())).thenReturn(
+                CodefDto.Response.success(List.of(source))
+        );
+
+        service.collect(
+                7L,
+                31L,
+                "123456-01-789012",
+                institution,
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 7, 31)
+        );
+
+        verify(assetSyncMapper).upsertTransaction(any(AssetSyncDto.Transaction.class));
+    }
+
+    @Test
     void reusesExistingCardPaymentClassificationWithoutCallingClassifier() {
         when(bankTransactionClient.getTransactions(any())).thenReturn(CodefDto.Response.success(List.of(
                 transaction("BANK-CARD-1", "0", "12000", "unknown store", "CARD_PAYMENT")

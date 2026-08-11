@@ -74,7 +74,8 @@ public class AssetSyncService {
         upsertAccounts(connectionId, institution, data);
         for (CodefDto.Card card : values(data.getCards())) {
             assetSyncMapper.upsertCard(connectionId, new AssetSyncDto.Card(
-                    card.getResCardNo(), card.getResCardName(), defaultValue(card.getResCardType(), "CREDIT"),
+                    AssetIdentifierNormalizer.normalize(card.getResCardNo(), "card number"),
+                    card.getResCardName(), defaultValue(card.getResCardType(), "CREDIT"),
                     status(card.getResCardState()), card.getResValidPeriod()));
         }
         long assetStageElapsedMs = elapsedMillis(startedAt);
@@ -149,15 +150,17 @@ public class AssetSyncService {
             CodefDto.AssetData data
     ) {
         for (CodefDto.Account account : values(data.getAccounts())) {
+            String accountNumber = AssetIdentifierNormalizer.normalize(account.getResAccount(), "account number");
             assetSyncMapper.upsertAccount(connectionId, new AssetSyncDto.Account(
-                    account.getResAccount(), account.getResAccountDisplay(), account.getResAccountName(),
+                    accountNumber, account.getResAccountDisplay(), account.getResAccountName(),
                     institution.getInstitutionType(), account.getResAccountSubtype(), amount(account.getResAccountBalance()),
                     amount(defaultValue(account.getResAccountEvalAmount(), account.getResAccountBalance())),
                     defaultValue(account.getResAccountCurrency(), "KRW"), status(account.getResAccountStatus())));
         }
         for (CodefDto.Loan loan : values(data.getLoans())) {
+            String accountNumber = AssetIdentifierNormalizer.normalize(loan.getResLoanAccount(), "loan account number");
             assetSyncMapper.upsertAccount(connectionId, new AssetSyncDto.Account(
-                    loan.getResLoanAccount(), loan.getResLoanDisplay(), loan.getResLoanName(), "LOAN", "LOAN",
+                    accountNumber, loan.getResLoanDisplay(), loan.getResLoanName(), "LOAN", "LOAN",
                     amount(loan.getResLoanBalance()), amount(loan.getResLoanBalance()),
                     defaultValue(loan.getResLoanCurrency(), "KRW"), status(loan.getResLoanStatus())));
         }
@@ -174,8 +177,9 @@ public class AssetSyncService {
             List<CodefDto.Account> accounts
     ) {
         for (CodefDto.Account account : values(accounts)) {
+            String accountNumber = AssetIdentifierNormalizer.normalize(account.getResAccount(), "account number");
             Long accountId = required(
-                    assetSyncMapper.findAccountId(connectionId, account.getResAccount())
+                    assetSyncMapper.findAccountId(connectionId, accountNumber)
             );
             bankTransactionCollectionService.collectInitial(
                     userId,
@@ -194,10 +198,17 @@ public class AssetSyncService {
     ) {
         boolean cardTransaction = !blank(source.getResCardNo());
         boolean loanTransaction = !blank(source.getResLoanAccount());
-        Long cardId = cardTransaction
-                ? required(assetSyncMapper.findCardId(connectionId, source.getResCardNo()))
+        String cardNumber = cardTransaction
+                ? AssetIdentifierNormalizer.normalize(source.getResCardNo(), "card number")
                 : null;
-        String accountNumber = loanTransaction ? source.getResLoanAccount() : source.getResAccount();
+        String accountNumber = cardTransaction
+                ? null
+                : loanTransaction
+                        ? AssetIdentifierNormalizer.normalize(source.getResLoanAccount(), "loan account number")
+                        : AssetIdentifierNormalizer.normalize(source.getResAccount(), "account number");
+        Long cardId = cardTransaction
+                ? required(assetSyncMapper.findCardId(connectionId, cardNumber))
+                : null;
         Long accountId = cardTransaction
                 ? null
                 : required(assetSyncMapper.findAccountId(connectionId, accountNumber));
@@ -206,7 +217,7 @@ public class AssetSyncService {
         String sourceDedupKey = sourceKeyGenerator.forAssetTransaction(
                 sourceType,
                 institution.getCodefOrganizationCode(),
-                cardTransaction ? source.getResCardNo() : accountNumber,
+                cardTransaction ? cardNumber : accountNumber,
                 sourceTransactionId
         );
         String merchantName = cardTransaction
