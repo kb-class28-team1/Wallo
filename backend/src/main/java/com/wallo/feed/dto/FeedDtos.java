@@ -42,44 +42,21 @@ public final class FeedDtos {
             String comparisonType,
             int ingredientCostPerUnit,
             int restaurantPricePerUnit,
-            String ingredientBasis,
-            String comparisonRole,
-            int fallbackUnitPrice) {
+            String ingredientBasis) {
 
         public DetectedItem(
                 String itemName, String brand, String unit, int quantity,
                 int unitPrice, int totalValue, double confidence, String evidence) {
             this(itemName, brand, unit, quantity, unitPrice, totalValue, confidence, evidence,
-                    "PRODUCT", 0, 0, "", "NONE", 0);
-        }
-
-        public DetectedItem(
-                String itemName, String brand, String unit, int quantity,
-                int unitPrice, int totalValue, double confidence, String evidence,
-                String comparisonType, int ingredientCostPerUnit,
-                int restaurantPricePerUnit, String ingredientBasis) {
-            this(itemName, brand, unit, quantity, unitPrice, totalValue, confidence, evidence,
-                    comparisonType, ingredientCostPerUnit, restaurantPricePerUnit,
-                    ingredientBasis, "NONE", 0);
+                    "PRODUCT", 0, 0, "");
         }
 
         public DetectedItem {
-            comparisonType = switch (comparisonType == null
-                    ? "" : comparisonType.trim().toUpperCase()) {
-                case "HOMEMADE" -> "HOMEMADE";
-                case "PRODUCT_COMPARE" -> "PRODUCT_COMPARE";
-                default -> "PRODUCT";
-            };
+            comparisonType = "HOMEMADE".equalsIgnoreCase(comparisonType)
+                    ? "HOMEMADE" : "PRODUCT";
             ingredientCostPerUnit = Math.max(0, ingredientCostPerUnit);
             restaurantPricePerUnit = Math.max(0, restaurantPricePerUnit);
             ingredientBasis = ingredientBasis == null ? "" : ingredientBasis.trim();
-            comparisonRole = "PRODUCT_COMPARE".equals(comparisonType)
-                    && "REFERENCE".equalsIgnoreCase(comparisonRole)
-                    ? "REFERENCE"
-                    : "PRODUCT_COMPARE".equals(comparisonType)
-                    && "ACTUAL".equalsIgnoreCase(comparisonRole)
-                    ? "ACTUAL" : "NONE";
-            fallbackUnitPrice = Math.max(0, fallbackUnitPrice);
         }
     }
 
