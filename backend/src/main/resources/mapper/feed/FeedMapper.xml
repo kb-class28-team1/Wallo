@@ -17,6 +17,10 @@
         <result property="customCategory" column="custom_category"/>
         <result property="caption" column="caption"/>
         <result property="analysisSummary" column="analysis_summary"/>
+        <result property="analysisAccuracy" column="analysis_accuracy"/>
+        <result property="referenceValue" column="reference_value"/>
+        <result property="actualCost" column="actual_cost"/>
+        <result property="savingDifference" column="saving_difference"/>
         <result property="likeCount" column="like_count"/>
         <result property="createdAt" column="created_at"/>
     </resultMap>
@@ -58,6 +62,17 @@
           )
           AND transaction_date BETWEEN #{startDate} AND #{endDate}
     </select>
+    <select id="findAnalysisFeedbackSummary" resultType="com.wallo.feed.dto.FeedDtos$AnalysisFeedbackSummary">
+        SELECT
+            COALESCE(SUM(fa.analysis_accuracy = 'HIGH'), 0) AS high_count,
+            COALESCE(SUM(fa.analysis_accuracy = 'ACCURATE'), 0) AS accurate_count,
+            COALESCE(SUM(fa.analysis_accuracy = 'LOW'), 0) AS low_count
+        FROM FEED f
+        JOIN FEED_ANALYSIS fa ON fa.feed_id = f.id
+        WHERE f.user_id = #{userId}
+          AND f.category = #{category}
+          AND f.status = 'ACTIVE'
+    </select>
     <select id="findChallengeName" resultType="string">
         SELECT name FROM CHALLENGE WHERE id = #{challengeId}
     </select>
@@ -65,7 +80,9 @@
         SELECT invite_code FROM CHALLENGE WHERE id = #{challengeId}
     </select>
     <select id="findFeeds" resultMap="feedMap">
-        SELECT f.*, fa.analysis_summary, u.nickname, u.profile_image_url
+        SELECT f.*, fa.analysis_summary, fa.analysis_accuracy,
+               fa.reference_value, fa.actual_cost, fa.saving_difference,
+               u.nickname, u.profile_image_url
         FROM FEED f
         JOIN USERS u ON u.id = f.user_id
         LEFT JOIN FEED_ANALYSIS fa ON fa.feed_id = f.id
@@ -85,8 +102,12 @@
     <insert id="insertAnalysis">
         INSERT INTO FEED_ANALYSIS
         (feed_id, recommended_spending_type, recommended_category,
-         estimated_saving_amount, analysis_summary, confidence_score)
-        VALUES (#{feedId}, #{spendingType}, #{category}, #{amount}, #{summary}, #{confidence})
+         estimated_saving_amount, analysis_summary, confidence_score,
+         reference_value, actual_cost, saving_difference,
+         detected_items_json, price_references_json, analyzed_at)
+        VALUES (#{feedId}, #{spendingType}, #{category}, #{amount}, #{summary}, #{confidence},
+                #{referenceValue}, #{actualCost}, #{savingDifference},
+                #{detectedItemsJson}, #{priceReferencesJson}, CURRENT_TIMESTAMP)
     </insert>
     <insert id="insertFeedShareMessage">
         INSERT INTO MESSAGE (challenge_id, user_id, message_type, reference_feed_id, content)
@@ -122,6 +143,17 @@
             recommended_category = #{category},
             estimated_saving_amount = #{savingAmount}
         WHERE feed_id = #{feedId}
+    </update>
+    <update id="updateAnalysisAccuracy">
+        UPDATE FEED_ANALYSIS fa
+        JOIN FEED f ON f.id = fa.feed_id
+        SET fa.analysis_accuracy = #{rating},
+            fa.analysis_feedback_note = #{note},
+            fa.analysis_feedback_at = CURRENT_TIMESTAMP
+        WHERE fa.feed_id = #{feedId}
+          AND f.user_id = #{userId}
+          AND f.challenge_id = #{challengeId}
+          AND f.status = 'ACTIVE'
     </update>
     <update id="softDeleteFeed">
         UPDATE FEED

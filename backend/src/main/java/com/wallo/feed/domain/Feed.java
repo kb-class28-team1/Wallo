@@ -17,6 +17,10 @@ public class Feed {
     private String customCategory;
     private String caption;
     private String analysisSummary;
+    private String analysisAccuracy;
+    private Long referenceValue;
+    private Long actualCost;
+    private Long savingDifference;
     private Integer likeCount;
     private LocalDateTime createdAt;
 
@@ -48,6 +52,14 @@ public class Feed {
     public void setCaption(String caption) { this.caption = caption; }
     public String getAnalysisSummary() { return analysisSummary; }
     public void setAnalysisSummary(String analysisSummary) { this.analysisSummary = analysisSummary; }
+    public String getAnalysisAccuracy() { return analysisAccuracy; }
+    public void setAnalysisAccuracy(String analysisAccuracy) { this.analysisAccuracy = analysisAccuracy; }
+    public Long getReferenceValue() { return referenceValue; }
+    public void setReferenceValue(Long referenceValue) { this.referenceValue = referenceValue; }
+    public Long getActualCost() { return actualCost; }
+    public void setActualCost(Long actualCost) { this.actualCost = actualCost; }
+    public Long getSavingDifference() { return savingDifference; }
+    public void setSavingDifference(Long savingDifference) { this.savingDifference = savingDifference; }
     public Integer getLikeCount() { return likeCount; }
     public void setLikeCount(Integer likeCount) { this.likeCount = likeCount; }
     public LocalDateTime getCreatedAt() { return createdAt; }

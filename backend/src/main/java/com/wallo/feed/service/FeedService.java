@@ -1,8 +1,13 @@
 package com.wallo.feed.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.wallo.feed.analysis.ContextAwareFeedAnalysisClient;
 import com.wallo.feed.analysis.FeedAnalysisClient;
 import com.wallo.feed.domain.Feed;
 import com.wallo.feed.domain.FeedMessage;
+import com.wallo.feed.dto.FeedDtos.AnalysisFeedbackRequest;
+import com.wallo.feed.dto.FeedDtos.AnalysisFeedbackSummary;
 import com.wallo.feed.dto.FeedDtos.AnalysisResponse;
 import com.wallo.feed.dto.FeedDtos.CategoryExpenseAverage;
 import com.wallo.feed.dto.FeedDtos.FeedListResponse;
@@ -34,22 +39,34 @@ public class FeedService {
     private static final int PRIMARY_HISTORY_DAYS = 60;
     private static final int EXTENDED_HISTORY_DAYS = 90;
     private static final int MINIMUM_HISTORY_TRANSACTIONS = 3;
+    private static final double MIN_DIRECT_ANALYSIS_CONFIDENCE = 0.65;
     private static final long MAX_FILE_SIZE = 50L * 1024 * 1024;
     private final FeedMapper feedMapper;
     private final FeedAnalysisClient analysisClient;
     private final ChallengeChatBroadcaster chatBroadcaster;
+    private final PriceReferenceService priceReferenceService;
+    private final ObjectMapper objectMapper;
 
     /** 분석 단위 테스트와 기존 호출부의 호환을 위한 생성자. */
     public FeedService(FeedMapper feedMapper, FeedAnalysisClient analysisClient) {
-        this(feedMapper, analysisClient, null);
+        this(feedMapper, analysisClient, null, null, new ObjectMapper());
+    }
+
+    public FeedService(FeedMapper feedMapper, FeedAnalysisClient analysisClient,
+                       ChallengeChatBroadcaster chatBroadcaster) {
+        this(feedMapper, analysisClient, chatBroadcaster, null, new ObjectMapper());
     }
 
     @Autowired
     public FeedService(FeedMapper feedMapper, FeedAnalysisClient analysisClient,
-                       ChallengeChatBroadcaster chatBroadcaster) {
+                       ChallengeChatBroadcaster chatBroadcaster,
+                       PriceReferenceService priceReferenceService,
+                       ObjectMapper objectMapper) {
         this.feedMapper = feedMapper;
         this.analysisClient = analysisClient;
         this.chatBroadcaster = chatBroadcaster;
+        this.priceReferenceService = priceReferenceService;
+        this.objectMapper = objectMapper;
     }
 
     public FeedListResponse getFeeds(Long userId, Long challengeId, boolean mineOnly) {
@@ -73,7 +90,18 @@ public class FeedService {
         requireMember(userId, challengeId);
         String normalizedCategory = normalizeCategory(category);
         validate(media, spendingType, normalizedCategory);
-        AnalysisResponse analysis = analysisClient.analyze(media, spendingType, normalizedCategory);
+        AnalysisFeedbackSummary feedbackSummary = feedMapper.findAnalysisFeedbackSummary(
+                userId, normalizedCategory);
+        AnalysisResponse analysis;
+        if (analysisClient instanceof ContextAwareFeedAnalysisClient contextAwareClient) {
+            analysis = contextAwareClient.analyze(
+                    media, spendingType, normalizedCategory, feedbackSummary);
+        } else {
+            analysis = analysisClient.analyze(media, spendingType, normalizedCategory);
+        }
+        if (priceReferenceService != null) {
+            analysis = priceReferenceService.enrich(analysis);
+        }
         return applyCategoryAverageFallback(userId, analysis);
     }
 
@@ -82,6 +110,15 @@ public class FeedService {
                        String spendingType, String category, String customCategory,
                        String caption, int savingAmount, String analysisSummary,
         double confidenceScore) {
+        return create(userId, challengeId, media, spendingType, category, customCategory,
+                caption, savingAmount, analysisSummary, confidenceScore, "");
+    }
+
+    @Transactional
+    public Feed create(Long userId, Long challengeId, MultipartFile media,
+                       String spendingType, String category, String customCategory,
+                       String caption, int savingAmount, String analysisSummary,
+                       double confidenceScore, String analysisDetails) {
         requireMember(userId, challengeId);
         String normalizedCategory = normalizeCategory(category);
         validate(media, spendingType, normalizedCategory);
@@ -105,11 +142,33 @@ public class FeedService {
         feed.setCaption(blankToNull(caption));
         feed.setAnalysisSummary(blankToNull(analysisSummary));
         feedMapper.insertFeed(feed);
+        AnalysisResponse details = parseAnalysisDetails(analysisDetails);
         feedMapper.insertAnalysis(feed.getId(), spendingType, normalizedCategory,
-                feed.getSavingAmount(), analysisSummary, confidenceScore);
+                feed.getSavingAmount(), analysisSummary, confidenceScore,
+                details == null ? 0 : safeLong(details.referenceValue()),
+                details == null ? 0 : safeLong(details.actualCost()),
+                details == null ? 0 : safeLong(details.savingDifference()),
+                details == null ? null : toJson(details.detectedItems()),
+                details == null ? null : toJson(details.priceReferences()));
         feedMapper.insertFeedShareMessage(challengeId, userId, feed.getId());
         publishMessageAfterCommit(challengeId, feedMapper.findMessageByLastInsertId());
         return feed;
+    }
+
+    @Transactional
+    public void rateAnalysis(Long userId, Long challengeId, Long feedId,
+                             AnalysisFeedbackRequest request) {
+        requireMember(userId, challengeId);
+        String rating = request == null || request.rating() == null
+                ? "" : request.rating().trim().toUpperCase(Locale.ROOT);
+        if (!Set.of("HIGH", "ACCURATE", "LOW").contains(rating)) {
+            throw new IllegalArgumentException("분석 정확도는 높음, 정확, 낮음 중 하나여야 합니다.");
+        }
+        String note = request == null || request.note() == null ? null : request.note().trim();
+        if (note != null && note.length() > 500) note = note.substring(0, 500);
+        if (feedMapper.updateAnalysisAccuracy(feedId, userId, challengeId, rating, note) != 1) {
+            throw new IllegalArgumentException("본인이 올린 피드의 분석만 평가할 수 있습니다.");
+        }
     }
 
     @Transactional
@@ -213,9 +272,9 @@ public class FeedService {
     }
 
     private AnalysisResponse applyCategoryAverageFallback(Long userId, AnalysisResponse analysis) {
-        if (analysis == null
-                || analysis.estimatedSavingAmount() > 0
-                || "SPENT".equals(analysis.spendingType())) {
+        if (analysis == null || "SPENT".equals(analysis.spendingType())
+                || (analysis.estimatedSavingAmount() > 0
+                && analysis.confidenceScore() >= MIN_DIRECT_ANALYSIS_CONFIDENCE)) {
             return analysis;
         }
 
@@ -248,7 +307,9 @@ public class FeedService {
         String summary = appendHistoryFallbackSummary(analysis.summary(), historyDays);
         return new AnalysisResponse(
                 analysis.spendingType(), analysis.category(), estimatedAmount,
-                summary, analysis.confidenceScore());
+                summary, analysis.confidenceScore(), analysis.detectedItems(),
+                analysis.referenceValue(), analysis.actualCost(), analysis.savingDifference(),
+                analysis.priceReferences());
     }
 
     private boolean hasEnoughHistory(CategoryExpenseAverage average) {
@@ -286,5 +347,26 @@ public class FeedService {
 
     private String blankToNull(String value) {
         return value == null || value.trim().isEmpty() ? null : value.trim();
+    }
+
+    private AnalysisResponse parseAnalysisDetails(String analysisDetails) {
+        if (analysisDetails == null || analysisDetails.isBlank()) return null;
+        try {
+            return objectMapper.readValue(analysisDetails, AnalysisResponse.class);
+        } catch (JsonProcessingException exception) {
+            return null;
+        }
+    }
+
+    private String toJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException exception) {
+            return null;
+        }
+    }
+
+    private long safeLong(long value) {
+        return Math.max(0, Math.min(10_000_000_000L, value));
     }
 }

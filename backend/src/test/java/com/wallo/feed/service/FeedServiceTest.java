@@ -76,6 +76,22 @@ class FeedServiceTest {
     }
 
     @Test
+    void replacesLowConfidenceAiAmountWithUsersRecentCategoryAverage() {
+        AnalysisResponse analysis = new AnalysisResponse("REDUCED", "CAFE", 2_000, "금액 추정", 0.4);
+        when(analysisClient.analyze(any(), eq("REDUCED"), eq("CAFE"))).thenReturn(analysis);
+        when(feedMapper.findCategoryExpenseAverage(
+                eq(7L), eq("CAFE"), any(LocalDate.class), any(LocalDate.class)))
+                .thenReturn(average(4, 4_500));
+
+        AnalysisResponse result = feedService.analyze(7L, 10L, media(), "REDUCED", "CAFE");
+
+        assertEquals(4_500, result.estimatedSavingAmount());
+        assertTrue(result.summary().contains("최근 60일"));
+        verify(feedMapper).findCategoryExpenseAverage(
+                eq(7L), eq("CAFE"), any(LocalDate.class), any(LocalDate.class));
+    }
+
+    @Test
     void doesNotApplyCategoryAverageToSpentType() {
         when(analysisClient.analyze(any(), eq("SPENT"), eq("CAFE")))
                 .thenReturn(new AnalysisResponse("SPENT", "CAFE", 0, "소비 유형은 썼다입니다.", 0.9));
