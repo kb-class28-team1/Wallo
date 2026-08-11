@@ -1,6 +1,8 @@
 package com.wallo.asset.mapper;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import com.wallo.asset.dto.AssetSyncDto;
 import com.wallo.asset.service.TransactionSourceKeyGenerator;
@@ -240,6 +242,27 @@ class AssetSyncMapperIntegrationTest {
         assertEquals("AI", classification.getCategorySource());
         assertEquals(new BigDecimal("0.8600"), classification.getCategoryConfidence());
         assertEquals("ai-v1", classification.getClassifierVersion());
+    }
+
+    @Test
+    void findsExistingTransactionIdBySourceIdentity() {
+        AssetSyncDto.Transaction saved = transaction(38_000L, "LIVING");
+        assetSyncMapper.upsertTransaction(saved);
+
+        Long existingId = assetSyncMapper.findExistingTransactionId(
+                7L,
+                "CARD_APPROVAL",
+                "0311",
+                saved.getSourceDedupKey()
+        );
+
+        assertNotNull(existingId);
+        assertNull(assetSyncMapper.findExistingTransactionId(
+                7L,
+                "CARD_APPROVAL",
+                "0311",
+                "missing-source-dedup-key"
+        ));
     }
 
     @Test

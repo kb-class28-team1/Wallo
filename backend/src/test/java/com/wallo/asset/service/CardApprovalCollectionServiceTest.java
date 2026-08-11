@@ -137,6 +137,56 @@ class CardApprovalCollectionServiceTest {
     }
 
     @Test
+    void collectWithStatsCountsNewApprovalAsInserted() {
+        when(cardApprovalClient.getApprovals(any())).thenReturn(CodefDto.Response.success(List.of(
+                approval("9876", "10000001", "new merchant", "food", "12000")
+        )));
+        when(assetSyncMapper.findCardId(11L, "9876")).thenReturn(21L);
+        when(assetSyncMapper.findExistingTransactionId(
+                eq(7L),
+                eq("CARD_APPROVAL"),
+                eq("0311"),
+                any()
+        )).thenReturn((Long) null);
+
+        AssetSyncDto.SyncStats stats = service.collectWithStats(
+                7L,
+                11L,
+                institution,
+                LocalDate.of(2026, 8, 1),
+                LocalDate.of(2026, 8, 3)
+        );
+
+        assertEquals(1, stats.getInserted());
+        assertEquals(0, stats.getUpdated());
+    }
+
+    @Test
+    void collectWithStatsCountsExistingApprovalAsUpdated() {
+        when(cardApprovalClient.getApprovals(any())).thenReturn(CodefDto.Response.success(List.of(
+                approval("9876", "10000001", "existing merchant", "food", "12000")
+        )));
+        when(assetSyncMapper.findCardId(11L, "9876")).thenReturn(21L);
+        when(assetSyncMapper.findExistingTransactionId(
+                eq(7L),
+                eq("CARD_APPROVAL"),
+                eq("0311"),
+                any()
+        )).thenReturn(123L);
+
+        AssetSyncDto.SyncStats stats = service.collectWithStats(
+                7L,
+                11L,
+                institution,
+                LocalDate.of(2026, 8, 1),
+                LocalDate.of(2026, 8, 3)
+        );
+
+        assertEquals(0, stats.getInserted());
+        assertEquals(1, stats.getUpdated());
+    }
+
+    @Test
     void reusesExistingClassificationWithoutCallingClassifier() {
         when(cardApprovalClient.getApprovals(any())).thenReturn(CodefDto.Response.success(List.of(
                 approval("9876", "10000001", "unknown merchant", "unknown sector", "12000")

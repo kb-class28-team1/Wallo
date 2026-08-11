@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -117,6 +118,56 @@ class BankTransactionCollectionServiceTest {
         assertNull(savedTransactions.get(1).getApprovalNo());
         assertEquals(64, savedTransactions.get(1).getSourceDedupKey().length());
         verify(categoryClassifier, never()).classify(any());
+    }
+
+    @Test
+    void collectWithStatsCountsNewBankTransactionAsInserted() {
+        when(bankTransactionClient.getTransactions(any())).thenReturn(CodefDto.Response.success(List.of(
+                transaction("BANK-NEW-1", "3000000", "0", "income", "INCOME")
+        )));
+        when(assetSyncMapper.findExistingTransactionId(
+                eq(7L),
+                eq("BANK_TRANSACTION"),
+                eq("0004"),
+                any()
+        )).thenReturn((Long) null);
+
+        AssetSyncDto.SyncStats stats = service.collectWithStats(
+                7L,
+                31L,
+                "123456-01-789012",
+                institution,
+                LocalDate.of(2026, 8, 1),
+                LocalDate.of(2026, 8, 3)
+        );
+
+        assertEquals(1, stats.getInserted());
+        assertEquals(0, stats.getUpdated());
+    }
+
+    @Test
+    void collectWithStatsCountsExistingBankTransactionAsUpdated() {
+        when(bankTransactionClient.getTransactions(any())).thenReturn(CodefDto.Response.success(List.of(
+                transaction("BANK-EXISTING-1", "3000000", "0", "income", "INCOME")
+        )));
+        when(assetSyncMapper.findExistingTransactionId(
+                eq(7L),
+                eq("BANK_TRANSACTION"),
+                eq("0004"),
+                any()
+        )).thenReturn(99L);
+
+        AssetSyncDto.SyncStats stats = service.collectWithStats(
+                7L,
+                31L,
+                "123456-01-789012",
+                institution,
+                LocalDate.of(2026, 8, 1),
+                LocalDate.of(2026, 8, 3)
+        );
+
+        assertEquals(0, stats.getInserted());
+        assertEquals(1, stats.getUpdated());
     }
 
     @Test

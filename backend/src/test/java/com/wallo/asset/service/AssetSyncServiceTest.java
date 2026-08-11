@@ -20,6 +20,7 @@ import com.wallo.external.converter.ObjectMapperCodefAssetResponseMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.time.ZoneId;
@@ -365,6 +366,40 @@ class AssetSyncServiceTest {
                 CodefDto.Response.success(data)
         ));
         verify(assetSyncMapper, never()).upsertTransaction(any());
+    }
+
+    @Test
+    void rangeSyncUsesRangeCollectorAndReturnsTransactionStats() {
+        Institution institution = new Institution(2L, "0311", "Wallo Card", "CARD", "card-logo");
+        LocalDate startDate = LocalDate.of(2026, 8, 1);
+        LocalDate endDate = LocalDate.of(2026, 8, 6);
+        when(cardApprovalCollectionService.collectWithStats(
+                7L,
+                11L,
+                institution,
+                startDate,
+                endDate
+        )).thenReturn(new AssetSyncDto.SyncStats(2, 4));
+
+        AssetSyncDto.SyncStats stats = assetSyncService.sync(
+                7L,
+                11L,
+                institution,
+                CodefDto.Response.success(Map.of()),
+                startDate,
+                endDate
+        );
+
+        assertEquals(2, stats.getInserted());
+        assertEquals(4, stats.getUpdated());
+        verify(cardApprovalCollectionService).collectWithStats(
+                7L,
+                11L,
+                institution,
+                startDate,
+                endDate
+        );
+        verify(cardApprovalCollectionService, never()).collectInitial(7L, 11L, institution);
     }
 
     @Test
