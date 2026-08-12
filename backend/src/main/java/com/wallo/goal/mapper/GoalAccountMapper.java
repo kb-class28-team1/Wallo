@@ -23,6 +23,7 @@ public interface GoalAccountMapper {
 
     int insertGoalAccount(
             @Param("goalId") long goalId,
-            @Param("accountId") long accountId
+            @Param("accountId") long accountId,
+            @Param("baselineBalance") long baselineBalance
     );
 }

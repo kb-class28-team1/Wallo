@@ -1,8 +1,11 @@
-import { mount } from "@vue/test-utils"
+import { flushPromises, mount } from "@vue/test-utils"
 import { createPinia, setActivePinia } from "pinia"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import AiAssistantView from "./AiAssistantView.vue"
-import { getGoalRoadmap, getGoals } from "@/api/goalApi"
+import {
+  getGoalRoadmap,
+  getGoals,
+} from "@/api/goalApi"
 
 const push = vi.fn()
 
@@ -21,14 +24,15 @@ vi.mock("@/api/goalApi", () => ({
 describe("AiAssistantView", () => {
   beforeEach(() => {
     setActivePinia(createPinia())
-    push.mockReset()
+    vi.clearAllMocks()
     getGoals.mockResolvedValue({ data: [] })
     getGoalRoadmap.mockResolvedValue({ data: null })
   })
 
   it("shows the goal empty state and roadmap introduction when no goal exists", async () => {
     const wrapper = mount(AiAssistantView)
-    await vi.waitFor(() => expect(wrapper.text()).toContain("아직 목표가 설정되지 않았어요!"))
+    await flushPromises()
+    await vi.waitFor(() => expect(wrapper.find(".empty-dashboard").exists()).toBe(true))
 
     expect(wrapper.text()).toContain("목표 달성을 위한 로드맵")
     expect(wrapper.text()).toContain("나에게 맞는 로드맵")
@@ -37,6 +41,7 @@ describe("AiAssistantView", () => {
 
   it("moves to chat when the goal setting button is selected", async () => {
     const wrapper = mount(AiAssistantView)
+    await flushPromises()
     await vi.waitFor(() => expect(wrapper.find(".goal-button").exists()).toBe(true))
 
     await wrapper.find(".goal-button").trigger("click")
@@ -86,6 +91,7 @@ describe("AiAssistantView", () => {
     })
 
     const wrapper = mount(AiAssistantView)
+    await flushPromises()
     await vi.waitFor(() => expect(wrapper.text()).toContain("비상금 1,000만 원 만들기"))
 
     expect(wrapper.text()).toContain("2,500,000원")
