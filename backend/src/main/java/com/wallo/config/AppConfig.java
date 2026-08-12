@@ -23,6 +23,9 @@ import com.wallo.feed.price.RestaurantPriceClient;
 import com.wallo.feed.price.SerpApiRestaurantPriceClient;
 import com.wallo.feed.price.SerpApiShoppingPriceClient;
 import com.wallo.feed.price.ShoppingPriceClient;
+import com.wallo.mission.verification.GeminiMissionVerificationClient;
+import com.wallo.mission.verification.MissionVerificationClient;
+import com.wallo.mission.verification.MockMissionVerificationClient;
 import java.time.Clock;
 import java.time.ZoneId;
 import java.util.Locale;
@@ -169,6 +172,20 @@ public class AppConfig {
             );
         }
         return new MockFeedAnalysisClient();
+    }
+
+    @Bean
+    public MissionVerificationClient missionVerificationClient(
+            RestTemplate restTemplate,
+            ObjectMapper objectMapper,
+            @Value("${gemini.enabled:false}") boolean geminiEnabled,
+            @Value("${gemini.api-key:}") String geminiApiKey,
+            @Value("${gemini.model:gemini-3.6-flash}") String geminiModel) {
+        if (geminiEnabled && geminiApiKey != null && !geminiApiKey.isBlank()) {
+            return new GeminiMissionVerificationClient(
+                    restTemplate, objectMapper, geminiApiKey.trim(), geminiModel.trim());
+        }
+        return new MockMissionVerificationClient();
     }
 
     @Bean

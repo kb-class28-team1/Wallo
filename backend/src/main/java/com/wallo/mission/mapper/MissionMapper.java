@@ -4,6 +4,8 @@ import com.wallo.mission.domain.DailyMission;
 import com.wallo.mission.domain.Mission;
 import com.wallo.mission.domain.MissionCycle;
 import com.wallo.mission.domain.MissionAnalysisSource;
+import com.wallo.mission.domain.MissionVerification;
+import com.wallo.mission.domain.MissionEvidenceTarget;
 import java.time.LocalDate;
 import java.util.List;
 import org.apache.ibatis.annotations.Param;
@@ -31,4 +33,10 @@ public interface MissionMapper {
                                  @Param("status") String status);
     int expireAssignedMissionsBefore(@Param("userId") Long userId,
                                      @Param("assignedDate") LocalDate assignedDate);
+    MissionEvidenceTarget findMissionEvidenceTarget(
+            @Param("dailyMissionId") Long dailyMissionId,
+            @Param("feedId") Long feedId,
+            @Param("userId") Long userId);
+    int countVerificationAttempts(@Param("dailyMissionId") Long dailyMissionId);
+    int insertMissionVerification(MissionVerification verification);
 }

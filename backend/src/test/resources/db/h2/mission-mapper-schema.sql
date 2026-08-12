@@ -51,6 +51,27 @@ CREATE TABLE DAILY_MISSIONS (
     UNIQUE (user_id, assigned_date, display_order)
 );
 
+CREATE TABLE FEED (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    media_url VARCHAR(500) NOT NULL DEFAULT '/api/feed-media/test.mp4',
+    media_type VARCHAR(20) NOT NULL DEFAULT 'VIDEO'
+);
+
+CREATE TABLE MISSION_VERIFICATIONS (
+    mission_verification_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    daily_mission_id BIGINT NOT NULL,
+    feed_id BIGINT NOT NULL,
+    attempt_number TINYINT NOT NULL,
+    decision VARCHAR(20) NOT NULL,
+    confidence_score DECIMAL(5, 4) NOT NULL,
+    reason VARCHAR(500) NOT NULL,
+    model_version VARCHAR(100) NOT NULL,
+    UNIQUE (daily_mission_id, attempt_number),
+    UNIQUE (feed_id)
+);
+
 INSERT INTO USERS (id, nickname) VALUES (7, '테스터');
 INSERT INTO CONSUMPTION_ANALYSIS_RESULTS (user_id, calculated_result, generated_at)
 VALUES (7, '{"summary":"과소비"}', '2026-08-01 10:00:00'),

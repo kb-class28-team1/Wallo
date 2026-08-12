@@ -8,6 +8,7 @@ import com.wallo.mission.domain.DailyMission;
 import com.wallo.mission.domain.Mission;
 import com.wallo.mission.domain.MissionCycle;
 import com.wallo.mission.domain.MissionAnalysisSource;
+import com.wallo.mission.domain.MissionVerification;
 import java.sql.Connection;
 import java.time.LocalDate;
 import java.util.List;
@@ -81,6 +82,25 @@ class MissionMapperIntegrationTest {
                 today.get(0).getDailyMissionId(), 7L, "COMPLETED"));
         assertEquals("COMPLETED", mapper.findDailyMissions(
                 7L, LocalDate.of(2026, 8, 17)).get(0).getStatus());
+
+        try (java.sql.Statement statement = sqlSession.getConnection().createStatement()) {
+            statement.executeUpdate("INSERT INTO FEED (id, user_id, status) VALUES (20, 7, 'ACTIVE')");
+        } catch (java.sql.SQLException exception) {
+            throw new IllegalStateException(exception);
+        }
+        assertNotNull(mapper.findMissionEvidenceTarget(
+                today.get(0).getDailyMissionId(), 20L, 7L));
+        MissionVerification verification = new MissionVerification();
+        verification.setDailyMissionId(today.get(0).getDailyMissionId());
+        verification.setFeedId(20L);
+        verification.setAttemptNumber(1);
+        verification.setDecision("PASS");
+        verification.setConfidenceScore(0.91);
+        verification.setReason("미션 행동이 확인됩니다.");
+        verification.setModelVersion("test-model");
+        assertEquals(1, mapper.insertMissionVerification(verification));
+        assertNotNull(verification.getMissionVerificationId());
+        assertEquals(1, mapper.countVerificationAttempts(today.get(0).getDailyMissionId()));
     }
 
     @Test

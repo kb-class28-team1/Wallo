@@ -19,6 +19,7 @@ public class DailyMission {
     private Integer rewardPoint;
     private String verificationType;
     private String evidenceGuide;
+    private String verificationRuleJson;
 
     public Long getDailyMissionId() { return dailyMissionId; }
     public void setDailyMissionId(Long dailyMissionId) { this.dailyMissionId = dailyMissionId; }
@@ -50,4 +51,6 @@ public class DailyMission {
     public void setVerificationType(String verificationType) { this.verificationType = verificationType; }
     public String getEvidenceGuide() { return evidenceGuide; }
     public void setEvidenceGuide(String evidenceGuide) { this.evidenceGuide = evidenceGuide; }
+    public String getVerificationRuleJson() { return verificationRuleJson; }
+    public void setVerificationRuleJson(String value) { this.verificationRuleJson = value; }
 }

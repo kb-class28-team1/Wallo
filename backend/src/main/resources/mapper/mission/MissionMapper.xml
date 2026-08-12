@@ -156,4 +156,44 @@
           AND status = 'ASSIGNED'
     </update>
 
+    <select id="findMissionEvidenceTarget"
+            resultType="com.wallo.mission.domain.MissionEvidenceTarget">
+        SELECT daily.daily_mission_id AS dailyMissionId,
+               daily.mission_cycle_id AS missionCycleId,
+               daily.mission_id AS missionId,
+               daily.user_id AS userId,
+               daily.assigned_date AS assignedDate,
+               daily.status,
+               mission.title,
+               mission.description,
+               mission.verification_type AS verificationType,
+               mission.verification_rule AS verificationRuleJson,
+               mission.evidence_guide AS evidenceGuide
+               ,feed.media_url AS mediaUrl
+               ,feed.media_type AS mediaType
+        FROM DAILY_MISSIONS daily
+        JOIN MISSIONS mission ON mission.mission_id = daily.mission_id
+        JOIN FEED feed ON feed.id = #{feedId}
+                      AND feed.user_id = daily.user_id
+                      AND feed.status = 'ACTIVE'
+        WHERE daily.daily_mission_id = #{dailyMissionId}
+          AND daily.user_id = #{userId}
+    </select>
+
+    <select id="countVerificationAttempts" resultType="int">
+        SELECT COUNT(*) FROM MISSION_VERIFICATIONS
+        WHERE daily_mission_id = #{dailyMissionId}
+    </select>
+
+    <insert id="insertMissionVerification" useGeneratedKeys="true"
+            keyProperty="missionVerificationId">
+        INSERT INTO MISSION_VERIFICATIONS (
+            daily_mission_id, feed_id, attempt_number, decision,
+            confidence_score, reason, model_version
+        ) VALUES (
+            #{dailyMissionId}, #{feedId}, #{attemptNumber}, #{decision},
+            #{confidenceScore}, #{reason}, #{modelVersion}
+        )
+    </insert>
+
 </mapper>
