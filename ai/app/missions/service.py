@@ -12,7 +12,7 @@ from .schemas import MissionGenerateRequest, MissionGenerateResponse
 
 
 logger = logging.getLogger("uvicorn.error")
-DEFAULT_MISSION_MAX_COMPLETION_TOKENS = 6000
+DEFAULT_MISSION_MAX_COMPLETION_TOKENS = 4500
 
 
 def get_mission_max_completion_tokens() -> int:
@@ -29,7 +29,7 @@ def get_mission_max_completion_tokens() -> int:
             DEFAULT_MISSION_MAX_COMPLETION_TOKENS,
         )
         return DEFAULT_MISSION_MAX_COMPLETION_TOKENS
-    return min(max(value, 1000), 7000)
+    return min(max(value, 1000), 6000)
 
 
 class InvalidMissionResponseError(ValueError):
@@ -59,7 +59,8 @@ def generate_missions(
         return MissionGenerateResponse.model_validate_json(
             response.choices[0].message.content
         )
-    except GroqError:
+    except GroqError as error:
+        logger.error("Groq mission generation failed: %s", error)
         raise
     except (ValidationError, ValueError, AttributeError, IndexError) as error:
         logger.error("mission response validation failed: %s", error)

@@ -18,6 +18,7 @@ MISSION_GENERATION_INSTRUCTIONS = """
 - 객관적 검증이 어려운 습관은 SELF_CHECK를 사용하세요.
 - 난이도와 보상은 EASY=10, NORMAL=20, HARD=30 포인트를 사용하세요.
 - 반드시 JSON 객체 하나만 반환하세요. 최상위 필드는 missions와 promptVersion입니다.
+- 모든 미션을 응답 한도 안에 담도록 제목은 20자, 설명은 60자 이내로 간결하게 작성하세요.
 """.strip()
 
 
@@ -31,4 +32,3 @@ def build_mission_input(request: MissionGenerateRequest) -> str:
         },
         ensure_ascii=False,
     )
-
