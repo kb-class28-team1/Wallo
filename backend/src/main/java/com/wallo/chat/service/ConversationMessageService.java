@@ -5,7 +5,9 @@ import com.wallo.chat.domain.Conversation;
 import com.wallo.chat.dto.ChatHistoryMessage;
 import com.wallo.chat.dto.ChatMessageResponse;
 import com.wallo.chat.dto.ChatRequest;
+import com.wallo.chat.dto.ConsumptionAnalysisPeriodContext;
 import com.wallo.chat.dto.ChatResponse;
+import com.wallo.chat.dto.ConsumptionAnalysisView;
 import com.wallo.chat.dto.SendConversationMessageRequest;
 import com.wallo.chat.dto.SendConversationMessageResponse;
 import com.wallo.chat.dto.SummarizeConversationRequest;
@@ -15,6 +17,7 @@ import com.wallo.goal.service.GoalFeasibilityCalculator;
 import com.wallo.goal.service.GoalPersistenceService;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
@@ -29,17 +32,23 @@ public class ConversationMessageService {
     private final ChatMessagePersistenceService persistenceService;
     private final ChatService chatService;
     private final GoalPersistenceService goalPersistenceService;
+    private final ConsumptionAnalysisResultService consumptionAnalysisResultService;
+    private final ConsumptionAnalysisViewAssembler consumptionAnalysisViewAssembler;
 
     public ConversationMessageService(
             ConversationService conversationService,
             ChatMessagePersistenceService persistenceService,
             ChatService chatService,
-            GoalPersistenceService goalPersistenceService
+            GoalPersistenceService goalPersistenceService,
+            ConsumptionAnalysisResultService consumptionAnalysisResultService,
+            ConsumptionAnalysisViewAssembler consumptionAnalysisViewAssembler
     ) {
         this.conversationService = conversationService;
         this.persistenceService = persistenceService;
         this.chatService = chatService;
         this.goalPersistenceService = goalPersistenceService;
+        this.consumptionAnalysisResultService = consumptionAnalysisResultService;
+        this.consumptionAnalysisViewAssembler = consumptionAnalysisViewAssembler;
     }
 
     public List<ChatMessageResponse> getMessages(
@@ -47,9 +56,17 @@ public class ConversationMessageService {
             Long userId
     ) {
         conversationService.validateOwnership(conversationId, userId);
-        return persistenceService.getMessages(conversationId)
-                .stream()
-                .map(ChatMessageResponse::from)
+        List<ChatMessage> messages = persistenceService.getMessages(conversationId);
+        List<Long> assistantMessageIds = messages.stream()
+                .filter(message -> ASSISTANT_ROLE.equals(message.getRole()))
+                .map(ChatMessage::getMessageId)
+                .collect(Collectors.toList());
+        Map<Long, ConsumptionAnalysisView> analyses =
+                consumptionAnalysisResultService.findByAssistantMessageIds(
+                        assistantMessageIds);
+        return messages.stream()
+                .map(message -> ChatMessageResponse.from(
+                        message, analyses.get(message.getMessageId())))
                 .collect(Collectors.toList());
     }
 
@@ -88,6 +105,13 @@ public class ConversationMessageService {
         Conversation memory = conversationService.getConversationMemory(
                 conversationId, currentUserId);
         List<ChatMessage> storedMessages = persistenceService.getMessages(conversationId);
+        ConsumptionAnalysisPeriodContext previousConsumptionPeriod =
+                consumptionAnalysisResultService.findLatestPeriod(
+                        storedMessages.stream()
+                                .filter(message -> ASSISTANT_ROLE.equals(message.getRole()))
+                                .map(ChatMessage::getMessageId)
+                                .toList()
+                );
         String summary = refreshSummary(conversationId, memory, storedMessages);
         List<ChatHistoryMessage> history = buildRecentHistory(storedMessages);
         GoalInterviewDto.Draft goalDraft = goalPersistenceService.getActiveDraft(
@@ -106,7 +130,8 @@ public class ConversationMessageService {
         ChatResponse aiResponse = chatService.chat(
                 new ChatRequest(content, isFirstMessage, summary, history)
                         .withGoalDraft(goalDraft)
-                        .withGoalAlreadyExists(goalAlreadyExists),
+                        .withGoalAlreadyExists(goalAlreadyExists)
+                        .withPreviousConsumptionPeriod(previousConsumptionPeriod),
                 currentUserId
         );
         GoalInterviewDto.Result persistedGoalInterview = goalPersistenceService.applyResult(
@@ -119,6 +144,18 @@ public class ConversationMessageService {
                 ASSISTANT_ROLE,
                 aiResponse.answer()
         );
+        ConsumptionAnalysisView consumptionAnalysis =
+                consumptionAnalysisViewAssembler.assemble(
+                        aiResponse.consumptionAnalysis());
+        if (consumptionAnalysis != null) {
+            consumptionAnalysisResultService.save(
+                    currentUserId,
+                    assistantMessage.getMessageId(),
+                    content,
+                    aiResponse.consumptionAnalysis(),
+                    aiResponse.answer()
+            );
+        }
         if (isFirstMessage) {
             String title = aiResponse.title() == null
                     || aiResponse.title().isBlank()
@@ -131,10 +168,11 @@ public class ConversationMessageService {
 
         return new SendConversationMessageResponse(
                 ChatMessageResponse.from(userMessage),
-                ChatMessageResponse.from(assistantMessage),
+                ChatMessageResponse.from(assistantMessage, consumptionAnalysis),
                 persistedGoalInterview == null
                         ? aiResponse.goalInterview()
-                        : persistedGoalInterview
+                        : persistedGoalInterview,
+                consumptionAnalysis
         );
     }
 

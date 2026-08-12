@@ -229,7 +229,7 @@ watch(newsId, () => {
               />
               <ReportSection
                 icon="bi-person"
-                title="나에게 어떤 영향이 있을까요?"
+                title="개인에게는 어떤 영향이 있을까요?"
                 :content="report.userImpact"
                 :segments="sectionSegments.userImpact"
                 @term-hover="handleTermHover"
