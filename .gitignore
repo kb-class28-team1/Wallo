@@ -13,3 +13,6 @@ dist/
 # Local backend database and external API settings
 backend/src/main/resources/application.properties
 database/mysql/dbInit.sql
+
+# SQL scripts are kept locally and must not be committed.
+*.sql
