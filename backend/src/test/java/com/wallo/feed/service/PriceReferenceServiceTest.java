@@ -14,6 +14,7 @@ import com.wallo.feed.dto.FeedDtos.AnalysisResponse;
 import com.wallo.feed.dto.FeedDtos.DetectedItem;
 import com.wallo.feed.mapper.FoodCostReferenceMapper;
 import com.wallo.feed.mapper.PriceReferenceMapper;
+import com.wallo.feed.price.GatheredQuantityClient;
 import com.wallo.feed.price.RestaurantPriceCandidate;
 import com.wallo.feed.price.RestaurantPriceClient;
 import com.wallo.feed.price.ShoppingPriceCandidate;
@@ -348,6 +349,12 @@ class PriceReferenceServiceTest {
 
     @Test
     void fallsBackToUnqualifiedSearchWhenGatheredItemIsSoldByWeight() {
+        GatheredQuantityClient quantityClient =
+                org.mockito.Mockito.mock(GatheredQuantityClient.class);
+        Clock clock = Clock.fixed(
+                Instant.parse("2026-08-11T03:00:00Z"), ZoneId.of("Asia/Seoul"));
+        PriceReferenceService dynamicService = new PriceReferenceService(
+                mapper, shoppingClient, quantityClient, Runnable::run, clock);
         PriceReferenceRow stored = row("고구마", "", "1개", 900);
         when(mapper.findBestMatch("고구마", "", "1개", "FOOD"))
                 .thenReturn(null, stored);
@@ -356,8 +363,12 @@ class PriceReferenceServiceTest {
         when(shoppingClient.search("고구마 생물 원물", "", "1개"))
                 .thenReturn(List.of());
         when(shoppingClient.search("고구마 판매 단위 개수", "", ""))
+                .thenReturn(List.of());
+        when(quantityClient.findAveragePackageQuantity("고구마", "판매 단위"))
+                .thenReturn(java.util.OptionalInt.of(5));
+        when(shoppingClient.search("고구마", "", ""))
                 .thenReturn(List.of(new ShoppingPriceCandidate(
-                        "국산 햇고구마 1kg 4~6개", 4_500, "농산물몰",
+                        "국산 햇고구마 1kg", 4_500, "농산물몰",
                         "https://example.com/sweet-potato-by-weight", "")));
         AnalysisResponse input = new AnalysisResponse(
                 "REDUCED", "FOOD", 0, "고구마를 직접 수확했습니다.", 0.8,
@@ -366,7 +377,7 @@ class PriceReferenceServiceTest {
                         "수확한 고구마 두 개가 보임", "GATHERED", 0, 0, "")),
                 0, 0, 0, List.of());
 
-        AnalysisResponse result = service.enrich(input);
+        AnalysisResponse result = dynamicService.enrich(input);
 
         assertEquals(1_800, result.referenceValue());
         assertEquals(1_800, result.estimatedSavingAmount());
