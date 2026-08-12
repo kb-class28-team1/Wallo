@@ -522,7 +522,7 @@ public class PriceReferenceService {
         Matcher matcher = UNIT_TOKEN.matcher(normalized);
         while (matcher.find()) {
             String token = matcher.group(1).toLowerCase(Locale.ROOT);
-            if (token.matches("1(?:" + COUNT_UNIT_NAMES + ")")) {
+            if (token.matches("\\d+(?:" + COUNT_UNIT_NAMES + ")")) {
                 continue;
             }
             tokens.add(token);
