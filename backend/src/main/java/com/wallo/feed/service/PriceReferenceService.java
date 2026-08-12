@@ -27,6 +27,8 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
@@ -43,6 +45,7 @@ public class PriceReferenceService {
     private static final int MAX_SEARCH_ITEMS = 3;
     private static final int MAX_PRICE = 10_000_000;
     private static final double MIN_SEARCH_CONFIDENCE = 0.55;
+    private static final long PRICE_SEARCH_TIMEOUT_MS = 5_000L;
     private static final String COUNT_UNIT_NAMES =
             "개|병|봉|롤|구|팩|모|캔|매|박스|통|꼬치|권|그루|벌|대|마리|장|켤레|송이";
     private static final Pattern UNIT_TOKEN = Pattern.compile(
@@ -183,9 +186,8 @@ public class PriceReferenceService {
                     resolvedFoodRows.put(index, cached);
                 } else if (item.confidence() >= MIN_SEARCH_CONFIDENCE
                         && (item.ingredientCostPerUnit() > 0 || recipeCosts.containsKey(index))) {
-                    restaurantSearches.put(index, CompletableFuture.supplyAsync(
-                            () -> findRestaurantCandidate(item), searchExecutor)
-                            .exceptionally(exception -> Optional.empty()));
+                    restaurantSearches.put(index, submitSearch(
+                            () -> findRestaurantCandidate(item)));
                 }
                 continue;
             }
@@ -202,14 +204,12 @@ public class PriceReferenceService {
                     resolvedRows.put(index, cached);
                 }
                 if (isGathered(item) && !safeGatheredCache) {
-                    searches.put(index, CompletableFuture.supplyAsync(
-                            () -> findLowestCandidate(item, analysis.category()), searchExecutor)
-                            .exceptionally(exception -> Optional.empty()));
+                    searches.put(index, submitSearch(
+                            () -> findLowestCandidate(item, analysis.category())));
                 }
             } else if (isGathered(item) || item.confidence() >= MIN_SEARCH_CONFIDENCE) {
-                searches.put(index, CompletableFuture.supplyAsync(
-                        () -> findLowestCandidate(item, analysis.category()), searchExecutor)
-                        .exceptionally(exception -> Optional.empty()));
+                searches.put(index, submitSearch(
+                        () -> findLowestCandidate(item, analysis.category())));
             }
         }
 
@@ -241,6 +241,13 @@ public class PriceReferenceService {
         }
 
         return calculate(analysis, items, resolvedRows, resolvedFoodRows);
+    }
+
+    private <T> CompletableFuture<Optional<T>> submitSearch(
+            Supplier<Optional<T>> search) {
+        return CompletableFuture.supplyAsync(search, searchExecutor)
+                .completeOnTimeout(Optional.empty(), PRICE_SEARCH_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+                .exceptionally(exception -> Optional.empty());
     }
 
     private Optional<RestaurantPriceCandidate> findRestaurantCandidate(DetectedItem item) {
