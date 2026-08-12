@@ -14,6 +14,10 @@ vi.mock("@/api/goalApi", () => ({
   updateGoalRoadmapStep: vi.fn(),
 }))
 
+vi.mock("vue-router", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}))
+
 vi.mock("@/api/assetApi", () => ({
   getAssets: vi.fn(),
   getBudgets: vi.fn(),

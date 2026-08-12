@@ -38,4 +38,28 @@ public class BudgetController {
         return CommonResponse.success(
                 budgetService.upsertBudget(currentUserProvider.getCurrentUserId(), request));
     }
+
+    @GetMapping("/categories")
+    public CommonResponse<BudgetDto.CategorySummary> getCategoryBudgets(
+            @RequestParam(value = "targetMonth", required = false) String targetMonth
+    ) {
+        return CommonResponse.success(
+                budgetService.getCategoryBudgetSummary(
+                        currentUserProvider.getCurrentUserId(),
+                        targetMonth
+                )
+        );
+    }
+
+    @PutMapping("/categories")
+    public CommonResponse<BudgetDto.CategorySummary> upsertCategoryBudgets(
+            @RequestBody BudgetDto.CategoryUpsertRequest request
+    ) {
+        return CommonResponse.success(
+                budgetService.upsertCategoryBudgets(
+                        currentUserProvider.getCurrentUserId(),
+                        request
+                )
+        );
+    }
 }

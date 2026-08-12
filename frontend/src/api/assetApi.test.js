@@ -1,11 +1,18 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import httpClient from "@/api/httpClient";
-import { syncAssets, updateAnnualSalary } from "./assetApi";
+import {
+  getCategoryBudgets,
+  putCategoryBudgets,
+  syncAssets,
+  updateAnnualSalary,
+} from "./assetApi";
 
 vi.mock("@/api/httpClient", () => ({
   default: {
+    get: vi.fn(),
     patch: vi.fn(),
     post: vi.fn(),
+    put: vi.fn(),
   },
 }));
 
@@ -87,5 +94,33 @@ describe("assetApi annual salary fallback", () => {
       status: 503,
       response,
     });
+  });
+
+  it("requests category budgets for the selected month", async () => {
+    const response = {
+      success: true,
+      data: { targetMonth: "2026-08", categories: [] },
+    };
+    httpClient.get.mockResolvedValue({ data: response });
+
+    await expect(getCategoryBudgets("2026-08")).resolves.toEqual(response);
+
+    expect(httpClient.get).toHaveBeenCalledWith("/api/budgets/categories", {
+      params: { targetMonth: "2026-08" },
+    });
+  });
+
+  it("saves the category budget batch", async () => {
+    const request = {
+      targetMonth: "2026-08",
+      totalAmount: 1_000_000,
+      categoryBudgets: [{ category: "FOOD", budgetAmount: 300_000 }],
+    };
+    const response = { success: true, data: { targetMonth: "2026-08" } };
+    httpClient.put.mockResolvedValue({ data: response });
+
+    await expect(putCategoryBudgets(request)).resolves.toEqual(response);
+
+    expect(httpClient.put).toHaveBeenCalledWith("/api/budgets/categories", request);
   });
 });

@@ -7,11 +7,24 @@ import { useAssetStore } from "@/stores/assetStore";
 
 vi.mock("@/api/assetApi", () => ({
   getExpenses: vi.fn(),
+  getCategoryBudgets: vi.fn(),
 }));
 
 vi.mock("@/stores/assetStore", () => ({
   useAssetStore: vi.fn(),
 }));
+
+vi.mock("@/stores/budgetStore", () => ({
+  useBudgetStore: vi.fn(),
+}));
+
+vi.mock("vue-router", () => ({
+  useRoute: () => ({ query: {} }),
+  useRouter: () => ({ replace: vi.fn() }),
+}));
+
+import { getCategoryBudgets } from "@/api/assetApi";
+import { useBudgetStore } from "@/stores/budgetStore";
 
 const createExpenseResponse = () => ({
   success: true,
@@ -36,6 +49,25 @@ const createStore = () => ({
   syncAssets: vi.fn(),
 });
 
+const createBudgetStore = () => ({
+  categorySummary: ref({
+    targetMonth: "2026-08",
+    totalAmount: 1_000_000,
+    allocatedAmount: 300_000,
+    unallocatedAmount: 700_000,
+    spentAmount: 120_000,
+    remainingAmount: 880_000,
+    usageRate: 12,
+    overBudget: false,
+    categories: [],
+  }),
+  isLoading: ref(false),
+  isSaving: ref(false),
+  error: ref(null),
+  fetchCategoryBudgets: vi.fn().mockResolvedValue(null),
+  saveCategoryBudgets: vi.fn().mockResolvedValue(null),
+});
+
 const globalStubs = {
   RouterLink: { template: "<a><slot /></a>" },
   ExpenseCalendar: {
@@ -48,10 +80,13 @@ const globalStubs = {
 describe("ExpenseHistoryView manual synchronization", () => {
   let wrapper;
   let store;
+  let budgetStore;
 
   beforeEach(async () => {
     getExpenses.mockResolvedValue(createExpenseResponse());
+    getCategoryBudgets.mockResolvedValue({ success: true, data: {} });
     store = createStore();
+    budgetStore = createBudgetStore();
     store.syncAssets.mockResolvedValue({
       syncedAt: "2026-08-12T10:00:00",
       inserted: 3,
@@ -59,6 +94,7 @@ describe("ExpenseHistoryView manual synchronization", () => {
       failedConnections: 0,
     });
     useAssetStore.mockReturnValue(store);
+    useBudgetStore.mockReturnValue(budgetStore);
     wrapper = mount(ExpenseHistoryView, { global: { stubs: globalStubs } });
     await flushPromises();
   });
