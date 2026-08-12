@@ -43,10 +43,9 @@ class MissionGenerateResponse(BaseModel):
     @model_validator(mode="after")
     def missions_must_be_unique(self):
         keys = {
-            "".join((mission.title + mission.description).lower().split())
+            "".join(mission.title.lower().split())
             for mission in self.missions
         }
         if len(keys) != len(self.missions):
             raise ValueError("missions must be unique within a cycle")
         return self
-

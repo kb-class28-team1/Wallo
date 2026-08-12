@@ -31,7 +31,8 @@ public class DailyMissionAssignmentScheduler {
         this.enabled = enabled;
     }
 
-    @Scheduled(cron = "${mission.daily-assignment.scheduler.cron:0 0 0 * * *}",
+    // 격주 월요일에는 00:00 생성 작업이 끝난 뒤 배정되도록 5분 뒤 실행한다.
+    @Scheduled(cron = "${mission.daily-assignment.scheduler.cron:0 5 0 * * *}",
             zone = "Asia/Seoul")
     public void assignDailyMissions() {
         if (!enabled) return;

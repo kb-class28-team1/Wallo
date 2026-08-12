@@ -148,7 +148,7 @@ public class MissionGenerationService {
     }
 
     private String normalizedKey(MissionGenerationDto.GeneratedMission mission) {
-        return (mission.title() + mission.description()).replaceAll("\\s+", "")
+        return mission.title().replaceAll("\\s+", "")
                 .toLowerCase(Locale.ROOT);
     }
 

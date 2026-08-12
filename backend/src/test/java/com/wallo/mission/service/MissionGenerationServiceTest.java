@@ -68,7 +68,11 @@ class MissionGenerationServiceTest {
     @Test
     void rejectsDuplicateMissionsBeforeCreatingCycle() {
         List<MissionGenerationDto.GeneratedMission> missions = uniqueMissions();
-        missions.set(1, missions.get(0));
+        MissionGenerationDto.GeneratedMission first = missions.get(0);
+        missions.set(1, new MissionGenerationDto.GeneratedMission(
+                first.title(), "설명만 다른 중복 제목", first.category(), first.difficulty(),
+                first.rewardPoint(), first.verificationType(), first.verificationRule(),
+                first.evidenceGuide()));
         when(aiClient.generate(any())).thenReturn(response(missions));
 
         assertThrows(IllegalStateException.class, () -> service.generate(7L, false));

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from "vue"
+import { computed, onBeforeUnmount, onMounted, ref } from "vue"
 import { storeToRefs } from "pinia"
 import { RouterLink, useRouter } from "vue-router"
 import {
@@ -43,6 +43,11 @@ const totalMissionReward = computed(() =>
 onMounted(() => {
   userStore.fetchUserProfile()
   loadTodayMissions()
+  window.addEventListener("wallo:mission-updated", loadTodayMissions)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener("wallo:mission-updated", loadTodayMissions)
 })
 
 const loadTodayMissions = async () => {

@@ -65,3 +65,16 @@ export const generateMissionCycle = async () => {
     throw toApiError(error, "미션 생성에 실패했습니다.")
   }
 }
+
+export const verifyMissionWithFeed = async (dailyMissionId, feedId) => {
+  try {
+    const response = await httpClient.post(
+      `/api/missions/${dailyMissionId}/verify`,
+      null,
+      { params: { feedId } },
+    )
+    return response.data
+  } catch (error) {
+    throw toApiError(error, "미션 인증에 실패했습니다.")
+  }
+}

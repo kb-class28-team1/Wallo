@@ -60,7 +60,7 @@ def test_rejects_less_than_thirty_missions():
 def test_rejects_semantically_identical_normalized_text():
     missions = [_mission(i) for i in range(30)]
     missions[1]["title"] = " 맞춤   미션 0 "
-    missions[1]["description"] = missions[0]["description"]
+    missions[1]["description"] = "설명은 달라도 같은 제목이면 중복입니다."
     with pytest.raises(InvalidMissionResponseError):
         generate_missions(
             _client({"missions": missions, "promptVersion": "personalized-mission-v1"}),

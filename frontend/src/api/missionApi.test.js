@@ -4,6 +4,7 @@ import {
   generateMissionCycle,
   getTodayMissions,
   previewMissionGeneration,
+  verifyMissionWithFeed,
 } from "./missionApi"
 
 vi.mock("@/api/httpClient", () => ({
@@ -44,5 +45,19 @@ describe("missionApi", () => {
     httpClient.post.mockResolvedValue({ data: { missionCount: 30, status: "ACTIVE" } })
     await generateMissionCycle()
     expect(httpClient.post).toHaveBeenCalledWith("/api/dev/missions/generate")
+  })
+
+  it("verifies a mission using an already uploaded feed", async () => {
+    httpClient.post.mockResolvedValue({
+      data: { decision: "PASS", missionStatus: "COMPLETED", rewardedPoint: 10 },
+    })
+
+    await verifyMissionWithFeed(3, 21)
+
+    expect(httpClient.post).toHaveBeenCalledWith(
+      "/api/missions/3/verify",
+      null,
+      { params: { feedId: 21 } },
+    )
   })
 })
