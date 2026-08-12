@@ -4,6 +4,7 @@ import com.wallo.auth.CurrentUserProvider;
 import com.wallo.common.response.CommonResponse;
 import com.wallo.goal.dto.GoalAccountDto;
 import com.wallo.goal.dto.GoalDto;
+import com.wallo.goal.dto.GoalRoadmapDto;
 import com.wallo.goal.service.GoalAccountService;
 import com.wallo.goal.service.GoalService;
 import java.util.List;
@@ -43,6 +44,29 @@ public class GoalController {
     public CommonResponse<List<GoalAccountDto.AvailableAccount>> getAvailableAccounts() {
         return CommonResponse.success(
                 goalAccountService.getAvailableAccounts(currentUserProvider.getCurrentUserId())
+        );
+    }
+
+    @GetMapping("/goals/{goalId}/roadmap")
+    public CommonResponse<GoalRoadmapDto.Response> getRoadmap(@PathVariable Long goalId) {
+        return CommonResponse.success(
+                goalService.getRoadmap(currentUserProvider.getCurrentUserId(), goalId)
+        );
+    }
+
+    @PutMapping("/goals/{goalId}/roadmap/steps/{stepNumber}")
+    public CommonResponse<GoalRoadmapDto.Response> updateRoadmapStep(
+            @PathVariable Long goalId,
+            @PathVariable Integer stepNumber,
+            @RequestBody GoalRoadmapDto.StepProgressRequest request
+    ) {
+        return CommonResponse.success(
+                goalService.updateRoadmapStep(
+                        currentUserProvider.getCurrentUserId(),
+                        goalId,
+                        stepNumber,
+                        request == null ? null : request.getCompleted()
+                )
         );
     }
 

@@ -11,6 +11,7 @@ import com.wallo.external.auth.CodefCredentialProvider;
 import com.wallo.external.CodefRetryExecutor;
 import com.wallo.external.client.CardApprovalClient;
 import com.wallo.external.CodefDateTime;
+import com.wallo.external.CodefResponseValidator;
 import com.wallo.external.dto.CodefDto;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -111,6 +112,7 @@ public class CardApprovalCollectionService {
                 () -> cardApprovalClient.getApprovals(request)
         );
         long apiElapsedMs = elapsedMillis(apiStartedAt);
+        CodefResponseValidator.requireSuccess(response, "Card approval collection");
 
         long conversionStartedAt = System.nanoTime();
         List<CodefDto.CardApproval> approvals = objectMapper.convertValue(

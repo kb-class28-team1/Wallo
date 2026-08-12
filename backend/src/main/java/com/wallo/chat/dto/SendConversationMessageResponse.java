@@ -7,12 +7,13 @@ public class SendConversationMessageResponse {
     private final ChatMessageResponse userMessage;
     private final ChatMessageResponse assistantMessage;
     private final GoalInterviewDto.Result goalInterview;
+    private final ConsumptionAnalysisView consumptionAnalysis;
 
     public SendConversationMessageResponse(
             ChatMessageResponse userMessage,
             ChatMessageResponse assistantMessage
     ) {
-        this(userMessage, assistantMessage, null);
+        this(userMessage, assistantMessage, null, null);
     }
 
     public SendConversationMessageResponse(
@@ -20,9 +21,19 @@ public class SendConversationMessageResponse {
             ChatMessageResponse assistantMessage,
             GoalInterviewDto.Result goalInterview
     ) {
+        this(userMessage, assistantMessage, goalInterview, null);
+    }
+
+    public SendConversationMessageResponse(
+            ChatMessageResponse userMessage,
+            ChatMessageResponse assistantMessage,
+            GoalInterviewDto.Result goalInterview,
+            ConsumptionAnalysisView consumptionAnalysis
+    ) {
         this.userMessage = userMessage;
         this.assistantMessage = assistantMessage;
         this.goalInterview = goalInterview;
+        this.consumptionAnalysis = consumptionAnalysis;
     }
 
     public ChatMessageResponse getUserMessage() {
@@ -35,5 +46,9 @@ public class SendConversationMessageResponse {
 
     public GoalInterviewDto.Result getGoalInterview() {
         return goalInterview;
+    }
+
+    public ConsumptionAnalysisView getConsumptionAnalysis() {
+        return consumptionAnalysis;
     }
 }

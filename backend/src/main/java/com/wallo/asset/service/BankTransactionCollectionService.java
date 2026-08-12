@@ -11,6 +11,7 @@ import com.wallo.external.auth.CodefCredentialProvider;
 import com.wallo.external.CodefRetryExecutor;
 import com.wallo.external.client.BankTransactionClient;
 import com.wallo.external.CodefDateTime;
+import com.wallo.external.CodefResponseValidator;
 import com.wallo.external.dto.CodefDto;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -133,6 +134,7 @@ public class BankTransactionCollectionService {
                 () -> bankTransactionClient.getTransactions(request)
         );
         long apiElapsedMs = elapsedMillis(apiStartedAt);
+        CodefResponseValidator.requireSuccess(response, "Bank transaction collection");
 
         long conversionStartedAt = System.nanoTime();
         List<CodefDto.BankTransaction> transactions = objectMapper.convertValue(
