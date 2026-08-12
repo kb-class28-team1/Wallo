@@ -14,6 +14,8 @@ import com.wallo.chat.domain.Conversation;
 import com.wallo.chat.dto.ChatRequest;
 import com.wallo.chat.dto.ChatHistoryMessage;
 import com.wallo.chat.dto.ChatResponse;
+import com.wallo.chat.dto.ConsumptionAnalysisView;
+import com.wallo.chat.dto.ConsumptionAnalysisPeriodContext;
 import com.wallo.chat.dto.SendConversationMessageRequest;
 import com.wallo.chat.dto.SendConversationMessageResponse;
 import com.wallo.chat.dto.SummarizeConversationRequest;
@@ -28,6 +30,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Map;
 
 class ConversationMessageServiceTest {
 
@@ -43,6 +46,12 @@ class ConversationMessageServiceTest {
     @Mock
     private GoalPersistenceService goalPersistenceService;
 
+    @Mock
+    private ConsumptionAnalysisResultService consumptionAnalysisResultService;
+
+    @Mock
+    private ConsumptionAnalysisViewAssembler consumptionAnalysisViewAssembler;
+
     private ConversationMessageService conversationMessageService;
 
     @BeforeEach
@@ -52,7 +61,9 @@ class ConversationMessageServiceTest {
                 conversationService,
                 persistenceService,
                 chatService,
-                goalPersistenceService
+                goalPersistenceService,
+                consumptionAnalysisResultService,
+                consumptionAnalysisViewAssembler
         );
     }
 
@@ -132,6 +143,39 @@ class ConversationMessageServiceTest {
                 .thenReturn(new ChatResponse("자동이체를 설명할게요.", null));
         when(persistenceService.saveMessage(1L, "ASSISTANT", "자동이체를 설명할게요."))
                 .thenReturn(message(4L, "ASSISTANT", "자동이체를 설명할게요."));
+
+        conversationMessageService.sendMessage(1L, 1L, request);
+
+        verify(chatService).chat(expectedRequest, 1L);
+    }
+
+    @Test
+    void sendMessagePassesLatestConsumptionPeriodToFollowUp() {
+        SendConversationMessageRequest request = request(1L, "그 기간에 소비 습관이 있어?");
+        ChatMessage previousUser = message(1L, "USER", "7월 소비를 분석해줘");
+        ChatMessage previousAssistant = message(2L, "ASSISTANT", "7월 소비 분석 결과");
+        ConsumptionAnalysisPeriodContext period = new ConsumptionAnalysisPeriodContext(
+                "MONTHLY", "지난달", "2026-07-01", "2026-07-31",
+                "2026-06-01", "2026-06-30"
+        );
+        ChatRequest expectedRequest = new ChatRequest(
+                request.getMessage(), false,
+                List.of(
+                        new ChatHistoryMessage("user", previousUser.getContent()),
+                        new ChatHistoryMessage("assistant", previousAssistant.getContent())
+                )
+        ).withPreviousConsumptionPeriod(period);
+
+        when(persistenceService.getMessages(1L))
+                .thenReturn(List.of(previousUser, previousAssistant));
+        when(consumptionAnalysisResultService.findLatestPeriod(List.of(2L)))
+                .thenReturn(period);
+        when(persistenceService.saveMessage(1L, "USER", request.getMessage()))
+                .thenReturn(message(3L, "USER", request.getMessage()));
+        when(chatService.chat(expectedRequest, 1L))
+                .thenReturn(new ChatResponse("분석 결과", null));
+        when(persistenceService.saveMessage(1L, "ASSISTANT", "분석 결과"))
+                .thenReturn(message(4L, "ASSISTANT", "분석 결과"));
 
         conversationMessageService.sendMessage(1L, 1L, request);
 
@@ -304,6 +348,48 @@ class ConversationMessageServiceTest {
         verify(goalPersistenceService).applyResult(7L, 1L, goalResult);
     }
 
+    @Test
+    void linksConsumptionAnalysisToSavedAssistantMessage() {
+        SendConversationMessageRequest request = request(7L, "이번 달 소비를 분석해줘");
+        ChatMessage assistantMessage = message(2L, "ASSISTANT", "분석 결과입니다.");
+        Map<String, Object> calculation = Map.of("periodType", "MONTHLY");
+        ConsumptionAnalysisView analysis = emptyAnalysis();
+
+        when(persistenceService.saveMessage(1L, "USER", request.getMessage()))
+                .thenReturn(message(1L, "USER", request.getMessage()));
+        when(chatService.chat(new ChatRequest(request.getMessage()), 7L))
+                .thenReturn(new ChatResponse(
+                        "분석 결과입니다.", null, null, calculation));
+        when(persistenceService.saveMessage(1L, "ASSISTANT", "분석 결과입니다."))
+                .thenReturn(assistantMessage);
+        when(consumptionAnalysisViewAssembler.assemble(calculation))
+                .thenReturn(analysis);
+
+        SendConversationMessageResponse response =
+                conversationMessageService.sendMessage(1L, 7L, request);
+
+        verify(consumptionAnalysisResultService).save(
+                7L, 2L, request.getMessage(), calculation, "분석 결과입니다.");
+        assertEquals(analysis, response.getConsumptionAnalysis());
+        assertEquals(analysis,
+                response.getAssistantMessage().getConsumptionAnalysis());
+    }
+
+    @Test
+    void restoresConsumptionAnalysisWithConversationMessages() {
+        ChatMessage assistantMessage = message(2L, "ASSISTANT", "분석 결과입니다.");
+        ConsumptionAnalysisView analysis = emptyAnalysis();
+        when(persistenceService.getMessages(1L))
+                .thenReturn(List.of(assistantMessage));
+        when(consumptionAnalysisResultService.findByAssistantMessageIds(
+                List.of(2L))).thenReturn(Map.of(2L, analysis));
+
+        List<com.wallo.chat.dto.ChatMessageResponse> responses =
+                conversationMessageService.getMessages(1L, 7L);
+
+        assertEquals(analysis, responses.get(0).getConsumptionAnalysis());
+    }
+
     private SendConversationMessageRequest request(Long userId, String content) {
         SendConversationMessageRequest request =
                 new SendConversationMessageRequest();
@@ -334,6 +420,22 @@ class ConversationMessageServiceTest {
                 List.of(),
                 List.of(),
                 confirmed
+        );
+    }
+
+    private ConsumptionAnalysisView emptyAnalysis() {
+        return new ConsumptionAnalysisView(
+                "OVERVIEW",
+                new ConsumptionAnalysisView.PeriodInfo(
+                        "MONTHLY", "이번 달", "2026-08-01", "2026-08-11",
+                        "2026-07-01", "2026-07-31"),
+                true,
+                null,
+                new ConsumptionAnalysisView.SummaryInfo(
+                        100_000L, 120_000L, -20_000L, -16.7, false),
+                new ConsumptionAnalysisView.SignalSet(
+                        List.of(), List.of(), List.of(), List.of(), List.of(),
+                        List.of(), null, List.of(), List.of(), List.of(), List.of())
         );
     }
 }

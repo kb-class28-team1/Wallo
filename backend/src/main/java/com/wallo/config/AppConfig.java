@@ -61,8 +61,18 @@ public class AppConfig {
     }
 
     @Bean
-    public RestTemplate restTemplate() {
-        return new RestTemplate();
+    public RestTemplate restTemplate(
+            @Value("${codef.http.connect-timeout-ms:2000}") int connectTimeoutMs,
+            @Value("${codef.http.read-timeout-ms:3000}") int readTimeoutMs
+    ) {
+        if (connectTimeoutMs < 1 || readTimeoutMs < 1) {
+            throw new IllegalArgumentException("CODEF HTTP timeouts must be positive.");
+        }
+
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(connectTimeoutMs);
+        requestFactory.setReadTimeout(readTimeoutMs);
+        return new RestTemplate(requestFactory);
     }
 
     @Bean

@@ -35,4 +35,8 @@ public interface ExpenseMapper {
             @Param("userId") long userId,
             @Param("condition") ExpenseDto.SearchCondition condition
     );
+
+    List<ExpenseDto.AnalysisTransaction> selectAllExpenseTransactions(
+            @Param("userId") long userId
+    );
 }

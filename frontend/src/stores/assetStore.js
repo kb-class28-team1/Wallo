@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { getAssets } from "@/api/assetApi";
+import { getAssets, syncAssets as requestAssetSync } from "@/api/assetApi";
 import { getApiErrorMessage } from "@/commonUtils/apiError";
 
 export const useAssetStore = defineStore("asset", {
@@ -7,6 +7,9 @@ export const useAssetStore = defineStore("asset", {
     isAssetLoading: false,
     assets: null,
     error: null,
+    isSyncing: false,
+    lastSyncResult: null,
+    syncError: null,
   }),
 
   actions: {
@@ -39,7 +42,40 @@ export const useAssetStore = defineStore("asset", {
         this.isAssetLoading = false;
       }
     },
+
+    async syncAssets({ notifyError = true } = {}) {
+      if (this.isSyncing) {
+        return null;
+      }
+
+      this.isSyncing = true;
+      this.syncError = null;
+
+      try {
+        const response = await requestAssetSync();
+        if (!response?.success || !response?.data) {
+          throw new Error(
+            response?.error?.message
+              || "자산 거래내역 동기화에 실패했습니다.",
+          );
+        }
+
+        this.lastSyncResult = response.data;
+        return this.lastSyncResult;
+      } catch (error) {
+        const errorMessage = getApiErrorMessage(
+          error,
+          "자산 거래내역 동기화에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+        );
+        this.syncError = errorMessage;
+        if (notifyError) {
+          alert(errorMessage);
+        }
+
+        throw error;
+      } finally {
+        this.isSyncing = false;
+      }
+    },
   },
 });
-
-

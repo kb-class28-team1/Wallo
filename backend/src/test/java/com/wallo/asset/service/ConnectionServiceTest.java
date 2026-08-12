@@ -3,6 +3,7 @@ package com.wallo.asset.service;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -87,6 +88,12 @@ public class ConnectionServiceTest {
         assertEquals("mock_pw", requestCaptor.getAllValues().get(0).getPassword());
         verify(connectionMapper).insertConnections(any(), org.mockito.ArgumentMatchers.eq(7L), any(), any(), any());
         verify(annualSalarySyncService).syncAnnualSalary(7L);
+        verify(assetSyncService, times(3)).sync(
+                eq(7L),
+                eq(1L),
+                any(Institution.class),
+                any(CodefDto.Response.class)
+        );
         verify(cardWithdrawalReconciliationService).reconcile(7L);
     }
 
@@ -117,6 +124,12 @@ public class ConnectionServiceTest {
         assertEquals(
                 ConnectionDto.AnnualSalaryLookupStatus.UNAVAILABLE,
                 response.getAnnualSalaryLookupStatus()
+        );
+        verify(assetSyncService, times(2)).sync(
+                eq(7L),
+                eq(1L),
+                any(Institution.class),
+                any(CodefDto.Response.class)
         );
     }
 

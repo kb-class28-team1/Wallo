@@ -2,6 +2,7 @@ package com.wallo.asset.mapper;
 
 import com.wallo.asset.dto.BudgetDto;
 import org.apache.ibatis.annotations.Param;
+import java.util.List;
 
 public interface BudgetMapper {
 
@@ -9,6 +10,8 @@ public interface BudgetMapper {
             @Param("userId") long userId,
             @Param("targetMonth") String targetMonth
     );
+
+    List<BudgetDto.Budget> selectBudgets(@Param("userId") long userId);
 
     int upsertBudget(
             @Param("userId") long userId,

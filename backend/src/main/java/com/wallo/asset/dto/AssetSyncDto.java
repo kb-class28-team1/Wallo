@@ -1,6 +1,7 @@
 package com.wallo.asset.dto;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -10,6 +11,55 @@ import lombok.Setter;
 public final class AssetSyncDto {
 
     private AssetSyncDto() {
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class SyncTarget {
+        private Long userId;
+        private Long connectionId;
+        private Long institutionId;
+        private String codefOrganizationCode;
+        private String institutionName;
+        private String financialGroupCode;
+        private String financialGroupName;
+        private String institutionType;
+        private String logoUrl;
+    }
+
+    @Getter
+    @AllArgsConstructor
+    public static class SyncResponse {
+        private final LocalDateTime syncedAt;
+        private final int inserted;
+        private final int updated;
+        private final int failedConnections;
+    }
+
+    @Getter
+    @AllArgsConstructor
+    public static class SyncStats {
+        private final int inserted;
+        private final int updated;
+
+        public static SyncStats empty() {
+            return new SyncStats(0, 0);
+        }
+
+        public int total() {
+            return inserted + updated;
+        }
+
+        public SyncStats plus(SyncStats other) {
+            if (other == null) {
+                return this;
+            }
+            return new SyncStats(
+                    inserted + other.inserted,
+                    updated + other.updated
+            );
+        }
     }
 
     @Getter
