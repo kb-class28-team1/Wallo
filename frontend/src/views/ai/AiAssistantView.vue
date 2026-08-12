@@ -4,6 +4,11 @@ import { useRouter } from "vue-router"
 import { storeToRefs } from "pinia"
 import { useGoalStore } from "@/stores/goalStore"
 import { formatWon } from "@/commonUtils/formatters"
+import {
+  getGoalAchievementRate,
+  getGoalCurrentAmount,
+  getGoalTargetAmount,
+} from "@/commonUtils/goalProgress"
 
 const router = useRouter()
 const goalStore = useGoalStore()
@@ -22,20 +27,9 @@ const hasGoal = computed(() => goals.value.length > 0)
 const currentGoal = computed(() => goals.value[0] ?? null)
 const roadmapSlider = ref(null)
 
-const currentAmount = computed(() => {
-  const amount = Number(currentGoal.value?.currentAmount)
-  return Number.isFinite(amount) ? amount : Number(currentGoal.value?.initialAmount) || 0
-})
-
-const targetAmount = computed(() => Number(currentGoal.value?.targetAmount) || 0)
-const achievementRate = computed(() => {
-  const serverRate = Number(currentGoal.value?.achievementRate)
-  if (Number.isFinite(serverRate)) {
-    return Math.min(100, Math.max(0, Math.round(serverRate)))
-  }
-  if (targetAmount.value <= 0) return 0
-  return Math.min(100, Math.round((currentAmount.value / targetAmount.value) * 100))
-})
+const currentAmount = computed(() => getGoalCurrentAmount(currentGoal.value))
+const targetAmount = computed(() => getGoalTargetAmount(currentGoal.value))
+const achievementRate = computed(() => getGoalAchievementRate(currentGoal.value))
 
 const parseGoalDate = (value) => {
   if (!value) return null

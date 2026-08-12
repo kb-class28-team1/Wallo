@@ -1,6 +1,10 @@
 <script setup>
 import { computed, ref, watch } from "vue";
 import { formatWon } from "@/commonUtils/formatters";
+import {
+  getGoalAchievementRate,
+  getGoalCurrentAmount,
+} from "@/commonUtils/goalProgress";
 
 const props = defineProps({
   goals: {
@@ -68,30 +72,6 @@ const formatGoalDate = (date) => {
   }).format(parsedDate);
 };
 
-const getCurrentAmount = (goal) => {
-  const currentAmount = Number(goal?.currentAmount);
-  if (Number.isFinite(currentAmount)) {
-    return currentAmount;
-  }
-
-  return Number(goal?.initialAmount) || 0;
-};
-
-const getAchievementRate = (goal) => {
-  const targetAmount = Number(goal?.targetAmount);
-  const serverRate = Number(goal?.achievementRate);
-
-  if (Number.isFinite(serverRate)) {
-    return Math.min(100, Math.max(0, Math.round(serverRate)));
-  }
-
-  if (!Number.isFinite(targetAmount) || targetAmount <= 0) {
-    return 0;
-  }
-
-  return Math.min(100, Math.max(0, Math.round((getCurrentAmount(goal) / targetAmount) * 100)));
-};
-
 </script>
 
 <template>
@@ -138,22 +118,22 @@ const getAchievementRate = (goal) => {
             <p class="goal-progress-caption mb-1">목표 설정 당시 준비금 기준</p>
             <div class="d-flex align-items-baseline justify-content-between gap-3">
               <div class="goal-progress-amount">
-                <strong>{{ formatWon(getCurrentAmount(selectedGoal)) }}</strong>
+                <strong>{{ formatWon(getGoalCurrentAmount(selectedGoal)) }}</strong>
                 <span>/ {{ formatWon(selectedGoal.targetAmount) }}</span>
               </div>
-              <strong class="goal-progress-rate">{{ getAchievementRate(selectedGoal) }}%</strong>
+              <strong class="goal-progress-rate">{{ getGoalAchievementRate(selectedGoal) }}%</strong>
             </div>
             <div
               class="progress goal-progress mt-2"
               role="progressbar"
               :aria-label="`${selectedGoal.title || '금융 목표'} 달성률`"
-              :aria-valuenow="getAchievementRate(selectedGoal)"
+              :aria-valuenow="getGoalAchievementRate(selectedGoal)"
               aria-valuemin="0"
               aria-valuemax="100"
             >
               <div
                 class="progress-bar goal-progress-bar"
-                :style="{ width: `${getAchievementRate(selectedGoal)}%` }"
+                :style="{ width: `${getGoalAchievementRate(selectedGoal)}%` }"
               ></div>
             </div>
           </div>
