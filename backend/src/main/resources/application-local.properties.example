@@ -1,9 +1,0 @@
-# 로컬 application-local.properties에 복사해 사용하세요.
-# 키가 없거나 false이면 저장된 시세만 사용하며 외부 검색은 건너뜁니다.
-shopping.price.enabled=false
-shopping.price.serpapi.api-key=
-shopping.price.serpapi.base-url=https://serpapi.com/search.json
-shopping.price.connect-timeout-ms=1500
-shopping.price.read-timeout-ms=4500
-shopping.price.max-results=20
-shopping.price.max-concurrency=3
