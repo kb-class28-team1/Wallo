@@ -398,10 +398,7 @@ CREATE TABLE FEED_ANALYSIS
     saving_difference        BIGINT       NOT NULL DEFAULT 0,
     detected_items_json      JSON         NULL,
     price_references_json    JSON         NULL,
-    analyzed_at              DATETIME     NULL,
-    analysis_accuracy        VARCHAR(20)  NULL,
-    analysis_feedback_note   VARCHAR(500) NULL,
-    analysis_feedback_at     DATETIME     NULL
+    analyzed_at              DATETIME     NULL
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_unicode_ci
