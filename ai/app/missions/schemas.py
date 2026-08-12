@@ -37,8 +37,25 @@ class GeneratedMission(BaseModel):
 class MissionGenerateResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    missions: list[GeneratedMission] = Field(min_length=30, max_length=30)
+    missions: list[GeneratedMission] = Field(min_length=30)
     promptVersion: str = Field(min_length=1, max_length=50)
+
+    @model_validator(mode="before")
+    @classmethod
+    def keep_first_thirty_unique_missions(cls, value):
+        if not isinstance(value, dict) or not isinstance(value.get("missions"), list):
+            return value
+        unique = []
+        title_keys = set()
+        for mission in value["missions"]:
+            title = mission.get("title") if isinstance(mission, dict) else None
+            key = "".join(str(title or "").lower().split())
+            if key and key not in title_keys:
+                title_keys.add(key)
+                unique.append(mission)
+            if len(unique) == 30:
+                break
+        return {**value, "missions": unique}
 
     @model_validator(mode="after")
     def missions_must_be_unique(self):

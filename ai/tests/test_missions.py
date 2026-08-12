@@ -67,3 +67,14 @@ def test_rejects_semantically_identical_normalized_text():
             _request(),
             "test-model",
         )
+
+
+def test_trims_extra_unique_missions_to_thirty():
+    result = generate_missions(
+        _client({"missions": [_mission(i) for i in range(33)],
+                 "promptVersion": "personalized-mission-v1"}),
+        _request(),
+        "test-model",
+    )
+
+    assert len(result.missions) == 30
