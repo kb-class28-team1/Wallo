@@ -46,6 +46,15 @@ class MissionGenerationServiceTest {
     }
 
     @Test
+    void previewsThirtyMissionsWithoutWritingDatabase() {
+        MissionGenerationDto.Response response = service.preview(7L);
+
+        assertEquals(30, response.missions().size());
+        verify(mapper, never()).insertCycle(any());
+        verify(mapper, never()).insertMission(any());
+    }
+
+    @Test
     void generatesAndStoresExactlyThirtyUniqueMissions() {
         MissionGenerationDto.Result result = service.generate(7L, false);
 
@@ -97,4 +106,3 @@ class MissionGenerationServiceTest {
         return result;
     }
 }
-

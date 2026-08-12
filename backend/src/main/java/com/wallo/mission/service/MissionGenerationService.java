@@ -50,6 +50,18 @@ public class MissionGenerationService {
         return userIds == null ? List.of() : userIds;
     }
 
+    /** DB에 저장하지 않고 최신 소비분석 기반 AI 결과를 검증해 반환함. */
+    public MissionGenerationDto.Response preview(Long userId) {
+        if (userId == null || userId < 1) throw new IllegalArgumentException("userId is required.");
+        MissionAnalysisSource source = missionMapper.findLatestAnalysis(userId);
+        if (source == null) throw new IllegalStateException("Consumption analysis is unavailable.");
+        MissionGenerationDto.Response response = missionAiClient.generate(
+                new MissionGenerationDto.Request(userId, source.getAnalysisResultId(),
+                        parseAnalysis(source.getCalculatedResultJson())));
+        validate(response);
+        return response;
+    }
+
     @Transactional
     public MissionGenerationDto.Result generate(Long userId, boolean force) {
         if (userId == null || userId < 1) throw new IllegalArgumentException("userId is required.");
@@ -154,4 +166,3 @@ public class MissionGenerationService {
 
     private boolean isBlank(String value) { return value == null || value.isBlank(); }
 }
-
