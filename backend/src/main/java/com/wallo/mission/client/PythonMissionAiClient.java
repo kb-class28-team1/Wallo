@@ -1,12 +1,14 @@
 package com.wallo.mission.client;
 
 import com.wallo.chat.client.AiServerException;
+import com.wallo.chat.client.AiRateLimitException;
 import com.wallo.mission.dto.MissionGenerationDto;
 import java.net.URI;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
@@ -33,6 +35,15 @@ public class PythonMissionAiClient implements MissionAiClient {
                 throw new AiServerException("AI mission response is empty.");
             }
             return response.getBody();
+        } catch (HttpStatusCodeException exception) {
+            if (exception.getRawStatusCode() == 429) {
+                throw new AiRateLimitException(
+                        "AI 미션 생성 한도에 도달했습니다. 잠시 후 다시 시도해 주세요.",
+                        exception);
+            }
+            throw new AiServerException(
+                    "AI mission server returned status " + exception.getRawStatusCode() + ".",
+                    exception);
         } catch (ResourceAccessException exception) {
             throw new AiServerException("Unable to connect to the AI mission server.", exception);
         } catch (RestClientException exception) {
@@ -40,4 +51,3 @@ public class PythonMissionAiClient implements MissionAiClient {
         }
     }
 }
-

@@ -79,6 +79,14 @@ def test_trims_extra_unique_missions_to_twenty():
     assert len(result.missions) == 20
 
 
+def test_structured_schema_accepts_small_over_generation_for_trimming():
+    from app.missions.service import MISSION_RESPONSE_SCHEMA
+
+    missions_schema = MISSION_RESPONSE_SCHEMA["schema"]["properties"]["missions"]
+    assert missions_schema["minItems"] == 20
+    assert missions_schema["maxItems"] == 24
+
+
 def test_rejects_changed_field_names_and_missing_category():
     missions = [_mission(i) for i in range(20)]
     for mission in missions:

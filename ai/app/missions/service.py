@@ -23,7 +23,7 @@ MISSION_RESPONSE_SCHEMA = {
             "missions": {
                 "type": "array",
                 "minItems": 20,
-                "maxItems": 20,
+                "maxItems": 24,
                 "items": {
                     "type": "object",
                     "additionalProperties": False,
