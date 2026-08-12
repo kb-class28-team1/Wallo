@@ -558,6 +558,16 @@ onBeforeUnmount(() => {
       <button class="btn btn-primary" @click="loadPage">다시 시도</button>
     </div>
     <template v-else>
+      <button
+        type="button"
+        class="feed-leave-button"
+        title="챌린지 나가기"
+        aria-label="챌린지 나가기"
+        :disabled="isLeavingChallenge"
+        @click="leaveCurrentChallenge"
+      >
+        <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+      </button>
       <header class="feed-header">
         <div class="feed-heading-content">
           <span>MY SAVING FEED</span>
@@ -673,16 +683,6 @@ onBeforeUnmount(() => {
         </main>
 
         <aside class="feed-sidebar">
-          <button
-            type="button"
-            class="feed-leave-button"
-            title="챌린지 탈퇴"
-            aria-label="챌린지 탈퇴"
-            :disabled="isLeavingChallenge"
-            @click="leaveCurrentChallenge"
-          >
-            <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
-          </button>
           <div class="saving-total">
             <small>나의 누적 절약 금액</small><strong>{{ formatWon(mySavingTotal) }}</strong>
           </div>
@@ -891,6 +891,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .feed-page {
   min-height: calc(100vh - 130px);
+  position: relative;
   color: #202840;
 }
 .page-state {
@@ -928,8 +929,8 @@ onBeforeUnmount(() => {
   display: inline-flex !important;
   visibility: visible !important;
   position: absolute;
-  top: 20px;
-  left: -58px;
+  top: 30px;
+  right: 352px;
   z-index: 2;
   width: 44px;
   height: 44px;
@@ -1685,8 +1686,9 @@ textarea {
   }
   .feed-leave-button {
     position: static;
-    align-self: flex-end;
-    margin-bottom: -8px;
+    display: flex !important;
+    width: 44px;
+    margin: 0 0 14px auto;
   }
   .chat-room {
     flex: none;
