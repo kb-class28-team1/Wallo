@@ -1,59 +1,39 @@
 {
   "result": {
     "code": "CF-00000",
-    "message": "성공",
+    "message": "success",
     "extraMessage": ""
   },
   "data": [
     {
-      "resAccount": "123456-01-789012",
-      "resTrNo": "BANK-202606-0001",
-      "resTrDate": "20260630",
-      "resTrTime": "090000",
-      "resAccountIn": "100000",
-      "resAccountOut": "0",
-      "resAccountDesc": "용돈_6월",
-      "transactionKind": "INCOME"
-    },
-    {
-      "resAccount": "123456-01-789012",
-      "resTrNo": "BANK-202607-0001",
-      "resTrDate": "20260725",
-      "resTrTime": "100000",
-      "resAccountIn": "3000000",
-      "resAccountOut": "0",
-      "resAccountDesc": "월급_7월",
-      "transactionKind": "INCOME"
-    },
-    {
-      "resAccount": "123456-01-789012",
-      "resTrNo": "BANK-202607-0002",
-      "resTrDate": "20260726",
-      "resTrTime": "193000",
-      "resAccountIn": "0",
-      "resAccountOut": "38000",
-      "resAccountDesc": "체크가맹_배달의민족",
-      "transactionKind": "CARD_PAYMENT"
-    },
-    {
-      "resAccount": "123456-01-789012",
-      "resTrNo": "BANK-202607-0003",
-      "resTrDate": "20260728",
-      "resTrTime": "142000",
-      "resAccountIn": "0",
-      "resAccountOut": "50000",
-      "resAccountDesc": "김철수",
-      "transactionKind": "TRANSFER"
-    },
-    {
-      "resAccount": "123456-01-789012",
+      "resAccount": "987654-01-321098",
       "resTrNo": "BANK-202608-0001",
-      "resTrDate": "20260801",
-      "resTrTime": "120000",
+      "resTrDate": "20260805",
+      "resTrTime": "090000",
+      "resAccountIn": "2400000",
+      "resAccountOut": "0",
+      "resAccountDesc": "\uC6D4\uAE09",
+      "transactionKind": "INCOME"
+    },
+    {
+      "resAccount": "987654-01-321098",
+      "resTrNo": "BANK-202608-0002",
+      "resTrDate": "20260805",
+      "resTrTime": "090500",
       "resAccountIn": "0",
-      "resAccountOut": "120000",
-      "resAccountDesc": "8월 생활비 송금",
+      "resAccountOut": "1560000",
+      "resAccountDesc": "\uC801\uAE08 \uC790\uB3D9\uC774\uCCB4",
       "transactionKind": "TRANSFER"
+    },
+    {
+      "resAccount": "987654-01-321098",
+      "resTrNo": "BANK-202608-0003",
+      "resTrDate": "20260806",
+      "resTrTime": "190000",
+      "resAccountIn": "0",
+      "resAccountOut": "840000",
+      "resAccountDesc": "\uC6D4\uAC04 \uC0DD\uD65C\uBE44",
+      "transactionKind": "CARD_PAYMENT"
     }
   ]
 }

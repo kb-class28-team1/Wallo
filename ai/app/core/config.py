@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 DEFAULT_GROQ_MODEL = "openai/gpt-oss-20b"
-DEFAULT_DEMO_ASSET_PROFILE_ID = 3
+DEFAULT_DEMO_ASSET_PROFILE_ID = 7
 
 
 def get_groq_api_key() -> str | None:
