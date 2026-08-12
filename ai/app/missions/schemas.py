@@ -16,7 +16,7 @@ class GeneratedMission(BaseModel):
 
     title: str = Field(min_length=1, max_length=100)
     description: str = Field(min_length=1, max_length=500)
-    category: str = Field(min_length=1, max_length=30)
+    category: str = Field(default="GENERAL", min_length=1, max_length=30)
     difficulty: Literal["EASY", "NORMAL", "HARD"]
     rewardPoint: int = Field(ge=0, le=100)
     verificationType: Literal[
@@ -24,6 +24,18 @@ class GeneratedMission(BaseModel):
     ]
     verificationRule: dict[str, Any] | None = None
     evidenceGuide: str | None = Field(default=None, max_length=500)
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_common_ai_field_names(cls, value):
+        if not isinstance(value, dict):
+            return value
+        normalized = dict(value)
+        if "verificationType" not in normalized and "type" in normalized:
+            normalized["verificationType"] = normalized.pop("type")
+        if "rewardPoint" not in normalized and "points" in normalized:
+            normalized["rewardPoint"] = normalized.pop("points")
+        return normalized
 
     @field_validator("title", "description", "category")
     @classmethod
