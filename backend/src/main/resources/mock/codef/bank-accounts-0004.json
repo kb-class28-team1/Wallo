@@ -7,58 +7,18 @@
   "data": {
     "accounts": [
       {
-        "resAccountName": "KB국민ONE통장-입출금",
-        "resAccount": "123456-01-789012",
-        "resAccountDisplay": "123456-**-***012",
-        "resAccountBalance": "5000000",
-        "resAccountEvalAmount": "5000000",
-        "resAccountCurrency": "KRW",
-        "resAccountStatus": "1",
-        "resAccountSubtype": "DEPOSIT"
-      },
-      {
-        "resAccountName": "주택청약종합저축",
+        "resAccountName": "현금·적금 등 나머지 자산",
         "resAccount": "987654-01-321098",
         "resAccountDisplay": "987654-**-***098",
-        "resAccountBalance": "15000000",
-        "resAccountEvalAmount": "15000000",
+        "resAccountBalance": "11100000",
+        "resAccountEvalAmount": "11100000",
         "resAccountCurrency": "KRW",
         "resAccountStatus": "1",
         "resAccountSubtype": "SAVINGS"
       }
     ],
-    "loans": [
-      {
-        "resLoanName": "일반 상환 학자금대출",
-        "resLoanAccount": "STUDENT-LOAN-2021-001",
-        "resLoanDisplay": "STUDENT-LOAN-****-001",
-        "resLoanBalance": "4800000",
-        "resLoanOriginalAmount": "10000000",
-        "resLoanInterestRate": "1.70",
-        "resLoanMonthlyRepayment": "150000",
-        "resLoanStatus": "1",
-        "resLoanCurrency": "KRW"
-      }
-    ],
-    "assetSnapshots": [
-      { "snapshotMonth": "2026-04", "totalAssets": "34200000" },
-      { "snapshotMonth": "2026-05", "totalAssets": "35150000" },
-      { "snapshotMonth": "2026-06", "totalAssets": "36400000" },
-      { "snapshotMonth": "2026-07", "totalAssets": "38400000" },
-      { "snapshotMonth": "2026-08", "totalAssets": "40100000" }
-    ],
-    "transactions": [
-      {
-        "resLoanAccount": "STUDENT-LOAN-2021-001",
-        "resLoanPaymentNo": "LOAN-202607-0001",
-        "resLoanPaymentDate": "2026-07-25",
-        "resLoanPaymentTime": "09:00:00",
-        "resLoanPaymentAmount": "150000",
-        "resLoanPrincipalAmount": "143200",
-        "resLoanInterestAmount": "6800",
-        "resLoanPaymentType": "REPAYMENT",
-        "resLoanPaymentCategory": "LOAN_REPAYMENT"
-      }
-    ]
+    "loans": [],
+    "assetSnapshots": [],
+    "transactions": []
   }
 }
