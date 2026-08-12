@@ -23,6 +23,9 @@ public class SerpApiGatheredQuantityClient implements GatheredQuantityClient {
     private static final Pattern COUNT_AFTER_PACKAGE = Pattern.compile(
             "(?i)(?:1\\s*(?:kg|킬로|박스|팩|봉|상자))[^0-9]{0,24}"
                     + "(\\d+)\\s*(?:개|마리|미|송이|그루|알|입)");
+    private static final Pattern COUNT_PER_WEIGHT = Pattern.compile(
+            "(?i)(?:kg|킬로)\\s*(?:당|에|기준)[^0-9]{0,24}"
+                    + "(\\d+)\\s*(?:개|마리|미|송이|그루|알|입)");
 
     private final RestTemplate restTemplate;
     private final String baseUrl;
@@ -39,9 +42,13 @@ public class SerpApiGatheredQuantityClient implements GatheredQuantityClient {
 
     @Override
     public OptionalInt findAveragePackageQuantity(String itemName, String packageUnit) {
-        String query = ((itemName == null ? "" : itemName.trim()) + " "
+        String normalizedItemName = itemName == null ? "" : itemName.trim();
+        if (normalizedItemName.isBlank()) {
+            return OptionalInt.empty();
+        }
+        String query = (normalizedItemName + " "
                 + (packageUnit == null ? "판매 단위" : packageUnit.trim())
-                + " 평균 개수").trim();
+                + " 평균 개수 몇 개 1kg당").trim();
         if (query.isBlank()) {
             return OptionalInt.empty();
         }
@@ -115,6 +122,10 @@ public class SerpApiGatheredQuantityClient implements GatheredQuantityClient {
         Matcher packageMatcher = COUNT_AFTER_PACKAGE.matcher(text);
         while (packageMatcher.find()) {
             quantities.add(Integer.parseInt(packageMatcher.group(1)));
+        }
+        Matcher weightMatcher = COUNT_PER_WEIGHT.matcher(text);
+        while (weightMatcher.find()) {
+            quantities.add(Integer.parseInt(weightMatcher.group(1)));
         }
     }
 }

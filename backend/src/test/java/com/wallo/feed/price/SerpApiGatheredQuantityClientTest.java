@@ -24,6 +24,7 @@ class SerpApiGatheredQuantityClientTest {
                     assertTrue(query.contains("engine=google"));
                     assertTrue(query.contains("고구마"));
                     assertTrue(query.contains("평균"));
+                    assertTrue(query.contains("1kg당"));
                 })
                 .andRespond(withSuccess("""
                         {
@@ -47,6 +48,34 @@ class SerpApiGatheredQuantityClientTest {
 
         assertTrue(result.isPresent());
         assertEquals(5, result.getAsInt());
+        server.verify();
+    }
+
+    @Test
+    void extractsQuantityWrittenAsPerKilogram() {
+        RestTemplate restTemplate = new RestTemplate();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
+        server.expect(request -> assertTrue(URLDecoder.decode(
+                        request.getURI().getRawQuery(), StandardCharsets.UTF_8)
+                .contains("풋고추")))
+                .andRespond(withSuccess("""
+                        {
+                          "organic_results": [
+                            {
+                              "title": "풋고추 1kg당 20개",
+                              "snippet": "풋고추는 1kg 기준 약 20개입니다."
+                            }
+                          ]
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        GatheredQuantityClient client = new SerpApiGatheredQuantityClient(
+                restTemplate, "https://serpapi.test/search.json", "test-key", 20);
+
+        OptionalInt result = client.findAveragePackageQuantity("풋고추", "판매 단위");
+
+        assertTrue(result.isPresent());
+        assertEquals(20, result.getAsInt());
         server.verify();
     }
 }
