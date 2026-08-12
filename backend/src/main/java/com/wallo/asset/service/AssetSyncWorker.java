@@ -52,18 +52,10 @@ public class AssetSyncWorker {
                 credential.password()
         );
 
-        CodefDto.Response response;
-        try {
-            response = codefRetryExecutor.execute(
-                    "asset synchronization organization=" + target.getCodefOrganizationCode(),
-                    () -> codefClient.connectInstitution(request)
-            );
-        } catch (com.wallo.external.CodefSyncException exception) {
-            throw new CodefSyncException(
-                    target.getCodefOrganizationCode(),
-                    exception
-            );
-        }
+        CodefDto.Response response = codefRetryExecutor.execute(
+                "asset synchronization organization=" + target.getCodefOrganizationCode(),
+                () -> codefClient.connectInstitution(request)
+        );
 
         return assetSyncService.sync(
                 userId,
@@ -87,17 +79,4 @@ public class AssetSyncWorker {
         );
     }
 
-    public static class CodefSyncException extends RuntimeException {
-
-        public CodefSyncException(String organization, String message) {
-            super("CODEF synchronization failed for " + organization + ": " + message);
-        }
-
-        public CodefSyncException(
-                String organization,
-                com.wallo.external.CodefSyncException cause
-        ) {
-            super("CODEF synchronization failed for " + organization + ": " + cause.getMessage(), cause);
-        }
-    }
 }

@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 import com.wallo.asset.dto.AssetSyncDto;
 import com.wallo.external.CodefConstants;
 import com.wallo.external.CodefRetryExecutor;
+import com.wallo.external.CodefSyncException;
 import com.wallo.external.auth.CodefCredential;
 import com.wallo.external.auth.CodefCredentialProvider;
 import com.wallo.external.client.CodefClient;
@@ -104,7 +105,7 @@ class AssetSyncWorkerTest {
         when(codefClient.connectInstitution(any(CodefDto.Request.class))).thenReturn(failure);
 
         assertThrows(
-                AssetSyncWorker.CodefSyncException.class,
+                CodefSyncException.class,
                 () -> worker.sync(7L, target, startDate, endDate)
         );
 

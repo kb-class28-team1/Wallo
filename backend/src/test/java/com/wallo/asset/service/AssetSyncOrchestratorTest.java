@@ -4,12 +4,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.wallo.asset.dto.AssetSyncDto;
 import com.wallo.asset.mapper.ConnectionMapper;
+import com.wallo.external.CodefConstants;
+import com.wallo.external.CodefSyncException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -86,7 +89,7 @@ class AssetSyncOrchestratorTest {
     }
 
     @Test
-    void retriesCodefFailureBeforeMarkingConnectionAsFailed() {
+    void marksExhaustedCodefFailureAfterWorkerRetryAsFailedOnce() {
         when(connectionMapper.findActiveSyncTargets(7L)).thenReturn(List.of(
                 target(11L, "0311", "CARD")
         ));
@@ -95,21 +98,25 @@ class AssetSyncOrchestratorTest {
                 any(AssetSyncDto.SyncTarget.class),
                 eq(START_DATE),
                 eq(END_DATE)
-        )).thenThrow(new AssetSyncWorker.CodefSyncException("0311", "temporary failure"))
-                .thenReturn(new AssetSyncDto.SyncStats(3, 1));
+        )).thenThrow(new CodefSyncException(
+                "asset synchronization organization=0311",
+                CodefConstants.CLIENT_FAILURE_CODE,
+                2,
+                "temporary failure"
+        ));
 
         AssetSyncDto.SyncResponse response = orchestrator().syncNow(7L);
 
-        assertEquals(3, response.getInserted());
-        assertEquals(1, response.getUpdated());
-        assertEquals(0, response.getFailedConnections());
-        verify(assetSyncWorker, times(2)).sync(
+        assertEquals(0, response.getInserted());
+        assertEquals(0, response.getUpdated());
+        assertEquals(1, response.getFailedConnections());
+        verify(assetSyncWorker).sync(
                 eq(7L),
                 any(AssetSyncDto.SyncTarget.class),
                 eq(START_DATE),
                 eq(END_DATE)
         );
-        verify(reconciliationService).reconcile(7L);
+        verify(reconciliationService, never()).reconcile(7L);
     }
 
     private AssetSyncOrchestrator orchestrator() {

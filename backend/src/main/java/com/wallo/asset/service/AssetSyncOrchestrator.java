@@ -19,7 +19,6 @@ import org.springframework.stereotype.Service;
 @Service
 public class AssetSyncOrchestrator {
 
-    private static final int MAX_CODEF_ATTEMPTS = 2;
     private static final Logger LOGGER = Logger.getLogger(AssetSyncOrchestrator.class.getName());
 
     private final ConnectionMapper connectionMapper;
@@ -65,7 +64,7 @@ public class AssetSyncOrchestrator {
 
         for (AssetSyncDto.SyncTarget target : activeTargets(userId)) {
             try {
-                AssetSyncDto.SyncStats targetStats = syncWithRetry(
+                AssetSyncDto.SyncStats targetStats = assetSyncWorker.sync(
                         userId,
                         target,
                         startDate,
@@ -98,34 +97,6 @@ public class AssetSyncOrchestrator {
                 totalStats.getUpdated(),
                 failedConnections
         );
-    }
-
-    private AssetSyncDto.SyncStats syncWithRetry(
-            long userId,
-            AssetSyncDto.SyncTarget target,
-            LocalDate startDate,
-            LocalDate endDate
-    ) {
-        for (int attempt = 1; attempt <= MAX_CODEF_ATTEMPTS; attempt++) {
-            try {
-                return assetSyncWorker.sync(userId, target, startDate, endDate);
-            } catch (AssetSyncWorker.CodefSyncException exception) {
-                if (attempt == MAX_CODEF_ATTEMPTS) {
-                    throw exception;
-                }
-                LOGGER.log(
-                        Level.WARNING,
-                        String.format(
-                                "asset-sync-orchestrator retry userId=%d connectionId=%d attempt=%d",
-                                userId,
-                                target.getConnectionId(),
-                                attempt + 1
-                        ),
-                        exception
-                );
-            }
-        }
-        throw new IllegalStateException("Asset synchronization did not produce a result.");
     }
 
     private List<AssetSyncDto.SyncTarget> activeTargets(long userId) {
