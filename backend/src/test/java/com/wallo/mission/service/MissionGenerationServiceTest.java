@@ -78,6 +78,19 @@ class MissionGenerationServiceTest {
     }
 
     @Test
+    void rejectsDifficultyBasedRewardPoints() {
+        List<MissionGenerationDto.GeneratedMission> missions = uniqueMissions();
+        MissionGenerationDto.GeneratedMission first = missions.get(0);
+        missions.set(0, new MissionGenerationDto.GeneratedMission(
+                first.title(), first.description(), first.category(), "HARD", 30,
+                first.verificationType(), first.verificationRule(), first.evidenceGuide()));
+        when(aiClient.generate(any())).thenReturn(response(missions));
+
+        assertThrows(IllegalStateException.class, () -> service.generate(7L, false));
+        verify(mapper, never()).insertCycle(any());
+    }
+
+    @Test
     void rejectsDuplicateMissionsBeforeCreatingCycle() {
         List<MissionGenerationDto.GeneratedMission> missions = uniqueMissions();
         MissionGenerationDto.GeneratedMission first = missions.get(0);

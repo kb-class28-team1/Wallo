@@ -27,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class MissionGenerationService {
     private static final int REQUIRED_MISSION_COUNT = 30;
     private static final int MINIMUM_MISSION_COUNT = 3;
+    private static final int FIXED_REWARD_POINT = 10;
     private static final int MAX_SUMMARY_LIST_ITEMS = 8;
     private static final int MAX_SUMMARY_TEXT_LENGTH = 500;
     private static final Set<String> ANALYSIS_SUMMARY_FIELDS = Set.of(
@@ -163,7 +164,8 @@ public class MissionGenerationService {
             if (mission == null || isBlank(mission.title()) || isBlank(mission.description())
                     || isBlank(mission.category()) || !DIFFICULTIES.contains(mission.difficulty())
                     || !VERIFICATION_TYPES.contains(mission.verificationType())
-                    || mission.rewardPoint() == null || mission.rewardPoint() < 0) {
+                    || mission.rewardPoint() == null
+                    || mission.rewardPoint() != FIXED_REWARD_POINT) {
                 throw new IllegalStateException("AI mission contains invalid fields.");
             }
             if (!keys.add(normalizedKey(mission))) {
@@ -179,7 +181,7 @@ public class MissionGenerationService {
         mission.setDescription(generated.description().trim());
         mission.setCategory(generated.category().trim().toUpperCase(Locale.ROOT));
         mission.setDifficulty(generated.difficulty());
-        mission.setRewardPoint(generated.rewardPoint());
+        mission.setRewardPoint(FIXED_REWARD_POINT);
         mission.setVerificationType(generated.verificationType());
         try {
             mission.setVerificationRuleJson(generated.verificationRule() == null

@@ -92,19 +92,28 @@ def test_trims_extra_unique_missions_to_thirty():
     assert len(result.missions) == 30
 
 
-def test_normalizes_common_ai_field_aliases_and_missing_category():
+def test_rejects_changed_field_names_and_missing_category():
     missions = [_mission(i) for i in range(30)]
     for mission in missions:
         mission["type"] = mission.pop("verificationType")
         mission["points"] = mission.pop("rewardPoint")
         mission.pop("category")
 
-    result = generate_missions(
-        _client({"missions": missions, "promptVersion": "personalized-mission-v1"}),
-        _request(),
-        "test-model",
-    )
+    with pytest.raises(InvalidMissionResponseError):
+        generate_missions(
+            _client({"missions": missions, "promptVersion": "personalized-mission-v1"}),
+            _request(),
+            "test-model",
+        )
 
-    assert result.missions[0].verificationType == "MEDIA_AI"
-    assert result.missions[0].rewardPoint == 10
-    assert result.missions[0].category == "GENERAL"
+
+def test_rejects_reward_points_other_than_ten():
+    missions = [_mission(i) for i in range(30)]
+    missions[0]["rewardPoint"] = 20
+
+    with pytest.raises(InvalidMissionResponseError):
+        generate_missions(
+            _client({"missions": missions, "promptVersion": "personalized-mission-v1"}),
+            _request(),
+            "test-model",
+        )
