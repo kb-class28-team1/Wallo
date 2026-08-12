@@ -18,14 +18,14 @@ MISSION_GENERATION_INSTRUCTIONS = """
   category: 문자열
   rewardPoint: 숫자 10
   verificationType: "MEDIA_AI", "TRANSACTION", "HYBRID", "SELF_CHECK", "MANUAL" 중 하나
-  verificationRule: null 또는 description 문자열 하나만 가진 객체
-  evidenceGuide: 문자열 또는 null
-- verificationRule에 문자열을 직접 넣지 마세요. 조건이 있으면
+  verificationRule: description 문자열 하나만 가진 JSON 객체
+  evidenceGuide: 비어 있지 않은 문자열
+- verificationRule에는 null이나 문자열을 직접 넣지 말고 모든 미션에서
   {"description":"배달 결제가 15000원 이하인지 확인"} 형식만 사용하세요.
 - 필드명을 바꾸거나 생략하거나 추가하지 마세요. 특히 difficulty, reward, points, type은 출력하지 마세요.
 - 출력 직전에 모든 미션이 위 타입과 필드 구성을 만족하는지 스스로 확인하세요.
 - 전체 응답 구조 예시:
-  {"missions":[{"title":"텀블러 사용","description":"카페에서 텀블러를 사용하세요.","category":"CAFE","rewardPoint":10,"verificationType":"MEDIA_AI","verificationRule":null,"evidenceGuide":"텀블러 사용 모습을 촬영하세요."}],"promptVersion":"personalized-mission-v1"}
+  {"missions":[{"title":"텀블러 사용","description":"카페에서 텀블러를 사용하세요.","category":"CAFE","rewardPoint":10,"verificationType":"MEDIA_AI","verificationRule":{"description":"텀블러 사용 장면인지 확인"},"evidenceGuide":"텀블러 사용 모습을 촬영하세요."}],"promptVersion":"personalized-mission-v1"}
 
 미션 작성 규칙:
 - requestedMissionCount에 지정된 개수만큼 미션을 만들고, excludedTitles와 중복되면 안 됩니다.
@@ -66,7 +66,12 @@ def build_mission_input(
                 "verificationTypes": [
                     "MEDIA_AI", "TRANSACTION", "HYBRID", "SELF_CHECK", "MANUAL",
                 ],
-                "verificationRule": "null 또는 description 문자열만 가진 객체",
+                "verificationRule": {
+                    "type": "object",
+                    "onlyField": "description",
+                    "nullable": False,
+                },
+                "evidenceGuide": {"type": "string", "nullable": False},
                 "additionalFieldsAllowed": False,
             },
         },

@@ -21,8 +21,8 @@ class GeneratedMission(BaseModel):
     verificationType: Literal[
         "MEDIA_AI", "TRANSACTION", "HYBRID", "SELF_CHECK", "MANUAL"
     ]
-    verificationRule: dict[str, Any] | None = None
-    evidenceGuide: str | None = Field(default=None, max_length=500)
+    verificationRule: dict[str, Any]
+    evidenceGuide: str = Field(min_length=1, max_length=500)
 
     @field_validator("title", "description", "category")
     @classmethod

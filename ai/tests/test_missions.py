@@ -15,7 +15,7 @@ def _mission(index: int) -> dict:
         "category": "FOOD",
         "rewardPoint": 10,
         "verificationType": "MEDIA_AI",
-        "verificationRule": {"minimumConfidence": 0.8},
+        "verificationRule": {"description": "행동 수행 장면인지 확인"},
         "evidenceGuide": "행동이 보이도록 촬영하세요.",
     }
 
@@ -71,8 +71,22 @@ def test_prompt_output_contract_matches_structured_schema():
         "MEDIA_AI", "TRANSACTION", "HYBRID", "SELF_CHECK", "MANUAL",
     ]
     assert contract["additionalFieldsAllowed"] is False
-    assert '"verificationRule":null' in MISSION_GENERATION_INSTRUCTIONS
+    assert '"verificationRule":{"description":' in MISSION_GENERATION_INSTRUCTIONS
     assert "JSON 이외의 설명" in MISSION_GENERATION_INSTRUCTIONS
+
+
+def test_structured_schema_uses_only_single_concrete_field_types():
+    from app.missions.service import mission_response_schema
+
+    schema = mission_response_schema(10)["schema"]
+    mission = schema["properties"]["missions"]["items"]
+
+    assert mission["properties"]["verificationRule"]["type"] == "object"
+    assert "anyOf" not in mission["properties"]["verificationRule"]
+    assert mission["properties"]["evidenceGuide"]["type"] == "string"
+    assert schema["properties"]["promptVersion"]["const"] == (
+        "personalized-mission-v1"
+    )
 
 
 def test_generates_exactly_twenty_unique_missions():

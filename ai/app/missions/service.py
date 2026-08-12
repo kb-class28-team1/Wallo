@@ -31,17 +31,12 @@ MISSION_ITEM_SCHEMA = {
             "enum": ["MEDIA_AI", "TRANSACTION", "HYBRID", "SELF_CHECK", "MANUAL"],
         },
         "verificationRule": {
-            "anyOf": [
-                {
-                    "type": "object",
-                    "additionalProperties": False,
-                    "properties": {"description": {"type": "string"}},
-                    "required": ["description"],
-                },
-                {"type": "null"},
-            ],
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {"description": {"type": "string"}},
+            "required": ["description"],
         },
-        "evidenceGuide": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+        "evidenceGuide": {"type": "string"},
     },
     "required": [
         "title", "description", "category", "rewardPoint",
@@ -65,7 +60,10 @@ def mission_response_schema(requested_count: int) -> dict:
                 "maxItems": max_items,
                 "items": MISSION_ITEM_SCHEMA,
             },
-            "promptVersion": {"type": "string"},
+            "promptVersion": {
+                "type": "string",
+                "const": "personalized-mission-v1",
+            },
         },
         "required": ["missions", "promptVersion"],
     },
