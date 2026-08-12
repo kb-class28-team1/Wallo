@@ -272,6 +272,7 @@ public class PriceReferenceService {
         List<ShoppingPriceCandidate> candidates = shoppingPriceClient
                 .search(item.itemName(), item.brand(), item.unit());
         if (isGathered(item)) {
+            List<ShoppingPriceCandidate> gatheredCandidates = new ArrayList<>(candidates);
             Optional<ShoppingPriceCandidate> gatheredMatch = lowestGatheredCandidate(
                     item, candidates);
             if (gatheredMatch.isPresent()) {
@@ -279,12 +280,14 @@ public class PriceReferenceService {
             }
             List<ShoppingPriceCandidate> rawProductCandidates = shoppingPriceClient.search(
                     item.itemName() + " 생물 원물", "", item.unit());
+            gatheredCandidates.addAll(rawProductCandidates);
             gatheredMatch = lowestGatheredCandidate(item, rawProductCandidates);
             if (gatheredMatch.isPresent()) {
                 return gatheredMatch;
             }
             List<ShoppingPriceCandidate> countCandidates = shoppingPriceClient.search(
                     item.itemName() + " 판매 단위 개수", "", "");
+            gatheredCandidates.addAll(countCandidates);
             gatheredMatch = lowestGatheredCandidate(item, countCandidates);
             if (gatheredMatch.isPresent()) {
                 return gatheredMatch;
@@ -294,13 +297,16 @@ public class PriceReferenceService {
             if (averagePackageQuantity.isPresent()) {
                 List<ShoppingPriceCandidate> packageCandidates = shoppingPriceClient.search(
                         item.itemName(), "", "");
+                gatheredCandidates.addAll(packageCandidates);
                 gatheredMatch = lowestGatheredCandidate(
                         item, packageCandidates, averagePackageQuantity.getAsInt());
                 if (gatheredMatch.isPresent()) {
                     return gatheredMatch;
                 }
             }
-            return Optional.empty();
+            // 개체 수를 확인하지 못해도 일반 시세 후보를 버리지 않는다.
+            // 이 경우에는 상품 목록의 가격 자체를 해당 채집물의 보수적인 가치로 사용한다.
+            return lowestGatheredValueCandidate(item, gatheredCandidates);
         }
         Optional<ShoppingPriceCandidate> strictMatch = candidates.stream()
                 .filter(candidate -> matches(item, candidate))
@@ -335,6 +341,16 @@ public class PriceReferenceService {
                 .filter(candidate -> !hasGatheredPackageCount(candidate.title()))
                 .filter(candidate -> hasWeightOrPackageUnit(candidate.title()))
                 .map(candidate -> normalizeGatheredPackagePrice(item, candidate, packageQuantity))
+                .min(Comparator.comparingInt(ShoppingPriceCandidate::price));
+    }
+
+    private Optional<ShoppingPriceCandidate> lowestGatheredValueCandidate(
+            DetectedItem item, List<ShoppingPriceCandidate> candidates) {
+        return candidates.stream()
+                .filter(candidate -> matchesGatheredItem(item, candidate))
+                .map(candidate -> hasGatheredPackageCount(candidate.title())
+                        ? normalizeGatheredPackagePrice(item, candidate)
+                        : candidate)
                 .min(Comparator.comparingInt(ShoppingPriceCandidate::price));
     }
 
