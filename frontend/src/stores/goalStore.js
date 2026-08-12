@@ -2,8 +2,10 @@ import { ref } from "vue";
 import { defineStore } from "pinia";
 import {
   getAvailableGoalAccounts,
+  getGoalRoadmap,
   getGoals,
   selectGoalAccount as selectGoalAccountRequest,
+  updateGoalRoadmapStep,
 } from "@/api/goalApi";
 import { getApiErrorMessage } from "@/commonUtils/apiError";
 
@@ -15,6 +17,50 @@ export const useGoalStore = defineStore("goal", () => {
   const isAccountLoading = ref(false);
   const isAccountSaving = ref(false);
   const accountError = ref(null);
+  const roadmap = ref(null)
+  const isRoadmapLoading = ref(false)
+  const roadmapError = ref(null)
+  const isRoadmapProgressSaving = ref(false)
+
+  const fetchGoalRoadmap = async (goalId, { notifyError = true } = {}) => {
+    if (!goalId) {
+      roadmap.value = null
+      return null
+    }
+    isRoadmapLoading.value = true
+    roadmapError.value = null
+    try {
+      const response = await getGoalRoadmap(goalId)
+      roadmap.value = response?.data ?? null
+      return roadmap.value
+    } catch (caughtError) {
+      roadmap.value = null
+      roadmapError.value = getApiErrorMessage(caughtError, "목표 로드맵을 불러오지 못했습니다.")
+      if (notifyError) alert(roadmapError.value)
+      return null
+    } finally {
+      isRoadmapLoading.value = false
+    }
+  }
+
+  const saveRoadmapStep = async (goalId, stepNumber, completed) => {
+    isRoadmapProgressSaving.value = true
+    roadmapError.value = null
+    try {
+      const response = await updateGoalRoadmapStep(goalId, stepNumber, completed)
+      roadmap.value = response?.data ?? null
+      return roadmap.value
+    } catch (caughtError) {
+      roadmapError.value = getApiErrorMessage(
+        caughtError,
+        "로드맵 진행 상태를 저장하지 못했습니다.",
+      )
+      alert(roadmapError.value)
+      return null
+    } finally {
+      isRoadmapProgressSaving.value = false
+    }
+  }
 
   const fetchGoals = async ({ notifyError = true } = {}) => {
     isLoading.value = true;
@@ -23,6 +69,7 @@ export const useGoalStore = defineStore("goal", () => {
     try {
       const response = await getGoals();
       goals.value = Array.isArray(response?.data) ? response.data : [];
+      await fetchGoalRoadmap(goals.value[0]?.goalId, { notifyError: false })
 
       return goals.value;
     } catch (caughtError) {
@@ -105,6 +152,12 @@ export const useGoalStore = defineStore("goal", () => {
     isAccountLoading,
     isAccountSaving,
     accountError,
+    roadmap,
+    isRoadmapLoading,
+    roadmapError,
+    isRoadmapProgressSaving,
+    fetchGoalRoadmap,
+    saveRoadmapStep,
     fetchAvailableAccounts,
     saveGoalAccount,
   };

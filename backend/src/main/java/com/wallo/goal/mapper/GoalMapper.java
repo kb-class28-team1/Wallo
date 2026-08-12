@@ -2,6 +2,7 @@ package com.wallo.goal.mapper;
 
 import com.wallo.goal.domain.FinancialGoal;
 import com.wallo.goal.domain.GoalInterviewSession;
+import com.wallo.goal.domain.GoalRoadmap;
 import java.util.List;
 import org.apache.ibatis.annotations.Param;
 
@@ -45,4 +46,15 @@ public interface GoalMapper {
     );
 
     int insertGoal(FinancialGoal goal);
+
+    int insertGoalRoadmap(GoalRoadmap roadmap);
+
+    GoalRoadmap findGoalRoadmap(@Param("userId") Long userId, @Param("goalId") Long goalId);
+
+    int updateGoalRoadmapProgress(
+            @Param("userId") Long userId,
+            @Param("goalId") Long goalId,
+            @Param("currentStepNumber") Integer currentStepNumber,
+            @Param("completedStepNumbers") String completedStepNumbers
+    );
 }

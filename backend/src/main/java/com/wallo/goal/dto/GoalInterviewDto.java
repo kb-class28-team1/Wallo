@@ -1,6 +1,7 @@
 package com.wallo.goal.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.databind.JsonNode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -53,12 +54,33 @@ public final class GoalInterviewDto {
     @Getter
     @Setter
     @NoArgsConstructor
-    @AllArgsConstructor
     public static class Result {
         private Action action;
         private boolean active;
         private Draft draft;
         private Feasibility feasibility;
+        private JsonNode roadmap;
+        private String roadmapError;
+
+        public Result(Action action, boolean active, Draft draft, Feasibility feasibility) {
+            this(action, active, draft, feasibility, null, null);
+        }
+
+        public Result(
+                Action action,
+                boolean active,
+                Draft draft,
+                Feasibility feasibility,
+                JsonNode roadmap,
+                String roadmapError
+        ) {
+            this.action = action;
+            this.active = active;
+            this.draft = draft;
+            this.feasibility = feasibility;
+            this.roadmap = roadmap;
+            this.roadmapError = roadmapError;
+        }
     }
 
     @Getter

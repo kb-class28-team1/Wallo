@@ -2,8 +2,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import httpClient from "@/api/httpClient";
 import {
   getAvailableGoalAccounts,
+  getGoalRoadmap,
   getGoals,
   selectGoalAccount,
+  updateGoalRoadmapStep,
 } from "./goalApi";
 
 vi.mock("@/api/httpClient", () => ({
@@ -41,6 +43,28 @@ describe("goalApi", () => {
 
     await expect(getAvailableGoalAccounts()).resolves.toEqual(response);
     expect(httpClient.get).toHaveBeenCalledWith("/api/goals/available-accounts");
+  });
+
+  it("requests the authenticated user's roadmap for a goal", async () => {
+    const response = {
+      success: true,
+      data: { goalId: 31, generationStatus: "COMPLETED", roadmap: { steps: [] } },
+    };
+    httpClient.get.mockResolvedValue({ data: response });
+
+    await expect(getGoalRoadmap(31)).resolves.toEqual(response);
+    expect(httpClient.get).toHaveBeenCalledWith("/api/goals/31/roadmap");
+  });
+
+  it("updates a roadmap step's completion state", async () => {
+    const response = { success: true, data: { currentStepNumber: 2 } };
+    httpClient.put.mockResolvedValue({ data: response });
+
+    await expect(updateGoalRoadmapStep(31, 1, true)).resolves.toEqual(response);
+    expect(httpClient.put).toHaveBeenCalledWith(
+      "/api/goals/31/roadmap/steps/1",
+      { completed: true },
+    );
   });
 
   it("saves one selected goal account", async () => {

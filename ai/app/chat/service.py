@@ -1,4 +1,5 @@
 import re
+import logging
 
 from groq import Groq
 
@@ -6,8 +7,14 @@ from app.agents.financial.agent import FinancialAgent
 from app.agents.financial.tools.financial_goal import NAME as FINANCIAL_GOAL_TOOL
 from app.agents.goal.agent import GoalAgent
 from app.agents.goal.models import GoalDraft, GoalInterviewAction, InterviewState
+from app.agents.goal.service import calculate_feasibility
+from app.agents.roadmap.generator import generate_goal_roadmap
+from app.agents.roadmap.models import GoalRoadmap, RoadmapGoal
 from app.chat.schemas import ChatRequest, ChatResponse, GoalInterviewResponse
 from app.chat.title_service import generate_conversation_title
+
+
+logger = logging.getLogger("wallo_ai")
 
 
 class ChatService:
@@ -86,15 +93,59 @@ class ChatService:
             confirmed = draft.model_copy(
                 update={"state": InterviewState.COMPLETED, "confirmed": True},
             )
+            roadmap, roadmap_error = self._generate_confirmed_goal_roadmap(confirmed)
+            roadmap_message = (
+                f"AI 로드맵 {len(roadmap.steps)}단계를 생성했습니다."
+                if roadmap is not None
+                else "AI 로드맵 생성에 실패했지만 목표는 정상적으로 확정됩니다."
+            )
             return (
-                f"'{confirmed.title}' 목표를 확정했습니다.",
+                f"'{confirmed.title}' 목표를 확정했습니다. {roadmap_message}",
                 GoalInterviewResponse(
                     action=GoalInterviewAction.CONFIRM,
                     active=False,
                     draft=confirmed,
+                    roadmap=roadmap,
+                    roadmap_error=roadmap_error,
                 ),
             )
         return self._run_goal_agent(request, draft)
+
+    def _generate_confirmed_goal_roadmap(
+        self,
+        draft: GoalDraft,
+    ) -> tuple[GoalRoadmap | None, str | None]:
+        try:
+            feasibility = calculate_feasibility(draft)
+            if feasibility.required_monthly_amount is None:
+                raise ValueError("월 필요 저축액을 계산할 수 없습니다.")
+            if draft.title is None or draft.goal_type is None:
+                raise ValueError("목표 제목과 유형이 필요합니다.")
+            if draft.target_amount is None or draft.current_amount is None:
+                raise ValueError("목표 금액과 현재 준비금이 필요합니다.")
+            if draft.target_date is None:
+                raise ValueError("목표일이 필요합니다.")
+
+            roadmap = generate_goal_roadmap(
+                self.client,
+                RoadmapGoal(
+                    title=draft.title,
+                    goalType=draft.goal_type.value,
+                    targetAmount=draft.target_amount,
+                    currentAmount=draft.current_amount,
+                    targetDate=draft.target_date,
+                    requiredMonthlyAmount=feasibility.required_monthly_amount,
+                    motivation=draft.motivation,
+                ),
+            )
+            logger.info(
+                "[AI ROADMAP] generated steps=%s",
+                len(roadmap.steps),
+            )
+            return roadmap, None
+        except Exception as error:
+            logger.exception("[AI ROADMAP] generation failed after goal confirmation")
+            return None, str(error)[:500]
 
     def _normalize_message(self, message: str) -> str:
         return re.sub(r"[\s.!?~]+", "", message).lower()

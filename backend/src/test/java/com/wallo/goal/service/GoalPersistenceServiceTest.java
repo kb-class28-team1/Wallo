@@ -15,6 +15,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.wallo.goal.domain.FinancialGoal;
 import com.wallo.goal.domain.GoalInterviewSession;
+import com.wallo.goal.domain.GoalRoadmap;
 import com.wallo.goal.dto.GoalInterviewDto;
 import com.wallo.goal.mapper.GoalMapper;
 import java.time.LocalDate;
@@ -36,6 +37,7 @@ class GoalPersistenceServiceTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
+        when(goalMapper.insertGoalRoadmap(any())).thenReturn(1);
         objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
         service = new GoalPersistenceService(goalMapper, objectMapper);
     }
@@ -137,15 +139,19 @@ class GoalPersistenceServiceTest {
     }
 
     @Test
-    void confirmPersistsTheFinancialGoalAndCompletesTheSession() {
+    void confirmPersistsTheFinancialGoalRoadmapAndCompletesTheSession() throws Exception {
         when(goalMapper.findActiveSession(7L, 11L)).thenReturn(activeSession(31L));
         when(goalMapper.completeSession(31L, "COMPLETED")).thenReturn(1);
         GoalInterviewDto.Draft draft = draft(true);
 
+        GoalInterviewDto.Result confirmation = result(GoalInterviewDto.Action.CONFIRM, draft);
+        confirmation.setRoadmap(objectMapper.readTree(
+                "{\"summary\":\"비상금 마련 계획\",\"steps\":[{\"title\":\"전용 계좌 분리\"}]}"
+        ));
         GoalInterviewDto.Result persisted = service.applyResult(
                 7L,
                 11L,
-                result(GoalInterviewDto.Action.CONFIRM, draft)
+                confirmation
         );
 
         ArgumentCaptor<FinancialGoal> captor = ArgumentCaptor.forClass(FinancialGoal.class);
@@ -164,6 +170,13 @@ class GoalPersistenceServiceTest {
                 persisted.getFeasibility().getRequiredMonthlyAmount()
         );
         assertEquals("ACTIVE", goal.getStatus());
+        ArgumentCaptor<GoalRoadmap> roadmapCaptor = ArgumentCaptor.forClass(GoalRoadmap.class);
+        verify(goalMapper).insertGoalRoadmap(roadmapCaptor.capture());
+        GoalRoadmap roadmap = roadmapCaptor.getValue();
+        assertEquals(goal.getGoalId(), roadmap.getGoalId());
+        assertEquals(7L, roadmap.getUserId());
+        assertEquals("COMPLETED", roadmap.getGenerationStatus());
+        assertTrue(roadmap.getRoadmapJson().contains("전용 계좌 분리"));
         verify(goalMapper).completeSession(31L, "COMPLETED");
     }
 
