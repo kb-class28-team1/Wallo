@@ -385,6 +385,35 @@ class PriceReferenceServiceTest {
     }
 
     @Test
+    void usesGeneralProductValueWhenGatheredCountCannotBeConfirmed() {
+        PriceReferenceRow stored = row("고구마", "", "1개", 4_500);
+        when(mapper.findBestMatch("고구마", "", "1개", "FOOD"))
+                .thenReturn(null, stored);
+        when(mapper.upsert(any())).thenReturn(1);
+        when(shoppingClient.search("고구마", "", "1개"))
+                .thenReturn(List.of(new ShoppingPriceCandidate(
+                        "국산 햇고구마 1kg", 4_500, "농산물몰",
+                        "https://example.com/sweet-potato-by-weight", "")));
+        when(shoppingClient.search("고구마 생물 원물", "", "1개"))
+                .thenReturn(List.of());
+        when(shoppingClient.search("고구마 판매 단위 개수", "", ""))
+                .thenReturn(List.of());
+
+        AnalysisResponse input = new AnalysisResponse(
+                "REDUCED", "FOOD", 0, "고구마를 직접 수확했습니다.", 0.8,
+                List.of(new DetectedItem(
+                        "고구마", "", "1개", 2, 0, 0, 0.8,
+                        "수확한 고구마 두 개가 보임", "GATHERED", 0, 0, "")),
+                0, 0, 0, List.of());
+
+        AnalysisResponse result = service.enrich(input);
+
+        assertEquals(9_000, result.referenceValue());
+        assertEquals(9_000, result.estimatedSavingAmount());
+        assertTrue(result.summary().contains("고구마 1개 시세 4,500원 × 2"));
+    }
+
+    @Test
     void usesLowestRawItemPriceAndExcludesProcessedGatheredProducts() {
         PriceReferenceRow cached = row("성게", "", "1개", 12_900);
         PriceReferenceRow stored = row("성게", "", "1개", 5_000);
