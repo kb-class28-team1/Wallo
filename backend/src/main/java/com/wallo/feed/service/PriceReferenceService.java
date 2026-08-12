@@ -197,10 +197,11 @@ public class PriceReferenceService {
             if (isUsable(cached)) {
                 // 과거에 1kg 상품 전체 가격이 1개 가격으로 저장된 채집물 캐시는
                 // 그대로 사용하지 않고 새 검색으로 개당 가격을 다시 계산한다.
-                if (!isGathered(item) || isSafeGatheredCache(cached)) {
+                boolean safeGatheredCache = isSafeGatheredCache(cached);
+                if (!isGathered(item) || safeGatheredCache) {
                     resolvedRows.put(index, cached);
                 }
-                if (isGathered(item)) {
+                if (isGathered(item) && !safeGatheredCache) {
                     searches.put(index, CompletableFuture.supplyAsync(
                             () -> findLowestCandidate(item, analysis.category()), searchExecutor)
                             .exceptionally(exception -> Optional.empty()));
@@ -282,6 +283,17 @@ public class PriceReferenceService {
             if (gatheredMatch.isPresent()) {
                 return gatheredMatch;
             }
+            // 첫 검색에서 1kg·1박스 상품을 찾았다면 평균 개수부터 확인해
+            // 원물·판매 단위 재검색을 생략할 수 있다.
+            OptionalInt averagePackageQuantity = gatheredQuantityClient
+                    .findAveragePackageQuantity(item.itemName(), "판매 단위");
+            if (averagePackageQuantity.isPresent()) {
+                gatheredMatch = lowestGatheredCandidate(
+                        item, gatheredCandidates, averagePackageQuantity.getAsInt());
+                if (gatheredMatch.isPresent()) {
+                    return gatheredMatch;
+                }
+            }
             List<ShoppingPriceCandidate> rawProductCandidates = shoppingPriceClient.search(
                     item.itemName() + " 생물 원물", "", "");
             gatheredCandidates.addAll(rawProductCandidates);
@@ -296,8 +308,6 @@ public class PriceReferenceService {
             if (gatheredMatch.isPresent()) {
                 return gatheredMatch;
             }
-            OptionalInt averagePackageQuantity = gatheredQuantityClient
-                    .findAveragePackageQuantity(item.itemName(), "판매 단위");
             if (averagePackageQuantity.isPresent()) {
                 gatheredMatch = lowestGatheredCandidate(
                         item, gatheredCandidates, averagePackageQuantity.getAsInt());
@@ -400,6 +410,9 @@ public class PriceReferenceService {
 
     private boolean isSafeGatheredCache(PriceReferenceRow row) {
         String title = row.getDisplayItemName();
+        if (title != null && title.contains("개당 환산")) {
+            return true;
+        }
         if (!hasWeightOrPackageUnit(title)) {
             return true;
         }
@@ -547,7 +560,10 @@ public class PriceReferenceService {
             DetectedItem item, String category, ShoppingPriceCandidate candidate) {
         PriceReferenceRow row = new PriceReferenceRow();
         row.setNormalizedItemName(normalizeKey(item.itemName()));
-        row.setDisplayItemName(limit(candidate.title(), 200));
+        String displayItemName = isGathered(item)
+                ? candidate.title() + " (개당 환산)"
+                : candidate.title();
+        row.setDisplayItemName(limit(displayItemName, 200));
         row.setBrand(limit(blankToEmpty(item.brand()), 100));
         row.setUnit(limit(normalizeDisplayUnit(item.unit()), 50));
         row.setCategory(category);

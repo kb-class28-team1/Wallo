@@ -319,6 +319,7 @@ class PriceReferenceServiceTest {
         assertTrue(result.summary().contains("실제 비용 0원"));
         assertTrue(result.summary().contains("조기 1마리 시세 8,000원"));
         assertTrue(result.summary().contains("총 가치는 8,000원"));
+        verify(shoppingClient, never()).search(anyString(), anyString(), anyString());
     }
 
     @Test
@@ -482,10 +483,8 @@ class PriceReferenceServiceTest {
 
     @Test
     void usesLowestRawItemPriceAndExcludesProcessedGatheredProducts() {
-        PriceReferenceRow cached = row("성게", "", "1개", 12_900);
         PriceReferenceRow stored = row("성게", "", "1개", 5_000);
-        when(mapper.findBestMatch("성게", "", "1개", "FOOD"))
-                .thenReturn(cached, stored);
+        when(mapper.findBestMatch("성게", "", "1개", "FOOD")).thenReturn(null, stored);
         when(mapper.upsert(any())).thenReturn(1);
         when(shoppingClient.search("성게", "", ""))
                 .thenReturn(List.of(
@@ -514,6 +513,7 @@ class PriceReferenceServiceTest {
                 ArgumentCaptor.forClass(PriceReferenceRow.class);
         verify(mapper).upsert(rowCaptor.capture());
         assertEquals(5_000, rowCaptor.getValue().getLowestPrice());
+        assertTrue(rowCaptor.getValue().getDisplayItemName().contains("개당 환산"));
         assertEquals("https://example.com/five", rowCaptor.getValue().getSourceUrl());
         assertEquals(10_000, result.referenceValue());
         assertTrue(result.summary().contains("성게 1개 시세 5,000원 × 2"));
