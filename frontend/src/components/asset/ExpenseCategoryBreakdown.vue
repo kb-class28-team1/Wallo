@@ -148,7 +148,18 @@ const clearHoveredCategory = async () => {
   chart?.update();
 };
 
-const budgetCategories = computed(() => props.budgetSummary?.categories ?? []);
+const budgetCategories = computed(() => (props.budgetSummary?.categories ?? []).map((category) => {
+  const categoryCode = normalizeExpenseCategory(category.category);
+  const meta = getExpenseCategoryMeta(categoryCode);
+
+  return {
+    ...category,
+    categoryCode,
+    label: categoryCode === "ETC" ? "기타·미배정" : meta.label,
+    color: meta.color,
+    icon: meta.icon,
+  };
+}));
 
 const formatUsageRate = (rate, spentAmount = 0) => {
   if (rate === null || rate === undefined) return spentAmount > 0 ? "예산 없음" : "0%";
@@ -257,9 +268,17 @@ const progressWidth = (rate) => {
               </div>
               <div class="text-end">
                 <span class="d-block text-secondary small">전체 사용률</span>
-                <strong :class="{ 'text-danger': budgetSummary.overBudget }">
-                  {{ formatUsageRate(budgetSummary.usageRate, budgetSummary.spentAmount) }}
-                </strong>
+                <div class="d-flex align-items-center justify-content-end gap-2">
+                  <span
+                    class="budget-status-badge"
+                    :class="{ 'budget-status-badge-over': budgetSummary.overBudget }"
+                  >
+                    {{ budgetSummary.overBudget ? "초과" : "정상" }}
+                  </span>
+                  <strong :class="{ 'text-danger': budgetSummary.overBudget }">
+                    {{ formatUsageRate(budgetSummary.usageRate, budgetSummary.spentAmount) }}
+                  </strong>
+                </div>
               </div>
             </div>
             <div
@@ -284,7 +303,7 @@ const progressWidth = (rate) => {
           <ul class="budget-category-list list-unstyled mb-0">
             <li
               v-for="category in budgetCategories"
-              :key="category.category"
+              :key="category.categoryCode"
               class="budget-category-row"
               :class="{ 'budget-category-row-over': category.overBudget }"
             >
@@ -293,16 +312,24 @@ const progressWidth = (rate) => {
                   <span
                     class="category-icon"
                     :style="{
-                      color: getExpenseCategoryMeta(category.category).color,
-                      backgroundColor: `${getExpenseCategoryMeta(category.category).color}18`,
+                      color: category.color,
+                      backgroundColor: `${category.color}18`,
                     }"
                   >
-                    <i :class="['bi', getExpenseCategoryMeta(category.category).icon]" aria-hidden="true"></i>
+                    <i :class="['bi', category.icon]" aria-hidden="true"></i>
                   </span>
-                  {{ getExpenseCategoryMeta(category.category).label }}
+                  {{ category.label }}
                 </span>
-                <span class="budget-category-status" :class="{ 'text-danger': category.overBudget }">
-                  {{ formatUsageRate(category.usageRate, category.spentAmount) }}
+                <span class="d-flex align-items-center gap-2">
+                  <span
+                    class="budget-status-badge"
+                    :class="{ 'budget-status-badge-over': category.overBudget }"
+                  >
+                    {{ category.overBudget ? "초과" : "정상" }}
+                  </span>
+                  <span class="budget-category-status" :class="{ 'text-danger': category.overBudget }">
+                    {{ formatUsageRate(category.usageRate, category.spentAmount) }}
+                  </span>
                 </span>
               </div>
               <div class="progress budget-category-progress mt-2" role="progressbar">
@@ -465,6 +492,25 @@ const progressWidth = (rate) => {
   color: #6f7587;
   font-size: 0.85rem;
   font-weight: 800;
+}
+
+.budget-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 7px;
+  border: 1px solid #e1e2ea;
+  border-radius: 999px;
+  color: #73798b;
+  background: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.budget-status-badge-over {
+  border-color: #ffcaca;
+  color: #dc3545;
+  background: #fff1f1;
 }
 
 .budget-category-progress {
