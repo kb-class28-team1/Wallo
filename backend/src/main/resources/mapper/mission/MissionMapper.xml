@@ -3,6 +3,22 @@
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.wallo.mission.mapper.MissionMapper">
 
+    <select id="findUserIdsWithAnalysis" resultType="java.lang.Long">
+        SELECT DISTINCT user_id
+        FROM CONSUMPTION_ANALYSIS_RESULTS
+        ORDER BY user_id
+    </select>
+
+    <select id="findLatestAnalysis" resultType="com.wallo.mission.domain.MissionAnalysisSource">
+        SELECT analysis_result_id AS analysisResultId,
+               user_id AS userId,
+               calculated_result AS calculatedResultJson
+        FROM CONSUMPTION_ANALYSIS_RESULTS
+        WHERE user_id = #{userId}
+        ORDER BY generated_at DESC, analysis_result_id DESC
+        LIMIT 1
+    </select>
+
     <insert id="insertCycle" useGeneratedKeys="true" keyProperty="missionCycleId">
         INSERT INTO MISSION_CYCLES (
             user_id, cycle_start_date, cycle_end_date, status,
@@ -47,6 +63,10 @@
             #{evidenceGuide}, #{deduplicationKey}
         )
     </insert>
+
+    <select id="countMissionsByCycleId" resultType="int">
+        SELECT COUNT(*) FROM MISSIONS WHERE mission_cycle_id = #{missionCycleId}
+    </select>
 
     <select id="findMissionsByCycleId" resultType="com.wallo.mission.domain.Mission">
         SELECT mission_id AS missionId,
@@ -105,4 +125,3 @@
     </update>
 
 </mapper>
-

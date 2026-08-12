@@ -5,7 +5,9 @@ CREATE TABLE USERS (
 
 CREATE TABLE CONSUMPTION_ANALYSIS_RESULTS (
     analysis_result_id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    user_id BIGINT NOT NULL
+    user_id BIGINT NOT NULL,
+    calculated_result JSON NOT NULL,
+    generated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE MISSION_CYCLES (
@@ -50,4 +52,6 @@ CREATE TABLE DAILY_MISSIONS (
 );
 
 INSERT INTO USERS (id, nickname) VALUES (7, '테스터');
-
+INSERT INTO CONSUMPTION_ANALYSIS_RESULTS (user_id, calculated_result, generated_at)
+VALUES (7, '{"summary":"과소비"}', '2026-08-01 10:00:00'),
+       (7, '{"summary":"카페 소비 증가"}', '2026-08-10 10:00:00');

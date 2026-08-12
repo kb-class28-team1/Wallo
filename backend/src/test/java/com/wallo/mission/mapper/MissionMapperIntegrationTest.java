@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import com.wallo.mission.domain.DailyMission;
 import com.wallo.mission.domain.Mission;
 import com.wallo.mission.domain.MissionCycle;
+import com.wallo.mission.domain.MissionAnalysisSource;
 import java.sql.Connection;
 import java.time.LocalDate;
 import java.util.List;
@@ -41,6 +42,17 @@ class MissionMapperIntegrationTest {
     @AfterEach
     void tearDown() {
         if (sqlSession != null) sqlSession.close();
+    }
+
+    @Test
+    void findsLatestConsumptionAnalysisForEligibleUser() {
+        assertEquals(List.of(7L), mapper.findUserIdsWithAnalysis());
+
+        MissionAnalysisSource source = mapper.findLatestAnalysis(7L);
+        assertNotNull(source);
+        assertEquals(7L, source.getUserId());
+        org.junit.jupiter.api.Assertions.assertTrue(
+                source.getCalculatedResultJson().contains("카페 소비 증가"));
     }
 
     @Test
