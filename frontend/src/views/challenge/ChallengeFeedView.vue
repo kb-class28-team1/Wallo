@@ -563,6 +563,16 @@ onBeforeUnmount(() => {
           <span>MY SAVING FEED</span>
           <div class="feed-title-row">
             <h1>{{ challengeName }}</h1>
+            <button
+              type="button"
+              class="feed-leave-button"
+              title="챌린지 나가기"
+              :disabled="isLeavingChallenge"
+              @click="leaveCurrentChallenge"
+            >
+              <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+              <span>챌린지 나가기</span>
+            </button>
           </div>
           <p>함께 남긴 절약 기록을 확인하고 응원해 보세요.</p>
         </div>
@@ -673,16 +683,6 @@ onBeforeUnmount(() => {
         </main>
 
         <aside class="feed-sidebar">
-          <button
-            type="button"
-            class="feed-leave-button"
-            title="챌린지 탈퇴"
-            aria-label="챌린지 탈퇴"
-            :disabled="isLeavingChallenge"
-            @click="leaveCurrentChallenge"
-          >
-            <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
-          </button>
           <div class="saving-total">
             <small>나의 누적 절약 금액</small><strong>{{ formatWon(mySavingTotal) }}</strong>
           </div>
@@ -925,31 +925,32 @@ onBeforeUnmount(() => {
   color: #939bad;
 }
 .feed-leave-button {
-  display: inline-flex !important;
-  visibility: visible !important;
-  position: absolute;
-  top: 20px;
-  left: -58px;
-  z-index: 2;
-  width: 44px;
-  height: 44px;
+  display: inline-flex;
+  width: auto;
+  min-height: 42px;
   align-items: center;
   justify-content: center;
-  padding: 0;
+  gap: 7px;
+  padding: 9px 14px;
   color: #ff6b6b;
-  background: transparent;
-  border: 0;
-  border-radius: 50%;
-  font-size: 2rem;
+  background: #fff;
+  border: 1px solid #ffd2d2;
+  border-radius: 12px;
+  font-size: 0.86rem;
+  font-weight: 800;
   line-height: 1;
   transition:
     color 0.2s ease,
     background 0.2s ease,
     border-color 0.2s ease;
 }
+.feed-leave-button i {
+  font-size: 1rem;
+}
 .feed-leave-button:hover:not(:disabled) {
   color: #f05252;
   background: #fff0ef;
+  border-color: #ffbcbc;
 }
 .feed-leave-button:disabled {
   cursor: wait;
@@ -1684,9 +1685,7 @@ textarea {
     height: auto;
   }
   .feed-leave-button {
-    position: static;
-    align-self: flex-end;
-    margin-bottom: -8px;
+    flex-shrink: 0;
   }
   .chat-room {
     flex: none;
