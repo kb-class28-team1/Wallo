@@ -109,8 +109,10 @@
     </delete>
 
     <insert id="insertGoalAccount">
-        INSERT INTO FINANCIAL_GOAL_ACCOUNTS (goal_id, account_id)
-        VALUES (#{goalId}, #{accountId})
+        INSERT INTO FINANCIAL_GOAL_ACCOUNTS
+            (goal_id, account_id, baseline_balance)
+        VALUES
+            (#{goalId}, #{accountId}, #{baselineBalance})
     </insert>
 
 </mapper>

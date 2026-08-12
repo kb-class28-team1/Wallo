@@ -177,7 +177,9 @@ class GoalMapperIntegrationTest {
             statement.execute("""
                     CREATE TABLE FINANCIAL_GOAL_ACCOUNTS (
                         goal_id BIGINT PRIMARY KEY,
-                        account_id BIGINT NOT NULL
+                        account_id BIGINT NOT NULL,
+                        baseline_balance BIGINT NOT NULL,
+                        baseline_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
                     )
                     """);
             statement.execute("""
@@ -223,7 +225,9 @@ class GoalMapperIntegrationTest {
             statement.execute("INSERT INTO CONNECTIONS VALUES (21, 'ACTIVE', NULL)");
             statement.execute("INSERT INTO ACCOUNTS VALUES (101, 21, 3250000, 'ACTIVE')");
             statement.execute(
-                    "INSERT INTO FINANCIAL_GOAL_ACCOUNTS VALUES (" + goalId + ", 101)"
+                    "INSERT INTO FINANCIAL_GOAL_ACCOUNTS "
+                            + "(goal_id, account_id, baseline_balance) VALUES ("
+                            + goalId + ", 101, 3250000)"
             );
         }
     }

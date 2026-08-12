@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.wallo.goal.dto.GoalAccountDto;
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.List;
 import java.util.UUID;
@@ -69,15 +70,16 @@ class GoalAccountMapperIntegrationTest {
     }
 
     @Test
-    void persistsTheSingleGoalAccountMapping() {
+    void persistsTheSingleGoalAccountMapping() throws Exception {
         assertEquals(1, goalAccountMapper.deleteByGoalId(31L));
-        assertEquals(1, goalAccountMapper.insertGoalAccount(31L, 105L));
+        assertEquals(1, goalAccountMapper.insertGoalAccount(31L, 105L, 1_000_000L));
 
         List<GoalAccountDto.AvailableAccount> accounts =
                 goalAccountMapper.findAvailableAccounts(7L);
 
         assertFalse(accountById(accounts, 101L).isSelected());
         assertTrue(accountById(accounts, 105L).isSelected());
+        assertEquals(1_000_000L, findBaselineBalance(31L));
     }
 
     private GoalAccountDto.AvailableAccount accountById(
@@ -131,7 +133,9 @@ class GoalAccountMapperIntegrationTest {
             statement.execute("""
                     CREATE TABLE FINANCIAL_GOAL_ACCOUNTS (
                         goal_id BIGINT PRIMARY KEY,
-                        account_id BIGINT NOT NULL
+                        account_id BIGINT NOT NULL,
+                        baseline_balance BIGINT NOT NULL,
+                        baseline_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
                     )
                     """);
         }
@@ -158,7 +162,21 @@ class GoalAccountMapperIntegrationTest {
                         (107, 4, '7777777777', '7777-****-7777', '해제 계좌', 'BANK', 'DEPOSIT', 1000000, 'KRW', 'ACTIVE')
                     """);
             statement.execute("INSERT INTO FINANCIAL_GOALS VALUES (31, 7)");
-            statement.execute("INSERT INTO FINANCIAL_GOAL_ACCOUNTS VALUES (31, 101)");
+            statement.execute(
+                    "INSERT INTO FINANCIAL_GOAL_ACCOUNTS "
+                            + "(goal_id, account_id, baseline_balance) VALUES (31, 101, 2500000)"
+            );
+        }
+    }
+
+    private long findBaselineBalance(long goalId) throws Exception {
+        try (Connection connection = dataSource.getConnection();
+             Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(
+                     "SELECT baseline_balance FROM FINANCIAL_GOAL_ACCOUNTS WHERE goal_id = " + goalId
+             )) {
+            resultSet.next();
+            return resultSet.getLong("baseline_balance");
         }
     }
 }
