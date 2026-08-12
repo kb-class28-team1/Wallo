@@ -23,8 +23,8 @@ class MissionControllerTest {
         when(currentUser.getCurrentUserId()).thenReturn(7L);
         when(service.getOrAssignToday(7L)).thenReturn(new TodayMissionResponse(
                 LocalDate.of(2026, 8, 17), List.of(new TodayMissionResponse.Item(
-                1L, 10L, "집밥 먹기", "한 끼를 만들어 먹어요", "FOOD", "EASY",
-                10, "MEDIA_AI", "음식이 보이도록 촬영하세요", "ASSIGNED", false))));
+                1L, 10L, "집밥 먹기", "한 끼를 만들어 먹어요", "FOOD", 10,
+                "MEDIA_AI", "음식이 보이도록 촬영하세요", "ASSIGNED", false))));
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(
                 new MissionController(service, currentUser)).build();
 

@@ -14,17 +14,10 @@ const CATEGORY_ICONS = {
   ETC: "✨",
 }
 
-const DIFFICULTY_LABELS = {
-  EASY: "쉬움",
-  NORMAL: "보통",
-  HARD: "어려움",
-}
-
 const normalizeMission = (mission) => ({
   ...mission,
   id: mission.dailyMissionId,
   icon: CATEGORY_ICONS[mission.category] || CATEGORY_ICONS.ETC,
-  difficulty: DIFFICULTY_LABELS[mission.difficulty] || mission.difficulty,
   completed: mission.completed || mission.status === "COMPLETED",
 })
 

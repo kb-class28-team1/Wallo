@@ -17,7 +17,6 @@ class GeneratedMission(BaseModel):
     title: str = Field(min_length=1, max_length=100)
     description: str = Field(min_length=1, max_length=500)
     category: str = Field(min_length=1, max_length=30)
-    difficulty: Literal["EASY", "NORMAL", "HARD"]
     rewardPoint: Literal[10]
     verificationType: Literal[
         "MEDIA_AI", "TRANSACTION", "HYBRID", "SELF_CHECK", "MANUAL"

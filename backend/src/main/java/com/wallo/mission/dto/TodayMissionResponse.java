@@ -15,7 +15,6 @@ public record TodayMissionResponse(LocalDate date, List<Item> missions) {
             String title,
             String description,
             String category,
-            String difficulty,
             Integer rewardPoint,
             String verificationType,
             String evidenceGuide,
@@ -25,11 +24,10 @@ public record TodayMissionResponse(LocalDate date, List<Item> missions) {
         private static Item from(DailyMission mission) {
             return new Item(
                     mission.getDailyMissionId(), mission.getMissionId(), mission.getTitle(),
-                    mission.getDescription(), mission.getCategory(), mission.getDifficulty(),
-                    mission.getRewardPoint(), mission.getVerificationType(),
+                    mission.getDescription(), mission.getCategory(), mission.getRewardPoint(),
+                    mission.getVerificationType(),
                     mission.getEvidenceGuide(), mission.getStatus(),
                     "COMPLETED".equals(mission.getStatus()));
         }
     }
 }
-

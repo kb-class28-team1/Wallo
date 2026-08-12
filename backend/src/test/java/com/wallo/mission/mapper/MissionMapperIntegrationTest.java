@@ -146,7 +146,6 @@ class MissionMapperIntegrationTest {
         mission.setTitle(title);
         mission.setDescription(title + "를 실천해 보세요.");
         mission.setCategory("CAFE");
-        mission.setDifficulty("EASY");
         mission.setRewardPoint(10);
         mission.setVerificationType("MEDIA_AI");
         mission.setVerificationRuleJson("{\"minimumConfidence\":0.8}");

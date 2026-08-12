@@ -36,7 +36,6 @@ public class MissionGenerationService {
             "budgetStatus", "categoryOverview", "categorySurges", "newSpending",
             "oneOffHighSpending", "repeatingCategories", "recurringPaymentCandidates",
             "positiveImprovements", "patterns", "continuousImprovement");
-    private static final Set<String> DIFFICULTIES = Set.of("EASY", "NORMAL", "HARD");
     private static final Set<String> VERIFICATION_TYPES = Set.of(
             "MEDIA_AI", "TRANSACTION", "HYBRID", "SELF_CHECK", "MANUAL");
 
@@ -162,7 +161,7 @@ public class MissionGenerationService {
         Set<String> keys = new HashSet<>();
         for (MissionGenerationDto.GeneratedMission mission : response.missions()) {
             if (mission == null || isBlank(mission.title()) || isBlank(mission.description())
-                    || isBlank(mission.category()) || !DIFFICULTIES.contains(mission.difficulty())
+                    || isBlank(mission.category())
                     || !VERIFICATION_TYPES.contains(mission.verificationType())
                     || mission.rewardPoint() == null
                     || mission.rewardPoint() != FIXED_REWARD_POINT) {
@@ -180,7 +179,6 @@ public class MissionGenerationService {
         mission.setTitle(generated.title().trim());
         mission.setDescription(generated.description().trim());
         mission.setCategory(generated.category().trim().toUpperCase(Locale.ROOT));
-        mission.setDifficulty(generated.difficulty());
         mission.setRewardPoint(FIXED_REWARD_POINT);
         mission.setVerificationType(generated.verificationType());
         try {

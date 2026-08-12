@@ -12,7 +12,6 @@ def _mission(index: int) -> dict:
         "title": f"맞춤 미션 {index}",
         "description": f"서로 다른 행동 {index}을 실천하세요.",
         "category": "FOOD",
-        "difficulty": "EASY",
         "rewardPoint": 10,
         "verificationType": "MEDIA_AI",
         "verificationRule": {"minimumConfidence": 0.8},

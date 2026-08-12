@@ -78,11 +78,11 @@
 
     <insert id="insertMission" useGeneratedKeys="true" keyProperty="missionId">
         INSERT INTO MISSIONS (
-            mission_cycle_id, title, description, category, difficulty,
+            mission_cycle_id, title, description, category,
             reward_point, verification_type, verification_rule,
             evidence_guide, deduplication_key
         ) VALUES (
-            #{missionCycleId}, #{title}, #{description}, #{category}, #{difficulty},
+            #{missionCycleId}, #{title}, #{description}, #{category},
             #{rewardPoint}, #{verificationType}, #{verificationRuleJson},
             #{evidenceGuide}, #{deduplicationKey}
         )
@@ -98,7 +98,6 @@
                title,
                description,
                category,
-               difficulty,
                reward_point AS rewardPoint,
                verification_type AS verificationType,
                verification_rule AS verificationRuleJson,
@@ -129,7 +128,6 @@
                mission.title,
                mission.description,
                mission.category,
-               mission.difficulty,
                mission.reward_point AS rewardPoint,
                mission.verification_type AS verificationType,
                mission.evidence_guide AS evidenceGuide

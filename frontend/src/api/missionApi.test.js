@@ -22,7 +22,6 @@ describe("missionApi", () => {
           dailyMissionId: 3,
           title: "집밥 먹기",
           category: "FOOD",
-          difficulty: "EASY",
           status: "ASSIGNED",
           rewardPoint: 10,
         }],
@@ -32,7 +31,7 @@ describe("missionApi", () => {
     const result = await getTodayMissions()
 
     expect(httpClient.get).toHaveBeenCalledWith("/api/missions/today")
-    expect(result.missions[0]).toMatchObject({ id: 3, icon: "🍚", difficulty: "쉬움" })
+    expect(result.missions[0]).toMatchObject({ id: 3, icon: "🍚" })
   })
 
   it("requests a dry preview without saving", async () => {

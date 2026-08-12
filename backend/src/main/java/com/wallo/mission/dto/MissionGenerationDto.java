@@ -13,7 +13,6 @@ public final class MissionGenerationDto {
             String title,
             String description,
             String category,
-            String difficulty,
             Integer rewardPoint,
             String verificationType,
             Map<String, Object> verificationRule,
@@ -24,4 +23,3 @@ public final class MissionGenerationDto {
 
     public record Result(Long missionCycleId, Long userId, int missionCount, String status) {}
 }
-

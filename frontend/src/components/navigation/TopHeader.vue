@@ -182,7 +182,6 @@ const handleLogout = async () => {
                 <strong>{{ mission.title }}</strong>
                 <span class="mission-item-description">{{ mission.description }}</span>
                 <span class="mission-item-meta">
-                  <em :class="`difficulty-${mission.difficulty}`">{{ mission.difficulty }}</em>
                   <b>● +{{ mission.rewardPoint }}P</b>
                 </span>
               </span>
@@ -452,29 +451,6 @@ const handleLogout = async () => {
   display: flex;
   align-items: center;
   gap: 7px;
-}
-
-.mission-item-meta em {
-  padding: 3px 7px;
-  border-radius: 999px;
-  font-size: 10px;
-  font-style: normal;
-  font-weight: 700;
-}
-
-.difficulty-쉬움 {
-  background: #e5faf0;
-  color: #16a978;
-}
-
-.difficulty-보통 {
-  background: #e9f2ff;
-  color: #4a83d6;
-}
-
-.difficulty-어려움 {
-  background: #fff0f3;
-  color: #ed637c;
 }
 
 .mission-item-meta b {

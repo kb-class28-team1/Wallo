@@ -78,11 +78,11 @@ class MissionGenerationServiceTest {
     }
 
     @Test
-    void rejectsDifficultyBasedRewardPoints() {
+    void rejectsRewardPointsOtherThanTen() {
         List<MissionGenerationDto.GeneratedMission> missions = uniqueMissions();
         MissionGenerationDto.GeneratedMission first = missions.get(0);
         missions.set(0, new MissionGenerationDto.GeneratedMission(
-                first.title(), first.description(), first.category(), "HARD", 30,
+                first.title(), first.description(), first.category(), 30,
                 first.verificationType(), first.verificationRule(), first.evidenceGuide()));
         when(aiClient.generate(any())).thenReturn(response(missions));
 
@@ -95,7 +95,7 @@ class MissionGenerationServiceTest {
         List<MissionGenerationDto.GeneratedMission> missions = uniqueMissions();
         MissionGenerationDto.GeneratedMission first = missions.get(0);
         missions.set(1, new MissionGenerationDto.GeneratedMission(
-                first.title(), "설명만 다른 중복 제목", first.category(), first.difficulty(),
+                first.title(), "설명만 다른 중복 제목", first.category(),
                 first.rewardPoint(), first.verificationType(), first.verificationRule(),
                 first.evidenceGuide()));
         when(aiClient.generate(any())).thenReturn(response(missions));
@@ -161,7 +161,7 @@ class MissionGenerationServiceTest {
         for (int index = 0; index < 30; index++) {
             result.add(new MissionGenerationDto.GeneratedMission(
                     "맞춤 미션 " + index, "서로 다른 행동 " + index,
-                    "FOOD", "EASY", 10, "MEDIA_AI",
+                    "FOOD", 10, "MEDIA_AI",
                     Map.of("minimumConfidence", 0.8), "행동을 촬영하세요."));
         }
         return result;

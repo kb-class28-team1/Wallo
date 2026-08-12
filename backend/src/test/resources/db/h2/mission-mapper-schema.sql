@@ -30,7 +30,6 @@ CREATE TABLE MISSIONS (
     title VARCHAR(100) NOT NULL,
     description VARCHAR(500) NOT NULL,
     category VARCHAR(30) NOT NULL,
-    difficulty VARCHAR(20) NOT NULL,
     reward_point INT NOT NULL,
     verification_type VARCHAR(20) NOT NULL,
     verification_rule JSON,

@@ -15,7 +15,6 @@ public class DailyMission {
     private String title;
     private String description;
     private String category;
-    private String difficulty;
     private Integer rewardPoint;
     private String verificationType;
     private String evidenceGuide;
@@ -43,8 +42,6 @@ public class DailyMission {
     public void setDescription(String description) { this.description = description; }
     public String getCategory() { return category; }
     public void setCategory(String category) { this.category = category; }
-    public String getDifficulty() { return difficulty; }
-    public void setDifficulty(String difficulty) { this.difficulty = difficulty; }
     public Integer getRewardPoint() { return rewardPoint; }
     public void setRewardPoint(Integer rewardPoint) { this.rewardPoint = rewardPoint; }
     public String getVerificationType() { return verificationType; }
