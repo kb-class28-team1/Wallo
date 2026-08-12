@@ -24,6 +24,11 @@ describe("CategoryBudgetEditor", () => {
     });
 
     expect(wrapper.text()).toContain("2026-08부터 매월 적용됩니다.");
+    expect(wrapper.find(".category-budget-editor .btn-close").exists()).toBe(false);
+    expect(wrapper.get('[data-modal-confirm]').text()).toContain("확인");
+    expect(wrapper.get(".category-budget-editor-body").classes()).toContain(
+      "category-budget-editor-body",
+    );
     expect(wrapper.findAll(".category-budget-editor-item")).toHaveLength(
       BUDGET_CATEGORY_CODES.length,
     );
@@ -42,6 +47,8 @@ describe("CategoryBudgetEditor", () => {
     });
 
     await wrapper.find("#budget-FOOD").setValue("350000");
+    expect(wrapper.find("#categoryBudgetTotal").element.value).toBe("350,000");
+    await wrapper.find("#categoryBudgetTotal").setValue("1000000");
     await wrapper.find("form").trigger("submit");
 
     const saveEvent = wrapper.emitted("save")?.[0]?.[0];
@@ -69,6 +76,7 @@ describe("CategoryBudgetEditor", () => {
     await wrapper.find("#categoryBudgetTotal").setValue("100000");
     await wrapper.find("#budget-FOOD").setValue("100000");
     await wrapper.find("#budget-CAFE").setValue("100000");
+    await wrapper.find("#categoryBudgetTotal").setValue("100000");
 
     expect(wrapper.find('button[type="submit"]').element.disabled).toBe(true);
     expect(wrapper.text()).toContain("카테고리 배분 합계가 전체 예산을 초과했습니다.");

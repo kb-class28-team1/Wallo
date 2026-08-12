@@ -65,6 +65,10 @@ const isValid = computed(() => (
   allocatedAmount.value <= totalAmount.value
 ));
 
+const syncTotalToCategoryAllocation = () => {
+  totalInput.value = formatNumber(allocatedAmount.value);
+};
+
 const initializeForm = () => {
   totalInput.value = formatNumber(props.budgetSummary?.totalAmount ?? 0);
 
@@ -91,6 +95,7 @@ const formatInput = (key) => {
     totalInput.value = formattedValue;
   } else {
     categoryInputs[key] = formattedValue;
+    syncTotalToCategoryAllocation();
   }
 };
 
@@ -140,16 +145,10 @@ const save = () => {
                 {{ targetMonth }}부터 매월 적용됩니다.
               </p>
             </div>
-            <button
-              type="button"
-              class="btn-close"
-              aria-label="닫기"
-              @click="emit('close')"
-            ></button>
           </div>
 
-          <form @submit.prevent="save">
-            <div class="modal-body">
+          <form class="category-budget-editor-form" @submit.prevent="save">
+            <div class="modal-body category-budget-editor-body">
               <div class="total-budget-input mb-4">
                 <label for="categoryBudgetTotal" class="form-label fw-bold">전체 예산</label>
                 <div class="input-group">
@@ -165,6 +164,9 @@ const save = () => {
                   />
                   <span class="input-group-text">원</span>
                 </div>
+                <p class="text-secondary small mt-2 mb-0">
+                  카테고리 금액을 입력하면 전체 예산이 배분 합계로 자동 계산됩니다. 전체 예산은 직접 수정할 수 있습니다.
+                </p>
               </div>
 
               <div class="budget-allocation-summary rounded-3 p-3 mb-4">
@@ -228,9 +230,14 @@ const save = () => {
               <button type="button" class="btn btn-light" :disabled="isSaving" @click="emit('close')">
                 취소
               </button>
-              <button type="submit" class="btn btn-primary" :disabled="isSaving || !isValid">
+              <button
+                type="submit"
+                class="btn btn-primary"
+                data-modal-confirm
+                :disabled="isSaving || !isValid"
+              >
                 <span v-if="isSaving" class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
-                저장
+                {{ isSaving ? "저장 중..." : "확인" }}
               </button>
             </div>
           </form>
@@ -247,9 +254,22 @@ const save = () => {
 }
 
 .category-budget-editor {
+  max-height: calc(100vh - 2rem);
   overflow: hidden;
   border: 0;
   border-radius: 24px;
+}
+
+.category-budget-editor-form {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+.category-budget-editor-body {
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .category-budget-editor .modal-header,
