@@ -2,7 +2,7 @@ package com.wallo.asset.service;
 
 import com.wallo.asset.domain.Institution;
 import com.wallo.asset.dto.AssetSyncDto;
-import com.wallo.external.CodefResponseValidator;
+import com.wallo.external.CodefRetryExecutor;
 import com.wallo.external.auth.CodefCredential;
 import com.wallo.external.auth.CodefCredentialProvider;
 import com.wallo.external.client.CodefClient;
@@ -18,15 +18,18 @@ public class AssetSyncWorker {
 
     private final CodefClient codefClient;
     private final CodefCredentialProvider codefCredentialProvider;
+    private final CodefRetryExecutor codefRetryExecutor;
     private final AssetSyncService assetSyncService;
 
     public AssetSyncWorker(
             CodefClient codefClient,
             CodefCredentialProvider codefCredentialProvider,
+            CodefRetryExecutor codefRetryExecutor,
             AssetSyncService assetSyncService
     ) {
         this.codefClient = codefClient;
         this.codefCredentialProvider = codefCredentialProvider;
+        this.codefRetryExecutor = codefRetryExecutor;
         this.assetSyncService = assetSyncService;
     }
 
@@ -41,19 +44,24 @@ public class AssetSyncWorker {
                 userId,
                 target.getCodefOrganizationCode()
         );
-        CodefDto.Response response = codefClient.connectInstitution(
-                new CodefDto.Request(
-                        target.getCodefOrganizationCode(),
-                        target.getInstitutionType(),
-                        credential.loginType(),
-                        credential.id(),
-                        credential.password()
-                )
+        CodefDto.Request request = new CodefDto.Request(
+                target.getCodefOrganizationCode(),
+                target.getInstitutionType(),
+                credential.loginType(),
+                credential.id(),
+                credential.password()
         );
-        if (!CodefResponseValidator.isSuccess(response)) {
+
+        CodefDto.Response response;
+        try {
+            response = codefRetryExecutor.execute(
+                    "asset synchronization organization=" + target.getCodefOrganizationCode(),
+                    () -> codefClient.connectInstitution(request)
+            );
+        } catch (com.wallo.external.CodefSyncException exception) {
             throw new CodefSyncException(
                     target.getCodefOrganizationCode(),
-                    CodefResponseValidator.messageOrDefault(response, "CODEF synchronization failed.")
+                    exception
             );
         }
 
@@ -83,6 +91,13 @@ public class AssetSyncWorker {
 
         public CodefSyncException(String organization, String message) {
             super("CODEF synchronization failed for " + organization + ": " + message);
+        }
+
+        public CodefSyncException(
+                String organization,
+                com.wallo.external.CodefSyncException cause
+        ) {
+            super("CODEF synchronization failed for " + organization + ": " + cause.getMessage(), cause);
         }
     }
 }
