@@ -327,7 +327,7 @@ class PriceReferenceServiceTest {
         when(mapper.findBestMatch("고구마", "", "1개", "FOOD"))
                 .thenReturn(null, stored);
         when(mapper.upsert(any())).thenReturn(1);
-        when(shoppingClient.search("고구마", "", "1개"))
+        when(shoppingClient.search("고구마", "", ""))
                 .thenReturn(List.of(new ShoppingPriceCandidate(
                         "국산 햇고구마 10개", 10_000, "농산물몰",
                         "https://example.com/sweet-potato", "")));
@@ -359,17 +359,16 @@ class PriceReferenceServiceTest {
         when(mapper.findBestMatch("고구마", "", "1개", "FOOD"))
                 .thenReturn(null, stored);
         when(mapper.upsert(any())).thenReturn(1);
-        when(shoppingClient.search("고구마", "", "1개")).thenReturn(List.of());
-        when(shoppingClient.search("고구마 생물 원물", "", "1개"))
+        when(shoppingClient.search("고구마", "", ""))
+                .thenReturn(List.of(new ShoppingPriceCandidate(
+                        "국산 햇고구마 1kg", 4_500, "농산물몰",
+                        "https://example.com/sweet-potato-by-weight", "")));
+        when(shoppingClient.search("고구마 생물 원물", "", ""))
                 .thenReturn(List.of());
         when(shoppingClient.search("고구마 판매 단위 개수", "", ""))
                 .thenReturn(List.of());
         when(quantityClient.findAveragePackageQuantity("고구마", "판매 단위"))
                 .thenReturn(java.util.OptionalInt.of(5));
-        when(shoppingClient.search("고구마", "", ""))
-                .thenReturn(List.of(new ShoppingPriceCandidate(
-                        "국산 햇고구마 1kg", 4_500, "농산물몰",
-                        "https://example.com/sweet-potato-by-weight", "")));
         AnalysisResponse input = new AnalysisResponse(
                 "REDUCED", "FOOD", 0, "고구마를 직접 수확했습니다.", 0.8,
                 List.of(new DetectedItem(
@@ -390,11 +389,11 @@ class PriceReferenceServiceTest {
         when(mapper.findBestMatch("고구마", "", "1개", "FOOD"))
                 .thenReturn(null, stored);
         when(mapper.upsert(any())).thenReturn(1);
-        when(shoppingClient.search("고구마", "", "1개"))
+        when(shoppingClient.search("고구마", "", ""))
                 .thenReturn(List.of(new ShoppingPriceCandidate(
                         "국산 햇고구마 1kg", 4_500, "농산물몰",
                         "https://example.com/sweet-potato-by-weight", "")));
-        when(shoppingClient.search("고구마 생물 원물", "", "1개"))
+        when(shoppingClient.search("고구마 생물 원물", "", ""))
                 .thenReturn(List.of());
         when(shoppingClient.search("고구마 판매 단위 개수", "", ""))
                 .thenReturn(List.of());
@@ -419,7 +418,7 @@ class PriceReferenceServiceTest {
         when(mapper.findBestMatch("고구마", "", "2개", "FOOD"))
                 .thenReturn(null, stored);
         when(mapper.upsert(any())).thenReturn(1);
-        when(shoppingClient.search("고구마", "", "2개"))
+        when(shoppingClient.search("고구마", "", ""))
                 .thenReturn(List.of(new ShoppingPriceCandidate(
                         "국산 햇고구마 1kg", 4_500, "농산물몰",
                         "https://example.com/sweet-potato-by-weight", "")));
@@ -444,7 +443,7 @@ class PriceReferenceServiceTest {
         when(mapper.findBestMatch("성게", "", "1개", "FOOD"))
                 .thenReturn(cached, stored);
         when(mapper.upsert(any())).thenReturn(1);
-        when(shoppingClient.search("성게", "", "1개"))
+        when(shoppingClient.search("성게", "", ""))
                 .thenReturn(List.of(
                         new ShoppingPriceCandidate(
                                 "성게 모형 1개", 1_000, "소품몰",
@@ -489,8 +488,8 @@ class PriceReferenceServiceTest {
         when(mapper.findBestMatch(itemName, "", unit, "FOOD"))
                 .thenReturn(null, stored);
         when(mapper.upsert(any())).thenReturn(1);
-        when(shoppingClient.search(itemName, "", unit)).thenReturn(List.of());
-        when(shoppingClient.search(itemName + " 생물 원물", "", unit))
+        when(shoppingClient.search(itemName, "", "")).thenReturn(List.of());
+        when(shoppingClient.search(itemName + " 생물 원물", "", ""))
                 .thenReturn(List.of(new ShoppingPriceCandidate(
                         "산지직송 생물 " + itemName + " " + packageQuantity + countUnit,
                         packagePrice, "수산물몰",
