@@ -270,7 +270,7 @@ public class PriceReferenceService {
     private Optional<ShoppingPriceCandidate> findLowestCandidate(
             DetectedItem item, String category) {
         List<ShoppingPriceCandidate> candidates = shoppingPriceClient
-                .search(item.itemName(), item.brand(), item.unit());
+                .search(item.itemName(), item.brand(), isGathered(item) ? "" : item.unit());
         if (isGathered(item)) {
             List<ShoppingPriceCandidate> gatheredCandidates = new ArrayList<>(candidates);
             Optional<ShoppingPriceCandidate> gatheredMatch = lowestGatheredCandidate(
@@ -279,7 +279,7 @@ public class PriceReferenceService {
                 return gatheredMatch;
             }
             List<ShoppingPriceCandidate> rawProductCandidates = shoppingPriceClient.search(
-                    item.itemName() + " 생물 원물", "", item.unit());
+                    item.itemName() + " 생물 원물", "", "");
             gatheredCandidates.addAll(rawProductCandidates);
             gatheredMatch = lowestGatheredCandidate(item, rawProductCandidates);
             if (gatheredMatch.isPresent()) {
@@ -295,11 +295,8 @@ public class PriceReferenceService {
             OptionalInt averagePackageQuantity = gatheredQuantityClient
                     .findAveragePackageQuantity(item.itemName(), "판매 단위");
             if (averagePackageQuantity.isPresent()) {
-                List<ShoppingPriceCandidate> packageCandidates = shoppingPriceClient.search(
-                        item.itemName(), "", "");
-                gatheredCandidates.addAll(packageCandidates);
                 gatheredMatch = lowestGatheredCandidate(
-                        item, packageCandidates, averagePackageQuantity.getAsInt());
+                        item, candidates, averagePackageQuantity.getAsInt());
                 if (gatheredMatch.isPresent()) {
                     return gatheredMatch;
                 }
