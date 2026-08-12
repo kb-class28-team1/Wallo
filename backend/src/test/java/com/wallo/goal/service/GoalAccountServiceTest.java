@@ -42,7 +42,7 @@ class GoalAccountServiceTest {
     void replacesTheGoalAccountWithOneSelectedAccount() {
         when(goalMapper.findGoalById(7L, 31L)).thenReturn(goal());
         when(goalAccountMapper.findAvailableAccount(7L, 101L)).thenReturn(account(false));
-        when(goalAccountMapper.insertGoalAccount(31L, 101L)).thenReturn(1);
+        when(goalAccountMapper.insertGoalAccount(31L, 101L, 2_500_000L)).thenReturn(1);
 
         GoalAccountDto.AvailableAccount result = goalAccountService.selectAccount(
                 7L,
@@ -54,7 +54,7 @@ class GoalAccountServiceTest {
         assertEquals("123-****-890", result.getDisplayNumber());
         assertEquals(true, result.isSelected());
         verify(goalAccountMapper).deleteByGoalId(31L);
-        verify(goalAccountMapper).insertGoalAccount(31L, 101L);
+        verify(goalAccountMapper).insertGoalAccount(31L, 101L, 2_500_000L);
     }
 
     @Test
@@ -68,7 +68,7 @@ class GoalAccountServiceTest {
         );
 
         verify(goalAccountMapper, never()).deleteByGoalId(31L);
-        verify(goalAccountMapper, never()).insertGoalAccount(31L, 999L);
+        verify(goalAccountMapper, never()).insertGoalAccount(31L, 999L, 1_000_000L);
     }
 
     @Test

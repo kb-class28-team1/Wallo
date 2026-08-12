@@ -1,11 +1,13 @@
 <script setup>
-import { computed, nextTick, onMounted, ref } from "vue"
+import { computed, nextTick, onMounted, ref, watch } from "vue"
 import { storeToRefs } from "pinia"
 
 import ChatInput from "@/components/chat/ChatInput.vue"
 import ChatMessage from "@/components/chat/ChatMessage.vue"
 import GoalInterviewCard from "@/components/chat/GoalInterviewCard.vue"
+import GoalAccountSelector from "@/components/goal/GoalAccountSelector.vue"
 import { useConversationStore } from "@/stores/conversationStore"
+import { useGoalStore } from "@/stores/goalStore"
 import { useUserStore } from "@/stores/userStore"
 
 const WELCOME_MESSAGE = {
@@ -15,6 +17,7 @@ const WELCOME_MESSAGE = {
 }
 
 const conversationStore = useConversationStore()
+const goalStore = useGoalStore()
 const userStore = useUserStore()
 const {
   conversations,
@@ -22,10 +25,17 @@ const {
   activeConversationId,
   messages,
   activeGoalInterview,
+  confirmedGoal,
   isLoading: isConversationLoading,
   isMessageLoading,
   isSending: isChatLoading,
 } = storeToRefs(conversationStore)
+const {
+  availableAccounts,
+  isAccountLoading,
+  isAccountSaving,
+  accountError,
+} = storeToRefs(goalStore)
 const { user } = storeToRefs(userStore)
 
 const errorMessage = ref("")
@@ -35,6 +45,21 @@ const editingTitle = ref("")
 const userId = computed(() => user.value?.id ?? null)
 const displayMessages = computed(() =>
   messages.value.length ? messages.value : [{ ...WELCOME_MESSAGE }],
+)
+
+watch(
+  () => confirmedGoal.value?.goalId,
+  async (goalId) => {
+    if (!goalId) {
+      availableAccounts.value = []
+      return
+    }
+
+    await goalStore.fetchAvailableAccounts({
+      notifyError: false,
+    })
+  },
+  { immediate: true },
 )
 
 const formatUpdatedAt = (updatedAt) => {
@@ -68,7 +93,7 @@ const startNewConversation = async () => {
 
 async function scrollToBottom(behavior = "smooth") {
   await nextTick()
-  messageList.value?.scrollTo({
+  messageList.value?.scrollTo?.({
     top: messageList.value.scrollHeight,
     behavior,
   })
@@ -122,6 +147,19 @@ async function sendMessage(message) {
   await scrollToBottom()
   await sendPromise
   await scrollToBottom()
+}
+
+const handleAccountSelect = async (accountId) => {
+  const goalId = confirmedGoal.value?.goalId
+  if (!goalId) return
+
+  try {
+    await goalStore.saveGoalAccount(goalId, accountId)
+    await conversationStore.fetchConfirmedGoal(activeConversationId.value)
+    await goalStore.fetchAvailableAccounts({ notifyError: false })
+  } catch {
+    // goalStore가 API 오류와 사용자 알림을 처리한다.
+  }
 }
 
 const confirmGoal = async () => {
@@ -178,6 +216,16 @@ onMounted(async () => {
               :loading="isChatLoading"
               @confirm="confirmGoal"
               @cancel="cancelGoal"
+            />
+
+            <GoalAccountSelector
+              v-if="confirmedGoal"
+              :accounts="availableAccounts"
+              :loading="isAccountLoading"
+              :saving="isAccountSaving"
+              :error="accountError"
+              @retry="goalStore.fetchAvailableAccounts()"
+              @select-account="handleAccountSelect"
             />
 
             <div

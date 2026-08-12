@@ -40,11 +40,101 @@
             updated_at = CURRENT_TIMESTAMP
     </insert>
 
+    <select id="selectApplicablePlan" resultType="com.wallo.asset.dto.BudgetDto$Plan">
+        SELECT
+            budget_plan_id AS budgetPlanId,
+            effective_month AS effectiveMonth,
+            total_amount AS totalAmount
+        FROM BUDGET_PLANS
+        WHERE user_id = #{userId}
+          AND effective_month &lt;= #{targetMonth}
+        ORDER BY effective_month DESC
+        LIMIT 1
+    </select>
+
+    <select id="selectPlan" resultType="com.wallo.asset.dto.BudgetDto$Plan">
+        SELECT
+            budget_plan_id AS budgetPlanId,
+            effective_month AS effectiveMonth,
+            total_amount AS totalAmount
+        FROM BUDGET_PLANS
+        WHERE user_id = #{userId}
+          AND effective_month = #{effectiveMonth}
+    </select>
+
+    <select id="selectPlanAllocations"
+            resultType="com.wallo.asset.dto.BudgetDto$Allocation">
+        SELECT
+            category AS category,
+            budget_amount AS budgetAmount
+        FROM BUDGET_PLAN_CATEGORIES
+        WHERE budget_plan_id = #{budgetPlanId}
+        ORDER BY category ASC
+    </select>
+
+    <insert id="upsertPlan">
+        INSERT INTO BUDGET_PLANS (
+            user_id,
+            effective_month,
+            total_amount
+        )
+        VALUES (
+            #{userId},
+            #{request.targetMonth},
+            #{request.totalAmount}
+        )
+        ON DUPLICATE KEY UPDATE
+            total_amount = VALUES(total_amount),
+            updated_at = CURRENT_TIMESTAMP
+    </insert>
+
+    <delete id="deletePlanAllocations">
+        DELETE FROM BUDGET_PLAN_CATEGORIES
+        WHERE budget_plan_id = #{budgetPlanId}
+    </delete>
+
+    <insert id="insertPlanAllocations">
+        INSERT INTO BUDGET_PLAN_CATEGORIES (
+            budget_plan_id,
+            category,
+            budget_amount
+        )
+        VALUES
+        <foreach collection="categories" item="category" separator=",">
+            (
+                #{budgetPlanId},
+                #{category.category},
+                #{category.budgetAmount}
+            )
+        </foreach>
+    </insert>
+
+    <select id="selectCategoryExpenses"
+            resultType="com.wallo.asset.dto.BudgetDto$CategoryExpense">
+        SELECT
+            CASE
+                WHEN category IN ('OTHER', 'ETC') THEN 'ETC'
+                ELSE category
+            END AS category,
+            COALESCE(SUM(amount), 0) AS spentAmount
+        FROM TRANSACTIONS
+        WHERE user_id = #{userId}
+          AND type = 'EXPENSE'
+          AND category NOT IN ('INCOME', 'SEND', 'CARD_WITHDRAWAL')
+          AND transaction_date BETWEEN #{startDate} AND #{endDate}
+        GROUP BY CASE
+            WHEN category IN ('OTHER', 'ETC') THEN 'ETC'
+            ELSE category
+        END
+        ORDER BY category ASC
+    </select>
+
     <select id="selectSpentAmount" resultType="java.lang.Long">
         SELECT COALESCE(SUM(amount), 0)
         FROM TRANSACTIONS
         WHERE user_id = #{userId}
           AND type = 'EXPENSE'
+          AND category NOT IN ('INCOME', 'SEND', 'CARD_WITHDRAWAL')
           AND transaction_date BETWEEN #{startDate} AND #{endDate}
     </select>
 

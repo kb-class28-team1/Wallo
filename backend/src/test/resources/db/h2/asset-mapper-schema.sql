@@ -48,6 +48,45 @@ CREATE INDEX idx_transactions_user_date ON TRANSACTIONS (user_id, transaction_da
 CREATE INDEX idx_transactions_user_type_date
     ON TRANSACTIONS (user_id, type, transaction_date);
 
+CREATE TABLE BUDGETS (
+    budget_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    target_month CHAR(7) NOT NULL,
+    total_amount BIGINT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_budgets_user_month UNIQUE (user_id, target_month)
+);
+
+CREATE TABLE BUDGET_PLANS (
+    budget_plan_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    effective_month CHAR(7) NOT NULL,
+    total_amount BIGINT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_budget_plans_user_effective_month UNIQUE (user_id, effective_month),
+    CONSTRAINT fk_budget_plans_user
+        FOREIGN KEY (user_id) REFERENCES USERS (id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_budget_plans_user_effective_month
+    ON BUDGET_PLANS (user_id, effective_month);
+
+CREATE TABLE BUDGET_PLAN_CATEGORIES (
+    budget_plan_id BIGINT NOT NULL,
+    category VARCHAR(50) NOT NULL,
+    budget_amount BIGINT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_budget_plan_categories PRIMARY KEY (budget_plan_id, category),
+    CONSTRAINT fk_budget_plan_categories_plan
+        FOREIGN KEY (budget_plan_id) REFERENCES BUDGET_PLANS (budget_plan_id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_budget_plan_categories_category
+    ON BUDGET_PLAN_CATEGORIES (category);
+
 CREATE TABLE ASSET_SNAPSHOTS (
     asset_snapshot_id BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT NOT NULL,

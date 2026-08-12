@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.wallo.goal.domain.FinancialGoal;
 import com.wallo.goal.domain.GoalInterviewSession;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.time.LocalDate;
@@ -99,6 +100,12 @@ class GoalMapperIntegrationTest {
                 goalMapper.findGoalsByUserId(7L).get(0).getRequiredMonthlyAmount()
         );
         assertEquals(
+                2_250_000L,
+                goalMapper.findGoalsByUserId(7L).get(0).getCurrentAmount()
+        );
+        updateAccountBalance(101L, 2_750_000L);
+        sqlSession.clearCache();
+        assertEquals(
                 2_000_000L,
                 goalMapper.findGoalsByUserId(7L).get(0).getCurrentAmount()
         );
@@ -132,6 +139,49 @@ class GoalMapperIntegrationTest {
         assertEquals(
                 goal.getGoalId(),
                 goalMapper.findGoalByConversationId(7L, 11L).getGoalId()
+        );
+    }
+
+    @Test
+    void calculatesInitialAmountPlusPositiveAccountIncrease() throws Exception {
+        long goalId = insertStandaloneGoal(1_000_000L, 10_000_000L);
+        linkGoalAccount(goalId, 101L, 2_900_000L, 2_500_000L);
+
+        assertEquals(
+                1_400_000L,
+                goalMapper.findGoalById(7L, goalId).getCurrentAmount()
+        );
+    }
+
+    @Test
+    void usesInitialAmountWhenAccountBalanceMatchesBaseline() throws Exception {
+        long goalId = insertStandaloneGoal(1_000_000L, 10_000_000L);
+        linkGoalAccount(goalId, 101L, 2_500_000L, 2_500_000L);
+
+        assertEquals(
+                1_000_000L,
+                goalMapper.findGoalById(7L, goalId).getCurrentAmount()
+        );
+    }
+
+    @Test
+    void treatsAnAccountBalanceDecreaseAsZeroIncrease() throws Exception {
+        long goalId = insertStandaloneGoal(1_000_000L, 10_000_000L);
+        linkGoalAccount(goalId, 101L, 2_400_000L, 2_500_000L);
+
+        assertEquals(
+                1_000_000L,
+                goalMapper.findGoalById(7L, goalId).getCurrentAmount()
+        );
+    }
+
+    @Test
+    void usesInitialAmountWhenNoAccountIsLinked() throws Exception {
+        long goalId = insertStandaloneGoal(1_000_000L, 10_000_000L);
+
+        assertEquals(
+                1_000_000L,
+                goalMapper.findGoalById(7L, goalId).getCurrentAmount()
         );
     }
 
@@ -177,7 +227,9 @@ class GoalMapperIntegrationTest {
             statement.execute("""
                     CREATE TABLE FINANCIAL_GOAL_ACCOUNTS (
                         goal_id BIGINT PRIMARY KEY,
-                        account_id BIGINT NOT NULL
+                        account_id BIGINT NOT NULL,
+                        baseline_balance BIGINT NOT NULL,
+                        baseline_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
                     )
                     """);
             statement.execute("""
@@ -218,12 +270,67 @@ class GoalMapperIntegrationTest {
     }
 
     private void linkGoalAccount(Long goalId) throws Exception {
+        linkGoalAccount(goalId, 101L, 3_250_000L, 3_000_000L);
+    }
+
+    private void linkGoalAccount(
+            Long goalId,
+            long accountId,
+            long currentBalance,
+            long baselineBalance
+    ) throws Exception {
         try (Connection connection = dataSource.getConnection();
              Statement statement = connection.createStatement()) {
             statement.execute("INSERT INTO CONNECTIONS VALUES (21, 'ACTIVE', NULL)");
-            statement.execute("INSERT INTO ACCOUNTS VALUES (101, 21, 3250000, 'ACTIVE')");
             statement.execute(
-                    "INSERT INTO FINANCIAL_GOAL_ACCOUNTS VALUES (" + goalId + ", 101)"
+                    "INSERT INTO ACCOUNTS VALUES ("
+                            + accountId + ", 21, " + currentBalance + ", 'ACTIVE')"
+            );
+            statement.execute(
+                    "INSERT INTO FINANCIAL_GOAL_ACCOUNTS "
+                            + "(goal_id, account_id, baseline_balance) VALUES ("
+                            + goalId + ", " + accountId + ", " + baselineBalance + ")"
+            );
+        }
+    }
+
+    private long insertStandaloneGoal(long initialAmount, long targetAmount)
+            throws Exception {
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(
+                     """
+                             INSERT INTO FINANCIAL_GOALS (
+                                 session_id,
+                                 user_id,
+                                 conversation_id,
+                                 title,
+                                 goal_type,
+                                 target_amount,
+                                 target_date,
+                                 initial_amount,
+                                 required_monthly_amount,
+                                 status
+                             ) VALUES (1, 7, 11, 'Goal', 'TRAVEL', ?, ?, ?, 0, 'ACTIVE')
+                             """,
+                     Statement.RETURN_GENERATED_KEYS
+             )) {
+            statement.setLong(1, targetAmount);
+            statement.setObject(2, LocalDate.of(2027, 8, 1));
+            statement.setLong(3, initialAmount);
+            statement.executeUpdate();
+            try (ResultSet keys = statement.getGeneratedKeys()) {
+                keys.next();
+                return keys.getLong(1);
+            }
+        }
+    }
+
+    private void updateAccountBalance(Long accountId, long balance) throws Exception {
+        try (Connection connection = dataSource.getConnection();
+             Statement statement = connection.createStatement()) {
+            statement.executeUpdate(
+                    "UPDATE ACCOUNTS SET balance = " + balance
+                            + " WHERE account_id = " + accountId
             );
         }
     }

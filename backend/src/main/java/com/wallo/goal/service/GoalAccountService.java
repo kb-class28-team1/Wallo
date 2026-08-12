@@ -65,7 +65,11 @@ public class GoalAccountService {
         }
 
         goalAccountMapper.deleteByGoalId(goalId);
-        if (goalAccountMapper.insertGoalAccount(goalId, accountId) != 1) {
+        if (goalAccountMapper.insertGoalAccount(
+                goalId,
+                accountId,
+                account.getBalance()
+        ) != 1) {
             throw new IllegalStateException("목표 계좌 저장에 실패했습니다.");
         }
 

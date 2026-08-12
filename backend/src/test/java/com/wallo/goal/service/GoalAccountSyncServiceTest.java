@@ -4,8 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.same;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.wallo.asset.domain.Institution;
@@ -17,6 +17,7 @@ import com.wallo.goal.mapper.GoalAccountMapper;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 
 class GoalAccountSyncServiceTest {
 
@@ -50,9 +51,12 @@ class GoalAccountSyncServiceTest {
 
         goalAccountSyncService.syncSelectedAccounts(7L);
 
+        InOrder inOrder = inOrder(goalAccountMapper, codefClient, assetSyncService);
+        inOrder.verify(goalAccountMapper).findSelectedAccountSyncTargets(7L);
+
         ArgumentCaptor<CodefDto.Request> requestCaptor =
                 ArgumentCaptor.forClass(CodefDto.Request.class);
-        verify(codefClient).connectInstitution(requestCaptor.capture());
+        inOrder.verify(codefClient).connectInstitution(requestCaptor.capture());
         assertEquals("0004", requestCaptor.getValue().getOrganization());
         assertEquals("BANK", requestCaptor.getValue().getInstitutionType());
         assertEquals("ID", requestCaptor.getValue().getLoginType());
@@ -61,7 +65,7 @@ class GoalAccountSyncServiceTest {
 
         ArgumentCaptor<Institution> institutionCaptor =
                 ArgumentCaptor.forClass(Institution.class);
-        verify(assetSyncService).syncAccountBalances(
+        inOrder.verify(assetSyncService).syncAccountBalances(
                 eq(11L),
                 institutionCaptor.capture(),
                 same(response)
