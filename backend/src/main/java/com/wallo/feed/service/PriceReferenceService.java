@@ -7,6 +7,8 @@ import com.wallo.feed.dto.FeedDtos.DetectedItem;
 import com.wallo.feed.dto.FeedDtos.PriceReference;
 import com.wallo.feed.mapper.FoodCostReferenceMapper;
 import com.wallo.feed.mapper.PriceReferenceMapper;
+import com.wallo.feed.price.GatheredQuantityClient;
+import com.wallo.feed.price.NoopGatheredQuantityClient;
 import com.wallo.feed.price.RestaurantPriceCandidate;
 import com.wallo.feed.price.RestaurantPriceClient;
 import com.wallo.feed.price.ShoppingPriceCandidate;
@@ -22,6 +24,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.regex.Matcher;
@@ -63,6 +66,7 @@ public class PriceReferenceService {
 
     private final PriceReferenceMapper priceReferenceMapper;
     private final ShoppingPriceClient shoppingPriceClient;
+    private final GatheredQuantityClient gatheredQuantityClient;
     private final FoodCostReferenceMapper foodCostReferenceMapper;
     private final RestaurantPriceClient restaurantPriceClient;
     private final RecipeIngredientCostService recipeIngredientCostService;
@@ -73,6 +77,7 @@ public class PriceReferenceService {
     public PriceReferenceService(
             PriceReferenceMapper priceReferenceMapper,
             ShoppingPriceClient shoppingPriceClient,
+            GatheredQuantityClient gatheredQuantityClient,
             FoodCostReferenceMapper foodCostReferenceMapper,
             RestaurantPriceClient restaurantPriceClient,
             RecipeIngredientCostService recipeIngredientCostService,
@@ -80,6 +85,7 @@ public class PriceReferenceService {
             Clock clock) {
         this.priceReferenceMapper = priceReferenceMapper;
         this.shoppingPriceClient = shoppingPriceClient;
+        this.gatheredQuantityClient = gatheredQuantityClient;
         this.foodCostReferenceMapper = foodCostReferenceMapper;
         this.restaurantPriceClient = restaurantPriceClient;
         this.recipeIngredientCostService = recipeIngredientCostService;
@@ -93,7 +99,18 @@ public class PriceReferenceService {
             ShoppingPriceClient shoppingPriceClient,
             Executor searchExecutor,
             Clock clock) {
-        this(priceReferenceMapper, shoppingPriceClient, null, null, null, searchExecutor, clock);
+        this(priceReferenceMapper, shoppingPriceClient, new NoopGatheredQuantityClient(),
+                null, null, null, searchExecutor, clock);
+    }
+
+    public PriceReferenceService(
+            PriceReferenceMapper priceReferenceMapper,
+            ShoppingPriceClient shoppingPriceClient,
+            GatheredQuantityClient gatheredQuantityClient,
+            Executor searchExecutor,
+            Clock clock) {
+        this(priceReferenceMapper, shoppingPriceClient, gatheredQuantityClient,
+                null, null, null, searchExecutor, clock);
     }
 
     /** 기존 홈메이드 음식 단위 테스트와 호출부의 호환을 위한 생성자. */
@@ -104,8 +121,22 @@ public class PriceReferenceService {
             RestaurantPriceClient restaurantPriceClient,
             Executor searchExecutor,
             Clock clock) {
-        this(priceReferenceMapper, shoppingPriceClient, foodCostReferenceMapper,
-                restaurantPriceClient, null, searchExecutor, clock);
+        this(priceReferenceMapper, shoppingPriceClient, new NoopGatheredQuantityClient(),
+                foodCostReferenceMapper, restaurantPriceClient, null, searchExecutor, clock);
+    }
+
+    /** 기존 레시피 원가 테스트와 호출부의 호환을 위한 생성자. */
+    public PriceReferenceService(
+            PriceReferenceMapper priceReferenceMapper,
+            ShoppingPriceClient shoppingPriceClient,
+            FoodCostReferenceMapper foodCostReferenceMapper,
+            RestaurantPriceClient restaurantPriceClient,
+            RecipeIngredientCostService recipeIngredientCostService,
+            Executor searchExecutor,
+            Clock clock) {
+        this(priceReferenceMapper, shoppingPriceClient, new NoopGatheredQuantityClient(),
+                foodCostReferenceMapper, restaurantPriceClient, recipeIngredientCostService,
+                searchExecutor, clock);
     }
 
     public AnalysisResponse enrich(AnalysisResponse analysis) {
@@ -258,6 +289,17 @@ public class PriceReferenceService {
             if (gatheredMatch.isPresent()) {
                 return gatheredMatch;
             }
+            OptionalInt averagePackageQuantity = gatheredQuantityClient
+                    .findAveragePackageQuantity(item.itemName(), "판매 단위");
+            if (averagePackageQuantity.isPresent()) {
+                List<ShoppingPriceCandidate> packageCandidates = shoppingPriceClient.search(
+                        item.itemName(), "", "");
+                gatheredMatch = lowestGatheredCandidate(
+                        item, packageCandidates, averagePackageQuantity.getAsInt());
+                if (gatheredMatch.isPresent()) {
+                    return gatheredMatch;
+                }
+            }
             return Optional.empty();
         }
         Optional<ShoppingPriceCandidate> strictMatch = candidates.stream()
@@ -283,10 +325,35 @@ public class PriceReferenceService {
                 .min(Comparator.comparingInt(ShoppingPriceCandidate::price));
     }
 
+    private Optional<ShoppingPriceCandidate> lowestGatheredCandidate(
+            DetectedItem item, List<ShoppingPriceCandidate> candidates, int packageQuantity) {
+        if (packageQuantity <= 0) {
+            return Optional.empty();
+        }
+        return candidates.stream()
+                .filter(candidate -> matchesGatheredItem(item, candidate))
+                .filter(candidate -> !hasGatheredPackageCount(candidate.title()))
+                .filter(candidate -> hasWeightOrPackageUnit(candidate.title()))
+                .map(candidate -> normalizeGatheredPackagePrice(item, candidate, packageQuantity))
+                .min(Comparator.comparingInt(ShoppingPriceCandidate::price));
+    }
+
     private ShoppingPriceCandidate normalizeGatheredPackagePrice(
             DetectedItem item, ShoppingPriceCandidate candidate) {
         String normalizedTitle = normalizePackageTitle(candidate.title());
         int packageQuantity = gatheredPackageQuantity(normalizedTitle);
+        if (packageQuantity <= 1) {
+            return normalizePackagePrice(item, candidate);
+        }
+        int unitPrice = Math.max(1,
+                (int) Math.ceil((double) candidate.price() / packageQuantity));
+        return new ShoppingPriceCandidate(
+                candidate.title(), unitPrice, candidate.source(),
+                candidate.sourceUrl(), candidate.delivery());
+    }
+
+    private ShoppingPriceCandidate normalizeGatheredPackagePrice(
+            DetectedItem item, ShoppingPriceCandidate candidate, int packageQuantity) {
         if (packageQuantity <= 1) {
             return normalizePackagePrice(item, candidate);
         }
@@ -303,6 +370,11 @@ public class PriceReferenceService {
 
     private String normalizePackageTitle(String value) {
         return value == null ? "" : value.toLowerCase(Locale.ROOT).replace(" ", "");
+    }
+
+    private boolean hasWeightOrPackageUnit(String title) {
+        String normalizedTitle = normalizePackageTitle(title);
+        return normalizedTitle.matches(".*\\d+(?:\\.\\d+)?(?:kg|g|박스|팩|봉|상자).*");
     }
 
     private int gatheredPackageQuantity(String normalizedTitle) {
