@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -18,6 +19,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 
 class GoalServiceTest {
 
@@ -41,8 +43,9 @@ class GoalServiceTest {
         assertEquals(2_000_000L, response.get(0).getInitialAmount());
         assertEquals(3_250_000L, response.get(0).getCurrentAmount());
         assertEquals(33, response.get(0).getAchievementRate());
-        verify(goalAccountSyncService).syncSelectedAccounts(7L);
-        verify(goalMapper).findGoalsByUserId(7L);
+        InOrder inOrder = inOrder(goalAccountSyncService, goalMapper);
+        inOrder.verify(goalAccountSyncService).syncSelectedAccounts(7L);
+        inOrder.verify(goalMapper).findGoalsByUserId(7L);
     }
 
     @Test
@@ -69,7 +72,9 @@ class GoalServiceTest {
 
         assertEquals(31L, response.getGoalId());
         assertEquals("ACTIVE", response.getStatus());
-        verify(goalAccountSyncService).syncSelectedAccounts(7L);
+        InOrder inOrder = inOrder(goalAccountSyncService, goalMapper);
+        inOrder.verify(goalAccountSyncService).syncSelectedAccounts(7L);
+        inOrder.verify(goalMapper).findGoalByConversationId(7L, 11L);
     }
 
     @Test
