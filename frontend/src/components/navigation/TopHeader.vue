@@ -16,11 +16,13 @@ const userStore = useUserStore()
 const router = useRouter()
 const { nickname, profileImageUrl, pointBalance, isLoading } = storeToRefs(userStore)
 const missions = ref([])
+const missionMenu = ref(null)
 const isMissionOpen = ref(false)
 const isMissionLoading = ref(false)
 const isMissionDevLoading = ref(false)
 const missionDevResult = ref(null)
 const isDevelopment = import.meta.env.DEV
+let missionCloseTimer = null
 
 // 포인트 숫자에 천 단위 구분 기호를 적용함
 const formattedPointBalance = computed(() => formatNumber(pointBalance.value))
@@ -48,6 +50,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener("wallo:mission-updated", loadTodayMissions)
+  clearTimeout(missionCloseTimer)
 })
 
 const loadTodayMissions = async () => {
@@ -101,11 +104,25 @@ const generateMissions = async () => {
 }
 
 const toggleMissionMenu = () => {
+  clearTimeout(missionCloseTimer)
   isMissionOpen.value = !isMissionOpen.value
 }
 
-const closeMissionMenu = () => {
-  isMissionOpen.value = false
+const openMissionMenu = () => {
+  clearTimeout(missionCloseTimer)
+  isMissionOpen.value = true
+}
+
+const scheduleMissionMenuClose = () => {
+  clearTimeout(missionCloseTimer)
+  missionCloseTimer = setTimeout(() => {
+    isMissionOpen.value = false
+  }, 250)
+}
+
+const handleMissionFocusOut = (event) => {
+  if (missionMenu.value?.contains(event.relatedTarget)) return
+  scheduleMissionMenuClose()
 }
 
 const handleLogout = async () => {
@@ -122,11 +139,12 @@ const handleLogout = async () => {
   <header class="top-header d-flex flex-shrink-0 align-items-center justify-content-center">
     <div class="top-header-content">
       <div
+        ref="missionMenu"
         class="mission-menu"
-        @mouseenter="isMissionOpen = true"
-        @mouseleave="closeMissionMenu"
-        @focusin="isMissionOpen = true"
-        @focusout="closeMissionMenu"
+        @mouseenter="openMissionMenu"
+        @mouseleave="scheduleMissionMenuClose"
+        @focusin="openMissionMenu"
+        @focusout="handleMissionFocusOut"
       >
         <button
           type="button"
