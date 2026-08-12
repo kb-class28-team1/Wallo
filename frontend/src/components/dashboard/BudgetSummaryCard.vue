@@ -1,6 +1,6 @@
 <script setup>
-import { computed, ref } from "vue";
-import { formatNumber, formatWon } from "@/commonUtils/formatters";
+import { computed } from "vue";
+import { formatWon } from "@/commonUtils/formatters";
 
 const props = defineProps({
   budget: {
@@ -8,10 +8,7 @@ const props = defineProps({
     default: null,
   },
 });
-const emit = defineEmits(["save-budget"]);
-
-const budgetModalVisible = ref(false);
-const budgetAmountInput = ref("");
+const emit = defineEmits(["open-budget-settings"]);
 const currentBudgetMonthLabel = computed(() => `${new Date().getMonth() + 1}월 예산`);
 const isBudgetConfigured = computed(() => Number(props.budget?.totalAmount ?? 0) > 0);
 const budgetUsageRate = computed(() => {
@@ -22,38 +19,14 @@ const budgetUsageRate = computed(() => {
     return 0;
   }
 
-  return Math.min(100, Math.round((spentAmount / totalAmount) * 100));
+  return Math.round((spentAmount / totalAmount) * 100);
 });
+const isBudgetOver = computed(() => (
+  Number(props.budget?.spentAmount ?? 0) > Number(props.budget?.totalAmount ?? 0)
+));
 const budgetRemaining = computed(() => (
   Number(props.budget?.totalAmount ?? 0) - Number(props.budget?.spentAmount ?? 0)
 ));
-
-const openBudgetModal = () => {
-  budgetAmountInput.value = formatNumber(props.budget?.totalAmount ?? 0);
-  budgetModalVisible.value = true;
-};
-
-const closeBudgetModal = () => {
-  budgetModalVisible.value = false;
-};
-
-const formatBudgetAmountInput = () => {
-  const numericValue = String(budgetAmountInput.value).replace(/[^0-9]/g, "");
-
-  budgetAmountInput.value = numericValue ? formatNumber(numericValue) : "";
-};
-
-const saveBudget = () => {
-  const amount = Number(String(budgetAmountInput.value).replaceAll(",", ""));
-
-  if (!Number.isFinite(amount) || amount <= 0) {
-    alert("예산은 0원보다 큰 금액으로 입력해주세요.");
-    return;
-  }
-
-  emit("save-budget", amount);
-  closeBudgetModal();
-};
 </script>
 
 <template>
@@ -61,7 +34,11 @@ const saveBudget = () => {
     <div class="card-body budget-card-body">
       <div class="d-flex align-items-start justify-content-between gap-3">
         <h2 class="h5 fw-bold mb-0">이번 달 예산</h2>
-        <button type="button" class="btn dashboard-action-button" @click="openBudgetModal">
+        <button
+          type="button"
+          class="btn dashboard-action-button"
+          @click="emit('open-budget-settings')"
+        >
           설정
           <i class="bi bi-gear ms-1" aria-hidden="true"></i>
         </button>
@@ -70,7 +47,12 @@ const saveBudget = () => {
       <template v-if="isBudgetConfigured">
         <div class="budget-content">
           <p class="budget-balance-label mb-2">{{ currentBudgetMonthLabel }} 잔액</p>
-          <strong class="budget-total d-block mb-3">{{ formatWon(budgetRemaining) }}</strong>
+          <strong
+            class="budget-total d-block mb-3"
+            :class="{ 'text-danger': isBudgetOver }"
+          >
+            {{ formatWon(budgetRemaining) }}
+          </strong>
 
           <div class="d-flex align-items-center gap-3">
             <div
@@ -81,9 +63,15 @@ const saveBudget = () => {
               aria-valuemin="0"
               aria-valuemax="100"
             >
-              <div class="progress-bar" :style="{ width: `${budgetUsageRate}%` }"></div>
+              <div
+                class="progress-bar"
+                :class="{ 'bg-danger': isBudgetOver }"
+                :style="{ width: `${Math.min(100, Math.max(0, budgetUsageRate))}%` }"
+              ></div>
             </div>
-            <strong class="budget-usage-rate">{{ budgetUsageRate }}%</strong>
+            <strong class="budget-usage-rate" :class="{ 'text-danger': isBudgetOver }">
+              {{ budgetUsageRate }}%
+            </strong>
           </div>
           <p class="budget-detail mb-0 mt-3">
             지출 {{ formatWon(budget.spentAmount) }} / 예산 {{ formatWon(budget.totalAmount) }}
@@ -93,52 +81,16 @@ const saveBudget = () => {
 
       <div v-else class="budget-empty-state text-center py-4">
         <p class="text-secondary mb-3">예산이 없습니다. 예산을 설정해주세요.</p>
-        <button type="button" class="btn btn-primary" @click="openBudgetModal">설정하기</button>
+        <button
+          type="button"
+          class="btn btn-primary"
+          @click="emit('open-budget-settings')"
+        >
+          설정하기
+        </button>
       </div>
     </div>
   </article>
-
-  <div v-if="budgetModalVisible" class="modal-backdrop fade show"></div>
-  <div
-    v-if="budgetModalVisible"
-    class="modal fade show d-block"
-    tabindex="-1"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="budgetModalTitle"
-    @click.self="closeBudgetModal"
-  >
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h2 id="budgetModalTitle" class="modal-title h5">이번 달 예산 설정</h2>
-          <button type="button" class="btn-close" aria-label="닫기" @click="closeBudgetModal"></button>
-        </div>
-        <form @submit.prevent="saveBudget">
-          <div class="modal-body">
-            <label for="budgetAmount" class="form-label">{{ currentBudgetMonthLabel }}</label>
-            <div class="input-group">
-              <input
-                id="budgetAmount"
-                v-model="budgetAmountInput"
-                type="text"
-                class="form-control"
-                inputmode="numeric"
-                autocomplete="off"
-                required
-                @input="formatBudgetAmountInput"
-              />
-              <span class="input-group-text">원</span>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-light" @click="closeBudgetModal">취소</button>
-            <button type="submit" class="btn btn-primary">저장</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
 </template>
 
 <style scoped>

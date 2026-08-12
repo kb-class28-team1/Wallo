@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { storeToRefs } from "pinia";
+import { useRouter } from "vue-router";
 import AssetSummaryCard from "@/components/dashboard/AssetSummaryCard.vue";
 import BudgetSummaryCard from "@/components/dashboard/BudgetSummaryCard.vue";
 import ExpenseSummaryCard from "@/components/dashboard/ExpenseSummaryCard.vue";
@@ -11,6 +12,7 @@ import { useGoalStore } from "@/stores/goalStore";
 
 const dashboardStore = useDashboardStore();
 const goalStore = useGoalStore();
+const router = useRouter();
 const {
   isLoading,
   assets,
@@ -43,8 +45,11 @@ const hasDashboardData = computed(() => Boolean(
   goalError.value,
 ));
 
-const handleBudgetSave = async (totalAmount) => {
-  await dashboardStore.updateBudgetTotal(totalAmount);
+const handleBudgetSettings = async () => {
+  await router.push({
+    name: "expenses",
+    query: { budget: "edit" },
+  });
 };
 
 const handleGoalRetry = () => {
@@ -129,7 +134,7 @@ onBeforeUnmount(() => {
 
       <div class="dashboard-card-grid">
         <AssetSummaryCard :assets="assets" :chart-data="assetTrendChartData" />
-        <BudgetSummaryCard :budget="budget" @save-budget="handleBudgetSave" />
+        <BudgetSummaryCard :budget="budget" @open-budget-settings="handleBudgetSettings" />
       </div>
 
       <div class="dashboard-summary-grid">
