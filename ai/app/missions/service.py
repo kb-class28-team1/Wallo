@@ -13,6 +13,60 @@ from .schemas import MissionGenerateRequest, MissionGenerateResponse
 
 logger = logging.getLogger("uvicorn.error")
 DEFAULT_MISSION_MAX_COMPLETION_TOKENS = 4500
+MISSION_RESPONSE_SCHEMA = {
+    "name": "mission_generation",
+    "strict": True,
+    "schema": {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "missions": {
+                "type": "array",
+                "minItems": 3,
+                "maxItems": 30,
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "title": {"type": "string"},
+                        "description": {"type": "string"},
+                        "category": {"type": "string"},
+                        "rewardPoint": {"type": "integer", "const": 10},
+                        "verificationType": {
+                            "type": "string",
+                            "enum": [
+                                "MEDIA_AI", "TRANSACTION", "HYBRID",
+                                "SELF_CHECK", "MANUAL",
+                            ],
+                        },
+                        "verificationRule": {
+                            "anyOf": [
+                                {
+                                    "type": "object",
+                                    "additionalProperties": False,
+                                    "properties": {
+                                        "description": {"type": "string"},
+                                    },
+                                    "required": ["description"],
+                                },
+                                {"type": "null"},
+                            ],
+                        },
+                        "evidenceGuide": {
+                            "anyOf": [{"type": "string"}, {"type": "null"}],
+                        },
+                    },
+                    "required": [
+                        "title", "description", "category", "rewardPoint",
+                        "verificationType", "verificationRule", "evidenceGuide",
+                    ],
+                },
+            },
+            "promptVersion": {"type": "string"},
+        },
+        "required": ["missions", "promptVersion"],
+    },
+}
 
 
 def get_mission_max_completion_tokens() -> int:
@@ -41,7 +95,10 @@ def generate_missions(
 ) -> MissionGenerateResponse:
     try:
         options = {
-            "response_format": {"type": "json_object"},
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": MISSION_RESPONSE_SCHEMA,
+            },
             "max_completion_tokens": get_mission_max_completion_tokens(),
         }
         if model.startswith("openai/gpt-oss-"):
