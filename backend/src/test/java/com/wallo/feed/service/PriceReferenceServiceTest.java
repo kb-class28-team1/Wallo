@@ -414,6 +414,30 @@ class PriceReferenceServiceTest {
     }
 
     @Test
+    void ignoresDetectedCountInUnitWhenMatchingGatheredPrice() {
+        PriceReferenceRow stored = row("고구마", "", "2개", 4_500);
+        when(mapper.findBestMatch("고구마", "", "2개", "FOOD"))
+                .thenReturn(null, stored);
+        when(mapper.upsert(any())).thenReturn(1);
+        when(shoppingClient.search("고구마", "", "2개"))
+                .thenReturn(List.of(new ShoppingPriceCandidate(
+                        "국산 햇고구마 1kg", 4_500, "농산물몰",
+                        "https://example.com/sweet-potato-by-weight", "")));
+
+        AnalysisResponse input = new AnalysisResponse(
+                "REDUCED", "FOOD", 0, "고구마를 직접 수확했습니다.", 0.8,
+                List.of(new DetectedItem(
+                        "고구마", "", "2개", 2, 0, 0, 0.8,
+                        "수확한 고구마 두 개가 보임", "GATHERED", 0, 0, "")),
+                0, 0, 0, List.of());
+
+        AnalysisResponse result = service.enrich(input);
+
+        assertEquals(9_000, result.referenceValue());
+        assertEquals(9_000, result.estimatedSavingAmount());
+    }
+
+    @Test
     void usesLowestRawItemPriceAndExcludesProcessedGatheredProducts() {
         PriceReferenceRow cached = row("성게", "", "1개", 12_900);
         PriceReferenceRow stored = row("성게", "", "1개", 5_000);
