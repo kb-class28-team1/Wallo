@@ -39,8 +39,8 @@ class GoalServiceTest {
         assertEquals(10_000_000L, response.get(0).getTargetAmount());
         assertEquals(LocalDate.of(2027, 8, 1), response.get(0).getTargetDate());
         assertEquals(2_000_000L, response.get(0).getInitialAmount());
-        assertEquals(2_000_000L, response.get(0).getCurrentAmount());
-        assertEquals(20, response.get(0).getAchievementRate());
+        assertEquals(3_250_000L, response.get(0).getCurrentAmount());
+        assertEquals(33, response.get(0).getAchievementRate());
         verify(goalAccountSyncService).syncSelectedAccounts(7L);
         verify(goalMapper).findGoalsByUserId(7L);
     }

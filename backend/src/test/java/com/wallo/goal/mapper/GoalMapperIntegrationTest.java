@@ -99,6 +99,12 @@ class GoalMapperIntegrationTest {
                 goalMapper.findGoalsByUserId(7L).get(0).getRequiredMonthlyAmount()
         );
         assertEquals(
+                2_250_000L,
+                goalMapper.findGoalsByUserId(7L).get(0).getCurrentAmount()
+        );
+        updateAccountBalance(101L, 2_750_000L);
+        sqlSession.clearCache();
+        assertEquals(
                 2_000_000L,
                 goalMapper.findGoalsByUserId(7L).get(0).getCurrentAmount()
         );
@@ -227,7 +233,17 @@ class GoalMapperIntegrationTest {
             statement.execute(
                     "INSERT INTO FINANCIAL_GOAL_ACCOUNTS "
                             + "(goal_id, account_id, baseline_balance) VALUES ("
-                            + goalId + ", 101, 3250000)"
+                            + goalId + ", 101, 3000000)"
+            );
+        }
+    }
+
+    private void updateAccountBalance(Long accountId, long balance) throws Exception {
+        try (Connection connection = dataSource.getConnection();
+             Statement statement = connection.createStatement()) {
+            statement.executeUpdate(
+                    "UPDATE ACCOUNTS SET balance = " + balance
+                            + " WHERE account_id = " + accountId
             );
         }
     }

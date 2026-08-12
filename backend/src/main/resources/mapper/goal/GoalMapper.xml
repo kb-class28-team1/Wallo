@@ -49,7 +49,22 @@
         goal.motivation,
         goal.priority,
         goal.initial_amount,
-        goal.initial_amount AS current_amount,
+        goal.initial_amount
+        + COALESCE((
+            SELECT SUM(
+                CASE
+                    WHEN COALESCE(account.balance, 0)
+                         > COALESCE(link.baseline_balance, 0)
+                    THEN COALESCE(account.balance, 0)
+                         - COALESCE(link.baseline_balance, 0)
+                    ELSE 0
+                END
+            )
+            FROM FINANCIAL_GOAL_ACCOUNTS link
+            INNER JOIN ACCOUNTS account
+                ON account.account_id = link.account_id
+            WHERE link.goal_id = goal.goal_id
+        ), 0) AS current_amount,
         goal.required_monthly_amount,
         goal.status,
         goal.created_at,
