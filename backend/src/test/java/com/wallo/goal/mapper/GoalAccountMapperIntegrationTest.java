@@ -70,7 +70,7 @@ class GoalAccountMapperIntegrationTest {
     }
 
     @Test
-    void persistsTheSingleGoalAccountMapping() throws Exception {
+    void replacesTheAccountAndStoresTheNewBaselineBalance() throws Exception {
         assertEquals(1, goalAccountMapper.deleteByGoalId(31L));
         assertEquals(1, goalAccountMapper.insertGoalAccount(31L, 105L, 1_000_000L));
 

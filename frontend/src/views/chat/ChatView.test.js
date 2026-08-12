@@ -43,6 +43,12 @@ const goal = {
   targetDate: "2027-12-31",
 }
 
+const updatedGoal = {
+  ...goal,
+  currentAmount: 1400000,
+  achievementRate: 14,
+}
+
 const initialAccounts = [
   {
     accountId: 101,
@@ -127,6 +133,9 @@ describe("ChatView", () => {
   })
 
   it("saves the account selected below the confirmed goal card", async () => {
+    getGoalByConversationId
+      .mockResolvedValueOnce({ data: goal })
+      .mockResolvedValueOnce({ data: updatedGoal })
     getAvailableGoalAccounts
       .mockResolvedValueOnce({ data: initialAccounts })
       .mockResolvedValueOnce({ data: savedAccounts })
@@ -140,7 +149,9 @@ describe("ChatView", () => {
     await flushPromises()
 
     expect(selectGoalAccount).toHaveBeenCalledWith(31, 102)
+    expect(getGoalByConversationId).toHaveBeenCalledTimes(2)
     expect(getAvailableGoalAccounts).toHaveBeenCalledTimes(2)
     expect(wrapper.findAll('input[type="radio"]')[1].element.checked).toBe(true)
+    expect(wrapper.text()).toContain("1,400,000")
   })
 })
