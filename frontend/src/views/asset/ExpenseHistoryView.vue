@@ -1,13 +1,17 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
+import { storeToRefs } from "pinia";
 import ExpenseCalendar from "@/components/asset/ExpenseCalendar.vue";
 import ExpenseCategoryBreakdown from "@/components/asset/ExpenseCategoryBreakdown.vue";
 import ExpenseTransactionList from "@/components/asset/ExpenseTransactionList.vue";
 import { getExpenses } from "@/api/assetApi";
 import { getApiErrorMessage } from "@/commonUtils/apiError";
 import { formatWon } from "@/commonUtils/formatters";
+import { useAssetStore } from "@/stores/assetStore";
 
 const PAGE_SIZE = 20;
+const assetStore = useAssetStore();
+const { isSyncing, syncError } = storeToRefs(assetStore);
 
 const createEmptyExpenseData = () => ({
   totalExpense: 0,
@@ -39,6 +43,7 @@ const isDailyLoading = ref(false);
 const isDailyLoadingMore = ref(false);
 const dailyError = ref("");
 const dailyLoadMoreError = ref("");
+const syncStatus = ref(null);
 let requestVersion = 0;
 let dailyRequestVersion = 0;
 
@@ -157,6 +162,44 @@ const loadSelectedMonth = async () => {
   await fetchExpensePage(0);
 };
 
+const syncCurrentMonth = async () => {
+  if (isSyncing.value) return;
+
+  syncStatus.value = null;
+  closeDailyModal();
+
+  try {
+    const result = await assetStore.syncAssets();
+    if (!result) return;
+
+    await loadSelectedMonth();
+    if (error.value) {
+      syncStatus.value = {
+        type: "warning",
+        message: "동기화는 완료되었지만 현재 월 거래내역을 다시 불러오지 못했습니다.",
+      };
+      return;
+    }
+
+    const failedConnections = Number(result.failedConnections) || 0;
+    const summary = `신규 ${Number(result.inserted) || 0}건, 수정 ${Number(result.updated) || 0}건`;
+    syncStatus.value = failedConnections > 0
+      ? {
+          type: "warning",
+          message: `동기화가 완료되었습니다. ${summary}, 실패한 연결기관 ${failedConnections}건`,
+        }
+      : {
+          type: "success",
+          message: `동기화가 완료되었습니다. ${summary}`,
+        };
+  } catch {
+    syncStatus.value = {
+      type: "danger",
+      message: syncError.value || "자산 거래내역 동기화에 실패했습니다.",
+    };
+  }
+};
+
 const closeDailyModal = () => {
   dailyRequestVersion += 1;
   isDailyModalVisible.value = false;
@@ -268,7 +311,29 @@ onMounted(loadSelectedMonth);
         </div>
       </div>
 
+      <button
+        type="button"
+        class="btn btn-primary expense-sync-button"
+        :disabled="isSyncing || isLoading || isDailyLoading"
+        @click="syncCurrentMonth"
+      >
+        <span
+          v-if="isSyncing"
+          class="spinner-border spinner-border-sm me-2"
+          aria-hidden="true"
+        ></span>
+        {{ isSyncing ? "동기화 중..." : "거래내역 새로고침" }}
+      </button>
     </header>
+
+    <div
+      v-if="syncStatus"
+      class="alert"
+      :class="`alert-${syncStatus.type}`"
+      role="status"
+    >
+      {{ syncStatus.message }}
+    </div>
 
     <div v-if="isLoading" class="page-state card border-0 shadow-sm" aria-live="polite">
       <div class="spinner-border text-primary" role="status">
@@ -428,6 +493,10 @@ onMounted(loadSelectedMonth);
 <style scoped>
 .expense-history-view {
   width: 100%;
+}
+
+.expense-sync-button {
+  min-width: 172px;
 }
 
 .back-button,

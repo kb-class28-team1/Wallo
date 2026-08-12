@@ -1,6 +1,8 @@
 package com.wallo.asset.mapper;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import com.wallo.asset.dto.AssetSyncDto;
 import com.wallo.asset.service.TransactionSourceKeyGenerator;
@@ -11,6 +13,7 @@ import java.sql.ResultSet;
 import java.sql.Statement;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 import javax.sql.DataSource;
 import org.apache.ibatis.session.SqlSession;
 import org.junit.jupiter.api.AfterEach;
@@ -240,6 +243,46 @@ class AssetSyncMapperIntegrationTest {
         assertEquals("AI", classification.getCategorySource());
         assertEquals(new BigDecimal("0.8600"), classification.getCategoryConfidence());
         assertEquals("ai-v1", classification.getClassifierVersion());
+    }
+
+    @Test
+    void findsExistingTransactionIdBySourceIdentity() {
+        AssetSyncDto.Transaction saved = transaction(38_000L, "LIVING");
+        assetSyncMapper.upsertTransaction(saved);
+
+        Long existingId = assetSyncMapper.findExistingTransactionId(
+                7L,
+                "CARD_APPROVAL",
+                "0311",
+                saved.getSourceDedupKey()
+        );
+
+        assertNotNull(existingId);
+        assertNull(assetSyncMapper.findExistingTransactionId(
+                7L,
+                "CARD_APPROVAL",
+                "0311",
+                "missing-source-dedup-key"
+        ));
+    }
+
+    @Test
+    void findsOnlyActiveCardNumbersByConnection() throws Exception {
+        try (Connection connection = dataSource.getConnection();
+             Statement statement = connection.createStatement()) {
+            statement.execute("""
+                    INSERT INTO CARDS (
+                        card_id, connection_id, card_number, card_name, card_type, status, valid_period
+                    ) VALUES
+                        (1, 11, '9876', 'Active card 1', 'CHECK', 'ACTIVE', '12/30'),
+                        (2, 11, '4321', 'Active card 2', 'CREDIT', 'ACTIVE', '11/29'),
+                        (3, 11, '9999', 'Inactive card', 'CHECK', 'INACTIVE', '10/28'),
+                        (4, 12, '7777', 'Other connection card', 'CHECK', 'ACTIVE', '09/27')
+                    """);
+        }
+
+        assertEquals(List.of("9876", "4321"), assetSyncMapper.findActiveCardNumbers(11L));
+        assertEquals(List.of("7777"), assetSyncMapper.findActiveCardNumbers(12L));
     }
 
     @Test
