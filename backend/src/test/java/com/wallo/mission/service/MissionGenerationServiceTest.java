@@ -24,6 +24,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.ArgumentCaptor;
 
 class MissionGenerationServiceTest {
     @Mock private MissionMapper mapper;
@@ -92,6 +93,38 @@ class MissionGenerationServiceTest {
 
         assertEquals(5L, result.missionCycleId());
         verify(aiClient, never()).generate(any());
+    }
+
+    @Test
+    void sendsOnlyCompactAnalysisSummaryToAi() {
+        MissionAnalysisSource source = new MissionAnalysisSource();
+        source.setAnalysisResultId(12L);
+        source.setUserId(7L);
+        source.setCalculatedResultJson("""
+                {"summary":"카페 소비 증가","rawTransactions":[1,2,3],
+                 "categoryOverview":[
+                   {"category":"CAFE","currentAmount":1000},
+                   {"category":"FOOD","currentAmount":2000},
+                   {"category":"SHOPPING","currentAmount":3000},
+                   {"category":"TRANSPORT","currentAmount":4000},
+                   {"category":"LEISURE","currentAmount":5000},
+                   {"category":"LIVING","currentAmount":6000},
+                   {"category":"HEALTH","currentAmount":7000},
+                   {"category":"EDUCATION","currentAmount":8000},
+                   {"category":"OTHER","currentAmount":9000}
+                 ]}
+                """);
+        when(mapper.findLatestAnalysis(7L)).thenReturn(source);
+
+        service.preview(7L);
+
+        ArgumentCaptor<MissionGenerationDto.Request> captor =
+                ArgumentCaptor.forClass(MissionGenerationDto.Request.class);
+        verify(aiClient).generate(captor.capture());
+        Map<String, Object> sent = captor.getValue().consumptionAnalysis();
+        assertEquals("카페 소비 증가", sent.get("summary"));
+        assertEquals(false, sent.containsKey("rawTransactions"));
+        assertEquals(8, ((List<?>) sent.get("categoryOverview")).size());
     }
 
     private MissionGenerationDto.Response response(

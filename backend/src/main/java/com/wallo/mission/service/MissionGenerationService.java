@@ -15,6 +15,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -25,6 +26,14 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class MissionGenerationService {
     private static final int REQUIRED_MISSION_COUNT = 30;
+    private static final int MAX_SUMMARY_LIST_ITEMS = 8;
+    private static final int MAX_SUMMARY_TEXT_LENGTH = 500;
+    private static final Set<String> ANALYSIS_SUMMARY_FIELDS = Set.of(
+            "summary", "message", "focus", "periodType", "periodLabel",
+            "analysisPeriod", "comparisonPeriod", "dataSufficiency", "totalChange",
+            "budgetStatus", "categoryOverview", "categorySurges", "newSpending",
+            "oneOffHighSpending", "repeatingCategories", "recurringPaymentCandidates",
+            "positiveImprovements", "patterns", "continuousImprovement");
     private static final Set<String> DIFFICULTIES = Set.of("EASY", "NORMAL", "HARD");
     private static final Set<String> VERIFICATION_TYPES = Set.of(
             "MEDIA_AI", "TRANSACTION", "HYBRID", "SELF_CHECK", "MANUAL");
@@ -57,7 +66,7 @@ public class MissionGenerationService {
         if (source == null) throw new IllegalStateException("Consumption analysis is unavailable.");
         MissionGenerationDto.Response response = missionAiClient.generate(
                 new MissionGenerationDto.Request(userId, source.getAnalysisResultId(),
-                        parseAnalysis(source.getCalculatedResultJson())));
+                        summarizeAnalysis(parseAnalysis(source.getCalculatedResultJson()))));
         validate(response);
         return response;
     }
@@ -79,7 +88,8 @@ public class MissionGenerationService {
         MissionAnalysisSource source = missionMapper.findLatestAnalysis(userId);
         if (source == null) throw new IllegalStateException("Consumption analysis is unavailable.");
         MissionGenerationDto.Response response = missionAiClient.generate(new MissionGenerationDto.Request(
-                userId, source.getAnalysisResultId(), parseAnalysis(source.getCalculatedResultJson())));
+                userId, source.getAnalysisResultId(),
+                summarizeAnalysis(parseAnalysis(source.getCalculatedResultJson()))));
         validate(response);
 
         MissionCycle cycle = new MissionCycle();
@@ -105,6 +115,39 @@ public class MissionGenerationService {
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException("Stored consumption analysis is invalid.", exception);
         }
+    }
+
+    private Map<String, Object> summarizeAnalysis(Map<String, Object> analysis) {
+        Map<String, Object> summary = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : analysis.entrySet()) {
+            if (ANALYSIS_SUMMARY_FIELDS.contains(entry.getKey())) {
+                summary.put(entry.getKey(), compact(entry.getValue(), 0));
+            }
+        }
+        return summary;
+    }
+
+    private Object compact(Object value, int depth) {
+        if (value == null || value instanceof Number || value instanceof Boolean) return value;
+        if (value instanceof String text) {
+            return text.length() <= MAX_SUMMARY_TEXT_LENGTH
+                    ? text : text.substring(0, MAX_SUMMARY_TEXT_LENGTH);
+        }
+        if (depth >= 4) return null;
+        if (value instanceof Map<?, ?> map) {
+            Map<String, Object> result = new LinkedHashMap<>();
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                if (entry.getKey() != null) {
+                    result.put(String.valueOf(entry.getKey()), compact(entry.getValue(), depth + 1));
+                }
+            }
+            return result;
+        }
+        if (value instanceof List<?> list) {
+            return list.stream().limit(MAX_SUMMARY_LIST_ITEMS)
+                    .map(item -> compact(item, depth + 1)).toList();
+        }
+        return String.valueOf(value);
     }
 
     private void validate(MissionGenerationDto.Response response) {
