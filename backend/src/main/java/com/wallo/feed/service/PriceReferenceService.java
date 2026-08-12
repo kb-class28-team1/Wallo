@@ -195,7 +195,11 @@ public class PriceReferenceService {
                     normalizeUnit(item.unit()),
                     analysis.category());
             if (isUsable(cached)) {
-                resolvedRows.put(index, cached);
+                // 과거에 1kg 상품 전체 가격이 1개 가격으로 저장된 채집물 캐시는
+                // 그대로 사용하지 않고 새 검색으로 개당 가격을 다시 계산한다.
+                if (!isGathered(item) || isSafeGatheredCache(cached)) {
+                    resolvedRows.put(index, cached);
+                }
                 if (isGathered(item)) {
                     searches.put(index, CompletableFuture.supplyAsync(
                             () -> findLowestCandidate(item, analysis.category()), searchExecutor)
@@ -296,7 +300,7 @@ public class PriceReferenceService {
                     .findAveragePackageQuantity(item.itemName(), "판매 단위");
             if (averagePackageQuantity.isPresent()) {
                 gatheredMatch = lowestGatheredCandidate(
-                        item, candidates, averagePackageQuantity.getAsInt());
+                        item, gatheredCandidates, averagePackageQuantity.getAsInt());
                 if (gatheredMatch.isPresent()) {
                     return gatheredMatch;
                 }
@@ -345,6 +349,9 @@ public class PriceReferenceService {
             DetectedItem item, List<ShoppingPriceCandidate> candidates) {
         return candidates.stream()
                 .filter(candidate -> matchesGatheredItem(item, candidate))
+                // 중량·포장 상품은 평균 개체 수를 확인한 경우에만 개당 가격으로 사용한다.
+                .filter(candidate -> !hasWeightOrPackageUnit(candidate.title())
+                        || hasGatheredPackageCount(candidate.title()))
                 .map(candidate -> hasGatheredPackageCount(candidate.title())
                         ? normalizeGatheredPackagePrice(item, candidate)
                         : candidate)
@@ -387,7 +394,16 @@ public class PriceReferenceService {
 
     private boolean hasWeightOrPackageUnit(String title) {
         String normalizedTitle = normalizePackageTitle(title);
-        return normalizedTitle.matches(".*\\d+(?:\\.\\d+)?(?:kg|g|박스|팩|봉|상자).*");
+        return normalizedTitle.matches(
+                ".*\\d+(?:\\.\\d+)?(?:kg|g|박스|팩|봉|상자|묶음|단|판|세트|다발).*");
+    }
+
+    private boolean isSafeGatheredCache(PriceReferenceRow row) {
+        String title = row.getDisplayItemName();
+        if (!hasWeightOrPackageUnit(title)) {
+            return true;
+        }
+        return hasGatheredPackageCount(title);
     }
 
     private int gatheredPackageQuantity(String normalizedTitle) {

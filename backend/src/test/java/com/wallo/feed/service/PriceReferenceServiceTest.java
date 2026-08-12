@@ -384,7 +384,7 @@ class PriceReferenceServiceTest {
     }
 
     @Test
-    void usesGeneralProductValueWhenGatheredCountCannotBeConfirmed() {
+    void doesNotTreatWeightPackagePriceAsSingleGatheredItemWithoutQuantity() {
         PriceReferenceRow stored = row("고구마", "", "1개", 4_500);
         when(mapper.findBestMatch("고구마", "", "1개", "FOOD"))
                 .thenReturn(null, stored);
@@ -407,13 +407,13 @@ class PriceReferenceServiceTest {
 
         AnalysisResponse result = service.enrich(input);
 
-        assertEquals(9_000, result.referenceValue());
-        assertEquals(9_000, result.estimatedSavingAmount());
-        assertTrue(result.summary().contains("고구마 1개 시세 4,500원 × 2"));
+        assertEquals(0, result.referenceValue());
+        assertEquals(0, result.estimatedSavingAmount());
+        assertTrue(result.priceReferences().isEmpty());
     }
 
     @Test
-    void ignoresDetectedCountInUnitWhenMatchingGatheredPrice() {
+    void doesNotTreatWeightPackagePriceAsSingleGatheredItemWhenUnitHasDetectedCount() {
         PriceReferenceRow stored = row("고구마", "", "2개", 4_500);
         when(mapper.findBestMatch("고구마", "", "2개", "FOOD"))
                 .thenReturn(null, stored);
@@ -432,8 +432,52 @@ class PriceReferenceServiceTest {
 
         AnalysisResponse result = service.enrich(input);
 
-        assertEquals(9_000, result.referenceValue());
-        assertEquals(9_000, result.estimatedSavingAmount());
+        assertEquals(0, result.referenceValue());
+        assertEquals(0, result.estimatedSavingAmount());
+    }
+
+    @Test
+    void convertsGreenChiliWeightPriceToSingleItemUsingAveragePackageQuantity() {
+        GatheredQuantityClient quantityClient =
+                org.mockito.Mockito.mock(GatheredQuantityClient.class);
+        Clock clock = Clock.fixed(
+                Instant.parse("2026-08-11T03:00:00Z"), ZoneId.of("Asia/Seoul"));
+        PriceReferenceService dynamicService = new PriceReferenceService(
+                mapper, shoppingClient, quantityClient, Runnable::run, clock);
+        PriceReferenceRow cached = row("풋고추", "", "1개", 9_900);
+        cached.setDisplayItemName("국산 풋고추 1kg");
+        PriceReferenceRow stored = row("풋고추", "", "1개", 495);
+        stored.setDisplayItemName("국산 풋고추 1kg");
+        when(mapper.findBestMatch("풋고추", "", "1개", "FOOD"))
+                .thenReturn(cached, stored);
+        when(mapper.upsert(any())).thenReturn(1);
+        when(shoppingClient.search("풋고추", "", ""))
+                .thenReturn(List.of(new ShoppingPriceCandidate(
+                        "국산 풋고추 1kg", 9_900, "농산물몰",
+                        "https://example.com/green-chili", "")));
+        when(shoppingClient.search("풋고추 생물 원물", "", ""))
+                .thenReturn(List.of());
+        when(shoppingClient.search("풋고추 판매 단위 개수", "", ""))
+                .thenReturn(List.of());
+        when(quantityClient.findAveragePackageQuantity("풋고추", "판매 단위"))
+                .thenReturn(java.util.OptionalInt.of(20));
+
+        AnalysisResponse input = new AnalysisResponse(
+                "REDUCED", "FOOD", 0, "농장에서 풋고추를 직접 수확했습니다.", 0.9,
+                List.of(new DetectedItem(
+                        "풋고추", "", "1개", 12, 0, 0, 0.9,
+                        "풋고추 열두 개가 보임", "GATHERED", 0, 0, "")),
+                0, 0, 0, List.of());
+
+        AnalysisResponse result = dynamicService.enrich(input);
+
+        ArgumentCaptor<PriceReferenceRow> rowCaptor =
+                ArgumentCaptor.forClass(PriceReferenceRow.class);
+        verify(mapper).upsert(rowCaptor.capture());
+        assertEquals(495, rowCaptor.getValue().getLowestPrice());
+        assertEquals(5_940, result.referenceValue());
+        assertEquals(5_940, result.estimatedSavingAmount());
+        assertTrue(result.summary().contains("풋고추 1개 시세 495원 × 12"));
     }
 
     @Test
