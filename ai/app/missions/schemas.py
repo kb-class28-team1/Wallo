@@ -66,3 +66,10 @@ class MissionGenerateResponse(BaseModel):
         if len(keys) != len(self.missions):
             raise ValueError("missions must be unique within a cycle")
         return self
+
+
+class MissionBatchResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    missions: list[GeneratedMission] = Field(min_length=1, max_length=12)
+    promptVersion: str = Field(min_length=1, max_length=50)
