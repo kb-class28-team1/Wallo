@@ -35,6 +35,7 @@ public final class GoalDto {
                 return null;
             }
 
+            long currentAmount = goal.getCurrentAmount();
             return new Response(
                     goal.getGoalId(),
                     goal.getConversationId(),
@@ -45,8 +46,8 @@ public final class GoalDto {
                     goal.getMotivation(),
                     goal.getPriority(),
                     goal.getInitialAmount(),
-                    goal.getCurrentAmount(),
-                    achievementRate(goal.getCurrentAmount(), goal.getTargetAmount()),
+                    currentAmount,
+                    achievementRate(currentAmount, goal.getTargetAmount()),
                     goal.getRequiredMonthlyAmount(),
                     goal.getStatus(),
                     goal.getCreatedAt(),
