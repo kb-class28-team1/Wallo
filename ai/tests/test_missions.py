@@ -5,6 +5,7 @@ import pytest
 
 from app.missions.schemas import MissionGenerateRequest
 from app.missions.service import InvalidMissionResponseError, generate_missions
+from app.missions.prompts import MISSION_GENERATION_INSTRUCTIONS, build_mission_input
 
 
 def _mission(index: int) -> dict:
@@ -57,6 +58,21 @@ def _request() -> MissionGenerateRequest:
         analysisResultId=10,
         consumptionAnalysis={"summary": "카페 소비가 증가했습니다."},
     )
+
+
+def test_prompt_output_contract_matches_structured_schema():
+    prompt_input = json.loads(build_mission_input(_request(), requested_count=7))
+    contract = prompt_input["outputContract"]
+
+    assert contract["topLevelFields"] == ["missions", "promptVersion"]
+    assert contract["promptVersion"] == "personalized-mission-v1"
+    assert contract["rewardPoint"] == 10
+    assert contract["verificationTypes"] == [
+        "MEDIA_AI", "TRANSACTION", "HYBRID", "SELF_CHECK", "MANUAL",
+    ]
+    assert contract["additionalFieldsAllowed"] is False
+    assert '"verificationRule":null' in MISSION_GENERATION_INSTRUCTIONS
+    assert "JSON 이외의 설명" in MISSION_GENERATION_INSTRUCTIONS
 
 
 def test_generates_exactly_twenty_unique_missions():
