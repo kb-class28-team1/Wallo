@@ -8,9 +8,9 @@ import com.wallo.asset.dto.AssetSyncDto;
 import com.wallo.asset.mapper.AssetSyncMapper;
 import com.wallo.external.auth.CodefCredential;
 import com.wallo.external.auth.CodefCredentialProvider;
+import com.wallo.external.CodefRetryExecutor;
 import com.wallo.external.client.CardApprovalClient;
 import com.wallo.external.CodefDateTime;
-import com.wallo.external.CodefResponseValidator;
 import com.wallo.external.dto.CodefDto;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -38,6 +38,7 @@ public class CardApprovalCollectionService {
 
     private final CardApprovalClient cardApprovalClient;
     private final CodefCredentialProvider codefCredentialProvider;
+    private final CodefRetryExecutor codefRetryExecutor;
     private final ObjectMapper objectMapper;
     private final ExpenseCategoryClassifier categoryClassifier;
     private final TransactionSourceKeyGenerator sourceKeyGenerator;
@@ -48,6 +49,7 @@ public class CardApprovalCollectionService {
     public CardApprovalCollectionService(
             CardApprovalClient cardApprovalClient,
             CodefCredentialProvider codefCredentialProvider,
+            CodefRetryExecutor codefRetryExecutor,
             ObjectMapper objectMapper,
             ExpenseCategoryClassifier categoryClassifier,
             TransactionSourceKeyGenerator sourceKeyGenerator,
@@ -57,6 +59,7 @@ public class CardApprovalCollectionService {
     ) {
         this.cardApprovalClient = cardApprovalClient;
         this.codefCredentialProvider = codefCredentialProvider;
+        this.codefRetryExecutor = codefRetryExecutor;
         this.objectMapper = objectMapper;
         this.categoryClassifier = categoryClassifier;
         this.sourceKeyGenerator = sourceKeyGenerator;
@@ -95,18 +98,19 @@ public class CardApprovalCollectionService {
                 userId,
                 institution.getCodefOrganizationCode()
         );
-        CodefDto.Response response = cardApprovalClient.getApprovals(
-                new CodefDto.CardApprovalRequest(
-                        institution.getCodefOrganizationCode(),
-                        credential.loginType(),
-                        credential.id(),
-                        credential.password(),
-                        CodefDateTime.formatDate(startDate),
-                        CodefDateTime.formatDate(endDate)
-                )
+        CodefDto.CardApprovalRequest request = new CodefDto.CardApprovalRequest(
+                institution.getCodefOrganizationCode(),
+                credential.loginType(),
+                credential.id(),
+                credential.password(),
+                CodefDateTime.formatDate(startDate),
+                CodefDateTime.formatDate(endDate)
+        );
+        CodefDto.Response response = codefRetryExecutor.execute(
+                "card approval collection organization=" + institution.getCodefOrganizationCode(),
+                () -> cardApprovalClient.getApprovals(request)
         );
         long apiElapsedMs = elapsedMillis(apiStartedAt);
-        CodefResponseValidator.requireSuccess(response, "카드 승인내역을 가져오지 못했습니다");
 
         long conversionStartedAt = System.nanoTime();
         List<CodefDto.CardApproval> approvals = objectMapper.convertValue(

@@ -20,6 +20,9 @@ import com.wallo.asset.classification.MerchantSectorCategoryRule;
 import com.wallo.asset.domain.Institution;
 import com.wallo.asset.dto.AssetSyncDto;
 import com.wallo.asset.mapper.AssetSyncMapper;
+import com.wallo.external.CodefConstants;
+import com.wallo.external.CodefRetryExecutor;
+import com.wallo.external.CodefSyncException;
 import com.wallo.external.auth.MockCodefCredentialProvider;
 import com.wallo.external.client.CardApprovalClient;
 import com.wallo.external.dto.CodefDto;
@@ -62,6 +65,7 @@ class CardApprovalCollectionServiceTest {
         service = new CardApprovalCollectionService(
                 cardApprovalClient,
                 new MockCodefCredentialProvider("1", "mock_id", "mock_pw"),
+                new CodefRetryExecutor(2, 0, 0, 6500),
                 new ObjectMapper(),
                 classifier,
                 new TransactionSourceKeyGenerator(),
@@ -309,7 +313,7 @@ class CardApprovalCollectionServiceTest {
                 CodefDto.Response.failure("CF-99999", "Mock API 호출 실패", "")
         );
 
-        assertThrows(IllegalStateException.class, () -> service.collect(
+        assertThrows(CodefSyncException.class, () -> service.collect(
                 7L,
                 11L,
                 institution,
@@ -349,6 +353,31 @@ class CardApprovalCollectionServiceTest {
                 LocalDate.of(2026, 7, 1),
                 LocalDate.of(2026, 7, 31)
         ));
+        verify(assetSyncMapper, never()).upsertTransaction(any());
+    }
+
+    @Test
+    void retriesTransientCodefResponseBeforeProcessingApprovals() {
+        CodefDto.Response temporaryFailure = CodefDto.Response.failure(
+                CodefConstants.CLIENT_FAILURE_CODE,
+                "temporary failure",
+                "timeout"
+        );
+        when(cardApprovalClient.getApprovals(any())).thenReturn(
+                temporaryFailure,
+                CodefDto.Response.success(List.of())
+        );
+
+        int collectedCount = service.collect(
+                7L,
+                11L,
+                institution,
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 7, 31)
+        );
+
+        assertEquals(0, collectedCount);
+        verify(cardApprovalClient, org.mockito.Mockito.times(2)).getApprovals(any());
         verify(assetSyncMapper, never()).upsertTransaction(any());
     }
 

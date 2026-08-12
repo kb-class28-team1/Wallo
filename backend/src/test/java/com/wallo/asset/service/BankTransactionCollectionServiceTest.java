@@ -15,6 +15,9 @@ import com.wallo.asset.classification.ExpenseCategoryClassifier;
 import com.wallo.asset.domain.Institution;
 import com.wallo.asset.dto.AssetSyncDto;
 import com.wallo.asset.mapper.AssetSyncMapper;
+import com.wallo.external.CodefConstants;
+import com.wallo.external.CodefRetryExecutor;
+import com.wallo.external.CodefSyncException;
 import com.wallo.external.auth.MockCodefCredentialProvider;
 import com.wallo.external.client.BankTransactionClient;
 import com.wallo.external.dto.CodefDto;
@@ -46,6 +49,7 @@ class BankTransactionCollectionServiceTest {
         service = new BankTransactionCollectionService(
                 bankTransactionClient,
                 new MockCodefCredentialProvider("1", "mock_id", "mock_pw"),
+                new CodefRetryExecutor(2, 0, 0, 6500),
                 new ObjectMapper(),
                 categoryClassifier,
                 new TransactionSourceKeyGenerator(),
@@ -372,7 +376,7 @@ class BankTransactionCollectionServiceTest {
                 CodefDto.Response.failure("CF-99999", "Mock API 호출 실패", "")
         );
 
-        assertThrows(IllegalStateException.class, () -> service.collect(
+        assertThrows(CodefSyncException.class, () -> service.collect(
                 7L,
                 31L,
                 "123456-01-789012",
@@ -397,6 +401,32 @@ class BankTransactionCollectionServiceTest {
                 LocalDate.of(2026, 7, 1),
                 LocalDate.of(2026, 7, 31)
         ));
+        verify(assetSyncMapper, never()).upsertTransaction(any());
+    }
+
+    @Test
+    void retriesTransientCodefResponseBeforeProcessingTransactions() {
+        CodefDto.Response temporaryFailure = CodefDto.Response.failure(
+                CodefConstants.CLIENT_FAILURE_CODE,
+                "temporary failure",
+                "timeout"
+        );
+        when(bankTransactionClient.getTransactions(any())).thenReturn(
+                temporaryFailure,
+                CodefDto.Response.success(List.of())
+        );
+
+        int collectedCount = service.collect(
+                7L,
+                31L,
+                "123456-01-789012",
+                institution,
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 7, 31)
+        );
+
+        assertEquals(0, collectedCount);
+        verify(bankTransactionClient, org.mockito.Mockito.times(2)).getTransactions(any());
         verify(assetSyncMapper, never()).upsertTransaction(any());
     }
 
