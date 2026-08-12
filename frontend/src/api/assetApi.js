@@ -24,6 +24,25 @@ export const getAssets = async () => {
   return response.data;
 };
 
+export const syncAssets = async () => {
+  try {
+    const response = await httpClient.post("/api/assets/sync");
+
+    return response.data;
+  } catch (error) {
+    const apiError = new Error(
+      getApiErrorMessage(
+        error,
+        "자산 거래내역 동기화에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+      ),
+    );
+    apiError.code = getApiErrorCode(error);
+    apiError.status = error.response?.status;
+    apiError.response = error.response;
+    throw apiError;
+  }
+};
+
 export const connectAllAssets = async (consentAgreed) => {
   const response = await httpClient.post("/api/connections", {
     consentAgreed,
