@@ -3,9 +3,12 @@ import { describe, expect, it } from "vitest";
 import GoalSummaryCard from "./GoalSummaryCard.vue";
 
 const globalOptions = {
-  stubs: {
-    RouterLink: {
-      template: "<a><slot /></a>",
+  global: {
+    stubs: {
+      RouterLink: {
+        props: ["to"],
+        template: "<a :data-to=\"to\"><slot /></a>",
+      },
     },
   },
 };
@@ -33,7 +36,8 @@ describe("GoalSummaryCard", () => {
 
     expect(wrapper.text()).toContain("Emergency fund");
     expect(wrapper.find("h2").text()).toBe("Emergency fund");
-    expect(wrapper.text()).toContain("AI 컨설팅에서 계좌 설정");
+    expect(wrapper.text()).toContain("채팅에서 계좌 설정");
+    expect(wrapper.find("a").attributes("data-to")).toBe("/chat");
     expect(wrapper.find(".goal-account-selection").exists()).toBe(false);
     expect(wrapper.text()).not.toContain("확정된 목표");
     expect(wrapper.text()).not.toContain("금융 목표");

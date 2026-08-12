@@ -104,8 +104,8 @@ const getAchievementRate = (goal) => {
           </h2>
         </div>
 
-        <RouterLink to="/ai-consulting" class="btn dashboard-action-button flex-shrink-0 ms-auto">
-          AI 컨설팅에서 계좌 설정
+        <RouterLink to="/chat" class="btn dashboard-action-button flex-shrink-0 ms-auto">
+          채팅에서 계좌 설정
           <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
         </RouterLink>
       </div>

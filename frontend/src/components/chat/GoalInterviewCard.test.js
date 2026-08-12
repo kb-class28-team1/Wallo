@@ -73,7 +73,7 @@ describe("GoalInterviewCard", () => {
     expect(wrapper.findAll("button").every((button) => button.element.disabled)).toBe(true)
   })
 
-  it("shows a completion message after confirmation", () => {
+  it("shows the confirmed goal details without confirmation actions", () => {
     const wrapper = mount(GoalInterviewCard, {
       props: {
         interview: {
@@ -89,7 +89,9 @@ describe("GoalInterviewCard", () => {
       },
     })
 
-    expect(wrapper.text()).toContain("목표가 저장되었습니다.")
+    expect(wrapper.text()).toContain("10,000,000원")
+    expect(wrapper.text()).toContain("2027.11.30")
+    expect(wrapper.text()).toContain("2,000,000원")
     expect(wrapper.findAll("button")).toHaveLength(0)
   })
 })

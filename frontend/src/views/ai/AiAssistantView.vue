@@ -1,8 +1,7 @@
 <script setup>
-import { computed, onMounted, ref, watch } from "vue"
+import { computed, onMounted, ref } from "vue"
 import { useRouter } from "vue-router"
 import { storeToRefs } from "pinia"
-import GoalAccountSelector from "@/components/goal/GoalAccountSelector.vue"
 import { useGoalStore } from "@/stores/goalStore"
 import { formatWon } from "@/commonUtils/formatters"
 
@@ -12,10 +11,6 @@ const {
   goals,
   isLoading,
   error,
-  availableAccounts,
-  isAccountLoading,
-  isAccountSaving,
-  accountError,
   roadmap,
   isRoadmapLoading,
   roadmapError,
@@ -26,16 +21,6 @@ const walloCharacter = "/images/profiles/thinking-penguin.svg"
 const hasGoal = computed(() => goals.value.length > 0)
 const currentGoal = computed(() => goals.value[0] ?? null)
 const roadmapSlider = ref(null)
-
-watch(
-  () => goals.value.length,
-  (goalCount) => {
-    if (goalCount === 0) {
-      availableAccounts.value = []
-    }
-  },
-  { immediate: true },
-)
 
 const currentAmount = computed(() => {
   const amount = Number(currentGoal.value?.currentAmount)
@@ -159,27 +144,9 @@ const benefits = [
 ]
 
 const loadGoalPage = async () => {
-  const loadedGoals = await goalStore.fetchGoals({
+  await goalStore.fetchGoals({
     notifyError: false,
   })
-
-  if (loadedGoals.length > 0) {
-    await goalStore.fetchAvailableAccounts({
-      notifyError: false,
-    })
-  }
-}
-
-const handleAccountSelect = async (accountId) => {
-  if (!currentGoal.value?.goalId) return
-
-  try {
-    await goalStore.saveGoalAccount(currentGoal.value.goalId, accountId)
-    await goalStore.fetchGoals({ notifyError: false })
-    await goalStore.fetchAvailableAccounts({ notifyError: false })
-  } catch {
-    // goalStore가 API 오류와 사용자 알림을 처리한다.
-  }
 }
 
 const startGoalSetting = async () => {
@@ -373,15 +340,6 @@ onMounted(loadGoalPage)
                 </div>
               </div>
 
-              <GoalAccountSelector
-                v-if="currentGoal"
-                :accounts="availableAccounts"
-                :loading="isAccountLoading"
-                :saving="isAccountSaving"
-                :error="accountError"
-                @retry="goalStore.fetchAvailableAccounts()"
-                @select-account="handleAccountSelect"
-              />
             </div>
           </article>
         </div>

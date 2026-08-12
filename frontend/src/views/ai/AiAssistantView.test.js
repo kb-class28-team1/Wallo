@@ -3,10 +3,8 @@ import { createPinia, setActivePinia } from "pinia"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import AiAssistantView from "./AiAssistantView.vue"
 import {
-  getAvailableGoalAccounts,
   getGoalRoadmap,
   getGoals,
-  selectGoalAccount,
 } from "@/api/goalApi"
 
 const push = vi.fn()
@@ -17,6 +15,7 @@ vi.mock("vue-router", () => ({
 
 vi.mock("@/api/goalApi", () => ({
   getGoals: vi.fn().mockResolvedValue({ data: [] }),
+  getGoalByConversationId: vi.fn(),
   getGoalRoadmap: vi.fn().mockResolvedValue({ data: null }),
   getAvailableGoalAccounts: vi.fn(),
   selectGoalAccount: vi.fn(),
@@ -29,7 +28,6 @@ describe("AiAssistantView", () => {
     vi.clearAllMocks()
     getGoals.mockResolvedValue({ data: [] })
     getGoalRoadmap.mockResolvedValue({ data: null })
-    getAvailableGoalAccounts.mockResolvedValue({ data: [] })
   })
 
   it("shows the goal empty state and roadmap introduction when no goal exists", async () => {
@@ -40,7 +38,6 @@ describe("AiAssistantView", () => {
     expect(wrapper.text()).toContain("목표 달성을 위한 로드맵")
     expect(wrapper.text()).toContain("나에게 맞는 로드맵")
     expect(wrapper.text()).toContain("추천 금융 상품")
-    expect(getAvailableGoalAccounts).not.toHaveBeenCalled()
   })
 
   it("moves to chat when the goal setting button is selected", async () => {
@@ -51,88 +48,6 @@ describe("AiAssistantView", () => {
     await wrapper.find(".goal-button").trigger("click")
 
     expect(push).toHaveBeenCalledWith({ name: "chat" })
-  })
-
-  it("loads available accounts when a goal exists", async () => {
-    getGoals.mockResolvedValue({
-      data: [{
-        goalId: 1,
-        title: "비상금 목표",
-        targetAmount: 10000000,
-        currentAmount: 2500000,
-        targetDate: "2027-12-31",
-      }],
-    })
-    getAvailableGoalAccounts.mockResolvedValue({
-      data: [{
-        accountId: 101,
-        bankName: "Wallo Bank",
-        accountName: "생활비 통장",
-        displayNumber: "1234-****-7890",
-        accountType: "입출금",
-        balance: 2500000,
-        currency: "KRW",
-        selected: true,
-      }],
-    })
-
-    const wrapper = mount(AiAssistantView)
-    await flushPromises()
-    await vi.waitFor(() => expect(wrapper.find(".goal-account-selection").exists()).toBe(true))
-
-    expect(wrapper.text()).toContain("Wallo Bank")
-    expect(getAvailableGoalAccounts).toHaveBeenCalledTimes(1)
-  })
-
-  it("saves the selected account and refreshes goal data", async () => {
-    getGoals.mockResolvedValue({
-      data: [{
-        goalId: 1,
-        title: "비상금 목표",
-        targetAmount: 10000000,
-        currentAmount: 2500000,
-        targetDate: "2027-12-31",
-      }],
-    })
-    getAvailableGoalAccounts.mockResolvedValue({
-      data: [
-        {
-          accountId: 101,
-          bankName: "Wallo Bank",
-          accountName: "생활비 통장",
-          displayNumber: "1234-****-7890",
-          accountType: "입출금",
-          balance: 2500000,
-          currency: "KRW",
-          selected: true,
-        },
-        {
-          accountId: 102,
-          bankName: "Wallo Securities",
-          accountName: "CMA 통장",
-          displayNumber: "9876-****-1234",
-          accountType: "CMA",
-          balance: 1000000,
-          currency: "KRW",
-          selected: false,
-        },
-      ],
-    })
-    selectGoalAccount.mockResolvedValue({
-      data: { accountId: 102, selected: true },
-    })
-
-    const wrapper = mount(AiAssistantView)
-    await flushPromises()
-    await vi.waitFor(() => expect(wrapper.findAll('input[type="radio"]')).toHaveLength(2))
-
-    await wrapper.findAll('input[type="radio"]')[1].setValue()
-    await wrapper.find(".goal-account-selection button.btn-primary").trigger("click")
-    await flushPromises()
-
-    expect(selectGoalAccount).toHaveBeenCalledWith(1, 102)
-    expect(getGoals).toHaveBeenCalledTimes(2)
-    expect(getAvailableGoalAccounts).toHaveBeenCalledTimes(2)
   })
 
   it("shows the saved goal, progress, roadmap, and action guide", async () => {

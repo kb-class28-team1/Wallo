@@ -1,0 +1,146 @@
+import { flushPromises, mount } from "@vue/test-utils"
+import { createPinia, setActivePinia } from "pinia"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+
+import ChatView from "./ChatView.vue"
+import {
+  getActiveGoalInterview,
+  getConversationMessages,
+  getConversations,
+} from "@/api/conversationApi"
+import {
+  getAvailableGoalAccounts,
+  getGoalByConversationId,
+  selectGoalAccount,
+} from "@/api/goalApi"
+import { useUserStore } from "@/stores/userStore"
+
+vi.mock("@/api/conversationApi", () => ({
+  createConversation: vi.fn(),
+  deleteConversation: vi.fn(),
+  getActiveGoalInterview: vi.fn(),
+  getConversationMessages: vi.fn(),
+  getConversations: vi.fn(),
+  sendConversationMessage: vi.fn(),
+  updateConversationTitle: vi.fn(),
+}))
+
+vi.mock("@/api/goalApi", () => ({
+  getAvailableGoalAccounts: vi.fn(),
+  getGoalByConversationId: vi.fn(),
+  getGoalRoadmap: vi.fn(),
+  getGoals: vi.fn(),
+  selectGoalAccount: vi.fn(),
+  updateGoalRoadmapStep: vi.fn(),
+}))
+
+const goal = {
+  goalId: 31,
+  title: "비상금 목표",
+  goalType: "EMERGENCY_FUND",
+  targetAmount: 10000000,
+  currentAmount: 2500000,
+  targetDate: "2027-12-31",
+}
+
+const initialAccounts = [
+  {
+    accountId: 101,
+    bankName: "Wallo Bank",
+    accountName: "생활비 통장",
+    displayNumber: "1234-****-7890",
+    accountType: "입출금",
+    balance: 2500000,
+    currency: "KRW",
+    selected: true,
+  },
+  {
+    accountId: 102,
+    bankName: "Wallo Securities",
+    accountName: "CMA 통장",
+    displayNumber: "9876-****-1234",
+    accountType: "CMA",
+    balance: 1000000,
+    currency: "KRW",
+    selected: false,
+  },
+]
+
+const savedAccounts = initialAccounts.map((account) => ({
+  ...account,
+  selected: account.accountId === 102,
+}))
+
+const mountChat = () => mount(ChatView, {
+  global: {
+    stubs: {
+      ChatMessage: {
+        props: ["message"],
+        template: '<div class="stub-message">{{ message.content }}</div>',
+      },
+      ChatInput: {
+        template: '<div class="stub-input" />',
+      },
+    },
+  },
+})
+
+describe("ChatView", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.stubGlobal("alert", vi.fn())
+    vi.clearAllMocks()
+
+    useUserStore().user = { id: 7, nickname: "Tester" }
+    getConversations.mockResolvedValue([
+      { conversationId: 11, title: "비상금 목표", updatedAt: "2026-08-12T00:00:00" },
+    ])
+    getConversationMessages.mockResolvedValue([
+      { messageId: 1, role: "ASSISTANT", content: "목표를 확인해 주세요." },
+    ])
+    getActiveGoalInterview.mockResolvedValue({ active: false, draft: null })
+    getGoalByConversationId.mockResolvedValue({ data: goal })
+    getAvailableGoalAccounts.mockResolvedValue({ data: initialAccounts })
+    selectGoalAccount.mockResolvedValue({
+      data: { accountId: 102, selected: true },
+    })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it("restores the confirmed goal card and account selector after refresh", async () => {
+    const wrapper = mountChat()
+    await flushPromises()
+
+    await vi.waitFor(() => {
+      expect(wrapper.find(".goal-interview-card").exists()).toBe(true)
+      expect(wrapper.find(".goal-account-selection").exists()).toBe(true)
+    })
+
+    expect(wrapper.text()).toContain("비상금 목표")
+    expect(wrapper.text()).toContain("10,000,000원")
+    expect(wrapper.text()).not.toContain("이대로 확정")
+    expect(wrapper.text()).toContain("Wallo Bank")
+    expect(getGoalByConversationId).toHaveBeenCalledWith(11)
+  })
+
+  it("saves the account selected below the confirmed goal card", async () => {
+    getAvailableGoalAccounts
+      .mockResolvedValueOnce({ data: initialAccounts })
+      .mockResolvedValueOnce({ data: savedAccounts })
+
+    const wrapper = mountChat()
+    await flushPromises()
+    await vi.waitFor(() => expect(wrapper.findAll('input[type="radio"]')).toHaveLength(2))
+
+    await wrapper.findAll('input[type="radio"]')[1].setValue()
+    await wrapper.find(".goal-account-selection button.btn-primary").trigger("click")
+    await flushPromises()
+
+    expect(selectGoalAccount).toHaveBeenCalledWith(31, 102)
+    expect(getAvailableGoalAccounts).toHaveBeenCalledTimes(2)
+    expect(wrapper.findAll('input[type="radio"]')[1].element.checked).toBe(true)
+  })
+})
