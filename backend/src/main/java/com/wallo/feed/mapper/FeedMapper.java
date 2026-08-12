@@ -3,6 +3,7 @@ package com.wallo.feed.mapper;
 import com.wallo.feed.domain.Feed;
 import com.wallo.feed.domain.FeedMessage;
 import com.wallo.feed.dto.FeedDtos.CategoryExpenseAverage;
+import com.wallo.feed.dto.FeedDtos.SavingAmountFeedbackSummary;
 import java.time.LocalDate;
 import java.util.List;
 import org.apache.ibatis.annotations.Param;
@@ -14,6 +15,8 @@ public interface FeedMapper {
             @Param("category") String category,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate);
+    SavingAmountFeedbackSummary findSavingAmountFeedbackSummary(
+            @Param("userId") Long userId, @Param("category") String category);
     String findChallengeName(@Param("challengeId") Long challengeId);
     String findChallengeInviteCode(@Param("challengeId") Long challengeId);
     List<Feed> findFeeds(@Param("challengeId") Long challengeId, @Param("userId") Long userId,
@@ -21,7 +24,20 @@ public interface FeedMapper {
     int insertFeed(Feed feed);
     int insertAnalysis(@Param("feedId") Long feedId, @Param("spendingType") String spendingType,
                        @Param("category") String category, @Param("amount") int amount,
-                       @Param("summary") String summary, @Param("confidence") double confidence);
+                       @Param("summary") String summary, @Param("confidence") double confidence,
+                       @Param("referenceValue") long referenceValue,
+                       @Param("actualCost") long actualCost,
+                       @Param("savingDifference") long savingDifference,
+                       @Param("detectedItemsJson") String detectedItemsJson,
+                       @Param("priceReferencesJson") String priceReferencesJson);
+    int insertSavingAmountFeedback(
+            @Param("feedId") Long feedId,
+            @Param("userId") Long userId,
+            @Param("category") String category,
+            @Param("aiAmount") int aiAmount,
+            @Param("feedbackType") String feedbackType,
+            @Param("verifiedAmount") Integer verifiedAmount,
+            @Param("note") String note);
     int insertFeedShareMessage(@Param("challengeId") Long challengeId,
                                @Param("userId") Long userId, @Param("feedId") Long feedId);
     int incrementLikeCount(@Param("feedId") Long feedId);
