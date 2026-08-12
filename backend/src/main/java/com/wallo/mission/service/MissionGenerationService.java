@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class MissionGenerationService {
     private static final int REQUIRED_MISSION_COUNT = 30;
+    private static final int MINIMUM_MISSION_COUNT = 3;
     private static final int MAX_SUMMARY_LIST_ITEMS = 8;
     private static final int MAX_SUMMARY_TEXT_LENGTH = 500;
     private static final Set<String> ANALYSIS_SUMMARY_FIELDS = Set.of(
@@ -106,7 +107,7 @@ public class MissionGenerationService {
         }
         missionMapper.updateCycleStatus(cycle.getMissionCycleId(), "ACTIVE", null);
         return new MissionGenerationDto.Result(
-                cycle.getMissionCycleId(), userId, REQUIRED_MISSION_COUNT, "ACTIVE");
+                cycle.getMissionCycleId(), userId, response.missions().size(), "ACTIVE");
     }
 
     private Map<String, Object> parseAnalysis(String json) {
@@ -152,9 +153,10 @@ public class MissionGenerationService {
 
     private void validate(MissionGenerationDto.Response response) {
         if (response == null || response.missions() == null
-                || response.missions().size() != REQUIRED_MISSION_COUNT
+                || response.missions().size() < MINIMUM_MISSION_COUNT
+                || response.missions().size() > REQUIRED_MISSION_COUNT
                 || isBlank(response.promptVersion())) {
-            throw new IllegalStateException("AI must return exactly 30 missions.");
+            throw new IllegalStateException("AI must return between 3 and 30 missions.");
         }
         Set<String> keys = new HashSet<>();
         for (MissionGenerationDto.GeneratedMission mission : response.missions()) {

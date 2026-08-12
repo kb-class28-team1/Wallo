@@ -67,6 +67,17 @@ class MissionGenerationServiceTest {
     }
 
     @Test
+    void generatesAndStoresFewerThanThirtyMissionsForDevelopment() {
+        when(aiClient.generate(any())).thenReturn(
+                response(new ArrayList<>(uniqueMissions().subList(0, 10))));
+
+        MissionGenerationDto.Result result = service.generate(7L, false);
+
+        assertEquals(10, result.missionCount());
+        verify(mapper, times(10)).insertMission(any());
+    }
+
+    @Test
     void rejectsDuplicateMissionsBeforeCreatingCycle() {
         List<MissionGenerationDto.GeneratedMission> missions = uniqueMissions();
         MissionGenerationDto.GeneratedMission first = missions.get(0);

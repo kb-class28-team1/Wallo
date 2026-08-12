@@ -49,7 +49,7 @@ class GeneratedMission(BaseModel):
 class MissionGenerateResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    missions: list[GeneratedMission] = Field(min_length=30)
+    missions: list[GeneratedMission] = Field(min_length=3)
     promptVersion: str = Field(min_length=1, max_length=50)
 
     @model_validator(mode="before")

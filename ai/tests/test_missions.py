@@ -47,26 +47,38 @@ def test_generates_exactly_thirty_unique_missions():
     assert len({mission.title for mission in result.missions}) == 30
 
 
-def test_rejects_less_than_thirty_missions():
+def test_accepts_less_than_thirty_missions_for_development():
+    result = generate_missions(
+        _client({"missions": [_mission(i) for i in range(10)],
+                 "promptVersion": "personalized-mission-v1"}),
+        _request(),
+        "test-model",
+    )
+
+    assert len(result.missions) == 10
+
+
+def test_rejects_less_than_three_missions():
     with pytest.raises(InvalidMissionResponseError):
         generate_missions(
-            _client({"missions": [_mission(i) for i in range(29)],
+            _client({"missions": [_mission(i) for i in range(2)],
                      "promptVersion": "personalized-mission-v1"}),
             _request(),
             "test-model",
         )
 
 
-def test_rejects_semantically_identical_normalized_text():
+def test_removes_semantically_identical_normalized_title():
     missions = [_mission(i) for i in range(30)]
     missions[1]["title"] = " 맞춤   미션 0 "
     missions[1]["description"] = "설명은 달라도 같은 제목이면 중복입니다."
-    with pytest.raises(InvalidMissionResponseError):
-        generate_missions(
-            _client({"missions": missions, "promptVersion": "personalized-mission-v1"}),
-            _request(),
-            "test-model",
-        )
+    result = generate_missions(
+        _client({"missions": missions, "promptVersion": "personalized-mission-v1"}),
+        _request(),
+        "test-model",
+    )
+
+    assert len(result.missions) == 29
 
 
 def test_trims_extra_unique_missions_to_thirty():
