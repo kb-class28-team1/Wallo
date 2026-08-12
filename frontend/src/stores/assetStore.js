@@ -56,7 +56,7 @@ export const useAssetStore = defineStore("asset", {
         if (!response?.success || !response?.data) {
           throw new Error(
             response?.error?.message
-              || "?먯궛 嫄곕옒 ?숈뿉 ?ㅽ뙣?덉뒿?덈떎.",
+              || "자산 거래내역 동기화에 실패했습니다.",
           );
         }
 
@@ -65,7 +65,7 @@ export const useAssetStore = defineStore("asset", {
       } catch (error) {
         const errorMessage = getApiErrorMessage(
           error,
-          "?먯궛 嫄곕옒 ?숈뿉 ?ㅽ뙣?덉뒿?덈떎. ?좎떆 ???ㅼ떆 ?쒕룄??二쇱꽭??",
+          "자산 거래내역 동기화에 실패했습니다. 잠시 후 다시 시도해 주세요.",
         );
         this.syncError = errorMessage;
         if (notifyError) {
@@ -79,4 +79,3 @@ export const useAssetStore = defineStore("asset", {
     },
   },
 });
-
