@@ -24,7 +24,7 @@ public final class MissionVerificationDto {
             String decision,
             double confidenceScore,
             String reason,
-            String missionStatus
+            String missionStatus,
+            int rewardedPoint
     ) {}
 }
-

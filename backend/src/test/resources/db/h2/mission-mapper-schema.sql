@@ -1,6 +1,7 @@
 CREATE TABLE USERS (
     id BIGINT PRIMARY KEY,
-    nickname VARCHAR(50) NOT NULL
+    nickname VARCHAR(50) NOT NULL,
+    point INT NOT NULL DEFAULT 0
 );
 
 CREATE TABLE CONSUMPTION_ANALYSIS_RESULTS (
@@ -70,6 +71,28 @@ CREATE TABLE MISSION_VERIFICATIONS (
     model_version VARCHAR(100) NOT NULL,
     UNIQUE (daily_mission_id, attempt_number),
     UNIQUE (feed_id)
+);
+
+CREATE TABLE POINT_HISTORY (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    amount INT NOT NULL,
+    type VARCHAR(30) NOT NULL,
+    reference_key VARCHAR(100) NOT NULL,
+    description VARCHAR(255),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (reference_key)
+);
+
+CREATE TABLE USER_INVENTORY (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    item_name VARCHAR(100),
+    coupon_code VARCHAR(100),
+    grade VARCHAR(20),
+    status VARCHAR(20),
+    acquired_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP
 );
 
 INSERT INTO USERS (id, nickname) VALUES (7, '테스터');

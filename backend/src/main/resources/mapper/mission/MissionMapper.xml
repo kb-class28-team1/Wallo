@@ -169,6 +169,7 @@
                mission.verification_type AS verificationType,
                mission.verification_rule AS verificationRuleJson,
                mission.evidence_guide AS evidenceGuide
+               ,mission.reward_point AS rewardPoint
                ,feed.media_url AS mediaUrl
                ,feed.media_type AS mediaType
         FROM DAILY_MISSIONS daily

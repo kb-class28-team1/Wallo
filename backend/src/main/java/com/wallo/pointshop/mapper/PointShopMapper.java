@@ -41,6 +41,13 @@ public interface PointShopMapper {
             @Param("referenceKey") String referenceKey,
             @Param("description") String description);
 
+    /** 같은 일일 미션에 포인트를 한 번만 지급하도록 이력을 저장함. */
+    int insertMissionRewardHistory(
+            @Param("userId") Long userId,
+            @Param("amount") Integer amount,
+            @Param("referenceKey") String referenceKey,
+            @Param("description") String description);
+
     /** 즉시 지급에 당첨된 포인트를 사용자 잔액에 더함. */
     int addPoints(
             @Param("userId") Long userId,

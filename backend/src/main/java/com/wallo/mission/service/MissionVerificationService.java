@@ -6,6 +6,7 @@ import com.wallo.mission.dto.MissionVerificationDto;
 import com.wallo.mission.mapper.MissionMapper;
 import com.wallo.mission.verification.MissionVerificationClient;
 import com.wallo.mission.verification.MissionEvidenceLoader;
+import com.wallo.pointshop.mapper.PointShopMapper;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.Set;
@@ -20,13 +21,16 @@ public class MissionVerificationService {
     private final MissionVerificationClient verificationClient;
     private final Clock clock;
     private final MissionEvidenceLoader evidenceLoader;
+    private final PointShopMapper pointShopMapper;
 
     public MissionVerificationService(MissionMapper missionMapper,
                                       MissionVerificationClient verificationClient,
-                                      MissionEvidenceLoader evidenceLoader, Clock clock) {
+                                      MissionEvidenceLoader evidenceLoader,
+                                      PointShopMapper pointShopMapper, Clock clock) {
         this.missionMapper = missionMapper;
         this.verificationClient = verificationClient;
         this.evidenceLoader = evidenceLoader;
+        this.pointShopMapper = pointShopMapper;
         this.clock = clock;
     }
 
@@ -79,8 +83,24 @@ public class MissionVerificationService {
             default -> "VERIFYING";
         };
         missionMapper.updateDailyMissionStatus(dailyMissionId, userId, status);
+        int rewardedPoint = "PASS".equals(result.decision())
+                ? rewardOnce(userId, mission) : 0;
         return new MissionVerificationDto.Response(dailyMissionId, feedId, result.decision(),
-                result.confidenceScore(), result.reason(), status);
+                result.confidenceScore(), result.reason(), status, rewardedPoint);
+    }
+
+    private int rewardOnce(Long userId, MissionEvidenceTarget mission) {
+        int rewardPoint = mission.getRewardPoint() == null
+                ? 0 : Math.max(0, mission.getRewardPoint());
+        if (rewardPoint == 0) return 0;
+        String referenceKey = "MISSION-DAILY-" + mission.getDailyMissionId();
+        int inserted = pointShopMapper.insertMissionRewardHistory(
+                userId, rewardPoint, referenceKey, mission.getTitle() + " 완료 보상");
+        if (inserted == 0) return 0;
+        if (pointShopMapper.addPoints(userId, rewardPoint) != 1) {
+            throw new IllegalStateException("Mission reward point update failed.");
+        }
+        return rewardPoint;
     }
 
     private void validateRequest(Long userId, Long dailyMissionId, Long feedId) {

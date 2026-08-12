@@ -12,6 +12,7 @@ import com.wallo.mission.dto.MissionVerificationDto;
 import com.wallo.mission.mapper.MissionMapper;
 import com.wallo.mission.verification.MissionVerificationClient;
 import com.wallo.mission.verification.MissionEvidenceLoader;
+import com.wallo.pointshop.mapper.PointShopMapper;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -25,6 +26,7 @@ class MissionVerificationServiceTest {
     @Mock private MissionMapper mapper;
     @Mock private MissionVerificationClient client;
     @Mock private MissionEvidenceLoader evidenceLoader;
+    @Mock private PointShopMapper pointShopMapper;
     private MissionVerificationService service;
 
     @BeforeEach
@@ -32,10 +34,14 @@ class MissionVerificationServiceTest {
         MockitoAnnotations.openMocks(this);
         Clock clock = Clock.fixed(Instant.parse("2026-08-17T03:00:00Z"),
                 ZoneId.of("Asia/Seoul"));
-        service = new MissionVerificationService(mapper, client, evidenceLoader, clock);
+        service = new MissionVerificationService(
+                mapper, client, evidenceLoader, pointShopMapper, clock);
         when(mapper.findMissionEvidenceTarget(1L, 20L, 7L)).thenReturn(mission());
         when(evidenceLoader.load("/api/feed-media/proof.mp4", "VIDEO"))
                 .thenReturn(new MissionEvidenceLoader.Evidence(new byte[]{1}, "video/mp4"));
+        when(pointShopMapper.insertMissionRewardHistory(any(), any(), any(), any()))
+                .thenReturn(1);
+        when(pointShopMapper.addPoints(7L, 10)).thenReturn(1);
     }
 
     @Test
@@ -46,9 +52,13 @@ class MissionVerificationServiceTest {
         MissionVerificationDto.Response response = service.verify(7L, 1L, 20L);
 
         assertEquals("COMPLETED", response.missionStatus());
+        assertEquals(10, response.rewardedPoint());
         verify(mapper).insertMissionVerification(any());
         verify(mapper).updateDailyMissionStatus(1L, 7L, "VERIFYING");
         verify(mapper).updateDailyMissionStatus(1L, 7L, "COMPLETED");
+        verify(pointShopMapper).insertMissionRewardHistory(
+                7L, 10, "MISSION-DAILY-1", "집밥 먹기 완료 보상");
+        verify(pointShopMapper).addPoints(7L, 10);
     }
 
     @Test
@@ -59,7 +69,22 @@ class MissionVerificationServiceTest {
         MissionVerificationDto.Response response = service.verify(7L, 1L, 20L);
 
         assertEquals("FAILED", response.missionStatus());
+        assertEquals(0, response.rewardedPoint());
         verify(mapper).updateDailyMissionStatus(1L, 7L, "FAILED");
+        verify(pointShopMapper, never()).addPoints(any(), any());
+    }
+
+    @Test
+    void doesNotAddPointsWhenRewardHistoryAlreadyExists() {
+        when(client.verify(any(), any(), any())).thenReturn(new MissionVerificationDto.AiResult(
+                "PASS", 0.92, "미션 행동이 확인됩니다.", "gemini-test"));
+        when(pointShopMapper.insertMissionRewardHistory(any(), any(), any(), any()))
+                .thenReturn(0);
+
+        MissionVerificationDto.Response response = service.verify(7L, 1L, 20L);
+
+        assertEquals(0, response.rewardedPoint());
+        verify(pointShopMapper, never()).addPoints(any(), any());
     }
 
     @Test
@@ -92,6 +117,7 @@ class MissionVerificationServiceTest {
         mission.setVerificationRuleJson("{\"minimumConfidence\":0.8}");
         mission.setMediaUrl("/api/feed-media/proof.mp4");
         mission.setMediaType("VIDEO");
+        mission.setRewardPoint(10);
         return mission;
     }
 }

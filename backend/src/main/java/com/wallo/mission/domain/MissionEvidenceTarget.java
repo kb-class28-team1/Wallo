@@ -13,6 +13,7 @@ public class MissionEvidenceTarget {
     private String evidenceGuide;
     private String mediaUrl;
     private String mediaType;
+    private Integer rewardPoint;
 
     public Long getDailyMissionId() { return dailyMissionId; }
     public void setDailyMissionId(Long value) { this.dailyMissionId = value; }
@@ -34,4 +35,6 @@ public class MissionEvidenceTarget {
     public void setMediaUrl(String value) { this.mediaUrl = value; }
     public String getMediaType() { return mediaType; }
     public void setMediaType(String value) { this.mediaType = value; }
+    public Integer getRewardPoint() { return rewardPoint; }
+    public void setRewardPoint(Integer value) { this.rewardPoint = value; }
 }

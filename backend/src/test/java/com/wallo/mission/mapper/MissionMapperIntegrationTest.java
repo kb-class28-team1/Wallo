@@ -21,10 +21,12 @@ import org.mybatis.spring.SqlSessionFactoryBean;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.datasource.init.ScriptUtils;
 import com.wallo.test.TestDatabase;
+import com.wallo.pointshop.mapper.PointShopMapper;
 
 class MissionMapperIntegrationTest {
     private SqlSession sqlSession;
     private MissionMapper mapper;
+    private PointShopMapper pointShopMapper;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -35,9 +37,12 @@ class MissionMapperIntegrationTest {
         }
         SqlSessionFactoryBean factory = new SqlSessionFactoryBean();
         factory.setDataSource(dataSource);
-        factory.setMapperLocations(new ClassPathResource("mapper/mission/MissionMapper.xml"));
+        factory.setMapperLocations(
+                new ClassPathResource("mapper/mission/MissionMapper.xml"),
+                new ClassPathResource("mapper/pointshop/PointShopMapper.xml"));
         sqlSession = factory.getObject().openSession(true);
         mapper = sqlSession.getMapper(MissionMapper.class);
+        pointShopMapper = sqlSession.getMapper(PointShopMapper.class);
     }
 
     @AfterEach
@@ -101,6 +106,14 @@ class MissionMapperIntegrationTest {
         assertEquals(1, mapper.insertMissionVerification(verification));
         assertNotNull(verification.getMissionVerificationId());
         assertEquals(1, mapper.countVerificationAttempts(today.get(0).getDailyMissionId()));
+
+        String rewardKey = "MISSION-DAILY-" + today.get(0).getDailyMissionId();
+        assertEquals(1, pointShopMapper.insertMissionRewardHistory(
+                7L, 10, rewardKey, "미션 완료 보상"));
+        assertEquals(0, pointShopMapper.insertMissionRewardHistory(
+                7L, 10, rewardKey, "미션 완료 보상"));
+        assertEquals(1, pointShopMapper.addPoints(7L, 10));
+        assertEquals(10, pointShopMapper.findPointBalance(7L));
     }
 
     @Test
