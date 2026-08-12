@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from "vue"
+import { computed, onMounted, ref, watch } from "vue"
 import { useRouter } from "vue-router"
 import { storeToRefs } from "pinia"
 import { useGoalStore } from "@/stores/goalStore"
@@ -11,6 +11,10 @@ const {
   goals,
   isLoading,
   error,
+  availableAccounts,
+  isAccountLoading,
+  isAccountSaving,
+  accountError,
   roadmap,
   isRoadmapLoading,
   roadmapError,
@@ -21,6 +25,16 @@ const walloCharacter = "/images/profiles/thinking-penguin.svg"
 const hasGoal = computed(() => goals.value.length > 0)
 const currentGoal = computed(() => goals.value[0] ?? null)
 const roadmapSlider = ref(null)
+
+watch(
+  () => goals.value.length,
+  (goalCount) => {
+    if (goalCount === 0) {
+      availableAccounts.value = []
+    }
+  },
+  { immediate: true },
+)
 
 const currentAmount = computed(() => {
   const amount = Number(currentGoal.value?.currentAmount)
@@ -143,13 +157,23 @@ const benefits = [
   },
 ]
 
+const loadGoalPage = async () => {
+  const loadedGoals = await goalStore.fetchGoals({
+    notifyError: false,
+  })
+
+  if (loadedGoals.length > 0) {
+    await goalStore.fetchAvailableAccounts({
+      notifyError: false,
+    })
+  }
+}
+
 const startGoalSetting = async () => {
   await router.push({ name: "chat" })
 }
 
-onMounted(() => {
-  goalStore.fetchGoals({ notifyError: false })
-})
+onMounted(loadGoalPage)
 </script>
 
 <template>
@@ -171,7 +195,7 @@ onMounted(() => {
     <div v-else-if="error" class="state-card card border-0 shadow-sm">
       <div class="card-body text-center">
         <p class="mb-3 text-danger">{{ error }}</p>
-        <button type="button" class="btn btn-outline-primary" @click="goalStore.fetchGoals()">
+        <button type="button" class="btn btn-outline-primary" @click="loadGoalPage">
           다시 시도
         </button>
       </div>
