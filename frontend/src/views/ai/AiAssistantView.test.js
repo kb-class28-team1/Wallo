@@ -15,7 +15,6 @@ vi.mock("vue-router", () => ({
 
 vi.mock("@/api/goalApi", () => ({
   getGoals: vi.fn().mockResolvedValue({ data: [] }),
-  getGoalByConversationId: vi.fn(),
   getGoalRoadmap: vi.fn().mockResolvedValue({ data: null }),
   getAvailableGoalAccounts: vi.fn(),
   selectGoalAccount: vi.fn(),

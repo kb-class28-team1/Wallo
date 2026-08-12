@@ -8,7 +8,6 @@ import { getGoalRoadmap, getGoals } from "@/api/goalApi"
 
 vi.mock("@/api/goalApi", () => ({
   getAvailableGoalAccounts: vi.fn(),
-  getGoalByConversationId: vi.fn(),
   getGoalRoadmap: vi.fn(),
   getGoals: vi.fn(),
   selectGoalAccount: vi.fn(),
