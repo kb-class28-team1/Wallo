@@ -1,0 +1,26 @@
+package com.wallo.mission.mapper;
+
+import com.wallo.mission.domain.DailyMission;
+import com.wallo.mission.domain.Mission;
+import com.wallo.mission.domain.MissionCycle;
+import java.time.LocalDate;
+import java.util.List;
+import org.apache.ibatis.annotations.Param;
+
+public interface MissionMapper {
+    int insertCycle(MissionCycle cycle);
+    MissionCycle findCycle(@Param("userId") Long userId,
+                           @Param("cycleStartDate") LocalDate cycleStartDate);
+    int updateCycleStatus(@Param("missionCycleId") Long missionCycleId,
+                          @Param("status") String status,
+                          @Param("generationError") String generationError);
+    int insertMission(Mission mission);
+    List<Mission> findMissionsByCycleId(@Param("missionCycleId") Long missionCycleId);
+    int insertDailyMission(DailyMission dailyMission);
+    List<DailyMission> findDailyMissions(@Param("userId") Long userId,
+                                         @Param("assignedDate") LocalDate assignedDate);
+    int updateDailyMissionStatus(@Param("dailyMissionId") Long dailyMissionId,
+                                 @Param("userId") Long userId,
+                                 @Param("status") String status);
+}
+

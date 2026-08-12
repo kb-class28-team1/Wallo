@@ -1,0 +1,53 @@
+CREATE TABLE USERS (
+    id BIGINT PRIMARY KEY,
+    nickname VARCHAR(50) NOT NULL
+);
+
+CREATE TABLE CONSUMPTION_ANALYSIS_RESULTS (
+    analysis_result_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL
+);
+
+CREATE TABLE MISSION_CYCLES (
+    mission_cycle_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    cycle_start_date DATE NOT NULL,
+    cycle_end_date DATE NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    source_analysis_result_id BIGINT,
+    prompt_version VARCHAR(50) NOT NULL,
+    generation_error VARCHAR(500),
+    generated_at TIMESTAMP,
+    UNIQUE (user_id, cycle_start_date)
+);
+
+CREATE TABLE MISSIONS (
+    mission_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    mission_cycle_id BIGINT NOT NULL,
+    title VARCHAR(100) NOT NULL,
+    description VARCHAR(500) NOT NULL,
+    category VARCHAR(30) NOT NULL,
+    difficulty VARCHAR(20) NOT NULL,
+    reward_point INT NOT NULL,
+    verification_type VARCHAR(20) NOT NULL,
+    verification_rule JSON,
+    evidence_guide VARCHAR(500),
+    deduplication_key CHAR(64) NOT NULL,
+    UNIQUE (mission_cycle_id, deduplication_key)
+);
+
+CREATE TABLE DAILY_MISSIONS (
+    daily_mission_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    mission_cycle_id BIGINT NOT NULL,
+    mission_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    assigned_date DATE NOT NULL,
+    display_order TINYINT NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    completed_at TIMESTAMP,
+    UNIQUE (user_id, assigned_date, mission_id),
+    UNIQUE (user_id, assigned_date, display_order)
+);
+
+INSERT INTO USERS (id, nickname) VALUES (7, '테스터');
+

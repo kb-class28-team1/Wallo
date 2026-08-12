@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wallo.mission.mapper.MissionMapper">
+
+    <insert id="insertCycle" useGeneratedKeys="true" keyProperty="missionCycleId">
+        INSERT INTO MISSION_CYCLES (
+            user_id, cycle_start_date, cycle_end_date, status,
+            source_analysis_result_id, prompt_version, generation_error, generated_at
+        ) VALUES (
+            #{userId}, #{cycleStartDate}, #{cycleEndDate}, #{status},
+            #{sourceAnalysisResultId}, #{promptVersion}, #{generationError}, #{generatedAt}
+        )
+    </insert>
+
+    <select id="findCycle" resultType="com.wallo.mission.domain.MissionCycle">
+        SELECT mission_cycle_id AS missionCycleId,
+               user_id AS userId,
+               cycle_start_date AS cycleStartDate,
+               cycle_end_date AS cycleEndDate,
+               status,
+               source_analysis_result_id AS sourceAnalysisResultId,
+               prompt_version AS promptVersion,
+               generation_error AS generationError,
+               generated_at AS generatedAt
+        FROM MISSION_CYCLES
+        WHERE user_id = #{userId}
+          AND cycle_start_date = #{cycleStartDate}
+    </select>
+
+    <update id="updateCycleStatus">
+        UPDATE MISSION_CYCLES
+        SET status = #{status},
+            generation_error = #{generationError},
+            generated_at = CASE WHEN #{status} = 'ACTIVE' THEN CURRENT_TIMESTAMP ELSE generated_at END
+        WHERE mission_cycle_id = #{missionCycleId}
+    </update>
+
+    <insert id="insertMission" useGeneratedKeys="true" keyProperty="missionId">
+        INSERT INTO MISSIONS (
+            mission_cycle_id, title, description, category, difficulty,
+            reward_point, verification_type, verification_rule,
+            evidence_guide, deduplication_key
+        ) VALUES (
+            #{missionCycleId}, #{title}, #{description}, #{category}, #{difficulty},
+            #{rewardPoint}, #{verificationType}, #{verificationRuleJson},
+            #{evidenceGuide}, #{deduplicationKey}
+        )
+    </insert>
+
+    <select id="findMissionsByCycleId" resultType="com.wallo.mission.domain.Mission">
+        SELECT mission_id AS missionId,
+               mission_cycle_id AS missionCycleId,
+               title,
+               description,
+               category,
+               difficulty,
+               reward_point AS rewardPoint,
+               verification_type AS verificationType,
+               verification_rule AS verificationRuleJson,
+               evidence_guide AS evidenceGuide,
+               deduplication_key AS deduplicationKey
+        FROM MISSIONS
+        WHERE mission_cycle_id = #{missionCycleId}
+        ORDER BY mission_id
+    </select>
+
+    <insert id="insertDailyMission" useGeneratedKeys="true" keyProperty="dailyMissionId">
+        INSERT INTO DAILY_MISSIONS (
+            mission_cycle_id, mission_id, user_id, assigned_date, display_order, status
+        ) VALUES (
+            #{missionCycleId}, #{missionId}, #{userId}, #{assignedDate}, #{displayOrder}, #{status}
+        )
+    </insert>
+
+    <select id="findDailyMissions" resultType="com.wallo.mission.domain.DailyMission">
+        SELECT daily.daily_mission_id AS dailyMissionId,
+               daily.mission_cycle_id AS missionCycleId,
+               daily.mission_id AS missionId,
+               daily.user_id AS userId,
+               daily.assigned_date AS assignedDate,
+               daily.display_order AS displayOrder,
+               daily.status,
+               daily.completed_at AS completedAt,
+               mission.title,
+               mission.description,
+               mission.category,
+               mission.difficulty,
+               mission.reward_point AS rewardPoint,
+               mission.verification_type AS verificationType,
+               mission.evidence_guide AS evidenceGuide
+        FROM DAILY_MISSIONS daily
+        JOIN MISSIONS mission ON mission.mission_id = daily.mission_id
+        WHERE daily.user_id = #{userId}
+          AND daily.assigned_date = #{assignedDate}
+        ORDER BY daily.display_order
+    </select>
+
+    <update id="updateDailyMissionStatus">
+        UPDATE DAILY_MISSIONS
+        SET status = #{status},
+            completed_at = CASE WHEN #{status} = 'COMPLETED' THEN CURRENT_TIMESTAMP ELSE completed_at END
+        WHERE daily_mission_id = #{dailyMissionId}
+          AND user_id = #{userId}
+    </update>
+
+</mapper>
+
