@@ -1,4 +1,5 @@
 import logging
+import os
 
 from groq import Groq, GroqError
 from pydantic import ValidationError
@@ -11,7 +12,24 @@ from .schemas import MissionGenerateRequest, MissionGenerateResponse
 
 
 logger = logging.getLogger("uvicorn.error")
-MISSION_MAX_COMPLETION_TOKENS = 12000
+DEFAULT_MISSION_MAX_COMPLETION_TOKENS = 6000
+
+
+def get_mission_max_completion_tokens() -> int:
+    raw_value = os.getenv(
+        "MISSION_MAX_COMPLETION_TOKENS",
+        str(DEFAULT_MISSION_MAX_COMPLETION_TOKENS),
+    )
+    try:
+        value = int(raw_value)
+    except ValueError:
+        logger.warning(
+            "invalid MISSION_MAX_COMPLETION_TOKENS=%s; using %s",
+            raw_value,
+            DEFAULT_MISSION_MAX_COMPLETION_TOKENS,
+        )
+        return DEFAULT_MISSION_MAX_COMPLETION_TOKENS
+    return min(max(value, 1000), 7000)
 
 
 class InvalidMissionResponseError(ValueError):
@@ -24,7 +42,7 @@ def generate_missions(
     try:
         options = {
             "response_format": {"type": "json_object"},
-            "max_completion_tokens": MISSION_MAX_COMPLETION_TOKENS,
+            "max_completion_tokens": get_mission_max_completion_tokens(),
         }
         if model.startswith("openai/gpt-oss-"):
             options["reasoning_effort"] = "low"
@@ -52,4 +70,3 @@ def generate_missions_with_config(
     request: MissionGenerateRequest,
 ) -> MissionGenerateResponse:
     return generate_missions(create_groq_client(), request, get_groq_model())
-
