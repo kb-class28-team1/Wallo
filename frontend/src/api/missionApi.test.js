@@ -35,13 +35,13 @@ describe("missionApi", () => {
   })
 
   it("requests a dry preview without saving", async () => {
-    httpClient.post.mockResolvedValue({ data: { missions: Array(30), promptVersion: "v1" } })
+    httpClient.post.mockResolvedValue({ data: { missions: Array(20), promptVersion: "v1" } })
     await previewMissionGeneration()
     expect(httpClient.post).toHaveBeenCalledWith("/api/dev/missions/preview")
   })
 
   it("requests current cycle generation", async () => {
-    httpClient.post.mockResolvedValue({ data: { missionCount: 30, status: "ACTIVE" } })
+    httpClient.post.mockResolvedValue({ data: { missionCount: 20, status: "ACTIVE" } })
     await generateMissionCycle()
     expect(httpClient.post).toHaveBeenCalledWith("/api/dev/missions/generate")
   })

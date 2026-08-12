@@ -206,7 +206,7 @@ const handleLogout = async () => {
                 :disabled="isMissionDevLoading"
                 @click="previewMissions"
               >
-                AI 30개 미리보기
+                AI 20개 미리보기
               </button>
               <button
                 type="button"

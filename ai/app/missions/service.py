@@ -12,7 +12,7 @@ from .schemas import MissionGenerateRequest, MissionGenerateResponse
 
 
 logger = logging.getLogger("uvicorn.error")
-DEFAULT_MISSION_MAX_COMPLETION_TOKENS = 4500
+DEFAULT_MISSION_MAX_COMPLETION_TOKENS = 5000
 MISSION_RESPONSE_SCHEMA = {
     "name": "mission_generation",
     "strict": True,
@@ -22,8 +22,8 @@ MISSION_RESPONSE_SCHEMA = {
         "properties": {
             "missions": {
                 "type": "array",
-                "minItems": 3,
-                "maxItems": 30,
+                "minItems": 20,
+                "maxItems": 20,
                 "items": {
                     "type": "object",
                     "additionalProperties": False,

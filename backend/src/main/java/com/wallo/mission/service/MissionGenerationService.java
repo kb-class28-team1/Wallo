@@ -25,8 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class MissionGenerationService {
-    private static final int REQUIRED_MISSION_COUNT = 30;
-    private static final int MINIMUM_MISSION_COUNT = 3;
+    private static final int REQUIRED_MISSION_COUNT = 20;
     private static final int FIXED_REWARD_POINT = 10;
     private static final int MAX_SUMMARY_LIST_ITEMS = 8;
     private static final int MAX_SUMMARY_TEXT_LENGTH = 500;
@@ -153,10 +152,9 @@ public class MissionGenerationService {
 
     private void validate(MissionGenerationDto.Response response) {
         if (response == null || response.missions() == null
-                || response.missions().size() < MINIMUM_MISSION_COUNT
-                || response.missions().size() > REQUIRED_MISSION_COUNT
+                || response.missions().size() != REQUIRED_MISSION_COUNT
                 || isBlank(response.promptVersion())) {
-            throw new IllegalStateException("AI must return between 3 and 30 missions.");
+            throw new IllegalStateException("AI must return exactly 20 missions.");
         }
         Set<String> keys = new HashSet<>();
         for (MissionGenerationDto.GeneratedMission mission : response.missions()) {

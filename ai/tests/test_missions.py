@@ -35,32 +35,21 @@ def _request() -> MissionGenerateRequest:
     )
 
 
-def test_generates_exactly_thirty_unique_missions():
+def test_generates_exactly_twenty_unique_missions():
     result = generate_missions(
-        _client({"missions": [_mission(i) for i in range(30)],
+        _client({"missions": [_mission(i) for i in range(20)],
                  "promptVersion": "personalized-mission-v1"}),
         _request(),
         "test-model",
     )
-    assert len(result.missions) == 30
-    assert len({mission.title for mission in result.missions}) == 30
+    assert len(result.missions) == 20
+    assert len({mission.title for mission in result.missions}) == 20
 
 
-def test_accepts_less_than_thirty_missions_for_development():
-    result = generate_missions(
-        _client({"missions": [_mission(i) for i in range(10)],
-                 "promptVersion": "personalized-mission-v1"}),
-        _request(),
-        "test-model",
-    )
-
-    assert len(result.missions) == 10
-
-
-def test_rejects_less_than_three_missions():
+def test_rejects_less_than_twenty_missions():
     with pytest.raises(InvalidMissionResponseError):
         generate_missions(
-            _client({"missions": [_mission(i) for i in range(2)],
+            _client({"missions": [_mission(i) for i in range(19)],
                      "promptVersion": "personalized-mission-v1"}),
             _request(),
             "test-model",
@@ -68,31 +57,30 @@ def test_rejects_less_than_three_missions():
 
 
 def test_removes_semantically_identical_normalized_title():
-    missions = [_mission(i) for i in range(30)]
+    missions = [_mission(i) for i in range(20)]
     missions[1]["title"] = " 맞춤   미션 0 "
     missions[1]["description"] = "설명은 달라도 같은 제목이면 중복입니다."
+    with pytest.raises(InvalidMissionResponseError):
+        generate_missions(
+            _client({"missions": missions, "promptVersion": "personalized-mission-v1"}),
+            _request(),
+            "test-model",
+        )
+
+
+def test_trims_extra_unique_missions_to_twenty():
     result = generate_missions(
-        _client({"missions": missions, "promptVersion": "personalized-mission-v1"}),
-        _request(),
-        "test-model",
-    )
-
-    assert len(result.missions) == 29
-
-
-def test_trims_extra_unique_missions_to_thirty():
-    result = generate_missions(
-        _client({"missions": [_mission(i) for i in range(33)],
+        _client({"missions": [_mission(i) for i in range(23)],
                  "promptVersion": "personalized-mission-v1"}),
         _request(),
         "test-model",
     )
 
-    assert len(result.missions) == 30
+    assert len(result.missions) == 20
 
 
 def test_rejects_changed_field_names_and_missing_category():
-    missions = [_mission(i) for i in range(30)]
+    missions = [_mission(i) for i in range(20)]
     for mission in missions:
         mission["type"] = mission.pop("verificationType")
         mission["points"] = mission.pop("rewardPoint")
@@ -107,7 +95,7 @@ def test_rejects_changed_field_names_and_missing_category():
 
 
 def test_rejects_reward_points_other_than_ten():
-    missions = [_mission(i) for i in range(30)]
+    missions = [_mission(i) for i in range(20)]
     missions[0]["rewardPoint"] = 20
 
     with pytest.raises(InvalidMissionResponseError):

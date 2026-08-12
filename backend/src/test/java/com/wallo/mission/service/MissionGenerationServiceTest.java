@@ -47,34 +47,32 @@ class MissionGenerationServiceTest {
     }
 
     @Test
-    void previewsThirtyMissionsWithoutWritingDatabase() {
+    void previewsTwentyMissionsWithoutWritingDatabase() {
         MissionGenerationDto.Response response = service.preview(7L);
 
-        assertEquals(30, response.missions().size());
+        assertEquals(20, response.missions().size());
         verify(mapper, never()).insertCycle(any());
         verify(mapper, never()).insertMission(any());
     }
 
     @Test
-    void generatesAndStoresExactlyThirtyUniqueMissions() {
+    void generatesAndStoresExactlyTwentyUniqueMissions() {
         MissionGenerationDto.Result result = service.generate(7L, false);
 
-        assertEquals(30, result.missionCount());
+        assertEquals(20, result.missionCount());
         assertEquals("ACTIVE", result.status());
-        verify(mapper, times(30)).insertMission(any());
+        verify(mapper, times(20)).insertMission(any());
         verify(mapper).updateCycleStatus(any(), org.mockito.ArgumentMatchers.eq("ACTIVE"),
                 org.mockito.ArgumentMatchers.isNull());
     }
 
     @Test
-    void generatesAndStoresFewerThanThirtyMissionsForDevelopment() {
+    void rejectsFewerThanTwentyMissions() {
         when(aiClient.generate(any())).thenReturn(
                 response(new ArrayList<>(uniqueMissions().subList(0, 10))));
 
-        MissionGenerationDto.Result result = service.generate(7L, false);
-
-        assertEquals(10, result.missionCount());
-        verify(mapper, times(10)).insertMission(any());
+        assertThrows(IllegalStateException.class, () -> service.generate(7L, false));
+        verify(mapper, never()).insertMission(any());
     }
 
     @Test
@@ -111,7 +109,7 @@ class MissionGenerationServiceTest {
         cycle.setMissionCycleId(5L);
         cycle.setStatus("ACTIVE");
         when(mapper.findCycle(anyLong(), any())).thenReturn(cycle);
-        when(mapper.countMissionsByCycleId(5L)).thenReturn(30);
+        when(mapper.countMissionsByCycleId(5L)).thenReturn(20);
 
         MissionGenerationDto.Result result = service.generate(7L, false);
 
@@ -158,7 +156,7 @@ class MissionGenerationServiceTest {
 
     private List<MissionGenerationDto.GeneratedMission> uniqueMissions() {
         List<MissionGenerationDto.GeneratedMission> result = new ArrayList<>();
-        for (int index = 0; index < 30; index++) {
+        for (int index = 0; index < 20; index++) {
             result.add(new MissionGenerationDto.GeneratedMission(
                     "맞춤 미션 " + index, "서로 다른 행동 " + index,
                     "FOOD", 10, "MEDIA_AI",
