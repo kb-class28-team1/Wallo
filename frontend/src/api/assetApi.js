@@ -24,6 +24,25 @@ export const getAssets = async () => {
   return response.data;
 };
 
+export const syncAssets = async () => {
+  try {
+    const response = await httpClient.post("/api/assets/sync");
+
+    return response.data;
+  } catch (error) {
+    const apiError = new Error(
+      getApiErrorMessage(
+        error,
+        "?먯궛 嫄곕옒 ?숈뿉 ?ㅽ뙣?덉뒿?덈떎. ?좎떆 ???ㅼ떆 ?쒕룄??二쇱꽭??",
+      ),
+    );
+    apiError.code = getApiErrorCode(error);
+    apiError.status = error.response?.status;
+    apiError.response = error.response;
+    throw apiError;
+  }
+};
+
 export const connectAllAssets = async (consentAgreed) => {
   const response = await httpClient.post("/api/connections", {
     consentAgreed,
