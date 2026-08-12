@@ -1,5 +1,91 @@
 USE wallo;
 
+-- 실행 대상
+-- 1. 기존 wallo DB를 사용하는 개발 환경에서 이 파일을 한 번 실행합니다.
+-- 2. USERS, CHAT_MESSAGES, ACCOUNTS 등 dbinit.sql의 기본 테이블이 먼저 존재해야 합니다.
+-- 3. 새 DB를 dbinit.sql로 초기화한 경우에는 이 파일을 추가로 실행하지 않아도 됩니다.
+--
+-- 이 스크립트는 다음 기능의 테이블과 기존 DB 마이그레이션을 한 번에 처리합니다.
+-- - 소비분석 결과 이력 및 AI 채팅 메시지 연결
+-- - 목표 인터뷰 세션, 금융 목표 및 목표 연결 계좌
+
+-- =========================================================
+-- 소비분석 결과 이력
+-- =========================================================
+
+CREATE TABLE IF NOT EXISTS CONSUMPTION_ANALYSIS_RESULTS (
+    analysis_result_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    assistant_message_id BIGINT NOT NULL,
+    request_message TEXT NOT NULL,
+    calculated_result JSON NOT NULL,
+    ai_response TEXT NOT NULL,
+    generated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    INDEX idx_consumption_analysis_user_generated (user_id, generated_at),
+    UNIQUE INDEX uk_consumption_analysis_message (assistant_message_id),
+    CONSTRAINT fk_consumption_analysis_user
+        FOREIGN KEY (user_id) REFERENCES USERS(id) ON DELETE CASCADE,
+    CONSTRAINT fk_consumption_analysis_message
+        FOREIGN KEY (assistant_message_id) REFERENCES CHAT_MESSAGES(message_id) ON DELETE CASCADE
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_unicode_ci;
+
+-- assistant_message_id가 없던 기존 테이블도 함께 마이그레이션한다.
+-- 기존 데이터는 연결할 메시지 식별자가 없으므로 추가 컬럼에 NULL을 허용한다.
+SET @assistant_message_id_exists = (
+    SELECT COUNT(*)
+    FROM information_schema.columns
+    WHERE table_schema = DATABASE()
+      AND table_name = 'CONSUMPTION_ANALYSIS_RESULTS'
+      AND column_name = 'assistant_message_id'
+);
+SET @assistant_message_id_sql = IF(
+    @assistant_message_id_exists = 0,
+    'ALTER TABLE CONSUMPTION_ANALYSIS_RESULTS ADD COLUMN assistant_message_id BIGINT NULL AFTER user_id',
+    'SELECT 1'
+);
+PREPARE assistant_message_id_statement FROM @assistant_message_id_sql;
+EXECUTE assistant_message_id_statement;
+DEALLOCATE PREPARE assistant_message_id_statement;
+
+SET @consumption_message_index_exists = (
+    SELECT COUNT(*)
+    FROM information_schema.statistics
+    WHERE table_schema = DATABASE()
+      AND table_name = 'CONSUMPTION_ANALYSIS_RESULTS'
+      AND index_name = 'uk_consumption_analysis_message'
+);
+SET @consumption_message_index_sql = IF(
+    @consumption_message_index_exists = 0,
+    'ALTER TABLE CONSUMPTION_ANALYSIS_RESULTS ADD UNIQUE INDEX uk_consumption_analysis_message (assistant_message_id)',
+    'SELECT 1'
+);
+PREPARE consumption_message_index_statement FROM @consumption_message_index_sql;
+EXECUTE consumption_message_index_statement;
+DEALLOCATE PREPARE consumption_message_index_statement;
+
+SET @consumption_message_fk_exists = (
+    SELECT COUNT(*)
+    FROM information_schema.table_constraints
+    WHERE constraint_schema = DATABASE()
+      AND table_name = 'CONSUMPTION_ANALYSIS_RESULTS'
+      AND constraint_name = 'fk_consumption_analysis_message'
+      AND constraint_type = 'FOREIGN KEY'
+);
+SET @consumption_message_fk_sql = IF(
+    @consumption_message_fk_exists = 0,
+    'ALTER TABLE CONSUMPTION_ANALYSIS_RESULTS ADD CONSTRAINT fk_consumption_analysis_message FOREIGN KEY (assistant_message_id) REFERENCES CHAT_MESSAGES(message_id) ON DELETE CASCADE',
+    'SELECT 1'
+);
+PREPARE consumption_message_fk_statement FROM @consumption_message_fk_sql;
+EXECUTE consumption_message_fk_statement;
+DEALLOCATE PREPARE consumption_message_fk_statement;
+
+-- =========================================================
+-- 목표 인터뷰 및 금융 목표
+-- =========================================================
+
 CREATE TABLE IF NOT EXISTS GOAL_INTERVIEW_SESSIONS (
     session_id BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT NOT NULL,
