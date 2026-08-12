@@ -3,9 +3,12 @@ import { describe, expect, it } from "vitest";
 import GoalSummaryCard from "./GoalSummaryCard.vue";
 
 const globalOptions = {
-  stubs: {
-    RouterLink: {
-      template: "<a><slot /></a>",
+  global: {
+    stubs: {
+      RouterLink: {
+        props: ["to"],
+        template: "<a :data-to=\"to\"><slot /></a>",
+      },
     },
   },
 };
@@ -33,7 +36,9 @@ describe("GoalSummaryCard", () => {
 
     expect(wrapper.text()).toContain("Emergency fund");
     expect(wrapper.find("h2").text()).toBe("Emergency fund");
-    expect(wrapper.find("h3").text()).toBe("목표에 사용할 계좌");
+    expect(wrapper.text()).toContain("채팅에서 계좌 설정");
+    expect(wrapper.find("a").attributes("data-to")).toBe("/chat");
+    expect(wrapper.find(".goal-account-selection").exists()).toBe(false);
     expect(wrapper.text()).not.toContain("확정된 목표");
     expect(wrapper.text()).not.toContain("금융 목표");
     expect(wrapper.text()).toContain("5,000,000원");
@@ -91,59 +96,6 @@ describe("GoalSummaryCard", () => {
 
     expect(wrapper.text()).toContain("Emergency fund");
     expect(wrapper.find(".goal-carousel-position").text()).toBe("1 / 2");
-  });
-
-  it("shows eligible account details and emits only the selected account", async () => {
-    const wrapper = mount(GoalSummaryCard, {
-      ...globalOptions,
-      props: {
-        goals: [
-          {
-            goalId: 1,
-            title: "Emergency fund",
-            targetAmount: 5000000,
-            targetDate: "2027-11-30",
-            initialAmount: 3250000,
-            requiredMonthlyAmount: 500000,
-          },
-        ],
-        availableAccounts: [
-          {
-            accountId: 101,
-            bankName: "Wallo Bank",
-            accountName: "생활비 통장",
-            displayNumber: "1234-****-7890",
-            accountType: "입출금",
-            balance: 2500000,
-            currency: "KRW",
-            selected: true,
-          },
-          {
-            accountId: 102,
-            bankName: "Wallo Securities",
-            accountName: "CMA 통장",
-            displayNumber: "9876-****-1234",
-            accountType: "CMA",
-            balance: 1000000,
-            currency: "KRW",
-            selected: false,
-          },
-        ],
-      },
-    });
-
-    expect(wrapper.text()).toContain("Wallo Bank");
-    expect(wrapper.text()).toContain("생활비 통장 · 1234-****-7890");
-    expect(wrapper.text()).toContain("2,500,000원");
-    expect(wrapper.text()).toContain("CMA");
-    expect(wrapper.findAll('input[type="radio"]')).toHaveLength(2);
-
-    await wrapper.findAll('input[type="radio"]')[1].setValue();
-    await wrapper.find(".goal-account-selection button.btn-primary").trigger("click");
-
-    expect(wrapper.emitted("select-account")).toEqual([
-      [{ goalId: 1, accountId: 102 }],
-    ]);
   });
 
   it("shows the empty state when no goal exists", () => {
