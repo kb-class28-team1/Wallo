@@ -61,7 +61,7 @@ def mission_response_schema(requested_count: int) -> dict:
         "properties": {
             "missions": {
                 "type": "array",
-                "minItems": requested_count,
+                "minItems": 1,
                 "maxItems": max_items,
                 "items": MISSION_ITEM_SCHEMA,
             },

@@ -107,7 +107,7 @@ def test_structured_schema_accepts_small_over_generation_for_trimming():
     from app.missions.service import mission_response_schema
 
     missions_schema = mission_response_schema(10)["schema"]["properties"]["missions"]
-    assert missions_schema["minItems"] == 10
+    assert missions_schema["minItems"] == 1
     assert missions_schema["maxItems"] == 12
 
 
@@ -124,6 +124,20 @@ def test_requests_only_missing_count_after_cross_batch_duplicate():
 
     assert len(result.missions) == 20
     assert len({mission.title for mission in result.missions}) == 20
+
+
+def test_refills_when_ai_returns_fewer_than_requested():
+    first = [_mission(i) for i in range(9)]
+    second = [_mission(i) for i in range(9, 19)]
+    refill = [_mission(19)]
+
+    result = generate_missions(
+        _sequence_client([first, second, refill]),
+        _request(),
+        "test-model",
+    )
+
+    assert len(result.missions) == 20
 
 
 def test_rejects_changed_field_names_and_missing_category():
