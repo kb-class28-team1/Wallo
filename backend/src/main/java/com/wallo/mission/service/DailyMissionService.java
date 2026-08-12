@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +27,7 @@ public class DailyMissionService {
     private final Clock clock;
     private final SecureRandom random;
 
+    @Autowired
     public DailyMissionService(MissionMapper missionMapper,
                                MissionCycleCalculator cycleCalculator, Clock clock) {
         this(missionMapper, cycleCalculator, clock, new SecureRandom());

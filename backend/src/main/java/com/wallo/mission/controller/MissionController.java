@@ -5,6 +5,7 @@ import com.wallo.mission.dto.TodayMissionResponse;
 import com.wallo.mission.service.DailyMissionService;
 import com.wallo.mission.dto.MissionVerificationDto;
 import com.wallo.mission.service.MissionVerificationService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -20,6 +21,7 @@ public class MissionController {
     private final CurrentUserProvider currentUserProvider;
     private final MissionVerificationService verificationService;
 
+    @Autowired
     public MissionController(DailyMissionService dailyMissionService,
                              CurrentUserProvider currentUserProvider,
                              MissionVerificationService verificationService) {
