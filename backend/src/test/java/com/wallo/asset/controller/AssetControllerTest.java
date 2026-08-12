@@ -141,4 +141,25 @@ class AssetControllerTest {
 
         verify(assetSyncOrchestrator).syncNow(7L);
     }
+
+    @Test
+    void syncAssetsReturnsFailedConnectionCountFromOrchestrator() throws Exception {
+        when(assetSyncOrchestrator.syncNow(7L)).thenReturn(
+                new AssetSyncDto.SyncResponse(
+                        LocalDateTime.of(2026, 8, 11, 15, 30),
+                        0,
+                        12,
+                        1
+                )
+        );
+
+        mockMvc.perform(post("/api/assets/sync"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.inserted").value(0))
+                .andExpect(jsonPath("$.data.updated").value(12))
+                .andExpect(jsonPath("$.data.failedConnections").value(1));
+
+        verify(assetSyncOrchestrator).syncNow(7L);
+    }
 }

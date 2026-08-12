@@ -1,6 +1,7 @@
 package com.wallo.asset.scheduler;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -12,6 +13,7 @@ import com.wallo.asset.mapper.ConnectionMapper;
 import com.wallo.asset.service.AssetSyncOrchestrator;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.springframework.scheduling.annotation.Scheduled;
 
 class AssetSyncSchedulerTest {
 
@@ -50,6 +52,16 @@ class AssetSyncSchedulerTest {
         );
 
         verify(assetSyncOrchestrator).syncNow(8L);
+    }
+
+    @Test
+    void usesTheConfiguredTwelveHourKoreanTimeZoneSchedule() throws NoSuchMethodException {
+        Scheduled scheduled = AssetSyncScheduler.class
+                .getDeclaredMethod("syncAssets")
+                .getAnnotation(Scheduled.class);
+
+        assertEquals("${asset-sync.scheduler.cron:0 0 */12 * * *}", scheduled.cron());
+        assertEquals("Asia/Seoul", scheduled.zone());
     }
 
     private AssetSyncDto.SyncResponse successfulResult() {
