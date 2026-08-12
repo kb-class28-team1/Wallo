@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from "vue"
 import { useRouter } from "vue-router"
 import { storeToRefs } from "pinia"
+import GoalAccountSelector from "@/components/goal/GoalAccountSelector.vue"
 import { useGoalStore } from "@/stores/goalStore"
 import { formatWon } from "@/commonUtils/formatters"
 
@@ -166,6 +167,18 @@ const loadGoalPage = async () => {
     await goalStore.fetchAvailableAccounts({
       notifyError: false,
     })
+  }
+}
+
+const handleAccountSelect = async (accountId) => {
+  if (!currentGoal.value?.goalId) return
+
+  try {
+    await goalStore.saveGoalAccount(currentGoal.value.goalId, accountId)
+    await goalStore.fetchGoals({ notifyError: false })
+    await goalStore.fetchAvailableAccounts({ notifyError: false })
+  } catch {
+    // goalStore가 API 오류와 사용자 알림을 처리한다.
   }
 }
 
@@ -359,6 +372,16 @@ onMounted(loadGoalPage)
                   </div>
                 </div>
               </div>
+
+              <GoalAccountSelector
+                v-if="currentGoal"
+                :accounts="availableAccounts"
+                :loading="isAccountLoading"
+                :saving="isAccountSaving"
+                :error="accountError"
+                @retry="goalStore.fetchAvailableAccounts()"
+                @select-account="handleAccountSelect"
+              />
             </div>
           </article>
         </div>
