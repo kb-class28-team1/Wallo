@@ -6,6 +6,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.ResourceAccessException;
@@ -22,6 +23,7 @@ public class CodefRetryExecutor {
     private final long maxElapsedMillis;
     private final Sleeper sleeper;
 
+    @Autowired
     public CodefRetryExecutor(
             @Value("${codef.retry.max-attempts:2}") int maxAttempts,
             @Value("${codef.retry.initial-backoff-ms:300}") long initialBackoffMillis,
