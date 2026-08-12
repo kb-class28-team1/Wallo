@@ -14,6 +14,7 @@ from app.agents.goal.models import (
     GoalDraft,
     GoalInterviewAction,
 )
+from app.agents.roadmap.models import GoalRoadmap
 
 class ChatHistoryMessage(BaseModel):
     role: Literal["user", "assistant"]
@@ -59,6 +60,8 @@ class GoalInterviewResponse(BaseModel):
     active: bool
     draft: GoalDraft
     feasibility: FeasibilityResult | None = None
+    roadmap: GoalRoadmap | None = None
+    roadmap_error: str | None = Field(default=None, alias="roadmapError")
 
 
 class ChatResponse(BaseModel):
