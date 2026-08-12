@@ -44,6 +44,8 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Primary;
 
 @Configuration
 @EnableScheduling
@@ -64,6 +66,7 @@ public class AppConfig {
     }
 
     @Bean
+    @Primary
     public RestTemplate restTemplate(
             @Value("${codef.http.connect-timeout-ms:2000}") int connectTimeoutMs,
             @Value("${codef.http.read-timeout-ms:3000}") int readTimeoutMs
@@ -172,6 +175,17 @@ public class AppConfig {
             );
         }
         return new MockFeedAnalysisClient();
+    }
+
+    @Bean
+    @Qualifier("missionAiRestTemplate")
+    public RestTemplate missionAiRestTemplate(
+            @Value("${mission.ai.http.connect-timeout-ms:5000}") int connectTimeoutMs,
+            @Value("${mission.ai.http.read-timeout-ms:120000}") int readTimeoutMs) {
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(connectTimeoutMs);
+        requestFactory.setReadTimeout(readTimeoutMs);
+        return new RestTemplate(requestFactory);
     }
 
     @Bean

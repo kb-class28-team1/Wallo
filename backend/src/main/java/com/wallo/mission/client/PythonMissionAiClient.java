@@ -5,6 +5,7 @@ import com.wallo.chat.client.AiRateLimitException;
 import com.wallo.mission.dto.MissionGenerationDto;
 import java.net.URI;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.ResourceAccessException;
@@ -18,7 +19,7 @@ public class PythonMissionAiClient implements MissionAiClient {
     private final URI generationUri;
 
     public PythonMissionAiClient(
-            RestTemplate restTemplate,
+            @Qualifier("missionAiRestTemplate") RestTemplate restTemplate,
             @Value("${ai.server.url:http://127.0.0.1:8000}") String serverUrl) {
         this.restTemplate = restTemplate;
         String normalized = serverUrl.endsWith("/")

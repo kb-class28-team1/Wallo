@@ -36,7 +36,7 @@ class GeneratedMission(BaseModel):
 class MissionGenerateResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    missions: list[GeneratedMission] = Field(min_length=20, max_length=20)
+    missions: list[GeneratedMission] = Field(min_length=10, max_length=20)
     promptVersion: str = Field(min_length=1, max_length=50)
 
     @model_validator(mode="before")
@@ -47,7 +47,8 @@ class MissionGenerateResponse(BaseModel):
         unique = []
         title_keys = set()
         for mission in value["missions"]:
-            title = mission.get("title") if isinstance(mission, dict) else None
+            title = (mission.get("title") if isinstance(mission, dict)
+                     else getattr(mission, "title", None))
             key = "".join(str(title or "").lower().split())
             if key and key not in title_keys:
                 title_keys.add(key)

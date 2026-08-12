@@ -8,11 +8,11 @@ from app.clients.groq_client import create_groq_client
 from app.core.config import get_groq_model
 
 from .prompts import MISSION_GENERATION_INSTRUCTIONS, build_mission_input
-from .schemas import MissionGenerateRequest, MissionGenerateResponse
+from .schemas import GeneratedMission, MissionGenerateRequest, MissionGenerateResponse
 
 
 logger = logging.getLogger("uvicorn.error")
-DEFAULT_MISSION_MAX_COMPLETION_TOKENS = 5000
+DEFAULT_MISSION_MAX_COMPLETION_TOKENS = 3000
 MISSION_RESPONSE_SCHEMA = {
     "name": "mission_generation",
     "strict": True,
@@ -22,8 +22,8 @@ MISSION_RESPONSE_SCHEMA = {
         "properties": {
             "missions": {
                 "type": "array",
-                "minItems": 20,
-                "maxItems": 24,
+                "minItems": 10,
+                "maxItems": 12,
                 "items": {
                     "type": "object",
                     "additionalProperties": False,
@@ -103,18 +103,38 @@ def generate_missions(
         }
         if model.startswith("openai/gpt-oss-"):
             options["reasoning_effort"] = "low"
-        response = client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": MISSION_GENERATION_INSTRUCTIONS},
-                {"role": "user", "content": build_mission_input(request)},
-            ],
-            **options,
-        )
-        if not response.choices or not response.choices[0].message.content:
-            raise ValueError("mission response is empty")
-        return MissionGenerateResponse.model_validate_json(
-            response.choices[0].message.content
+        generated: list[GeneratedMission] = []
+        title_keys: set[str] = set()
+        for batch_number in (1, 2):
+            response = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": MISSION_GENERATION_INSTRUCTIONS},
+                    {"role": "user", "content": build_mission_input(
+                        request,
+                        batch_number,
+                        [mission.title for mission in generated],
+                    )},
+                ],
+                **options,
+            )
+            if not response.choices or not response.choices[0].message.content:
+                raise ValueError("mission response is empty")
+            batch = MissionGenerateResponse.model_validate_json(
+                response.choices[0].message.content
+            )
+            for mission in batch.missions:
+                key = "".join(mission.title.lower().split())
+                if key not in title_keys:
+                    title_keys.add(key)
+                    generated.append(mission)
+                if len(generated) == 20:
+                    break
+        if len(generated) != 20:
+            raise ValueError("mission batches must produce exactly 20 unique missions")
+        return MissionGenerateResponse(
+            missions=generated,
+            promptVersion="personalized-mission-v1",
         )
     except GroqError as error:
         logger.error("Groq mission generation failed: %s", error)

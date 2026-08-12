@@ -83,8 +83,8 @@ def test_structured_schema_accepts_small_over_generation_for_trimming():
     from app.missions.service import MISSION_RESPONSE_SCHEMA
 
     missions_schema = MISSION_RESPONSE_SCHEMA["schema"]["properties"]["missions"]
-    assert missions_schema["minItems"] == 20
-    assert missions_schema["maxItems"] == 24
+    assert missions_schema["minItems"] == 10
+    assert missions_schema["maxItems"] == 12
 
 
 def test_rejects_changed_field_names_and_missing_category():
