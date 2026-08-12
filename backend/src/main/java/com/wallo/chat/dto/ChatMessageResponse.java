@@ -10,16 +10,28 @@ public class ChatMessageResponse {
     private final String role;
     private final String content;
     private final String createdAt;
+    private final ConsumptionAnalysisView consumptionAnalysis;
 
-    private ChatMessageResponse(ChatMessage message) {
+    private ChatMessageResponse(
+            ChatMessage message,
+            ConsumptionAnalysisView consumptionAnalysis
+    ) {
         this.messageId = message.getMessageId();
         this.role = message.getRole();
         this.content = message.getContent();
         this.createdAt = formatDateTime(message.getCreatedAt());
+        this.consumptionAnalysis = consumptionAnalysis;
     }
 
     public static ChatMessageResponse from(ChatMessage message) {
-        return new ChatMessageResponse(message);
+        return new ChatMessageResponse(message, null);
+    }
+
+    public static ChatMessageResponse from(
+            ChatMessage message,
+            ConsumptionAnalysisView consumptionAnalysis
+    ) {
+        return new ChatMessageResponse(message, consumptionAnalysis);
     }
 
     public Long getMessageId() {
@@ -36,6 +48,10 @@ public class ChatMessageResponse {
 
     public String getCreatedAt() {
         return createdAt;
+    }
+
+    public ConsumptionAnalysisView getConsumptionAnalysis() {
+        return consumptionAnalysis;
     }
 
     private static String formatDateTime(LocalDateTime dateTime) {

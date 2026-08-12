@@ -47,6 +47,8 @@ def test_chat_passes_conversation_history_to_financial_agent():
         ],
         None,
         None,
+        None,
+        None,
     )
 
 
@@ -65,6 +67,8 @@ def test_chat_passes_long_term_summary_to_financial_agent():
         "목표까지 얼마나 남았어?",
         [],
         "사용자는 여행 자금 840만 원을 목표로 한다.",
+        None,
+        None,
         None,
     )
 
@@ -109,6 +113,8 @@ def test_chat_parses_and_passes_financial_context_to_financial_agent():
         [],
         None,
         context,
+        None,
+        None,
     )
 
 

@@ -9,10 +9,12 @@ import static org.mockito.Mockito.when;
 
 import com.wallo.asset.dto.GoalAssetContextDto;
 import com.wallo.asset.service.AssetService;
+import com.wallo.asset.service.ConsumptionAnalysisContextService;
 import com.wallo.chat.client.PythonAiClient;
 import com.wallo.chat.dto.ChatRequest;
 import com.wallo.chat.dto.ChatResponse;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class ChatServiceTest {
@@ -20,6 +22,49 @@ class ChatServiceTest {
     private final PythonAiClient pythonAiClient = mock(PythonAiClient.class);
     private final AssetService assetService = mock(AssetService.class);
     private final ChatService chatService = new ChatService(pythonAiClient, assetService);
+
+    @Test
+    void sendsConsumptionContextAndReturnsCalculation() {
+        ConsumptionAnalysisContextService contextService =
+                mock(ConsumptionAnalysisContextService.class);
+        ChatService service = new ChatService(
+                pythonAiClient, assetService, contextService);
+        GoalAssetContextDto.Response financialContext = emptyContext(true);
+        com.wallo.asset.dto.ConsumptionAnalysisContextDto consumptionContext =
+                new com.wallo.asset.dto.ConsumptionAnalysisContextDto(List.of(), null);
+        ChatRequest request = new ChatRequest("이번 달 소비를 분석해줘");
+        Map<String, Object> calculation = Map.of("totalChange", Map.of("currentAmount", 100000));
+        ChatResponse aiResponse = new ChatResponse("분석 결과입니다.", null, null, calculation);
+        when(assetService.getGoalAssetContext(7L)).thenReturn(financialContext);
+        when(contextService.getContext(7L)).thenReturn(consumptionContext);
+        when(pythonAiClient.chat(request.withFinancialContext(financialContext)
+                .withConsumptionContext(consumptionContext))).thenReturn(aiResponse);
+
+        ChatResponse response = service.chat(request, 7L);
+
+        assertEquals(calculation, response.consumptionAnalysis());
+    }
+
+    @Test
+    void returnsNonConsumptionResponseWithoutCalculation() {
+        ConsumptionAnalysisContextService contextService =
+                mock(ConsumptionAnalysisContextService.class);
+        ChatService service = new ChatService(
+                pythonAiClient, assetService, contextService);
+        GoalAssetContextDto.Response financialContext = emptyContext(true);
+        com.wallo.asset.dto.ConsumptionAnalysisContextDto consumptionContext =
+                new com.wallo.asset.dto.ConsumptionAnalysisContextDto(List.of(), null);
+        ChatRequest request = new ChatRequest("안녕");
+        when(assetService.getGoalAssetContext(7L)).thenReturn(financialContext);
+        when(contextService.getContext(7L)).thenReturn(consumptionContext);
+        when(pythonAiClient.chat(request.withFinancialContext(financialContext)
+                .withConsumptionContext(consumptionContext)))
+                .thenReturn(new ChatResponse("안녕하세요.", null));
+
+        ChatResponse response = service.chat(request, 7L);
+
+        assertEquals(null, response.consumptionAnalysis());
+    }
 
     @Test
     void addsCurrentUsersFinancialContextToAiRequest() {

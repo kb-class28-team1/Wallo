@@ -13,13 +13,20 @@ from app.agents.financial.prompts import SYSTEM_PROMPT
 from app.agents.financial.tools.registry import TOOL_SCHEMAS, execute_tool
 from app.agents.goal.context import FinancialContext
 from app.core.config import get_groq_model
+from app.agents.financial.consumption_models import ConsumptionContext
+from app.agents.financial.spending_intent import (
+    build_spending_arguments,
+    is_spending_request,
+)
 
 logger = logging.getLogger("wallo_ai")
 ASSET_ANALYSIS_TOOL = "analyze_assets"
 PRODUCT_RECOMMENDATION_TOOL = "recommend_financial_products"
+SPENDING_ANALYSIS_TOOL = "coach_spending"
 DEFAULT_FINAL_COMPLETION_TOKENS = 500
 ASSET_ANALYSIS_FINAL_COMPLETION_TOKENS = 1200
 PRODUCT_RECOMMENDATION_FINAL_COMPLETION_TOKENS = 1000
+SPENDING_ANALYSIS_FINAL_COMPLETION_TOKENS = 1600
 
 
 def parse_tool_arguments(raw_arguments: str) -> dict[str, Any]:
@@ -35,6 +42,7 @@ class FinancialAgent:
         self.client = client
         self.model = model or get_groq_model()
         self.selected_tool: str | None = None
+        self.selected_tool_result: dict[str, Any] | None = None
 
     def run(
         self,
@@ -42,8 +50,11 @@ class FinancialAgent:
         history: list[dict[str, str]] | None = None,
         summary: str | None = None,
         financial_context: FinancialContext | None = None,
+        consumption_context: ConsumptionContext | None = None,
+        previous_consumption_period: dict[str, Any] | None = None,
     ) -> str:
         self.selected_tool = None
+        self.selected_tool_result = None
         messages: list[dict[str, Any]] = [
             {"role": "system", "content": SYSTEM_PROMPT},
         ]
@@ -58,6 +69,33 @@ class FinancialAgent:
             })
         messages.extend(history or [])
         messages.append({"role": "user", "content": user_message})
+        if is_spending_request(user_message, previous_consumption_period):
+            arguments = build_spending_arguments(
+                user_message, previous_consumption_period
+            )
+            tool_result = execute_tool(
+                SPENDING_ANALYSIS_TOOL, arguments, consumption_context
+            )
+            self.selected_tool = SPENDING_ANALYSIS_TOOL
+            if tool_result.status == "success" and isinstance(tool_result.data, dict):
+                self.selected_tool_result = tool_result.data
+            messages.insert(len(messages) - 1, {
+                "role": "system",
+                "content": (
+                    "다음은 coach_spending 도구가 계산한 결과입니다. 수치를 다시 계산하거나 "
+                    "추측하지 말고 사용자의 질문에 맞춰 설명하세요.\n"
+                    + json.dumps(tool_result.to_dict(), ensure_ascii=False)
+                ),
+            })
+            final_completion = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                max_completion_tokens=SPENDING_ANALYSIS_FINAL_COMPLETION_TOKENS,
+            )
+            return (
+                final_completion.choices[0].message.content
+                or "소비분석 결과를 정리하지 못했습니다."
+            )
         completion = self.client.chat.completions.create(
             model=self.model,
             messages=messages,
@@ -78,8 +116,11 @@ class FinancialAgent:
         tool_result = execute_tool(
             tool_call.function.name,
             parse_tool_arguments(tool_call.function.arguments),
+            consumption_context,
         )
         logger.info("[AI TOOL] selected=%s status=%s", tool_call.function.name, tool_result.status)
+        if tool_result.status == "success" and isinstance(tool_result.data, dict):
+            self.selected_tool_result = tool_result.data
         asset_cache_key = None
         if (
             self.selected_tool == ASSET_ANALYSIS_TOOL
@@ -122,6 +163,10 @@ class FinancialAgent:
                 "max_completion_tokens": (
                     PRODUCT_RECOMMENDATION_FINAL_COMPLETION_TOKENS
                 ),
+            })
+        elif self.selected_tool == SPENDING_ANALYSIS_TOOL:
+            final_options.update({
+                "max_completion_tokens": SPENDING_ANALYSIS_FINAL_COMPLETION_TOKENS,
             })
         final_completion = self.client.chat.completions.create(**final_options)
         answer = final_completion.choices[0].message.content or "도구 호출 결과를 정리하지 못했습니다."

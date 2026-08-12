@@ -48,6 +48,18 @@ public final class ExpenseDto {
     @Setter
     @NoArgsConstructor
     @AllArgsConstructor
+    public static class AnalysisTransaction {
+        private String date;
+        private String time;
+        private String category;
+        private long amount;
+        private String merchantName;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class DailyBreakdown {
         private String date;
         private long totalExpense;

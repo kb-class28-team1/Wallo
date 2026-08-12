@@ -23,6 +23,7 @@ class ChatService:
 
     def chat(self, request: ChatRequest) -> ChatResponse:
         history = [message.model_dump() for message in request.history]
+        consumption_analysis = None
         if request.goal_draft is not None:
             answer, goal_interview = self._continue_goal_interview(request)
         else:
@@ -41,12 +42,21 @@ class ChatService:
                 goal_interview = None
             else:
                 financial_agent = FinancialAgent(self.client)
+                previous_period = (
+                    request.previous_consumption_period.model_dump(by_alias=True)
+                    if request.previous_consumption_period is not None
+                    else None
+                )
                 answer = financial_agent.run(
                     request.message,
                     history,
                     request.summary,
                     request.financial_context,
+                    request.consumption_context,
+                    previous_period,
                 )
+                if financial_agent.selected_tool == "coach_spending":
+                    consumption_analysis = financial_agent.selected_tool_result
                 goal_interview = None
                 if financial_agent.selected_tool == FINANCIAL_GOAL_TOOL:
                     if request.goal_already_exists:
@@ -62,6 +72,7 @@ class ChatService:
             answer=answer,
             title=title,
             goal_interview=goal_interview,
+            consumption_analysis=consumption_analysis,
         )
 
     def _continue_goal_interview(
