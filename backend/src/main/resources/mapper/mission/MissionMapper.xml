@@ -44,6 +44,30 @@
           AND cycle_start_date = #{cycleStartDate}
     </select>
 
+    <select id="findCycleForUpdate" resultType="com.wallo.mission.domain.MissionCycle">
+        SELECT mission_cycle_id AS missionCycleId,
+               user_id AS userId,
+               cycle_start_date AS cycleStartDate,
+               cycle_end_date AS cycleEndDate,
+               status,
+               source_analysis_result_id AS sourceAnalysisResultId,
+               prompt_version AS promptVersion,
+               generation_error AS generationError,
+               generated_at AS generatedAt
+        FROM MISSION_CYCLES
+        WHERE user_id = #{userId}
+          AND cycle_start_date = #{cycleStartDate}
+        FOR UPDATE
+    </select>
+
+    <select id="findActiveCycleUserIds" resultType="java.lang.Long">
+        SELECT user_id
+        FROM MISSION_CYCLES
+        WHERE status = 'ACTIVE'
+          AND #{assignedDate} BETWEEN cycle_start_date AND cycle_end_date
+        ORDER BY user_id
+    </select>
+
     <update id="updateCycleStatus">
         UPDATE MISSION_CYCLES
         SET status = #{status},
@@ -122,6 +146,14 @@
             completed_at = CASE WHEN #{status} = 'COMPLETED' THEN CURRENT_TIMESTAMP ELSE completed_at END
         WHERE daily_mission_id = #{dailyMissionId}
           AND user_id = #{userId}
+    </update>
+
+    <update id="expireAssignedMissionsBefore">
+        UPDATE DAILY_MISSIONS
+        SET status = 'EXPIRED'
+        WHERE user_id = #{userId}
+          AND assigned_date &lt; #{assignedDate}
+          AND status = 'ASSIGNED'
     </update>
 
 </mapper>

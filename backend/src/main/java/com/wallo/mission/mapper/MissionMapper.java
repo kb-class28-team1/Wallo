@@ -14,6 +14,9 @@ public interface MissionMapper {
     int insertCycle(MissionCycle cycle);
     MissionCycle findCycle(@Param("userId") Long userId,
                            @Param("cycleStartDate") LocalDate cycleStartDate);
+    MissionCycle findCycleForUpdate(@Param("userId") Long userId,
+                                    @Param("cycleStartDate") LocalDate cycleStartDate);
+    List<Long> findActiveCycleUserIds(@Param("assignedDate") LocalDate assignedDate);
     int updateCycleStatus(@Param("missionCycleId") Long missionCycleId,
                           @Param("status") String status,
                           @Param("generationError") String generationError);
@@ -26,4 +29,6 @@ public interface MissionMapper {
     int updateDailyMissionStatus(@Param("dailyMissionId") Long dailyMissionId,
                                  @Param("userId") Long userId,
                                  @Param("status") String status);
+    int expireAssignedMissionsBefore(@Param("userId") Long userId,
+                                     @Param("assignedDate") LocalDate assignedDate);
 }
