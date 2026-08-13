@@ -11,14 +11,23 @@ import {
   updateConversationTitle,
 } from "@/api/conversationApi"
 import { getGoalByConversationId } from "@/api/goalApi"
+import { normalizeAssetAnalysis } from "@/types/assetAnalysis"
 
-const toViewMessage = (message, animate = false, consumptionAnalysis = null) => ({
+const toViewMessage = (
+  message,
+  animate = false,
+  consumptionAnalysis = null,
+  assetAnalysis = null,
+) => ({
   id: message.messageId,
   role: message.role.toLowerCase(),
   content: message.content,
   createdAt: message.createdAt,
   animate,
   consumptionAnalysis: message.consumptionAnalysis ?? consumptionAnalysis,
+  assetAnalysis: normalizeAssetAnalysis(
+    message.assetAnalysis ?? assetAnalysis,
+  ),
 })
 
 const toConfirmedGoalInterview = (goal) => ({
@@ -289,6 +298,7 @@ export const useConversationStore = defineStore("conversation", () => {
           response.assistantMessage,
           true,
           response.consumptionAnalysis ?? null,
+          response.assetAnalysis ?? null,
         ))
       }
 

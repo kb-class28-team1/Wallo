@@ -27,6 +27,27 @@ DEFAULT_FINAL_COMPLETION_TOKENS = 500
 ASSET_ANALYSIS_FINAL_COMPLETION_TOKENS = 1600
 PRODUCT_RECOMMENDATION_FINAL_COMPLETION_TOKENS = 1000
 SPENDING_ANALYSIS_FINAL_COMPLETION_TOKENS = 1600
+ASSET_ANALYSIS_JSON_INSTRUCTION = """
+analyze_assets 도구가 성공한 경우 최종 답변은 JSON 객체 하나만 반환하세요.
+마크다운, 코드 블록, JSON 앞뒤의 설명은 사용하지 마세요. 금액과 비율은 도구 결과의
+calculatedMetrics를 그대로 사용하고 다시 계산하지 마세요. 입력에 없는 목표·기간·위험선호도는
+추측하지 말고 조건부 표현이나 additionalInfo에 기록하세요.
+
+반드시 다음 구조를 사용하세요.
+{
+  "direction": {
+    "headline": "현재 자산이 나아갈 방향을 한 문장으로 요약",
+    "currentStage": "현재 가장 우선할 재무 단계",
+    "reasons": ["방향을 판단한 수치 근거"],
+    "keep": "현재 유지할 점과 이유",
+    "firstChange": "가장 먼저 바꿀 한 가지와 이유",
+    "threeMonthDirection": "앞으로 3개월 동안 실행할 방향과 점검 기준",
+    "oneYearDirection": "앞으로 1년 동안 유지·조정할 방향과 점검 기준",
+    "riskSignals": ["주의할 위험 신호"],
+    "additionalInfo": ["더 정확한 방향 설정에 필요한 정보"]
+  }
+}
+""".strip()
 
 
 def parse_tool_arguments(raw_arguments: str) -> dict[str, Any]:
@@ -35,6 +56,52 @@ def parse_tool_arguments(raw_arguments: str) -> dict[str, Any]:
     except json.JSONDecodeError:
         return {"request": raw_arguments}
     return arguments if isinstance(arguments, dict) else {"request": str(arguments)}
+
+
+def parse_asset_direction(content: str | None) -> dict[str, Any] | None:
+    """자산분석 최종 응답에서 direction 객체를 추출한다."""
+    if not content or not content.strip():
+        return None
+
+    candidate = content.strip()
+    if candidate.startswith("```"):
+        lines = candidate.splitlines()
+        if lines and lines[0].strip().startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        candidate = "\n".join(lines).strip()
+
+    try:
+        payload = json.loads(candidate)
+    except json.JSONDecodeError:
+        start = candidate.find("{")
+        end = candidate.rfind("}")
+        if start < 0 or end <= start:
+            return {"summary": content.strip()}
+        try:
+            payload = json.loads(candidate[start:end + 1])
+        except json.JSONDecodeError:
+            return {"summary": content.strip()}
+
+    if not isinstance(payload, dict):
+        return {"summary": content.strip()}
+
+    direction = payload.get("direction", payload)
+    if isinstance(direction, dict):
+        return direction
+    if isinstance(direction, str) and direction.strip():
+        return {"summary": direction.strip()}
+    return {"summary": content.strip()}
+
+
+def attach_asset_direction(
+    tool_data: dict[str, Any],
+    answer: str | None,
+) -> None:
+    direction = parse_asset_direction(answer)
+    if direction is not None:
+        tool_data["direction"] = direction
 
 
 class FinancialAgent:
@@ -122,6 +189,7 @@ class FinancialAgent:
         if tool_result.status == "success" and isinstance(tool_result.data, dict):
             self.selected_tool_result = tool_result.data
         asset_cache_key = None
+        cached_answer = None
         if (
             self.selected_tool == ASSET_ANALYSIS_TOOL
             and tool_result.status == "success"
@@ -130,6 +198,7 @@ class FinancialAgent:
             asset_cache_key = build_cache_key(tool_result.data, self.model)
             cached_answer = get_cached_answer(asset_cache_key)
             if cached_answer is not None:
+                attach_asset_direction(tool_result.data, cached_answer)
                 logger.info(
                     "[AI ASSET CACHE] hit profileId=%s",
                     tool_result.data.get("profileId"),
@@ -147,6 +216,11 @@ class FinancialAgent:
                 "content": json.dumps(tool_result.to_dict(), ensure_ascii=False),
             },
         ])
+        if self.selected_tool == ASSET_ANALYSIS_TOOL:
+            messages.insert(1, {
+                "role": "system",
+                "content": ASSET_ANALYSIS_JSON_INSTRUCTION,
+            })
         final_options: dict[str, Any] = {
             "model": self.model,
             "messages": messages,
@@ -156,6 +230,7 @@ class FinancialAgent:
             final_options.update({
                 "reasoning_effort": "low",
                 "max_completion_tokens": ASSET_ANALYSIS_FINAL_COMPLETION_TOKENS,
+                "response_format": {"type": "json_object"},
             })
         elif self.selected_tool == PRODUCT_RECOMMENDATION_TOOL:
             final_options.update({
@@ -171,6 +246,8 @@ class FinancialAgent:
         final_completion = self.client.chat.completions.create(**final_options)
         answer = final_completion.choices[0].message.content or "도구 호출 결과를 정리하지 못했습니다."
         if self.selected_tool == ASSET_ANALYSIS_TOOL:
+            if isinstance(tool_result.data, dict):
+                attach_asset_direction(tool_result.data, answer)
             cache_answer(asset_cache_key, answer)
         return answer
 

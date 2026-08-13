@@ -9,6 +9,7 @@ import com.wallo.auth.CurrentUserProvider;
 import com.wallo.chat.dto.ChatRequest;
 import com.wallo.chat.dto.ChatResponse;
 import com.wallo.chat.service.ChatService;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
 
@@ -28,5 +29,25 @@ class ChatControllerTest {
 
         assertEquals(expected, response.getBody());
         verify(chatService).chat(request, 7L);
+    }
+
+    @Test
+    void preservesAssetAnalysisInChatResponse() {
+        ChatService chatService = mock(ChatService.class);
+        CurrentUserProvider currentUserProvider = mock(CurrentUserProvider.class);
+        ChatController controller = new ChatController(chatService, currentUserProvider);
+        ChatRequest request = new ChatRequest("analyze assets");
+        Map<String, Object> assetAnalysis = Map.of(
+                "calculatedMetrics",
+                Map.of("totalAssetsKrw", 100_000_000L)
+        );
+        ChatResponse expected = new ChatResponse(
+                "asset analysis answer", null, null, null, assetAnalysis);
+        when(currentUserProvider.getCurrentUserId()).thenReturn(7L);
+        when(chatService.chat(request, 7L)).thenReturn(expected);
+
+        ResponseEntity<ChatResponse> response = controller.chat(request);
+
+        assertEquals(assetAnalysis, response.getBody().assetAnalysis());
     }
 }
