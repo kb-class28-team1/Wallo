@@ -589,26 +589,28 @@ onBeforeUnmount(() => {
               내 피드
             </button>
           </nav>
-          <h1>{{ challengeName }}</h1>
-          <div v-if="inviteCode" class="feed-invite-panel">
-            <div>
-              <small>친구 초대 코드</small>
-              <strong>{{ inviteCode }}</strong>
+          <div class="feed-title-actions">
+            <h1>{{ challengeName }}</h1>
+            <div v-if="inviteCode" class="feed-invite-panel">
+              <div>
+                <small>친구 초대 코드</small>
+                <strong>{{ inviteCode }}</strong>
+              </div>
+              <button type="button" aria-label="초대 코드 복사" @click="copyInviteCode">
+                <i class="bi bi-copy" aria-hidden="true"></i>
+              </button>
             </div>
-            <button type="button" aria-label="초대 코드 복사" @click="copyInviteCode">
-              <i class="bi bi-copy" aria-hidden="true"></i>
+            <button
+              type="button"
+              class="feed-leave-button"
+              title="챌린지 나가기"
+              aria-label="챌린지 나가기"
+              :disabled="isLeavingChallenge"
+              @click="leaveCurrentChallenge"
+            >
+              <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
             </button>
           </div>
-          <button
-            type="button"
-            class="feed-leave-button"
-            title="챌린지 나가기"
-            aria-label="챌린지 나가기"
-            :disabled="isLeavingChallenge"
-            @click="leaveCurrentChallenge"
-          >
-            <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
-          </button>
         </div>
         <p>함께 남긴 절약 기록을 확인하고 응원해 보세요.</p>
       </header>
@@ -955,13 +957,21 @@ onBeforeUnmount(() => {
   margin-bottom: 24px;
 }
 .feed-header-row {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  display: flex;
   align-items: center;
   gap: 16px;
 }
-.feed-header h1 {
+.feed-title-actions {
+  display: flex;
+  align-items: center;
   min-width: 0;
+  max-width: calc(100% - 140px);
+  flex: 0 1 auto;
+  gap: 12px;
+}
+.feed-title-actions h1 {
+  min-width: 0;
+  flex: 0 1 auto;
   margin: 0;
   overflow: hidden;
   color: #121d3e;
@@ -1812,29 +1822,25 @@ textarea {
     margin-bottom: 20px;
   }
   .feed-header-row {
-    grid-template-columns: minmax(0, 1fr) auto;
+    flex-wrap: wrap;
     gap: 10px;
   }
-  .feed-header h1 {
-    grid-column: 1;
-    grid-row: 2;
-    font-size: 1.35rem;
-  }
-  .feed-header .feed-leave-button {
-    grid-column: 2;
-    grid-row: 2;
-  }
   .feed-header .feed-tabs {
-    grid-column: 1 / -1;
-    grid-row: 1;
+    flex: 1 0 100%;
     width: 100%;
+  }
+  .feed-title-actions {
+    width: 100%;
+    max-width: none;
+    flex: 1;
+  }
+  .feed-title-actions h1 {
+    font-size: 1.35rem;
   }
   .feed-header .feed-tabs button {
     flex: 1;
   }
   .feed-header .feed-invite-panel {
-    grid-column: 1 / -1;
-    grid-row: 3;
     min-width: 0;
   }
   .modal-layer {
