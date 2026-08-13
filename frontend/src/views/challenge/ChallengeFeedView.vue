@@ -964,13 +964,14 @@ onBeforeUnmount(() => {
   gap: 16px;
 }
 .feed-header h1 {
-  justify-self: start;
+  justify-self: center;
   min-width: 0;
   width: fit-content;
   max-width: 100%;
+  min-width: 180px;
   margin: 0;
   overflow: hidden;
-  padding: 8px 16px;
+  padding: 10px 28px;
   color: #fff;
   background: #121d3e;
   border-radius: 12px;
@@ -978,6 +979,7 @@ onBeforeUnmount(() => {
   font-size: 1.75rem;
   font-weight: 900;
   letter-spacing: -0.04em;
+  text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
