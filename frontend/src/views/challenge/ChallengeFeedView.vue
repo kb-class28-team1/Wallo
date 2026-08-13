@@ -343,8 +343,8 @@ const removeFeed = async (feed) => {
   }
 }
 const chooseFile = () => fileInput.value?.click()
-const pauseVideoPreview = (event) => {
-  event.currentTarget.pause()
+const playVideoPreview = (event) => {
+  event.currentTarget.play().catch(() => {})
 }
 const handleFile = async (event) => {
   const file = event.target.files?.[0]
@@ -781,10 +781,9 @@ onBeforeUnmount(() => {
                 muted
                 loop
                 playsinline
-                controls
                 preload="auto"
                 @click.stop
-                @loadeddata="pauseVideoPreview"
+                @loadeddata="playVideoPreview"
                 aria-label="업로드할 영상 미리보기"
               ></video>
               <img v-else :src="previewUrl" alt="업로드 미리보기" />
