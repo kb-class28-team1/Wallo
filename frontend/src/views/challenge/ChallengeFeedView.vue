@@ -1292,6 +1292,7 @@ onBeforeUnmount(() => {
   width: 28px;
   height: 28px;
   padding: 0;
+  transform: translateX(4px);
   color: #fff;
   background: transparent;
   border: 0;
