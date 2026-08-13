@@ -1288,24 +1288,25 @@ onBeforeUnmount(() => {
 }
 .mention-feed-button {
   order: 2;
-  display: grid;
+  display: inline-grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
+  width: 28px;
+  height: 28px;
   padding: 0;
   color: #fff;
-  background: #08122dcc;
-  border: 1px solid #ffffff55;
-  border-radius: 50%;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
   font-size: 0;
 }
 .mention-feed-button img {
-  width: 18px;
-  height: 18px;
+  width: 24px;
+  height: 24px;
   filter: brightness(0) invert(1);
 }
 .mention-feed-button:hover {
-  background: #7162de;
+  color: #dcd7ff;
+  background: transparent;
 }
 @keyframes like-heart-rise {
   0% {
