@@ -1052,18 +1052,19 @@ onBeforeUnmount(() => {
 }
 .feed-tabs {
   display: flex;
-  gap: 3px;
-  padding: 5px;
+  gap: 2px;
+  padding: 3px;
   background: #f0eff7;
-  border-radius: 13px;
+  border-radius: 9px;
   width: max-content;
 }
 .feed-tabs button {
-  padding: 10px 22px;
+  padding: 5px 10px;
   border: 0;
-  border-radius: 10px;
+  border-radius: 7px;
   color: #8b91a3;
   background: transparent;
+  font-size: 0.75rem;
   font-weight: 800;
 }
 .feed-tabs button.active {
