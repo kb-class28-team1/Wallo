@@ -592,12 +592,9 @@ onBeforeUnmount(() => {
           <h1>{{ challengeName }}</h1>
           <div class="feed-header-actions">
             <div v-if="inviteCode" class="feed-invite-panel">
-              <div>
-                <small>친구 초대 코드</small>
-                <strong>{{ inviteCode }}</strong>
-              </div>
               <button type="button" aria-label="초대 코드 복사" @click="copyInviteCode">
                 <i class="bi bi-copy" aria-hidden="true"></i>
+                초대코드 복사
               </button>
             </div>
             <button
@@ -1083,42 +1080,22 @@ onBeforeUnmount(() => {
 .feed-invite-panel {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-width: 190px;
-  padding: 8px 11px 8px 14px;
-  background: #fff;
-  border: 1px solid #e3e1f4;
-  border-radius: 13px;
-  box-shadow: 0 5px 15px #29315a0d;
-}
-.feed-invite-panel div {
   min-width: 0;
-  flex: 1;
-}
-.feed-invite-panel small,
-.feed-invite-panel strong {
-  display: block;
-}
-.feed-invite-panel small {
-  margin-bottom: 2px;
-  color: #989db1;
-  font-size: 0.7rem;
-  font-weight: 700;
-}
-.feed-invite-panel strong {
-  color: #6658d4;
-  font-size: 0.92rem;
-  letter-spacing: 0.1em;
 }
 .feed-invite-panel button {
-  display: grid;
-  width: 30px;
-  height: 30px;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+  height: 36px;
+  padding: 0 12px;
   color: #6f61dc;
   background: #f0edff;
-  border: 0;
-  border-radius: 8px;
+  border: 1px solid #dcd6ff;
+  border-radius: 10px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  white-space: nowrap;
 }
 .empty-feed {
   display: grid;
