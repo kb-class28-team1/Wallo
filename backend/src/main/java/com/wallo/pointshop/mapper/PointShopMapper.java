@@ -58,6 +58,11 @@ public interface PointShopMapper {
             @Param("userId") Long userId,
             @Param("inventoryId") Long inventoryId);
 
+    /** 로그인 사용자의 사용 가능한 보관함 상품을 사용 완료 상태로 변경함. */
+    int useInventoryItem(
+            @Param("userId") Long userId,
+            @Param("inventoryId") Long inventoryId);
+
     /** 당첨 상품을 사용자 보관함에 저장하고 생성된 ID를 채움. */
     int insertInventoryReward(PointShopReward reward);
 }

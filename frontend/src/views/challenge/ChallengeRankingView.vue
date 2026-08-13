@@ -26,7 +26,7 @@ const remainingRankings = computed(() => rankings.value.filter((ranking) => rank
 
 // 화면의 랭킹 보상 안내에 표시할 포인트 기준임
 const rankingRewards = computed(() => [
-  { medal: "👑", label: "1등", point: 2000 },
+  { medal: "🏆", label: "1등", point: 2000 },
   { medal: "🥈", label: "2등", point: 1000 },
   { medal: "🥉", label: "3등", point: 800 },
   { medal: "", label: "4~10등", point: 500 },
@@ -108,7 +108,10 @@ onMounted(() => {
 
     <div v-else class="ranking-layout">
       <div class="ranking-main">
-        <div class="podium-grid mb-3">
+        <div
+          class="podium-grid mb-3"
+          :class="`podium-count-${topRankings.length}`"
+        >
           <article
             v-for="ranking in topRankings"
             :key="ranking.rank"
@@ -116,7 +119,7 @@ onMounted(() => {
             :class="`rank-${ranking.rank}`"
           >
             <span class="rank-badge">{{ ranking.rank }}</span>
-            <span v-if="ranking.rank === 1" class="crown" aria-hidden="true">👑</span>
+            <span v-if="ranking.rank === 1" class="trophy" aria-hidden="true">🏆</span>
             <div class="profile-circle">
               <AuthenticatedImage
                 :src="profileImage(ranking.profileImageUrl)"
@@ -287,63 +290,113 @@ onMounted(() => {
 }
 
 .podium-grid {
+  position: relative;
   display: grid;
+  align-items: end;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  padding-top: 14px;
+  gap: 14px;
+  isolation: isolate;
+  padding: 24px 10px 24px;
+}
+
+.podium-grid::before {
+  position: absolute;
+  z-index: -1;
+  right: 2%;
+  bottom: 5px;
+  left: 2%;
+  height: 30px;
+  content: "";
+  background: #b5906b;
+  border: 3px solid #3a3638;
+  border-radius: 5px 3px 8px 4px;
+  box-shadow: 3px 3px 0 rgb(58 54 56 / 15%);
+  clip-path: polygon(0 13%, 18% 3%, 38% 10%, 58% 0, 80% 8%, 100% 3%, 99% 93%, 65% 100%, 38% 95%, 1% 89%);
+  transform: rotate(-0.8deg) skewX(-0.7deg);
+}
+
+.podium-grid.podium-count-1 {
+  width: 33.333%;
+  margin-inline: auto;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.podium-grid.podium-count-2 {
+  width: 66.666%;
+  margin-inline: auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .podium-card {
   position: relative;
   display: flex;
-  min-height: 175px;
+  min-height: 174px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  border: 1px solid #dfe4fa;
-  border-radius: 18px;
-  background: #f6f7ff;
+  border: 3px solid #3a3638;
+  border-radius: 6px 4px 5px 3px;
+  background: #b5906b;
+  box-shadow: 3px 4px 0 rgb(58 54 56 / 15%);
+  clip-path: polygon(1% 3%, 21% 1%, 44% 3%, 67% 0%, 99% 2%, 98% 31%, 100% 64%, 97% 99%, 76% 97%, 52% 100%, 26% 98%, 3% 100%, 1% 70%, 0% 38%);
+  filter: drop-shadow(1px 0 #3a3638) drop-shadow(-1px 0 #3a3638) drop-shadow(0 1px #3a3638) drop-shadow(0 -1px #3a3638);
+  transform: rotate(-1deg) skewX(-0.8deg);
 }
 
 .podium-card.rank-1 {
-  min-height: 190px;
-  margin-top: -14px;
-  border-color: #f5d98c;
-  background: #fff9e8;
-  box-shadow: 0 10px 24px rgb(239 187 55 / 12%);
+  min-height: 220px;
+  background: #c19b67;
+  clip-path: polygon(0% 2%, 23% 0%, 48% 2%, 74% 0%, 100% 3%, 98% 36%, 100% 97%, 77% 99%, 52% 97%, 29% 100%, 2% 97%, 1% 64%);
+  transform: rotate(0.45deg) skewX(0.55deg);
+}
+
+.podium-card.rank-2 {
+  min-height: 195px;
+  background: #b99a78;
+  clip-path: polygon(2% 0%, 31% 2%, 58% 0%, 100% 4%, 98% 34%, 100% 96%, 67% 99%, 42% 97%, 17% 100%, 1% 96%, 3% 59%);
+  transform: rotate(-1.25deg) skewX(-0.85deg);
 }
 
 .podium-card.rank-3 {
-  border-color: #f4d4c7;
-  background: #fff3ee;
+  min-height: 174px;
+  background: #ae8c6b;
+  clip-path: polygon(1% 4%, 25% 0%, 53% 3%, 78% 1%, 100% 4%, 99% 61%, 97% 98%, 74% 96%, 48% 100%, 22% 97%, 0% 100%, 2% 48%);
+  transform: rotate(1.05deg) skewX(0.7deg);
 }
 
 .rank-badge {
   position: absolute;
   top: -14px;
   display: grid;
-  width: 30px;
-  height: 30px;
+  width: 36px;
+  height: 36px;
   place-items: center;
-  border-radius: 50%;
-  background: #9ba7c9;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 700;
+  border: 3px solid #3a3638;
+  border-radius: 48% 52% 45% 55%;
+  background: #86da82;
+  color: #2e2a31;
+  font-size: 17px;
+  font-weight: 900;
+  box-shadow: 2px 2px 0 rgb(58 54 56 / 20%);
+  transform: rotate(-3deg);
 }
 
 .rank-1 .rank-badge {
-  background: #f5b400;
+  background: #f7c83b;
+  transform: rotate(2deg);
 }
 
 .rank-3 .rank-badge {
-  background: #ef925d;
+  background: #7fc5f2;
+  transform: rotate(4deg);
 }
 
-.crown {
+.trophy {
   position: absolute;
-  top: 17px;
-  font-size: 19px;
+  top: 28px;
+  font-size: 25px;
+  line-height: 1;
+  filter: drop-shadow(2px 2px 0 rgb(58 54 56 / 20%));
 }
 
 .profile-circle {
@@ -358,8 +411,11 @@ onMounted(() => {
 }
 
 .profile-circle img {
-  width: 38px;
-  height: 38px;
+  width: 42px;
+  height: 42px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 .podium-nickname {
@@ -373,13 +429,19 @@ onMounted(() => {
 }
 
 .rank-1 .podium-saving {
-  color: #d89600;
+  color: #2c2430;
+}
+
+.rank-1 .podium-nickname {
+  color: #3f3331;
+  font-weight: 800;
 }
 
 .podium-streak {
   margin-top: 5px;
-  color: #ef9b62;
+  color: #c9362f;
   font-size: 11px;
+  font-weight: 800;
 }
 
 .ranking-table-card,
@@ -570,9 +632,21 @@ onMounted(() => {
     grid-template-columns: 1fr;
   }
 
+  .podium-grid.podium-count-1,
+  .podium-grid.podium-count-2 {
+    width: 100%;
+  }
+
   .podium-card.rank-1 {
-    min-height: 175px;
-    margin-top: 0;
+    min-height: 200px;
+  }
+
+  .podium-card.rank-2 {
+    min-height: 185px;
+  }
+
+  .podium-card.rank-3 {
+    min-height: 165px;
   }
 
   .ranking-table-card {
