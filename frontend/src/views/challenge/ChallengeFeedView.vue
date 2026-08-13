@@ -591,7 +591,6 @@ onBeforeUnmount(() => {
       </button>
       <header class="feed-header">
         <div class="feed-heading-content">
-          <span>MY SAVING FEED</span>
           <div class="feed-title-row">
             <h1>{{ challengeName }}</h1>
           </div>
@@ -958,12 +957,6 @@ onBeforeUnmount(() => {
 }
 .feed-header {
   margin-bottom: 24px;
-}
-.feed-heading-content > span {
-  color: #7164de;
-  font-size: 0.76rem;
-  font-weight: 900;
-  letter-spacing: 0.14em;
 }
 .feed-title-row {
   display: flex;
