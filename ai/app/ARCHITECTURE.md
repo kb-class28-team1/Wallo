@@ -8,9 +8,15 @@
 ```text
 app/
 ├─ application.py              # FastAPI 앱 생성, 공통 예외 처리, Router 등록
-├─ agents/                     # LLM이 Tool을 선택하고 실행하는 Agent
+├─ agents/                     # 도메인별 전문 Agent와 Tool
 │  ├─ base.py                  # Tool 공통 실행 결과 모델
-│  └─ financial/
+│  ├─ category/
+│  │  ├─ __init__.py           # 카테고리 Agent 공개 인터페이스
+│  │  └─ agent.py              # 단건·배치 분류, 요청당 LLM 1회 호출
+│  ├─ asset_reports/
+│  │  ├─ __init__.py           # 소비 인사이트 Agent 공개 인터페이스
+│  │  └─ agent.py              # 집계 소비 리포트 생성, 요청당 LLM 1회 호출
+│  ├─ financial/
 │     ├─ agent.py              # 금융 Agent의 Tool Calling 흐름
 │     ├─ prompts.py            # 금융 Agent 시스템 프롬프트
 │     └─ tools/
@@ -22,6 +28,8 @@ app/
 │        ├─ goal_roadmap.py
 │        ├─ product_recommendation.py
 │        └─ financial_report.py
+│  ├─ goal/                    # 다회차 목표 인터뷰 Agent
+│  └─ roadmap/                 # 확정 목표 로드맵 생성기
 ├─ chat/
 │  ├─ router.py                # `/api/chat` HTTP 요청·응답
 │  ├─ schemas.py               # 채팅 Pydantic 요청·응답 모델
@@ -31,12 +39,12 @@ app/
 ├─ category/
 │  ├─ router.py                # `/api/category` HTTP 요청·응답
 │  ├─ schemas.py               # 카테고리 분류 Pydantic 요청·응답 모델
-│  ├─ service.py               # Groq 호출과 분류 결과 검증
+│  ├─ service.py               # CategoryAgent 생성과 API 호환 위임
 │  └─ prompts.py               # 단건·배치 분류 프롬프트
 ├─ asset_reports/
 │  ├─ router.py                # `/api/asset-reports/insights` HTTP 요청·응답
 │  ├─ schemas.py               # 소비 리포트 Pydantic 요청·응답 모델
-│  ├─ service.py               # Groq 호출과 응답 검증
+│  ├─ service.py               # ConsumptionInsightAgent 생성과 API 호환 위임
 │  └─ prompts.py               # 집계 소비 데이터 기반 생성 프롬프트
 ├─ clients/
 │  ├─ groq_client.py           # Groq 클라이언트 생성
@@ -95,9 +103,11 @@ app/
 
 ### `agents/`
 
-- 사용자 요청을 해석하고 사용할 Tool을 선택한다.
-- Tool 실행 결과를 LLM에 전달하고 최종 답변을 만든다.
-- 같은 목적을 가진 여러 Tool을 도메인 단위 Agent가 관리한다.
+- `financial/`은 사용자 요청에 따라 Tool을 선택하고 실행하는 대화형 Agent다.
+- `category/`와 `asset_reports/`는 하나의 명확한 목적을 처리하는 전문 Agent다.
+- 전문 Agent는 요청·응답 계약, 프롬프트, 외부 LLM 호출, 응답 검증을 캡슐화한다.
+- 전문 Agent는 요청 1건당 LLM을 1회 호출한다. batch 요청도 전체 항목을 하나의 호출로 처리한다.
+- Tool 선택 후 재호출하는 다단계 흐름, self-reflection loop, 항목별 개별 호출은 전문 Agent에 사용하지 않는다.
 
 ### `tools/`
 
@@ -105,6 +115,23 @@ app/
 - 각 Tool 파일은 `NAME`, `SCHEMA`, `execute`를 제공한다.
 - Tool은 실제 계산, 조회 또는 도메인 서비스 호출을 담당한다.
 - LLM이 제공한 사용자 ID나 권한 정보를 그대로 신뢰하지 않는다.
+
+### 단일 호출 기반 전문 Agent
+
+`category`와 `asset_reports`는 범용 대화 Agent가 아니라 단일 목적의 전문 Agent로 운영한다.
+API Router는 HTTP 요청과 상태 코드만 담당하고, Service는 기존 외부 API 계약을 유지하면서
+클라이언트와 모델을 Agent에 주입한다. 실제 LLM 호출과 Pydantic 응답 검증은 전문 Agent가 담당한다.
+
+호출 원칙은 다음과 같다.
+
+1. 카테고리 단건 요청은 LLM을 정확히 1회 호출한다.
+2. 카테고리 batch 요청은 전체 거래를 하나의 요청으로 묶어 LLM을 정확히 1회 호출한다.
+3. 소비 인사이트 요청은 AI 생성 경로에 진입한 경우 LLM을 1회 호출한다.
+4. Tool 선택 후 최종 답변을 위해 다시 호출하지 않는다.
+5. self-reflection loop와 거래 항목별 개별 호출을 사용하지 않는다.
+
+`goal/`의 `GoalAgent`는 대화 상태와 `GoalDraft`를 유지하는 다회차 인터뷰 Agent이므로,
+이번 단일 호출 기반 전문 Agent 전환 대상에 포함하지 않는다.
 
 ## 새 Tool 추가 방법
 
@@ -174,6 +201,9 @@ agents/
 Tool 하나마다 Agent를 만들지 않는다. 서로 연관된 Tool을 도메인 단위로 묶되, 하나의 Agent가
 너무 많은 목적과 Tool을 담당하게 되면 별도 Agent로 분리한다.
 
+단일 목적의 입출력 변환 기능은 Tool Calling Agent로 확장하지 않고 전문 Agent로 분리한다.
+새 전문 Agent를 추가할 때는 요청 1건당 LLM 호출 횟수와 batch 처리 단위를 테스트로 고정한다.
+
 ## 새 API 기능 추가 방법
 
 새 API 기능은 다음 구조를 기본으로 한다.
@@ -241,10 +271,10 @@ app/category/
 카테고리 분류의 처리 흐름은 다음과 같다.
 
 1. `router.py`가 요청 형식과 HTTP 응답을 관리한다.
-2. `service.py`가 `clients/groq_client.py`를 통해 Groq를 호출한다.
-3. `prompts.py`의 지침과 거래 정보를 모델에 전달한다.
-4. Groq 응답을 `schemas.py` 모델로 검증한다.
-5. 배치 응답은 입력 건수와 결과 건수가 같은지 추가로 검증한다.
+2. `service.py`가 `clients/groq_client.py`로 클라이언트를 만들고 `CategoryAgent`에 주입한다.
+3. `CategoryAgent`가 `prompts.py`의 지침과 거래 정보를 전달하고 LLM을 1회 호출한다.
+4. `CategoryAgent`가 Groq 응답을 `schemas.py` 모델로 검증한다.
+5. batch 응답은 입력 건수와 결과 건수가 같은지 추가로 검증한다.
 
 Groq 호출 실패는 다음 기준으로 HTTP 상태 코드로 변환한다.
 
@@ -261,14 +291,16 @@ app.include_router(category_router)
 ```
 
 카테고리 테스트는 실제 Groq API를 호출하지 않고 `create_groq_client`를 Fake Client로
-대체한다. 경로, 입력 검증, 정상 응답, 배치 순서, AI 오류 상태 코드를
-`tests/test_category.py`에서 확인한다.
+대체한다. 경로, 입력 검증, 정상 응답, 배치 순서, AI 오류 상태 코드와 요청당 LLM 1회 호출을
+`tests/test_category.py`와 `tests/test_category_agent.py`에서 확인한다.
 
 ### 소비 리포트 생성 API
 
 소비 리포트 생성은 `app/asset_reports/` 패키지에서 관리한다. Spring 백엔드가
 선정한 카테고리와 지난달 동일 기간의 집계 금액, 계산된 변화율, 예산 상태만
 전달하며, 이번 달·전체 지출의 절대 금액과 거래처명·원본 거래내역은 AI 서버로 전달하지 않는다.
+`service.py`는 기존 호출부와의 호환성을 유지하고, 실제 생성은
+`agents/asset_reports/agent.py`의 `ConsumptionInsightAgent`에 위임한다.
 
 | Method | Path | 역할 |
 | --- | --- | --- |
@@ -294,14 +326,20 @@ app.include_router(category_router)
 `generationMode`는 AI 호출 성공 여부를 알고 있는 Spring 백엔드가 `AI`, `FALLBACK`,
 `RULE` 중 하나로 설정한다.
 
+AI 생성 경로에서는 집계 데이터를 담은 요청을 한 번만 LLM에 전달한다. Tool 선택 후 재호출,
+self-reflection loop, 원본 거래 항목별 호출은 사용하지 않는다. AI 호출 실패 시 fallback을
+선택하는 책임은 기존 Spring `AssetReportService`에 있다.
+
 ## 테스트 규칙
 
 - 실제 AI API를 호출하지 않고 Mock 또는 Fake Client를 주입한다.
 - Router 테스트에서는 경로, 검증 오류, 상태 코드를 확인한다.
 - Service 테스트에서는 기능 처리 순서와 예외 처리를 확인한다.
 - Agent 테스트에서는 직접 답변과 Tool 선택 경로를 각각 확인한다.
+- 전문 Agent 테스트에서는 요청당 LLM 호출 횟수, batch 단위, 응답 검증을 확인한다.
 - Tool 테스트에서는 입력 검증과 실제 실행 결과를 확인한다.
 - 같은 HTTP 경로가 중복 등록되지 않았는지 확인한다.
+- `application.py`는 전문 Agent를 직접 Router로 등록하지 않고 기존 도메인 Router만 등록한다.
 
 AI 핵심 테스트 실행 예시:
 
