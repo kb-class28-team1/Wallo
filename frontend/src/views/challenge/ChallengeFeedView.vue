@@ -1583,7 +1583,8 @@ onBeforeUnmount(() => {
   border-radius: 18px;
 }
 .upload-zone.has-preview {
-  height: min(420px, 48vh);
+  height: auto;
+  min-height: 170px;
   background: #f4f5fa;
 }
 .upload-zone > span {
@@ -1600,15 +1601,18 @@ onBeforeUnmount(() => {
 .upload-zone video {
   display: block;
   max-width: 100%;
-  max-height: 100%;
   width: auto;
   height: auto;
   object-fit: contain;
   border-radius: 10px;
 }
+.upload-zone img {
+  width: 100%;
+  max-height: none;
+}
 .upload-zone video {
   width: 100%;
-  height: 100%;
+  max-height: min(420px, 48vh);
   min-width: 0;
   min-height: 0;
   background: #0d1633;
