@@ -14,6 +14,7 @@ import java.util.EnumSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -42,6 +43,8 @@ public class FinancialReportGenerationScheduler {
     private final NewsReportGenerationService newsReportGenerationService;
     private final boolean enabled;
     private final int batchSize;
+    private final AtomicBoolean generationRequested = new AtomicBoolean(false);
+    private final Set<Long> failedNewsIds = ConcurrentHashMap.newKeySet();
 
     // 이전 실행이 아직 끝나지 않았으면 겹쳐 실행되지 않도록 막는 안전장치. Spring의 기본 스케줄러는
     // 단일 스레드로 동작해 원래도 겹치지 않지만, 이 플래그로 그 가정과 무관하게 명시적으로 보장한다.
@@ -65,7 +68,66 @@ public class FinancialReportGenerationScheduler {
     }
 
     public void generateMissingReports() {
-        runGuarded(List.of());
+        requestGeneration();
+    }
+
+    /** 크롤링 요청과 AI 처리를 분리하기 위해, 워커 활성화만 표시하고 즉시 반환한다. */
+    public void requestGeneration() {
+        failedNewsIds.clear();
+        generationRequested.set(true);
+        log.info("금융 리포트 백그라운드 생성 작업이 예약되었습니다.");
+    }
+
+    public GenerationRequestResult requestGenerationNow() {
+        boolean alreadyRunning = generationRequested.getAndSet(true);
+        if (!alreadyRunning) {
+            failedNewsIds.clear();
+        }
+        return new GenerationRequestResult(!alreadyRunning, true);
+    }
+
+    /** 1분마다 대기 중인 기사 한 건만 처리한다. */
+    @Scheduled(fixedDelayString = "${financial-report.worker.interval-ms:60000}")
+    public void generateNextMissingReport() {
+        if (!enabled && !generationRequested.get()) {
+            return;
+        }
+        if (!isRunning.compareAndSet(false, true)) {
+            return;
+        }
+
+        try {
+            List<Long> targetNewsIds = newsMapper.findNewsIdsWithoutReport(batchSize);
+            Long nextNewsId = targetNewsIds.stream()
+                    .filter(newsId -> !failedNewsIds.contains(newsId))
+                    .findFirst()
+                    .orElse(null);
+            if (nextNewsId == null) {
+                generationRequested.set(false);
+                log.info("금융 리포트 백그라운드 생성 대기열이 비었습니다.");
+                return;
+            }
+            generateOne(nextNewsId);
+        } finally {
+            isRunning.set(false);
+        }
+    }
+
+    private void generateOne(Long newsId) {
+        try {
+            newsReportGenerationService.generateIfAbsent(newsId);
+            log.info("금융 리포트 백그라운드 생성 성공 - newsId: {}", newsId);
+        } catch (CustomException exception) {
+            if (SKIPPABLE_ERROR_CODES.contains(exception.getErrorCode())) {
+                log.warn("금융 리포트 생성 스킵 - newsId: {}, 사유: {}", newsId, exception.getErrorCode());
+            } else {
+                failedNewsIds.add(newsId);
+                log.error("금융 리포트 생성 실패 - newsId: {}", newsId, exception);
+            }
+        } catch (RuntimeException exception) {
+            failedNewsIds.add(newsId);
+            log.error("금융 리포트 생성 중 예상치 못한 오류 - newsId: {}", newsId, exception);
+        }
     }
 
     /**
@@ -77,12 +139,21 @@ public class FinancialReportGenerationScheduler {
         return runGuarded(priorityNewsIds);
     }
 
+    /** 시연용 수동 실행은 자동 스케줄 활성화 설정과 무관하게 리포트를 생성한다. */
+    BatchResult generateManuallyForCrawledNews(List<Long> priorityNewsIds) {
+        return runWithLock(priorityNewsIds);
+    }
+
     private BatchResult runGuarded(List<Long> priorityNewsIds) {
         if (!enabled) {
             log.info("금융 리포트 자동 생성 스케줄러가 비활성화되어 있습니다(financial-report.scheduler.enabled=false).");
             return EMPTY_RESULT;
         }
 
+        return runWithLock(priorityNewsIds);
+    }
+
+    private BatchResult runWithLock(List<Long> priorityNewsIds) {
         if (!isRunning.compareAndSet(false, true)) {
             log.warn("이전 금융 리포트 자동 생성 작업이 아직 진행 중이라 이번 실행은 건너뜁니다.");
             return EMPTY_RESULT;
@@ -153,5 +224,8 @@ public class FinancialReportGenerationScheduler {
 
     /** 이번 실행의 처리 결과 요약. total = success + failure + skipped. */
     record BatchResult(int total, int success, int failure, int skipped) {
+    }
+
+    public record GenerationRequestResult(boolean newlyStarted, boolean queued) {
     }
 }

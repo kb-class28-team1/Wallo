@@ -13,6 +13,7 @@ database/sql/
 ├── news.sql
 ├── news_report.sql
 ├── financial_term.sql
+├── financial_term_add_short_definition.sql
 ├── news_term.sql
 └── README.md
 ```
@@ -22,10 +23,16 @@ database/sql/
 | `news.sql` | 원본 뉴스 기사 저장 테이블 |
 | `news_report.sql` | AI가 생성한 금융 리포트 저장 테이블 (`news`와 1:1, `news_id`에 FK + UNIQUE) |
 | `financial_term.sql` | 금융 용어 사전 테이블 |
+| `financial_term_add_short_definition.sql` | 기존 `financial_term` 테이블에 `short_definition` 컬럼을 추가하는 일회성 마이그레이션 |
 | `news_term.sql` | `news`와 `financial_term`의 다대다 연결 테이블 (복합 PK, 양쪽에 FK) |
 | `news_report_add_event_description.sql` | `news_report.sql`을 이미 실행해 테이블이 존재하는 환경에만 필요한 마이그레이션(`event_description` 컬럼 추가) |
 
-모든 SQL은 재실행해도 에러가 나지 않도록 `IF NOT EXISTS`를 사용하고, 파일 상단에 `USE wallo;`를 포함합니다.
+테이블 생성 SQL은 재실행해도 에러가 나지 않도록 `IF NOT EXISTS`를 사용하고, 파일 상단에 `USE wallo;`를 포함합니다.
+`*_add_*.sql` 마이그레이션은 기존 테이블에 한 번만 적용합니다.
+
+> 기존 `financial_term` 테이블이 이미 있는 환경에서는 수정된 `financial_term.sql`을 다시 실행해도
+> 컬럼이 추가되지 않습니다. `SHOW COLUMNS FROM financial_term LIKE 'short_definition';`으로 확인한 뒤,
+> 컬럼이 없을 때 `financial_term_add_short_definition.sql`을 한 번만 실행하세요.
 
 ## 실행 순서
 

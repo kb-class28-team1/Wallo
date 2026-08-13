@@ -7,6 +7,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * 하루 4회(06/12/15/18시, Asia/Seoul) {@link NewsCrawler#crawlAndSave()}를 자동 실행한다.
@@ -24,6 +25,7 @@ public class NewsCrawlingScheduler {
 
     private final NewsCrawler newsCrawler;
     private final FinancialReportGenerationScheduler financialReportGenerationScheduler;
+    private final AtomicBoolean isRunning = new AtomicBoolean(false);
 
     public NewsCrawlingScheduler(
             NewsCrawler newsCrawler,
@@ -35,6 +37,34 @@ public class NewsCrawlingScheduler {
 
     @Scheduled(cron = "0 0 6,12,15,18 * * *", zone = "Asia/Seoul")
     public void scheduledNewsCrawling() {
+        RunResult result = runNow();
+        if (result.started()) {
+            financialReportGenerationScheduler.requestGeneration();
+        }
+    }
+
+    /**
+     * 시연 또는 운영 점검 시 스케줄 시간을 기다리지 않고 크롤링과 리포트 생성을 즉시 실행한다.
+     * 자동 스케줄과 수동 요청이 겹치면 새 실행을 시작하지 않아 중복 Chrome/AI 호출을 막는다.
+     */
+    public RunResult runNow() {
+        return run();
+    }
+
+    private RunResult run() {
+        if (!isRunning.compareAndSet(false, true)) {
+            log.warn("뉴스 크롤링과 금융 리포트 생성 작업이 이미 진행 중입니다.");
+            return RunResult.alreadyRunning();
+        }
+
+        try {
+            return runCrawlOnly();
+        } finally {
+            isRunning.set(false);
+        }
+    }
+
+    private RunResult runCrawlOnly() {
         log.info("===== 뉴스 크롤링 시작 =====");
 
         List<Long> savedNewsIds = List.of();
@@ -46,20 +76,15 @@ public class NewsCrawlingScheduler {
             log.info("===== 뉴스 크롤링 종료 =====");
         }
 
-        triggerReportGeneration(savedNewsIds);
+        return new RunResult(true, savedNewsIds.size());
     }
 
-    /**
-     * 크롤링 저장이 전부 끝난 뒤(성공/실패와 무관하게) 리포트가 없는 뉴스를 바로 채운다. 크롤링과는
-     * 별개 단계라 여기서 예외가 나도 이미 끝난 크롤링 결과에는 영향이 없다. 이번에 새로 저장된
-     * savedNewsIds는 batch-size 제한과 무관하게 항상 우선 생성 대상에 포함된다. 실제 생성 여부·건수
-     * 제한은 financial-report.scheduler.enabled/batch-size 설정을 따르며, 비활성화 상태면 곧바로 스킵된다.
-     */
-    private void triggerReportGeneration(List<Long> savedNewsIds) {
-        try {
-            financialReportGenerationScheduler.generateForCrawledNews(savedNewsIds);
-        } catch (Exception e) {
-            log.error("===== 크롤링 후속 금융 리포트 생성 실패 =====", e);
+    public record RunResult(
+            boolean started,
+            int crawledNewsCount
+    ) {
+        private static RunResult alreadyRunning() {
+            return new RunResult(false, 0);
         }
     }
 }
