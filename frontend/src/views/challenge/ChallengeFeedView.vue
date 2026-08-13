@@ -579,46 +579,42 @@ onBeforeUnmount(() => {
       <button class="btn btn-primary" @click="loadPage">다시 시도</button>
     </div>
     <template v-else>
-      <button
-        type="button"
-        class="feed-leave-button"
-        title="챌린지 나가기"
-        aria-label="챌린지 나가기"
-        :disabled="isLeavingChallenge"
-        @click="leaveCurrentChallenge"
-      >
-        <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
-      </button>
       <header class="feed-header">
-        <div class="feed-heading-content">
-          <div class="feed-title-row">
-            <h1>{{ challengeName }}</h1>
+        <div class="feed-header-row">
+          <nav class="feed-tabs">
+            <button :class="{ active: activeTab === 'all' }" @click="changeTab('all')">
+              전체 피드
+            </button>
+            <button :class="{ active: activeTab === 'mine' }" @click="changeTab('mine')">
+              내 피드
+            </button>
+          </nav>
+          <h1>{{ challengeName }}</h1>
+          <div v-if="inviteCode" class="feed-invite-panel">
+            <div>
+              <small>친구 초대 코드</small>
+              <strong>{{ inviteCode }}</strong>
+            </div>
+            <button type="button" aria-label="초대 코드 복사" @click="copyInviteCode">
+              <i class="bi bi-copy" aria-hidden="true"></i>
+            </button>
           </div>
-          <p>함께 남긴 절약 기록을 확인하고 응원해 보세요.</p>
+          <button
+            type="button"
+            class="feed-leave-button"
+            title="챌린지 나가기"
+            aria-label="챌린지 나가기"
+            :disabled="isLeavingChallenge"
+            @click="leaveCurrentChallenge"
+          >
+            <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+          </button>
         </div>
+        <p>함께 남긴 절약 기록을 확인하고 응원해 보세요.</p>
       </header>
 
       <div class="feed-layout">
         <main class="feed-column">
-          <div class="feed-toolbar">
-            <nav class="feed-tabs">
-              <button :class="{ active: activeTab === 'all' }" @click="changeTab('all')">
-                전체 피드
-              </button>
-              <button :class="{ active: activeTab === 'mine' }" @click="changeTab('mine')">
-                내 피드
-              </button>
-            </nav>
-            <div v-if="inviteCode" class="feed-invite-panel">
-              <div>
-                <small>친구 초대 코드</small>
-                <strong>{{ inviteCode }}</strong>
-              </div>
-              <button type="button" aria-label="초대 코드 복사" @click="copyInviteCode">
-                <i class="bi bi-copy" aria-hidden="true"></i>
-              </button>
-            </div>
-          </div>
           <div v-if="!feeds.length" class="empty-feed">
             <span>📷</span><strong>아직 등록된 피드가 없어요</strong>
             <p>오른쪽 아래 + 버튼을 눌러 첫 절약 기록을 남겨보세요.</p>
@@ -958,28 +954,31 @@ onBeforeUnmount(() => {
 .feed-header {
   margin-bottom: 24px;
 }
-.feed-title-row {
-  display: flex;
+.feed-header-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 20px;
+  gap: 16px;
 }
 .feed-header h1 {
-  margin: 8px 0 4px;
-  font-size: 2rem;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: #121d3e;
+  font-size: 1.75rem;
   font-weight: 900;
+  letter-spacing: -0.04em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .feed-header p {
-  margin: 0;
+  margin: 8px 0 0;
   color: #939bad;
 }
 .feed-leave-button {
   display: inline-flex !important;
   visibility: visible !important;
-  position: absolute;
-  top: 30px;
-  right: 352px;
-  z-index: 2;
+  position: static;
   width: 44px;
   height: 44px;
   align-items: center;
@@ -1042,13 +1041,6 @@ onBeforeUnmount(() => {
   min-width: 0;
   flex-direction: column;
   gap: 18px;
-}
-.feed-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  margin-bottom: 14px;
 }
 .feed-tabs {
   display: flex;
@@ -1805,12 +1797,6 @@ textarea {
     width: auto;
     height: auto;
   }
-  .feed-leave-button {
-    position: static;
-    display: flex !important;
-    width: 44px;
-    margin: 0 0 14px auto;
-  }
   .chat-room {
     flex: none;
     height: 600px;
@@ -1825,23 +1811,31 @@ textarea {
   .feed-header {
     margin-bottom: 20px;
   }
-  .feed-title-row {
-    align-items: flex-start;
-    flex-wrap: wrap;
-    gap: 8px 14px;
+  .feed-header-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
   }
-  .feed-toolbar {
-    align-items: stretch;
-    flex-direction: column;
+  .feed-header h1 {
+    grid-column: 1;
+    grid-row: 2;
+    font-size: 1.35rem;
   }
-  .feed-tabs {
+  .feed-header .feed-leave-button {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .feed-header .feed-tabs {
+    grid-column: 1 / -1;
+    grid-row: 1;
     width: 100%;
   }
-  .feed-tabs button {
+  .feed-header .feed-tabs button {
     flex: 1;
   }
-  .feed-invite-panel {
-    align-self: flex-end;
+  .feed-header .feed-invite-panel {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    min-width: 0;
   }
   .modal-layer {
     padding: 0;
