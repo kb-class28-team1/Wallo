@@ -9,14 +9,41 @@ from groq import Groq, GroqError
 from pydantic import BaseModel, ValidationError, ValidationInfo, field_validator
 
 from app.reports.prompts import FINANCIAL_REPORT_INSTRUCTIONS, build_report_input
+from app.reports.profile_repository import build_report_profile_context, load_report_profile
 
 logger = logging.getLogger("wallo_ai")
 
 SUMMARY_BULLET_MAX_LENGTH = 200
 SUMMARY_MAX_BULLETS = 5
 OTHER_FIELD_MAX_LENGTH = 1200
+# 실제 리포트 필드 길이는 Pydantic에서 별도로 제한한다. gpt-oss 계열은 아래에서 reasoning
+# effort를 low로 낮춰 JSON 본문이 completion 예산을 충분히 사용할 수 있게 한다.
+REPORT_MAX_COMPLETION_TOKENS = 4000
+JSON_VALIDATION_MAX_RETRIES = 1
 
 router = APIRouter(prefix="/api")
+
+
+FINANCIAL_REPORT_JSON_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "summary": {"type": "array", "items": {"type": "string"}},
+        "eventDescription": {"type": "string"},
+        "cause": {"type": "string"},
+        "socialImpact": {"type": "string"},
+        "userImpact": {"type": "string"},
+        "responseStrategy": {"type": "string"},
+    },
+    "required": [
+        "summary",
+        "eventDescription",
+        "cause",
+        "socialImpact",
+        "userImpact",
+        "responseStrategy",
+    ],
+    "additionalProperties": False,
+}
 
 
 class NewsReportGenerateRequest(BaseModel):
@@ -44,7 +71,8 @@ class NewsReportGenerateResponse(BaseModel):
         if value is None or not value.strip():
             raise ValueError(f"{info.field_name} 값이 비어 있습니다.")
 
-        stripped = value.strip()
+        # 모델이 문장 사이에 임의로 개행하더라도 DB와 화면에는 한 문단으로 저장되게 한다.
+        stripped = " ".join(value.split())
         if len(stripped) > OTHER_FIELD_MAX_LENGTH:
             raise ValueError(f"{info.field_name} 길이가 {OTHER_FIELD_MAX_LENGTH}자를 초과했습니다.")
         if stripped.startswith("```"):
@@ -101,51 +129,80 @@ def get_report_model() -> str:
     return os.getenv("GROQ_REPORT_MODEL") or os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
 
 
+def _error_code(error: GroqError) -> str | None:
+    body = getattr(error, "body", None)
+    if not isinstance(body, dict):
+        return None
+    error_body = body.get("error")
+    return error_body.get("code") if isinstance(error_body, dict) else None
+
+
 def generate_financial_report(client: Groq, request: NewsReportGenerateRequest, model: str) -> NewsReportGenerateResponse:
     """Groq Chat Completions의 JSON 응답을 Pydantic 모델로 검증해 리포트를 생성한다."""
+    report_profile = build_report_profile_context(load_report_profile())
     report_input = build_report_input(
         title=request.title,
         category=request.category,
         source=request.source,
         published_at=request.publishedAt,
         content=request.content,
+        user_profile=json.dumps(report_profile, ensure_ascii=False, separators=(",", ":")),
     )
 
     reasoning_options = {}
     if model.startswith("openai/gpt-oss-"):
         # GPT-OSS JSON mode requires reasoning output to be hidden or parsed.
         reasoning_options["reasoning_format"] = "hidden"
+        reasoning_options["reasoning_effort"] = "low"
 
-    try:
-        response = client.chat.completions.create(
-            model=model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        FINANCIAL_REPORT_INSTRUCTIONS
-                        + "\n\n반드시 다음 키를 가진 유효한 JSON 객체만 반환하세요: "
-                        "summary, eventDescription, cause, socialImpact, userImpact, responseStrategy."
-                    ),
+    json_validation_retries = 0
+
+    while True:
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": FINANCIAL_REPORT_INSTRUCTIONS,
+                    },
+                    {"role": "user", "content": report_input},
+                ],
+                response_format={
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "financial_report",
+                        "strict": True,
+                        "schema": FINANCIAL_REPORT_JSON_SCHEMA,
+                    },
                 },
-                {"role": "user", "content": report_input},
-            ],
-            response_format={"type": "json_object"},
-            max_completion_tokens=4000,
-            **reasoning_options,
-        )
-    except GroqError as error:
-        logger.error(
-            "Groq request details - status: %s, message: %s, body: %s",
-            getattr(error, "status_code", None),
-            str(error),
-            getattr(error, "body", None),
-        )
-        logger.error(
-            "Groq 서버 호출 실패 - newsId: %s, 예외: %s",
-            request.newsId, type(error).__name__,
-        )
-        raise HTTPException(status_code=502, detail="Groq AI 서버 호출에 실패했습니다.") from error
+                max_completion_tokens=REPORT_MAX_COMPLETION_TOKENS,
+                **reasoning_options,
+            )
+            break
+        except GroqError as error:
+            status_code = getattr(error, "status_code", None)
+            error_code = _error_code(error)
+
+            if error_code == "json_validate_failed" and json_validation_retries < JSON_VALIDATION_MAX_RETRIES:
+                json_validation_retries += 1
+                logger.warning(
+                    "Groq JSON Schema 생성 실패 - newsId: %s, 동일 뉴스 재시도 (%s/%s)",
+                    request.newsId, json_validation_retries, JSON_VALIDATION_MAX_RETRIES,
+                )
+                continue
+
+            logger.error(
+                "Groq request details - status: %s, message: %s, body: %s",
+                status_code,
+                str(error),
+                getattr(error, "body", None),
+            )
+            logger.error(
+                "Groq 서버 호출 실패 - newsId: %s, 예외: %s",
+                request.newsId, type(error).__name__,
+            )
+            raise HTTPException(status_code=502, detail="Groq AI 서버 호출에 실패했습니다.") from error
 
     content = response.choices[0].message.content if response.choices else None
     if not content:
@@ -180,7 +237,9 @@ def generate_report(request: NewsReportGenerateRequest) -> NewsReportGenerateRes
         logger.error("GROQ_API_KEY가 설정되지 않았습니다 - newsId: %s", request.newsId)
         raise HTTPException(status_code=503, detail="AI 서버 설정이 완료되지 않았습니다.")
 
-    client = Groq(api_key=api_key)
+    # SDK 자동 재시도를 끈다. Spring 백그라운드 워커가 기사 처리 간격을 제어하고,
+    # JSON Schema 생성 실패만 같은 기사에 대해 1회 재시도한다.
+    client = Groq(api_key=api_key, max_retries=0)
 
     try:
         return generate_financial_report(client, request, get_report_model())

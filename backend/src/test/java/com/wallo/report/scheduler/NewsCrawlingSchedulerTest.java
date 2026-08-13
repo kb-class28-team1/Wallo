@@ -6,7 +6,6 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -18,24 +17,25 @@ import static org.mockito.Mockito.when;
  */
 class NewsCrawlingSchedulerTest {
 
-    // 1. 크롤링이 성공하면 이어서 이번에 저장된 news_id를 우선 대상으로 금융 리포트 생성이 트리거된다.
+    // 1. 수동 실행은 뉴스만 크롤링하고 AI 생성을 시작하지 않는다.
     @Test
-    void triggersReportGenerationAfterSuccessfulCrawl() {
+    void manualRunOnlyCrawlsNews() {
         NewsCrawler newsCrawler = mock(NewsCrawler.class);
         List<Long> savedNewsIds = List.of(1L, 2L);
         when(newsCrawler.crawlAndSave()).thenReturn(savedNewsIds);
         FinancialReportGenerationScheduler reportScheduler = mock(FinancialReportGenerationScheduler.class);
         NewsCrawlingScheduler scheduler = new NewsCrawlingScheduler(newsCrawler, reportScheduler);
 
-        scheduler.scheduledNewsCrawling();
+        NewsCrawlingScheduler.RunResult result = scheduler.runNow();
 
         verify(newsCrawler).crawlAndSave();
-        verify(reportScheduler).generateForCrawledNews(eq(savedNewsIds));
+        org.junit.jupiter.api.Assertions.assertTrue(result.started());
+        org.junit.jupiter.api.Assertions.assertEquals(2, result.crawledNewsCount());
     }
 
-    // 2. 크롤링이 실패해도(기존 news 백로그가 있을 수 있으므로) 리포트 생성은 빈 우선 목록으로 그대로 시도된다.
+    // 2. 자동 스케줄은 크롤링 후 백그라운드 AI 생성을 예약한다.
     @Test
-    void stillTriggersReportGenerationWhenCrawlFails() {
+    void scheduledRunQueuesReportGenerationEvenWhenCrawlFails() {
         NewsCrawler newsCrawler = mock(NewsCrawler.class);
         doThrow(new RuntimeException("크롤링 실패")).when(newsCrawler).crawlAndSave();
         FinancialReportGenerationScheduler reportScheduler = mock(FinancialReportGenerationScheduler.class);
@@ -43,7 +43,7 @@ class NewsCrawlingSchedulerTest {
 
         assertDoesNotThrow(scheduler::scheduledNewsCrawling);
 
-        verify(reportScheduler).generateForCrawledNews(eq(List.of()));
+        verify(reportScheduler).requestGeneration();
     }
 
     // 3. 리포트 생성 단계에서 예외가 나도 크롤링 스케줄러 밖으로 전파되지 않는다(완전히 분리된 단계).
@@ -52,10 +52,10 @@ class NewsCrawlingSchedulerTest {
         NewsCrawler newsCrawler = mock(NewsCrawler.class);
         when(newsCrawler.crawlAndSave()).thenReturn(List.of());
         FinancialReportGenerationScheduler reportScheduler = mock(FinancialReportGenerationScheduler.class);
-        doThrow(new RuntimeException("AI 서버 장애")).when(reportScheduler).generateForCrawledNews(eq(List.of()));
+        doThrow(new RuntimeException("예약 실패")).when(reportScheduler).requestGeneration();
         NewsCrawlingScheduler scheduler = new NewsCrawlingScheduler(newsCrawler, reportScheduler);
 
-        assertDoesNotThrow(scheduler::scheduledNewsCrawling);
+        org.junit.jupiter.api.Assertions.assertThrows(RuntimeException.class, scheduler::scheduledNewsCrawling);
 
         verify(newsCrawler).crawlAndSave();
     }
