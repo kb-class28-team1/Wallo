@@ -22,4 +22,7 @@ public interface PointShopService {
 
     /** 로그인 사용자의 사용 완료 상품을 보관함에서 실제로 삭제함. */
     void deleteUsedInventoryItem(Long userId, Long inventoryId);
+
+    /** 로그인 사용자의 사용 가능한 보관함 상품을 사용 완료 상태로 변경함. */
+    void useInventoryItem(Long userId, Long inventoryId);
 }

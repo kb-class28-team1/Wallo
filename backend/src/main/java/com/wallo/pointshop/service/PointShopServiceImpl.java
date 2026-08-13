@@ -197,6 +197,20 @@ public class PointShopServiceImpl implements PointShopService {
         }
     }
 
+    @Override
+    @Transactional
+    public void useInventoryItem(Long userId, Long inventoryId) {
+        validateUserId(userId);
+        if (inventoryId == null || inventoryId <= 0) {
+            throw new IllegalArgumentException("보관함 상품 ID가 올바르지 않습니다.");
+        }
+
+        int updatedRows = pointShopMapper.useInventoryItem(userId, inventoryId);
+        if (updatedRows == 0) {
+            throw new IllegalArgumentException("사용 가능한 보관함 상품을 찾지 못했습니다.");
+        }
+    }
+
     /** 상품 당첨 구간이면 보관함 상품을 만들고 나머지 구간이면 null을 반환함. */
     private PointShopReward drawReward(
             Long userId,

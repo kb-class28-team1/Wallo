@@ -44,3 +44,14 @@ export const deleteUsedInventoryItem = async (inventoryId) => {
     throw new Error(message)
   }
 }
+
+// 로그인 사용자의 사용 가능한 보관함 아이템을 사용 완료 처리함.
+export const useInventoryItem = async (inventoryId) => {
+  try {
+    await httpClient.patch(`/api/users/me/inventory/${inventoryId}/use`)
+  } catch (error) {
+    const message =
+      error.response?.data?.message || "기프티콘을 사용 처리하지 못했습니다."
+    throw new Error(message)
+  }
+}
