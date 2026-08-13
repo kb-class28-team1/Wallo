@@ -581,14 +581,6 @@ onBeforeUnmount(() => {
     <template v-else>
       <header class="feed-header">
         <div class="feed-header-row">
-          <nav class="feed-tabs">
-            <button :class="{ active: activeTab === 'all' }" @click="changeTab('all')">
-              전체 피드
-            </button>
-            <button :class="{ active: activeTab === 'mine' }" @click="changeTab('mine')">
-              내 피드
-            </button>
-          </nav>
           <h1>{{ challengeName }}</h1>
           <div class="feed-header-actions">
             <div v-if="inviteCode" class="feed-invite-panel">
@@ -614,6 +606,16 @@ onBeforeUnmount(() => {
 
       <div class="feed-layout">
         <main class="feed-column">
+          <div class="feed-toolbar">
+            <nav class="feed-tabs">
+              <button :class="{ active: activeTab === 'all' }" @click="changeTab('all')">
+                전체 피드
+              </button>
+              <button :class="{ active: activeTab === 'mine' }" @click="changeTab('mine')">
+                내 피드
+              </button>
+            </nav>
+          </div>
           <div v-if="!feeds.length" class="empty-feed">
             <span>📷</span><strong>아직 등록된 피드가 없어요</strong>
             <p>오른쪽 아래 + 버튼을 눌러 첫 절약 기록을 남겨보세요.</p>
@@ -956,7 +958,7 @@ onBeforeUnmount(() => {
 }
 .feed-header-row {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 16px;
 }
@@ -980,6 +982,7 @@ onBeforeUnmount(() => {
 .feed-header p {
   margin: 8px 0 0;
   color: #939bad;
+  font-size: 0.67rem;
 }
 .feed-leave-button {
   display: inline-flex !important;
@@ -1047,6 +1050,13 @@ onBeforeUnmount(() => {
   min-width: 0;
   flex-direction: column;
   gap: 18px;
+}
+.feed-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
 }
 .feed-tabs {
   display: flex;
@@ -1805,26 +1815,25 @@ textarea {
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 10px;
   }
-  .feed-header .feed-tabs {
-    grid-column: 1 / -1;
-    grid-row: 1;
-    width: 100%;
-  }
   .feed-header h1 {
     grid-column: 1;
-    grid-row: 2;
+    grid-row: 1;
     font-size: 1.35rem;
   }
   .feed-header-actions {
     grid-column: 2;
-    grid-row: 2;
+    grid-row: 1;
     gap: 4px;
   }
-  .feed-header .feed-tabs button {
-    flex: 1;
+  .feed-toolbar {
+    align-items: stretch;
+    flex-direction: column;
   }
-  .feed-header .feed-invite-panel {
-    min-width: 0;
+  .feed-toolbar .feed-tabs {
+    width: 100%;
+  }
+  .feed-toolbar .feed-tabs button {
+    flex: 1;
   }
   .modal-layer {
     padding: 0;
