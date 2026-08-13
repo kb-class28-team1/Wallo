@@ -21,6 +21,12 @@
         )
     </insert>
 
+    <select id="countByUserId" resultType="int">
+        SELECT COUNT(*)
+        FROM CONSUMPTION_ANALYSIS_RESULTS
+        WHERE user_id = #{userId}
+    </select>
+
     <select id="findByAssistantMessageIds"
             resultType="com.wallo.chat.dto.ConsumptionAnalysisResultDto$StoredResult">
         SELECT assistant_message_id AS assistantMessageId,

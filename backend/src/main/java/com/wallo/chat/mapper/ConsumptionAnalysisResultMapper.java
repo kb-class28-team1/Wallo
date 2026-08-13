@@ -7,6 +7,7 @@ import org.apache.ibatis.annotations.Param;
 
 public interface ConsumptionAnalysisResultMapper {
     int insert(ConsumptionAnalysisResultDto.SaveCommand command);
+    int countByUserId(@Param("userId") long userId);
 
     List<ConsumptionAnalysisResultDto.StoredResult> findByAssistantMessageIds(
             @Param("assistantMessageIds") List<Long> assistantMessageIds

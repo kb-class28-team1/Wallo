@@ -65,7 +65,7 @@ public class ConsumptionAnalysisResultService {
     ) {}
 
     @Transactional
-    public void save(
+    public boolean save(
             long userId,
             long assistantMessageId,
             String requestMessage,
@@ -73,8 +73,9 @@ public class ConsumptionAnalysisResultService {
             String aiResponse
     ) {
         if (calculatedResult == null) {
-            return;
+            return false;
         }
+        boolean firstAnalysis = mapper.countByUserId(userId) == 0;
         try {
             int inserted = mapper.insert(new ConsumptionAnalysisResultDto.SaveCommand(
                     userId,
@@ -86,6 +87,7 @@ public class ConsumptionAnalysisResultService {
             if (inserted != 1) {
                 throw new IllegalStateException("소비분석 결과를 저장하지 못했습니다.");
             }
+            return firstAnalysis;
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException(
                     "소비분석 계산 결과를 JSON으로 변환하지 못했습니다.", exception);
