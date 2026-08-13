@@ -964,10 +964,17 @@ onBeforeUnmount(() => {
   gap: 16px;
 }
 .feed-header h1 {
+  justify-self: start;
   min-width: 0;
+  width: fit-content;
+  max-width: 100%;
   margin: 0;
   overflow: hidden;
-  color: #121d3e;
+  padding: 8px 16px;
+  color: #fff;
+  background: #121d3e;
+  border-radius: 12px;
+  box-shadow: 0 8px 18px #29315a24;
   font-size: 1.75rem;
   font-weight: 900;
   letter-spacing: -0.04em;
