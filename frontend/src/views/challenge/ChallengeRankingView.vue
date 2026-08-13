@@ -429,7 +429,13 @@ onMounted(() => {
 }
 
 .rank-1 .podium-saving {
-  color: #d89600;
+  color: #2c2430;
+}
+
+.rank-1 .podium-nickname,
+.rank-1 .podium-streak {
+  color: #3f3331;
+  font-weight: 800;
 }
 
 .podium-streak {
