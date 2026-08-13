@@ -432,20 +432,16 @@ onMounted(() => {
   color: #2c2430;
 }
 
-.rank-1 .podium-nickname,
-.rank-1 .podium-streak {
+.rank-1 .podium-nickname {
   color: #3f3331;
   font-weight: 800;
 }
 
 .podium-streak {
   margin-top: 5px;
-  color: #c9551d;
-  font-size: 11px;
-}
-
-.rank-1 .podium-streak {
   color: #c9362f;
+  font-size: 11px;
+  font-weight: 800;
 }
 
 .ranking-table-card,
