@@ -1323,8 +1323,12 @@ onBeforeUnmount(() => {
   }
 }
 .feed-card footer {
-  padding: 15px 18px 18px;
+  position: relative;
+  z-index: 2;
+  margin-top: -56px;
+  padding: 71px 18px 18px;
   color: #fff;
+  background: #121d3e;
 }
 .feed-caption-row {
   display: flex;
