@@ -110,7 +110,10 @@ onMounted(() => {
 
     <div v-else class="ranking-layout">
       <div class="ranking-main">
-        <div class="podium-grid mb-3">
+        <div
+          class="podium-grid mb-3"
+          :class="`podium-count-${topRankings.length}`"
+        >
           <article
             v-for="ranking in topRankings"
             :key="ranking.rank"
@@ -297,6 +300,18 @@ onMounted(() => {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   padding-top: 14px;
+}
+
+.podium-grid.podium-count-1 {
+  width: 33.333%;
+  margin-inline: auto;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.podium-grid.podium-count-2 {
+  width: 66.666%;
+  margin-inline: auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .podium-card {
@@ -584,6 +599,11 @@ onMounted(() => {
   .podium-grid,
   .ranking-sidebar {
     grid-template-columns: 1fr;
+  }
+
+  .podium-grid.podium-count-1,
+  .podium-grid.podium-count-2 {
+    width: 100%;
   }
 
   .podium-card.rank-1 {
