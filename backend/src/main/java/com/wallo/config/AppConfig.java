@@ -3,6 +3,8 @@ package com.wallo.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.wallo.auth.JwtAuthenticationFilter;
+import com.wallo.auth.JwtTokenService;
 import com.wallo.external.auth.CodefAccessTokenProvider;
 import com.wallo.external.auth.CodefAuthorizedRequestFactory;
 import com.wallo.external.auth.CodefCredentialProvider;
@@ -25,6 +27,9 @@ import com.wallo.feed.price.SerpApiShoppingPriceClient;
 import com.wallo.feed.price.ShoppingPriceClient;
 import com.wallo.auth.JwtAuthenticationFilter;
 import com.wallo.auth.JwtTokenService;
+import com.wallo.mission.verification.GeminiMissionVerificationClient;
+import com.wallo.mission.verification.MissionVerificationClient;
+import com.wallo.mission.verification.MockMissionVerificationClient;
 import java.time.Clock;
 import java.time.ZoneId;
 import java.util.Locale;
@@ -43,6 +48,8 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Primary;
 
 @Configuration
 @EnableScheduling
@@ -68,6 +75,7 @@ public class AppConfig {
     }
 
     @Bean
+    @Primary
     public RestTemplate restTemplate(
             @Value("${codef.http.connect-timeout-ms:2000}") int connectTimeoutMs,
             @Value("${codef.http.read-timeout-ms:3000}") int readTimeoutMs
@@ -176,6 +184,31 @@ public class AppConfig {
             );
         }
         return new MockFeedAnalysisClient();
+    }
+
+    @Bean
+    @Qualifier("missionAiRestTemplate")
+    public RestTemplate missionAiRestTemplate(
+            @Value("${mission.ai.http.connect-timeout-ms:5000}") int connectTimeoutMs,
+            @Value("${mission.ai.http.read-timeout-ms:120000}") int readTimeoutMs) {
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(connectTimeoutMs);
+        requestFactory.setReadTimeout(readTimeoutMs);
+        return new RestTemplate(requestFactory);
+    }
+
+    @Bean
+    public MissionVerificationClient missionVerificationClient(
+            RestTemplate restTemplate,
+            ObjectMapper objectMapper,
+            @Value("${gemini.enabled:false}") boolean geminiEnabled,
+            @Value("${gemini.api-key:}") String geminiApiKey,
+            @Value("${gemini.model:gemini-3.6-flash}") String geminiModel) {
+        if (geminiEnabled && geminiApiKey != null && !geminiApiKey.isBlank()) {
+            return new GeminiMissionVerificationClient(
+                    restTemplate, objectMapper, geminiApiKey.trim(), geminiModel.trim());
+        }
+        return new MockMissionVerificationClient();
     }
 
     @Bean

@@ -35,6 +35,7 @@ import java.util.List;
         "com.wallo.challenge.controller",
         "com.wallo.chat.controller",
         "com.wallo.goal.controller",
+        "com.wallo.mission.controller",
         "com.wallo.pointshop.controller",
         "com.wallo.challenge.exception",
         "com.wallo.feed.controller",

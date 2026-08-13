@@ -68,6 +68,7 @@
             CASE history.type
                 WHEN 'REWARD' THEN '주간순위보상'
                 WHEN 'WEEKLY_RANKING_REWARD' THEN '주간순위보상'
+                WHEN 'MISSION_REWARD' THEN '미션완료보상'
                 WHEN 'WEEKLY_RANKING_TEST' THEN '주간순위보상'
                 WHEN 'BOX_REWARD' THEN '랜덤박스 즉시 보상'
                 WHEN 'INSTANT_REWARD' THEN '랜덤박스 즉시 보상'
@@ -78,6 +79,7 @@
             CASE WHEN history.amount &gt;= 0 THEN 'EARN' ELSE 'USE' END AS history_type,
             CASE
                 WHEN history.type IN ('REWARD', 'WEEKLY_RANKING_REWARD', 'WEEKLY_RANKING_TEST') THEN '주간순위보상'
+                WHEN history.type = 'MISSION_REWARD' THEN '미션완료보상'
                 WHEN history.type IN ('BOX_REWARD', 'INSTANT_REWARD', 'BOX_OPEN') THEN '랜덤박스'
                 ELSE history.type
             END AS category,
