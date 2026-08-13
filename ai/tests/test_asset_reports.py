@@ -32,8 +32,10 @@ class FakeChatCompletions:
         self.content = content
         self.exception = exception
         self.kwargs = None
+        self.call_count = 0
 
     def create(self, **kwargs):
+        self.call_count += 1
         self.kwargs = kwargs
         if self.exception is not None:
             raise self.exception
@@ -84,6 +86,7 @@ def test_generates_short_structured_consumption_insight():
     }
     assert client.chat.completions.kwargs["reasoning_effort"] == "low"
     assert client.chat.completions.kwargs["max_completion_tokens"] == 2000
+    assert client.chat.completions.call_count == 1
 
 
 def test_prompt_contains_only_aggregated_spending_data_and_derived_rate():
@@ -227,3 +230,4 @@ def test_endpoint_returns_structured_response_with_fake_groq_client():
 
     assert response.status_code == 200
     assert response.json() == _valid_response().model_dump()
+    assert fake_client.chat.completions.call_count == 1
