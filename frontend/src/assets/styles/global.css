@@ -14,6 +14,22 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: "NexonMaplestory";
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_20-04@2.1/MaplestoryOTFLight.woff")
+    format("woff");
+  font-weight: 300;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "NexonMaplestory";
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_20-04@2.1/MaplestoryOTFBold.woff")
+    format("woff");
+  font-weight: 700;
+  font-display: swap;
+}
+
 :root {
   --wallo-bg: #f6f8fb;
   --wallo-blue-bg: #eef6ff;
@@ -29,9 +45,18 @@
 
 body {
   margin: 0;
-  font-family: "TMoneyDungunbaram", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-family: "NexonMaplestory", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   color: var(--wallo-text);
   background: var(--wallo-bg);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: "TMoneyDungunbaram", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
 }
 
 button,
