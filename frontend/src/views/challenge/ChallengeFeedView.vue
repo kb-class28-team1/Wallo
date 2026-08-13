@@ -8,7 +8,6 @@ import { formatWon } from "@/commonUtils/formatters"
 import arrowPaperPlaneUrl from "@/assets/arrow_paper_plane.svg"
 import AppDialog from "@/components/common/AppDialog.vue"
 import { leaveChallenge as leaveChallengeRequest } from "@/api/challengeApi"
-import { getTodayMissions, verifyMissionWithFeed } from "@/api/missionApi"
 import {
   analyzeFeed,
   createFeed,
@@ -38,8 +37,6 @@ const errorMessage = ref("")
 const modalOpen = ref(false)
 const isAnalyzing = ref(false)
 const isUploading = ref(false)
-const todayMissions = ref([])
-const isMissionLoading = ref(false)
 const likingFeedId = ref(null)
 const likeBursts = ref([])
 const unmutedFeedIds = ref(new Set())
@@ -78,7 +75,6 @@ const form = reactive({
   confidenceScore: 0,
   analysisDetails: "",
   analysisFailed: false,
-  dailyMissionId: "",
 })
 
 const spendingTypes = [
@@ -300,21 +296,8 @@ const leaveCurrentChallenge = async () => {
   }
 }
 
-const openModal = async () => {
+const openModal = () => {
   modalOpen.value = true
-  isMissionLoading.value = true
-  try {
-    const response = await getTodayMissions()
-    todayMissions.value = response.missions.filter((mission) =>
-      ["MEDIA_AI", "HYBRID"].includes(mission.verificationType)
-      && !mission.completed
-      && mission.status !== "VERIFYING")
-  } catch (error) {
-    todayMissions.value = []
-    await openDialog({ message: error.message })
-  } finally {
-    isMissionLoading.value = false
-  }
 }
 const closeModal = () => {
   modalOpen.value = false
@@ -332,7 +315,6 @@ const closeModal = () => {
     confidenceScore: 0,
     analysisDetails: "",
     analysisFailed: false,
-    dailyMissionId: "",
   })
   if (fileInput.value) fileInput.value.value = ""
 }
@@ -539,35 +521,10 @@ const uploadFeed = async () => {
       "analysisStatus",
       form.analysisStatus === "AI_FAILED" ? "AI_FAILED" : "AI_COMPLETED",
     )
-    await createFeed(challengeId.value, data)
     data.append("analysisDetails", form.analysisDetails)
-    const createdFeed = await createFeed(challengeId.value, data)
-    let verificationResult = null
-    let verificationError = null
-    if (form.dailyMissionId) {
-      try {
-        verificationResult = await verifyMissionWithFeed(form.dailyMissionId, createdFeed.id)
-        await userStore.fetchUserProfile()
-        window.dispatchEvent(new CustomEvent("wallo:mission-updated"))
-      } catch (error) {
-        verificationError = error
-      }
-    }
+    await createFeed(challengeId.value, data)
     closeModal()
     await Promise.all([loadFeeds(), loadMessages({ forceScroll: true })])
-    if (verificationResult) {
-      const resultMessage = verificationResult.decision === "PASS"
-        ? `미션을 달성했습니다! +${verificationResult.rewardedPoint}P`
-        : verificationResult.decision === "FAIL"
-          ? "미션 달성 근거가 부족해 인증에 실패했습니다."
-          : "AI 판단이 어려워 검토 중으로 처리했습니다."
-      await openDialog({ title: "미션 인증 결과", message: resultMessage })
-    } else if (verificationError) {
-      await openDialog({
-        title: "피드 업로드 완료",
-        message: `피드는 등록됐지만 미션 인증에 실패했습니다. ${verificationError.message}`,
-      })
-    }
   } catch (error) {
     openDialog({ message: error.message })
   } finally {
@@ -926,28 +883,6 @@ onBeforeUnmount(() => {
               {{ item.label }}
             </button>
           </div>
-
-          <label class="section-label" for="mission-selection">오늘의 미션 인증 (선택)</label>
-          <select
-            id="mission-selection"
-            v-model="form.dailyMissionId"
-            class="form-select mission-selection"
-            :disabled="isMissionLoading"
-          >
-            <option value="">
-              {{ isMissionLoading ? "미션을 불러오는 중..." : "일반 피드로 등록" }}
-            </option>
-            <option
-              v-for="mission in todayMissions"
-              :key="mission.dailyMissionId"
-              :value="mission.dailyMissionId"
-            >
-              {{ mission.title }} (+{{ mission.rewardPoint }}P)
-            </option>
-          </select>
-          <small v-if="!isMissionLoading && !todayMissions.length" class="mission-selection-help">
-            현재 영상으로 인증할 수 있는 오늘의 미션이 없습니다.
-          </small>
 
           <div class="analysis-box">
             <div>
@@ -1735,19 +1670,6 @@ textarea {
   border-radius: 18px;
 }
 
-.mission-selection {
-  border-color: #dfe2ef;
-  border-radius: 12px;
-  color: #4b526d;
-  font-size: 13px;
-}
-
-.mission-selection-help {
-  display: block;
-  margin-top: 6px;
-  color: #9399ae;
-  font-size: 11px;
-}
 .analysis-box div {
   display: flex;
   gap: 8px;

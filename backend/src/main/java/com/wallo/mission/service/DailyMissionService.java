@@ -67,7 +67,14 @@ public class DailyMissionService {
         }
 
         if (generationService != null) {
-            generationService.generateToday(userId, date);
+            if (!generationService.hasConsumptionAnalysis(userId)) {
+                return TodayMissionResponse.analysisRequired(date);
+            }
+            try {
+                generationService.generateToday(userId, date);
+            } catch (ConsumptionAnalysisUnavailableException exception) {
+                return TodayMissionResponse.analysisRequired(date);
+            }
             return TodayMissionResponse.of(
                     date, missionMapper.findDailyMissions(userId, date));
         }

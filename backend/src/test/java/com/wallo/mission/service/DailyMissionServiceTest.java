@@ -84,6 +84,24 @@ class DailyMissionServiceTest {
     }
 
     @Test
+    void returnsAnalysisRequiredWhenInitialUserHasNoConsumptionAnalysis() {
+        MissionGenerationService generationService = org.mockito.Mockito.mock(
+                MissionGenerationService.class);
+        Clock clock = Clock.fixed(Instant.parse("2026-08-16T15:00:00Z"),
+                ZoneId.of("Asia/Seoul"));
+        service = new DailyMissionService(mapper, new MissionCycleCalculator(), clock,
+                new SecureRandom(new byte[]{1, 2, 3}), generationService);
+        when(mapper.findDailyMissions(7L, today)).thenReturn(List.of());
+        when(generationService.hasConsumptionAnalysis(7L)).thenReturn(false);
+
+        TodayMissionResponse response = service.getOrAssignToday(7L);
+
+        assertEquals(TodayMissionResponse.ANALYSIS_REQUIRED, response.status());
+        assertTrue(response.missions().isEmpty());
+        verify(generationService, never()).generateToday(any(), any());
+    }
+
+    @Test
     void expiresPreviousAssignedMissionsBeforeTodayLookup() {
         when(mapper.findDailyMissions(7L, today)).thenReturn(dailyMissions());
 
@@ -127,4 +145,3 @@ class DailyMissionServiceTest {
         return result;
     }
 }
-

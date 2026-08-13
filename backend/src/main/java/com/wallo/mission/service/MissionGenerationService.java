@@ -74,11 +74,18 @@ public class MissionGenerationService {
         return userIds == null ? List.of() : userIds;
     }
 
+    public boolean hasConsumptionAnalysis(Long userId) {
+        if (userId == null || userId < 1) {
+            throw new IllegalArgumentException("userId is required.");
+        }
+        return missionMapper.findLatestAnalysis(userId) != null;
+    }
+
     /** DB에 저장하지 않고 최신 소비분석 기반 AI 결과를 검증해 반환함. */
     public MissionGenerationDto.Response preview(Long userId) {
         if (userId == null || userId < 1) throw new IllegalArgumentException("userId is required.");
         MissionAnalysisSource source = missionMapper.findLatestAnalysis(userId);
-        if (source == null) throw new IllegalStateException("Consumption analysis is unavailable.");
+        if (source == null) throw new ConsumptionAnalysisUnavailableException();
         MissionGenerationDto.Response response = missionAiClient.generate(
                 new MissionGenerationDto.Request(userId, source.getAnalysisResultId(),
                         summarizeAnalysis(parseAnalysis(source.getCalculatedResultJson())),
@@ -106,7 +113,7 @@ public class MissionGenerationService {
                 nextDate, missionMapper.findDailyMissions(userId, nextDate));
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = ConsumptionAnalysisUnavailableException.class)
     public MissionGenerationDto.Result generateToday(Long userId, LocalDate date) {
         if (userId == null || userId < 1) throw new IllegalArgumentException("userId is required.");
         if (date == null) throw new IllegalArgumentException("date is required.");
@@ -119,7 +126,7 @@ public class MissionGenerationService {
         LocalDate start = cycleCalculator.cycleStart(date);
         MissionCycle cycle = missionMapper.findCycle(userId, start);
         MissionAnalysisSource source = missionMapper.findLatestAnalysis(userId);
-        if (source == null) throw new IllegalStateException("Consumption analysis is unavailable.");
+        if (source == null) throw new ConsumptionAnalysisUnavailableException();
         List<String> excludedTitles = cycle == null ? List.of()
                 : missionMapper.findMissionsByCycleId(cycle.getMissionCycleId()).stream()
                         .map(Mission::getTitle).toList();

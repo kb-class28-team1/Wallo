@@ -15,6 +15,7 @@ const userStore = useUserStore()
 const router = useRouter()
 const { nickname, profileImageUrl, pointBalance, isLoading } = storeToRefs(userStore)
 const missions = ref([])
+const missionStatus = ref("NO_MISSION")
 const missionMenu = ref(null)
 const isMissionOpen = ref(false)
 const isMissionLoading = ref(false)
@@ -57,8 +58,10 @@ const loadTodayMissions = async () => {
   try {
     const response = await getTodayMissions()
     missions.value = response.missions
+    missionStatus.value = response.status || (response.missions.length ? "ASSIGNED" : "NO_MISSION")
   } catch (error) {
     missions.value = []
+    missionStatus.value = "LOAD_FAILED"
     alert(error.message || "오늘의 미션을 불러오지 못했습니다.")
   } finally {
     isMissionLoading.value = false
@@ -149,7 +152,10 @@ const handleLogout = async () => {
 
           <div v-if="isMissionLoading" class="mission-loading">미션을 불러오는 중...</div>
           <div v-else-if="!missions.length" class="mission-empty">
-            오늘 배정된 미션이 없습니다.
+            <template v-if="missionStatus === 'ANALYSIS_REQUIRED'">
+              소비 분석을 완료하면 맞춤형 오늘의 미션이 생성됩니다.
+            </template>
+            <template v-else>오늘 배정된 미션이 없습니다.</template>
           </div>
           <div v-else class="mission-list">
             <div
