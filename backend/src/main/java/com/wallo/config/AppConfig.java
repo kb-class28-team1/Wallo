@@ -25,6 +25,8 @@ import com.wallo.feed.price.RestaurantPriceClient;
 import com.wallo.feed.price.SerpApiRestaurantPriceClient;
 import com.wallo.feed.price.SerpApiShoppingPriceClient;
 import com.wallo.feed.price.ShoppingPriceClient;
+import com.wallo.auth.JwtAuthenticationFilter;
+import com.wallo.auth.JwtTokenService;
 import com.wallo.mission.verification.GeminiMissionVerificationClient;
 import com.wallo.mission.verification.MissionVerificationClient;
 import com.wallo.mission.verification.MockMissionVerificationClient;
