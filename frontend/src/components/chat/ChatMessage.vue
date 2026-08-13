@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref, watch } from "vue"
 import DOMPurify from "dompurify"
 import { marked } from "marked"
+import AssetAnalysisResult from "@/components/analysis/AssetAnalysisResult.vue"
 import AnalysisResult from "@/components/analysis/AnalysisResult.vue"
 
 const props = defineProps({
@@ -26,6 +27,11 @@ const renderedMarkdown = computed(() =>
   DOMPurify.sanitize(marked.parse(displayedContent.value)),
 )
 
+const isAnalysisMessage = computed(() =>
+  props.message.role === "assistant"
+  && Boolean(props.message.consumptionAnalysis || props.message.assetAnalysis),
+)
+
 const stopTyping = () => {
   if (typingTimer) {
     clearInterval(typingTimer)
@@ -46,7 +52,7 @@ const startTyping = () => {
   stopTyping()
 
   const content = props.message.content || ""
-  if (props.message.role === "assistant" && props.message.consumptionAnalysis) {
+  if (isAnalysisMessage.value) {
     displayedContent.value = ""
     if (props.message.animate) {
       emit("typing-complete", props.message.id)
@@ -80,6 +86,7 @@ watch(
     props.message.content,
     props.message.animate,
     props.message.consumptionAnalysis,
+    props.message.assetAnalysis,
   ],
   startTyping,
   { immediate: true },
@@ -92,13 +99,17 @@ onBeforeUnmount(completeTyping)
   <div class="message-row" :class="`message-row--${message.role}`">
     <div
       class="message-bubble"
-      :class="{ 'message-bubble--analysis': message.consumptionAnalysis }"
+      :class="{ 'message-bubble--analysis': isAnalysisMessage }"
     >
       <span class="message-label">
         {{ message.role === "assistant" ? "Wallo AI" : "나" }}
       </span>
+      <AssetAnalysisResult
+        v-if="message.role === 'assistant' && message.assetAnalysis"
+        :analysis="message.assetAnalysis"
+      />
       <AnalysisResult
-        v-if="message.role === 'assistant' && message.consumptionAnalysis"
+        v-else-if="message.role === 'assistant' && message.consumptionAnalysis"
         :analysis="message.consumptionAnalysis"
       />
       <div
