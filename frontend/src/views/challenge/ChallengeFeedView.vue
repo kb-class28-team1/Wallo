@@ -36,6 +36,7 @@ const isAnalyzing = ref(false)
 const isUploading = ref(false)
 const likingFeedId = ref(null)
 const likeBursts = ref([])
+const unmutedFeedIds = ref(new Set())
 const deletingFeedId = ref(null)
 const chatInput = ref("")
 const chatInputElement = ref(null)
@@ -343,6 +344,16 @@ const removeFeed = async (feed) => {
   }
 }
 const chooseFile = () => fileInput.value?.click()
+const isFeedMuted = (feedId) => !unmutedFeedIds.value.has(feedId)
+const toggleFeedMute = (feed) => {
+  const nextUnmutedFeedIds = new Set(unmutedFeedIds.value)
+  if (nextUnmutedFeedIds.has(feed.id)) {
+    nextUnmutedFeedIds.delete(feed.id)
+  } else {
+    nextUnmutedFeedIds.add(feed.id)
+  }
+  unmutedFeedIds.value = nextUnmutedFeedIds
+}
 const playVideoPreview = (event) => {
   event.currentTarget.play().catch(() => {})
 }
@@ -634,12 +645,24 @@ onBeforeUnmount(() => {
                 class="feed-media"
                 :src="feed.mediaUrl"
                 autoplay
-                muted
+                :muted="isFeedMuted(feed.id)"
                 loop
                 playsinline
                 preload="metadata"
                 :aria-label="feed.caption || '절약 인증 영상'"
               ></video>
+              <button
+                v-if="feed.mediaType === 'VIDEO'"
+                type="button"
+                class="feed-sound-toggle"
+                :aria-label="isFeedMuted(feed.id) ? '소리 켜기' : '소리 끄기'"
+                @click.stop="toggleFeedMute(feed)"
+              >
+                <i
+                  :class="['bi', isFeedMuted(feed.id) ? 'bi-volume-mute-fill' : 'bi-volume-up-fill']"
+                  aria-hidden="true"
+                ></i>
+              </button>
               <img
                 v-else
                 class="feed-media"
@@ -1179,6 +1202,25 @@ onBeforeUnmount(() => {
   left: 18px;
   bottom: 14px;
   z-index: 3;
+}
+.feed-sound-toggle {
+  position: absolute;
+  right: 18px;
+  bottom: 14px;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  color: #fff;
+  background: #08122dcc;
+  border: 1px solid #ffffff55;
+  border-radius: 50%;
+  font-size: 1rem;
+}
+.feed-sound-toggle:hover {
+  background: #7162de;
 }
 .like-burst-layer {
   position: absolute;
