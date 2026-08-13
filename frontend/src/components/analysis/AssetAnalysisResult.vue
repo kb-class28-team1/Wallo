@@ -27,6 +27,8 @@ const emptyAnalysis = {
   },
   composition: [],
   dataQualityNotes: [],
+  direction: null,
+  priorityActions: [],
 }
 
 const normalizedAnalysis = computed(() =>
@@ -38,6 +40,18 @@ const composition = computed(() => [...normalizedAnalysis.value.composition].sor
   (left, right) => Number(right.sharePercent || 0) - Number(left.sharePercent || 0),
 ))
 const notes = computed(() => normalizedAnalysis.value.dataQualityNotes)
+const direction = computed(() => normalizedAnalysis.value.direction || {
+  headline: null,
+  currentStage: null,
+  reasons: [],
+  keep: null,
+  firstChange: null,
+  threeMonthDirection: null,
+  oneYearDirection: null,
+  riskSignals: [],
+  additionalInfo: [],
+})
+const priorityActions = computed(() => normalizedAnalysis.value.priorityActions)
 
 const hasSummary = computed(() =>
   Object.values(summary.value).some((value) => value !== null),
@@ -47,7 +61,27 @@ const hasCashflow = computed(() =>
 )
 const hasComposition = computed(() => composition.value.length > 0)
 const hasNotes = computed(() => notes.value.length > 0)
-const hasCards = computed(() => hasSummary.value || hasCashflow.value || hasComposition.value)
+const hasDirection = computed(() => [
+  direction.value.headline,
+  direction.value.currentStage,
+  direction.value.keep,
+  direction.value.firstChange,
+  direction.value.threeMonthDirection,
+  direction.value.oneYearDirection,
+].some(Boolean) || direction.value.reasons.length > 0)
+const hasPriorityActions = computed(() => priorityActions.value.length > 0)
+const hasRiskSignals = computed(() => direction.value.riskSignals.length > 0)
+const hasAdditionalInfo = computed(() => direction.value.additionalInfo.length > 0)
+const hasCaution = computed(() => hasRiskSignals.value || hasAdditionalInfo.value)
+const hasDirectionSection = computed(() =>
+  hasDirection.value || hasPriorityActions.value || hasCaution.value,
+)
+const hasCards = computed(() =>
+  hasSummary.value
+  || hasCashflow.value
+  || hasComposition.value
+  || hasDirectionSection.value,
+)
 
 const formatRate = (value) => {
   if (value === null || value === undefined) return "-"
@@ -188,6 +222,79 @@ const surplusClass = computed(() =>
       </div>
     </div>
 
+    <div v-if="hasDirection" class="asset-analysis-card asset-analysis-card--direction">
+      <div class="asset-analysis-card__heading">
+        <span class="asset-analysis-card__eyebrow">AI 진단 방향</span>
+        <h3 class="asset-analysis-card__title">
+          {{ direction.currentStage || "앞으로의 자산 관리 방향" }}
+        </h3>
+      </div>
+
+      <p v-if="direction.headline" class="asset-direction__headline">
+        {{ direction.headline }}
+      </p>
+
+      <div v-if="direction.reasons.length > 0" class="asset-direction__section">
+        <strong class="asset-direction__label">이렇게 판단했어요</strong>
+        <ul class="asset-analysis-list mb-0">
+          <li v-for="reason in direction.reasons" :key="reason">{{ reason }}</li>
+        </ul>
+      </div>
+
+      <div v-if="direction.keep || direction.firstChange" class="row g-2 mt-1">
+        <div v-if="direction.keep" class="col-12 col-md-6">
+          <div class="asset-direction__point asset-direction__point--keep">
+            <small>유지할 것</small>
+            <p>{{ direction.keep }}</p>
+          </div>
+        </div>
+        <div v-if="direction.firstChange" class="col-12 col-md-6">
+          <div class="asset-direction__point asset-direction__point--change">
+            <small>가장 먼저 바꿀 것</small>
+            <p>{{ direction.firstChange }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="hasPriorityActions" class="asset-analysis-card">
+      <div class="asset-analysis-card__heading">
+        <span class="asset-analysis-card__eyebrow">우선 실행</span>
+        <h3 class="asset-analysis-card__title">자산을 바꾸는 다음 행동</h3>
+      </div>
+      <div class="asset-priority-list">
+        <div
+          v-for="(action, index) in priorityActions"
+          :key="`${action.period || 'action'}-${action.title || index}`"
+          class="asset-priority-action"
+        >
+          <span v-if="action.period" class="asset-priority-action__period">
+            {{ action.period }}
+          </span>
+          <strong v-if="action.title" class="asset-priority-action__title">
+            {{ action.title }}
+          </strong>
+          <p class="asset-priority-action__description">{{ action.description }}</p>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="hasCaution" class="asset-analysis-card asset-analysis-card--warning" role="note">
+      <div class="asset-analysis-card__heading">
+        <span class="asset-analysis-card__eyebrow">주의할 점</span>
+        <h3 class="asset-analysis-card__title">결정하기 전에 확인하세요</h3>
+      </div>
+      <ul v-if="hasRiskSignals" class="asset-analysis-list mb-0">
+        <li v-for="risk in direction.riskSignals" :key="risk">{{ risk }}</li>
+      </ul>
+      <div v-if="hasAdditionalInfo" class="asset-direction__additional">
+        <strong>추가로 확인할 정보</strong>
+        <ul class="asset-analysis-list mb-0 mt-1">
+          <li v-for="info in direction.additionalInfo" :key="info">{{ info }}</li>
+        </ul>
+      </div>
+    </div>
+
     <div v-if="hasNotes" class="alert alert-warning-subtle border rounded-4 mb-0" role="note">
       <div class="d-flex gap-2">
         <i class="bi bi-info-circle fs-5" aria-hidden="true"></i>
@@ -240,6 +347,20 @@ const surplusClass = computed(() =>
   box-shadow: 0 0.25rem 0.8rem rgba(57, 45, 110, 0.06);
 }
 
+.asset-analysis-card--direction {
+  border-color: #dcd7fb;
+  background: linear-gradient(145deg, #fff, #faf9ff);
+}
+
+.asset-analysis-card--warning {
+  border-color: #f0dfb4;
+  background: #fffdf7;
+}
+
+.asset-analysis-card--warning .asset-analysis-card__eyebrow {
+  color: #a46d13;
+}
+
 .asset-analysis-card__heading {
   margin-bottom: 0.85rem;
 }
@@ -281,6 +402,105 @@ const surplusClass = computed(() =>
 
 .asset-metric--compact strong {
   font-size: 0.9rem;
+}
+
+.asset-direction__headline {
+  margin: 0;
+  color: #403778;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.asset-direction__section {
+  margin-top: 0.9rem;
+}
+
+.asset-direction__label {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: #5c5780;
+  font-size: 0.8rem;
+}
+
+.asset-analysis-list {
+  padding-left: 1.15rem;
+  color: #5e6477;
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+
+.asset-analysis-list li + li {
+  margin-top: 0.25rem;
+}
+
+.asset-direction__point {
+  height: 100%;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+}
+
+.asset-direction__point--keep {
+  background: #f2faf5;
+}
+
+.asset-direction__point--change {
+  background: #fff6ed;
+}
+
+.asset-direction__point small {
+  color: #747b8e;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.asset-direction__point p {
+  margin: 0.35rem 0 0;
+  color: #42495d;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.asset-priority-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.asset-priority-action {
+  padding: 0.8rem 0.85rem;
+  background: #f8f7fc;
+  border-left: 0.2rem solid #7062de;
+  border-radius: 0.7rem;
+}
+
+.asset-priority-action__period {
+  display: block;
+  margin-bottom: 0.2rem;
+  color: #7062de;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.asset-priority-action__title {
+  display: block;
+  color: #343a50;
+  font-size: 0.9rem;
+}
+
+.asset-priority-action__description {
+  margin: 0.3rem 0 0;
+  color: #62697d;
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.asset-direction__additional {
+  margin-top: 0.9rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #f0e5c9;
+  color: #6c5a36;
+  font-size: 0.82rem;
 }
 
 .asset-rate .progress,

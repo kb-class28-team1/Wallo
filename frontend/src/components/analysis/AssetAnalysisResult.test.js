@@ -65,4 +65,36 @@ describe("AssetAnalysisResult", () => {
     expect(wrapper.find('[role="status"]').exists()).toBe(true)
     expect(wrapper.findAll(".asset-analysis-card")).toHaveLength(0)
   })
+
+  it("renders direction, priority actions, and caution cards", () => {
+    const wrapper = mount(AssetAnalysisResult, {
+      props: {
+        analysis: {
+          direction: {
+            headline: "현금흐름을 지키면서 장기 성장을 준비해보세요.",
+            currentStage: "안전망 확보",
+            reasons: ["월 저축액이 확인됐어요."],
+            keep: "현재의 꾸준한 저축을 유지하세요.",
+            firstChange: "단기 목적 자금과 투자자금을 분리하세요.",
+            riskSignals: ["목표 기간에 따라 투자 비중을 조정해야 해요."],
+            additionalInfo: ["목표 시점이 필요해요."],
+          },
+          priorityActions: [
+            {
+              period: "3개월",
+              title: "현금성 자산 점검",
+              description: "생활비 기준의 안전자금을 확인하세요.",
+            },
+          ],
+        },
+      },
+    })
+
+    expect(wrapper.find(".asset-analysis-card--direction").exists()).toBe(true)
+    expect(wrapper.find(".asset-priority-action").exists()).toBe(true)
+    expect(wrapper.find(".asset-analysis-card--warning").exists()).toBe(true)
+    expect(wrapper.text()).toContain("안전망 확보")
+    expect(wrapper.text()).toContain("현금성 자산 점검")
+    expect(wrapper.text()).toContain("목표 기간에 따라 투자 비중을 조정해야 해요.")
+  })
 })
