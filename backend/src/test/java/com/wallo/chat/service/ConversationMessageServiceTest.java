@@ -52,6 +52,12 @@ class ConversationMessageServiceTest {
     @Mock
     private ConsumptionAnalysisViewAssembler consumptionAnalysisViewAssembler;
 
+    @Mock
+    private AssetAnalysisResultService assetAnalysisResultService;
+
+    @Mock
+    private AssetAnalysisViewAssembler assetAnalysisViewAssembler;
+
     private ConversationMessageService conversationMessageService;
 
     @BeforeEach
@@ -63,7 +69,9 @@ class ConversationMessageServiceTest {
                 chatService,
                 goalPersistenceService,
                 consumptionAnalysisResultService,
-                consumptionAnalysisViewAssembler
+                consumptionAnalysisViewAssembler,
+                assetAnalysisResultService,
+                assetAnalysisViewAssembler
         );
     }
 

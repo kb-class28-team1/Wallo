@@ -2,6 +2,7 @@ package com.wallo.chat.service;
 
 import com.wallo.chat.domain.ChatMessage;
 import com.wallo.chat.domain.Conversation;
+import com.wallo.chat.dto.AssetAnalysisView;
 import com.wallo.chat.dto.ChatHistoryMessage;
 import com.wallo.chat.dto.ChatMessageResponse;
 import com.wallo.chat.dto.ChatRequest;
@@ -34,6 +35,8 @@ public class ConversationMessageService {
     private final GoalPersistenceService goalPersistenceService;
     private final ConsumptionAnalysisResultService consumptionAnalysisResultService;
     private final ConsumptionAnalysisViewAssembler consumptionAnalysisViewAssembler;
+    private final AssetAnalysisResultService assetAnalysisResultService;
+    private final AssetAnalysisViewAssembler assetAnalysisViewAssembler;
 
     public ConversationMessageService(
             ConversationService conversationService,
@@ -41,7 +44,9 @@ public class ConversationMessageService {
             ChatService chatService,
             GoalPersistenceService goalPersistenceService,
             ConsumptionAnalysisResultService consumptionAnalysisResultService,
-            ConsumptionAnalysisViewAssembler consumptionAnalysisViewAssembler
+            ConsumptionAnalysisViewAssembler consumptionAnalysisViewAssembler,
+            AssetAnalysisResultService assetAnalysisResultService,
+            AssetAnalysisViewAssembler assetAnalysisViewAssembler
     ) {
         this.conversationService = conversationService;
         this.persistenceService = persistenceService;
@@ -49,6 +54,8 @@ public class ConversationMessageService {
         this.goalPersistenceService = goalPersistenceService;
         this.consumptionAnalysisResultService = consumptionAnalysisResultService;
         this.consumptionAnalysisViewAssembler = consumptionAnalysisViewAssembler;
+        this.assetAnalysisResultService = assetAnalysisResultService;
+        this.assetAnalysisViewAssembler = assetAnalysisViewAssembler;
     }
 
     public List<ChatMessageResponse> getMessages(
@@ -64,9 +71,17 @@ public class ConversationMessageService {
         Map<Long, ConsumptionAnalysisView> analyses =
                 consumptionAnalysisResultService.findByAssistantMessageIds(
                         assistantMessageIds);
+        Map<Long, AssetAnalysisView> loadedAssetAnalyses =
+                assetAnalysisResultService.findByAssistantMessageIds(
+                        assistantMessageIds);
+        Map<Long, AssetAnalysisView> assetAnalyses = loadedAssetAnalyses == null
+                ? Map.of()
+                : loadedAssetAnalyses;
         return messages.stream()
                 .map(message -> ChatMessageResponse.from(
-                        message, analyses.get(message.getMessageId())))
+                        message,
+                        analyses.get(message.getMessageId()),
+                        assetAnalyses.get(message.getMessageId())))
                 .collect(Collectors.toList());
     }
 
@@ -156,6 +171,17 @@ public class ConversationMessageService {
                     aiResponse.answer()
             );
         }
+        AssetAnalysisView assetAnalysis =
+                assetAnalysisViewAssembler.assemble(aiResponse.assetAnalysis());
+        if (assetAnalysis != null) {
+            assetAnalysisResultService.save(
+                    currentUserId,
+                    assistantMessage.getMessageId(),
+                    content,
+                    aiResponse.assetAnalysis(),
+                    aiResponse.answer()
+            );
+        }
         if (isFirstMessage) {
             String title = aiResponse.title() == null
                     || aiResponse.title().isBlank()
@@ -172,7 +198,8 @@ public class ConversationMessageService {
                 persistedGoalInterview == null
                         ? aiResponse.goalInterview()
                         : persistedGoalInterview,
-                consumptionAnalysis
+                consumptionAnalysis,
+                assetAnalysis
         );
     }
 
