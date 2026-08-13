@@ -25,7 +25,7 @@ const remainingRankings = computed(() => rankings.value.filter((ranking) => rank
 
 // 화면의 랭킹 보상 안내에 표시할 포인트 기준임
 const rankingRewards = computed(() => [
-  { medal: "👑", label: "1등", point: 2000 },
+  { medal: "🏆", label: "1등", point: 2000 },
   { medal: "🥈", label: "2등", point: 1000 },
   { medal: "🥉", label: "3등", point: 800 },
   { medal: "", label: "4~10등", point: 500 },
@@ -118,7 +118,7 @@ onMounted(() => {
             :class="`rank-${ranking.rank}`"
           >
             <span class="rank-badge">{{ ranking.rank }}</span>
-            <span v-if="ranking.rank === 1" class="crown" aria-hidden="true">👑</span>
+            <span v-if="ranking.rank === 1" class="trophy" aria-hidden="true">🏆</span>
             <div class="profile-circle">
               <img
                 :src="profileImage(ranking.profileImageUrl)"
@@ -293,6 +293,7 @@ onMounted(() => {
 
 .podium-grid {
   display: grid;
+  align-items: end;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   padding-top: 14px;
@@ -301,7 +302,7 @@ onMounted(() => {
 .podium-card {
   position: relative;
   display: flex;
-  min-height: 175px;
+  min-height: 174px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -311,14 +312,20 @@ onMounted(() => {
 }
 
 .podium-card.rank-1 {
-  min-height: 190px;
-  margin-top: -14px;
+  min-height: 220px;
   border-color: #f5d98c;
   background: #fff9e8;
   box-shadow: 0 10px 24px rgb(239 187 55 / 12%);
 }
 
+.podium-card.rank-2 {
+  min-height: 195px;
+  border-color: #d5dced;
+  background: #f7f8fc;
+}
+
 .podium-card.rank-3 {
+  min-height: 174px;
   border-color: #f4d4c7;
   background: #fff3ee;
 }
@@ -345,10 +352,11 @@ onMounted(() => {
   background: #ef925d;
 }
 
-.crown {
+.trophy {
   position: absolute;
-  top: 17px;
-  font-size: 19px;
+  top: 26px;
+  font-size: 22px;
+  line-height: 1;
 }
 
 .profile-circle {
@@ -363,8 +371,11 @@ onMounted(() => {
 }
 
 .profile-circle img {
-  width: 38px;
-  height: 38px;
+  width: 42px;
+  height: 42px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 .podium-nickname {
@@ -576,8 +587,15 @@ onMounted(() => {
   }
 
   .podium-card.rank-1 {
-    min-height: 175px;
-    margin-top: 0;
+    min-height: 200px;
+  }
+
+  .podium-card.rank-2 {
+    min-height: 185px;
+  }
+
+  .podium-card.rank-3 {
+    min-height: 165px;
   }
 
   .ranking-table-card {
