@@ -147,7 +147,7 @@ public class ConversationMessageService {
         ConsumptionAnalysisView consumptionAnalysis =
                 consumptionAnalysisViewAssembler.assemble(
                         aiResponse.consumptionAnalysis());
-        if (consumptionAnalysis != null) {
+        if (consumptionAnalysis != null && !aiResponse.consumptionAnalysisReused()) {
             consumptionAnalysisResultService.save(
                     currentUserId,
                     assistantMessage.getMessageId(),
