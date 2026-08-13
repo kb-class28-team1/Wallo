@@ -5,8 +5,9 @@ import { useRoute, useRouter } from "vue-router";
 import ExpenseCalendar from "@/components/asset/ExpenseCalendar.vue";
 import CategoryBudgetEditor from "@/components/asset/CategoryBudgetEditor.vue";
 import ExpenseCategoryBreakdown from "@/components/asset/ExpenseCategoryBreakdown.vue";
+import ExpenseCategoryEditModal from "@/components/asset/ExpenseCategoryEditModal.vue";
 import ExpenseTransactionList from "@/components/asset/ExpenseTransactionList.vue";
-import { getExpenses } from "@/api/assetApi";
+import { getExpenses, updateExpenseCategory } from "@/api/assetApi";
 import { getApiErrorMessage } from "@/commonUtils/apiError";
 import { formatWon } from "@/commonUtils/formatters";
 import { EXPENSE_CATEGORY_META } from "@/features/financial/financialCategories";
@@ -59,6 +60,9 @@ const dailyError = ref("");
 const dailyLoadMoreError = ref("");
 const syncStatus = ref(null);
 const isBudgetEditorVisible = ref(false);
+const isCategoryEditModalVisible = ref(false);
+const selectedTransaction = ref(null);
+const isCategorySaving = ref(false);
 let requestVersion = 0;
 let dailyRequestVersion = 0;
 
@@ -230,6 +234,44 @@ const fetchExpensePage = async (page, append = false) => {
 
 const changeListCategory = async () => {
   await fetchExpensePage(0);
+};
+
+const openCategoryEditor = (transaction) => {
+  if (!transaction?.transactionId) {
+    alert("거래 식별자를 확인할 수 없어 카테고리를 수정할 수 없습니다.");
+    return;
+  }
+
+  selectedTransaction.value = transaction;
+  isCategoryEditModalVisible.value = true;
+};
+
+const closeCategoryEditor = () => {
+  if (isCategorySaving.value) return;
+  isCategoryEditModalVisible.value = false;
+  selectedTransaction.value = null;
+};
+
+const saveTransactionCategory = async ({ transactionId, category }) => {
+  if (isCategorySaving.value) return;
+
+  isCategorySaving.value = true;
+  try {
+    const response = await updateExpenseCategory(transactionId, category);
+    if (!response?.success) {
+      throw new Error(response?.error?.message || "카테고리 수정 응답이 올바르지 않습니다.");
+    }
+
+    await fetchExpensePage(0);
+    if (!error.value) {
+      isCategoryEditModalVisible.value = false;
+      selectedTransaction.value = null;
+    }
+  } catch (caughtError) {
+    alert(getApiErrorMessage(caughtError, "카테고리를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요."));
+  } finally {
+    isCategorySaving.value = false;
+  }
 };
 
 const loadSelectedMonth = async () => {
@@ -531,10 +573,12 @@ onMounted(async () => {
           <ExpenseTransactionList
             v-else
             :transactions="expenseData.transactions"
+            :editable="true"
             :has-next="expenseData.pagination.hasNext"
             :is-loading-more="isLoadingMore"
             :load-more-error="loadMoreError"
             @load-more="loadMore"
+            @edit-category="openCategoryEditor"
           />
         </div>
       </article>
@@ -557,6 +601,14 @@ onMounted(async () => {
       :is-saving="isBudgetSaving"
       @close="closeBudgetEditor"
       @save="saveBudget"
+    />
+
+    <ExpenseCategoryEditModal
+      :visible="isCategoryEditModalVisible"
+      :transaction="selectedTransaction"
+      :is-saving="isCategorySaving"
+      @close="closeCategoryEditor"
+      @save="saveTransactionCategory"
     />
 
     <div
@@ -608,6 +660,7 @@ onMounted(async () => {
               :has-next="dailyPagination.hasNext"
               :is-loading-more="isDailyLoadingMore"
               :load-more-error="dailyLoadMoreError"
+              :editable="false"
               empty-message="선택한 날짜의 거래 내역이 없습니다."
               @load-more="loadMoreDailyExpenses"
             />

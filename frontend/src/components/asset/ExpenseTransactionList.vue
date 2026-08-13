@@ -2,7 +2,7 @@
 import { getExpenseCategoryMeta } from "@/features/financial/financialCategories";
 import { formatNumber } from "@/commonUtils/formatters";
 
-defineProps({
+const props = defineProps({
   transactions: {
     type: Array,
     default: () => [],
@@ -23,9 +23,13 @@ defineProps({
     type: String,
     default: "이 달의 거래 내역이 없습니다.",
   },
+  editable: {
+    type: Boolean,
+    default: true,
+  },
 });
 
-defineEmits(["load-more"]);
+const emit = defineEmits(["load-more", "edit-category"]);
 
 const formatDate = (date) => {
   const [, month, day] = String(date || "").split("-");
@@ -84,7 +88,7 @@ const typeLabel = (type) => ({
 <template>
   <div>
     <ul v-if="transactions.length" class="transaction-list list-unstyled mb-0">
-      <li v-for="(transaction, index) in transactions" :key="`${transaction.date}-${transaction.merchantName}-${transaction.amount}-${index}`">
+      <li v-for="(transaction, index) in transactions" :key="transaction.transactionId || `${transaction.date}-${transaction.merchantName}-${transaction.amount}-${index}`">
         <span class="transaction-icon" :class="getExpenseCategoryMeta(transaction.category).colorClass">
           <i :class="['bi', getExpenseCategoryMeta(transaction.category).icon]" aria-hidden="true"></i>
         </span>
@@ -95,9 +99,21 @@ const typeLabel = (type) => ({
             {{ typeLabel(transaction.type) }}
           </small>
         </span>
-        <strong class="transaction-amount" :class="String(transaction.type || '').toLowerCase()">
-          {{ formatAmount(transaction) }}
-        </strong>
+        <div class="transaction-actions">
+          <strong class="transaction-amount" :class="String(transaction.type || '').toLowerCase()">
+            {{ formatAmount(transaction) }}
+          </strong>
+          <button
+            v-if="props.editable && transaction.transactionId"
+            type="button"
+            class="transaction-edit-button"
+            aria-label="카테고리 수정"
+            title="카테고리 수정"
+            @click="emit('edit-category', transaction)"
+          >
+            <i class="bi bi-pencil" aria-hidden="true"></i>
+          </button>
+        </div>
       </li>
     </ul>
 
@@ -181,6 +197,31 @@ const typeLabel = (type) => ({
   white-space: nowrap;
 }
 
+.transaction-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.transaction-edit-button {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e4e1f4;
+  border-radius: 9px;
+  color: #6b5bd2;
+  background: #ffffff;
+}
+
+.transaction-edit-button:hover,
+.transaction-edit-button:focus-visible {
+  color: #ffffff;
+  background: #8170ff;
+}
+
 .transaction-amount.income {
   color: #4f73e8;
 }
@@ -213,9 +254,9 @@ const typeLabel = (type) => ({
     grid-template-columns: 40px minmax(0, 1fr);
   }
 
-  .transaction-amount {
+  .transaction-actions {
     grid-column: 2;
-    justify-self: start;
+    justify-content: space-between;
   }
 }
 </style>
