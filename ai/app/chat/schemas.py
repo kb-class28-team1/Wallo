@@ -77,6 +77,10 @@ class ChatResponse(BaseModel):
         default=None,
         alias="consumptionAnalysis",
     )
+    asset_analysis: dict | None = Field(
+        default=None,
+        alias="assetAnalysis",
+    )
     consumption_analysis_reused: bool = Field(
         default=False,
         alias="consumptionAnalysisReused",

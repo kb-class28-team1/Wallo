@@ -3,7 +3,7 @@ import logging
 
 from groq import Groq
 
-from app.agents.financial.agent import FinancialAgent
+from app.agents.financial.agent import ASSET_ANALYSIS_TOOL, FinancialAgent
 from app.agents.financial.tools.financial_goal import NAME as FINANCIAL_GOAL_TOOL
 from app.agents.goal.agent import GoalAgent
 from app.agents.goal.models import GoalDraft, GoalInterviewAction, InterviewState
@@ -24,6 +24,7 @@ class ChatService:
     def chat(self, request: ChatRequest) -> ChatResponse:
         history = [message.model_dump() for message in request.history]
         consumption_analysis = None
+        asset_analysis = None
         if request.goal_draft is not None:
             answer, goal_interview = self._continue_goal_interview(request)
         else:
@@ -57,6 +58,8 @@ class ChatService:
                 )
                 if financial_agent.selected_tool == "coach_spending":
                     consumption_analysis = financial_agent.selected_tool_result
+                if financial_agent.selected_tool == ASSET_ANALYSIS_TOOL:
+                    asset_analysis = financial_agent.selected_tool_result
                 goal_interview = None
                 if financial_agent.selected_tool == FINANCIAL_GOAL_TOOL:
                     if request.goal_already_exists:
@@ -73,6 +76,7 @@ class ChatService:
             title=title,
             goal_interview=goal_interview,
             consumption_analysis=consumption_analysis,
+            asset_analysis=asset_analysis,
         )
 
     def _continue_goal_interview(

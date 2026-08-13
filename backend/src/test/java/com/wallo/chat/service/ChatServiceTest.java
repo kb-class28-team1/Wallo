@@ -47,6 +47,31 @@ class ChatServiceTest {
     }
 
     @Test
+    void returnsAssetAnalysisFromAiResponse() {
+        GoalAssetContextDto.Response financialContext = emptyContext(true);
+        ChatRequest request = new ChatRequest("analyze assets");
+        Map<String, Object> assetAnalysis = Map.of(
+                "calculatedMetrics",
+                Map.of("totalAssetsKrw", 100_000_000L)
+        );
+        ChatResponse aiResponse = new ChatResponse(
+                "asset analysis answer",
+                null,
+                null,
+                null,
+                assetAnalysis
+        );
+        when(assetService.getGoalAssetContext(7L)).thenReturn(financialContext);
+        when(pythonAiClient.chat(request.withFinancialContext(financialContext)))
+                .thenReturn(aiResponse);
+
+        ChatResponse response = chatService.chat(request, 7L);
+
+        assertEquals(assetAnalysis, response.assetAnalysis());
+        assertEquals(null, response.consumptionAnalysis());
+    }
+
+    @Test
     void returnsNonConsumptionResponseWithoutCalculation() {
         ConsumptionAnalysisContextService contextService =
                 mock(ConsumptionAnalysisContextService.class);
