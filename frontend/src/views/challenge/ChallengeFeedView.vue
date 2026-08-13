@@ -624,6 +624,7 @@ onBeforeUnmount(() => {
 
                 >
                 </span>
+                <small>{{ categoryLabel(feed.category, feed.customCategory) }}</small>
               </div>
               <span class="saving-badge">+ {{ formatWon(feed.savingAmount) }}</span>
             </header>
