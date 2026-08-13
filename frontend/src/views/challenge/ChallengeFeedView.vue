@@ -589,8 +589,8 @@ onBeforeUnmount(() => {
               내 피드
             </button>
           </nav>
-          <div class="feed-title-actions">
-            <h1>{{ challengeName }}</h1>
+          <h1>{{ challengeName }}</h1>
+          <div class="feed-header-actions">
             <div v-if="inviteCode" class="feed-invite-panel">
               <div>
                 <small>친구 초대 코드</small>
@@ -954,24 +954,17 @@ onBeforeUnmount(() => {
   gap: 18px;
 }
 .feed-header {
+  width: calc(100% - 352px);
   margin-bottom: 24px;
 }
 .feed-header-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 16px;
 }
-.feed-title-actions {
-  display: flex;
-  align-items: center;
+.feed-header h1 {
   min-width: 0;
-  max-width: calc(100% - 140px);
-  flex: 0 1 auto;
-  gap: 12px;
-}
-.feed-title-actions h1 {
-  min-width: 0;
-  flex: 0 1 auto;
   margin: 0;
   overflow: hidden;
   color: #121d3e;
@@ -980,6 +973,11 @@ onBeforeUnmount(() => {
   letter-spacing: -0.04em;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.feed-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 .feed-header p {
   margin: 8px 0 0;
@@ -1799,6 +1797,9 @@ textarea {
   }
 }
 @media (max-width: 1200px) {
+  .feed-header {
+    width: 100%;
+  }
   .feed-layout {
     grid-template-columns: 1fr;
   }
@@ -1819,23 +1820,27 @@ textarea {
 }
 @media (max-width: 650px) {
   .feed-header {
+    width: 100%;
     margin-bottom: 20px;
   }
   .feed-header-row {
-    flex-wrap: wrap;
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: 10px;
   }
   .feed-header .feed-tabs {
-    flex: 1 0 100%;
+    grid-column: 1 / -1;
+    grid-row: 1;
     width: 100%;
   }
-  .feed-title-actions {
-    width: 100%;
-    max-width: none;
-    flex: 1;
-  }
-  .feed-title-actions h1 {
+  .feed-header h1 {
+    grid-column: 1;
+    grid-row: 2;
     font-size: 1.35rem;
+  }
+  .feed-header-actions {
+    grid-column: 2;
+    grid-row: 2;
+    gap: 4px;
   }
   .feed-header .feed-tabs button {
     flex: 1;
