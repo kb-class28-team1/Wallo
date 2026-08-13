@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from "vue"
+import { useRouter } from "vue-router"
 import {
   deleteUsedInventoryItem,
   getPointShop,
@@ -10,6 +11,7 @@ import {
 import { useUserStore } from "@/stores/userStore"
 
 const userStore = useUserStore()
+const router = useRouter()
 const activeProbabilityBox = ref(null)
 const shopPointBalance = ref(null)
 const isLoading = ref(false)
@@ -117,6 +119,9 @@ const handleUseInventoryItem = async () => {
   try {
     await useInventoryItemApi(item.id)
     closeInventoryDetail()
+    if (router.currentRoute.value.name !== "point-shop") {
+      await router.push({ name: "point-shop" })
+    }
     await loadPointShop()
   } catch (error) {
     alert(error.message || "기프티콘을 사용 처리하지 못했습니다.")
