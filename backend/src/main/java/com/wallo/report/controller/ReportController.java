@@ -5,6 +5,8 @@ import com.wallo.report.dto.response.ReportDetailResponse;
 import com.wallo.report.dto.response.ReportListResponse;
 import com.wallo.report.service.NewsReportGenerationService;
 import com.wallo.report.service.NewsService;
+import com.wallo.report.scheduler.NewsCrawlingScheduler;
+import com.wallo.report.scheduler.FinancialReportGenerationScheduler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -20,10 +22,19 @@ public class ReportController {
 
     private final NewsService newsService;
     private final NewsReportGenerationService newsReportGenerationService;
+    private final NewsCrawlingScheduler newsCrawlingScheduler;
+    private final FinancialReportGenerationScheduler financialReportGenerationScheduler;
 
-    public ReportController(NewsService newsService, NewsReportGenerationService newsReportGenerationService) {
+    public ReportController(
+            NewsService newsService,
+            NewsReportGenerationService newsReportGenerationService,
+            NewsCrawlingScheduler newsCrawlingScheduler,
+            FinancialReportGenerationScheduler financialReportGenerationScheduler
+    ) {
         this.newsService = newsService;
         this.newsReportGenerationService = newsReportGenerationService;
+        this.newsCrawlingScheduler = newsCrawlingScheduler;
+        this.financialReportGenerationScheduler = financialReportGenerationScheduler;
     }
 
     /**
@@ -54,5 +65,17 @@ public class ReportController {
     public CommonResponse<ReportDetailResponse> generateReport(@PathVariable Long newsId) {
         newsReportGenerationService.generateIfAbsent(newsId);
         return CommonResponse.success(newsService.getReportDetail(newsId));
+    }
+
+    /** 뉴스만 크롤링해 DB에 저장하며 AI는 호출하지 않는다. */
+    @PostMapping("/crawl-now")
+    public CommonResponse<NewsCrawlingScheduler.RunResult> crawlNewsNow() {
+        return CommonResponse.success(newsCrawlingScheduler.runNow());
+    }
+
+    /** 미생성 금융 리포트의 백그라운드 생성을 예약하고 즉시 응답한다. */
+    @PostMapping("/generate-missing")
+    public CommonResponse<FinancialReportGenerationScheduler.GenerationRequestResult> generateMissingReports() {
+        return CommonResponse.success(financialReportGenerationScheduler.requestGenerationNow());
     }
 }
