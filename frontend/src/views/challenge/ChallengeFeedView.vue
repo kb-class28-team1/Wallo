@@ -1059,7 +1059,7 @@ onBeforeUnmount(() => {
 }
 .feed-tabs {
   display: flex;
-  gap: 6px;
+  gap: 3px;
   padding: 5px;
   background: #f0eff7;
   border-radius: 13px;
