@@ -1,10 +1,13 @@
 package com.wallo.asset.mapper;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.wallo.asset.dto.ExpenseDto;
 import com.wallo.test.TestDatabase;
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.List;
 import javax.sql.DataSource;
@@ -103,6 +106,45 @@ class ExpenseMapperIntegrationTest {
 
         assertEquals(410L, expenseMapper.selectTotalExpense(7L, condition));
         assertEquals(2, expenseMapper.selectDailyBreakdown(7L, condition).size());
+    }
+
+    @Test
+    void updatesExpenseIncomeAndTransferButKeepsCardWithdrawalProtected() throws Exception {
+        assertEquals(1, expenseMapper.updateTransactionCategory(7L, 1L, "CAFE"));
+        assertEquals(1, expenseMapper.updateTransactionCategory(7L, 3L, "FOOD"));
+        assertEquals(1, expenseMapper.updateTransactionCategory(7L, 4L, "ETC"));
+        assertEquals(0, expenseMapper.updateTransactionCategory(7L, 5L, "ETC"));
+
+        try (Connection connection = sqlSession.getConnection();
+             Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery("""
+                     SELECT transaction_id, category, category_source, classifier_version
+                     FROM TRANSACTIONS
+                     WHERE user_id = 7 AND transaction_id IN (1, 3, 4, 5)
+                     ORDER BY transaction_id
+                     """)) {
+            assertTrue(resultSet.next());
+            assertEquals(1L, resultSet.getLong("transaction_id"));
+            assertEquals("CAFE", resultSet.getString("category"));
+            assertEquals("USER", resultSet.getString("category_source"));
+            assertEquals("user-v1", resultSet.getString("classifier_version"));
+
+            assertTrue(resultSet.next());
+            assertEquals(3L, resultSet.getLong("transaction_id"));
+            assertEquals("FOOD", resultSet.getString("category"));
+            assertEquals("USER", resultSet.getString("category_source"));
+
+            assertTrue(resultSet.next());
+            assertEquals(4L, resultSet.getLong("transaction_id"));
+            assertEquals("ETC", resultSet.getString("category"));
+            assertEquals("USER", resultSet.getString("category_source"));
+
+            assertTrue(resultSet.next());
+            assertEquals(5L, resultSet.getLong("transaction_id"));
+            assertEquals("CARD_WITHDRAWAL", resultSet.getString("category"));
+            assertEquals("TEST", resultSet.getString("category_source"));
+            assertNull(resultSet.getString("classifier_version"));
+        }
     }
 
     private void createExpenseFixtures(DataSource dataSource) throws Exception {
