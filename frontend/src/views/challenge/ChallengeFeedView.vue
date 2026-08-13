@@ -637,7 +637,6 @@ onBeforeUnmount(() => {
                 muted
                 loop
                 playsinline
-                controls
                 preload="metadata"
                 :aria-label="feed.caption || '절약 인증 영상'"
               ></video>
