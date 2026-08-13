@@ -11,6 +11,7 @@ from app.asset_reports.router import router as asset_reports_router
 from app.demo.router import router as demo_router
 from app.health.router import router as health_router
 from app.reports.router import router as financial_report_router
+from app.missions.router import router as mission_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("wallo_ai")
@@ -24,6 +25,7 @@ def create_app() -> FastAPI:
     app.include_router(asset_reports_router)
     app.include_router(demo_router)
     app.include_router(financial_report_router)
+    app.include_router(mission_router)
 
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(request: Request, exc: RequestValidationError):

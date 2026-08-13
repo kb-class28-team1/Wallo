@@ -23,6 +23,7 @@ import com.wallo.chat.dto.SummarizeConversationRequest;
 import com.wallo.chat.dto.SummarizeConversationResponse;
 import com.wallo.goal.service.GoalPersistenceService;
 import com.wallo.goal.dto.GoalInterviewDto;
+import com.wallo.mission.service.MissionGenerationService;
 import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -382,6 +383,33 @@ class ConversationMessageServiceTest {
         assertEquals(analysis, response.getConsumptionAnalysis());
         assertEquals(analysis,
                 response.getAssistantMessage().getConsumptionAnalysis());
+    }
+
+    @Test
+    void generatesTodayMissionsAfterUsersFirstConsumptionAnalysis() {
+        MissionGenerationService missionGenerationService =
+                org.mockito.Mockito.mock(MissionGenerationService.class);
+        ConversationMessageService service = new ConversationMessageService(
+                conversationService, persistenceService, chatService,
+                goalPersistenceService, consumptionAnalysisResultService,
+                consumptionAnalysisViewAssembler, missionGenerationService);
+        SendConversationMessageRequest request = request(7L, "소비분석해줘");
+        Map<String, Object> calculation = Map.of("periodType", "MONTHLY");
+        when(persistenceService.saveMessage(1L, "USER", request.getMessage()))
+                .thenReturn(message(1L, "USER", request.getMessage()));
+        when(chatService.chat(new ChatRequest(request.getMessage()), 7L))
+                .thenReturn(new ChatResponse("첫 분석", null, null, calculation));
+        when(persistenceService.saveMessage(1L, "ASSISTANT", "첫 분석"))
+                .thenReturn(message(2L, "ASSISTANT", "첫 분석"));
+        when(consumptionAnalysisViewAssembler.assemble(calculation))
+                .thenReturn(emptyAnalysis());
+        when(consumptionAnalysisResultService.save(
+                7L, 2L, request.getMessage(), calculation, "첫 분석"))
+                .thenReturn(true);
+
+        service.sendMessage(1L, 7L, request);
+
+        verify(missionGenerationService).generate(7L, false);
     }
 
     @Test

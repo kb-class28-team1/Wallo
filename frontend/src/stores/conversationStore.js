@@ -266,6 +266,10 @@ export const useConversationStore = defineStore("conversation", () => {
         content,
       )
 
+      if (response.consumptionAnalysis) {
+        window.dispatchEvent(new CustomEvent("wallo:mission-updated"))
+      }
+
       activeGoalInterview.value = response.goalInterview ?? null
 
       const goalInterview = response.goalInterview

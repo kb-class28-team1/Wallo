@@ -91,6 +91,23 @@
         )
     </insert>
 
+    <!-- daily_mission_id 기반 reference_key가 이미 존재하면 중복 지급하지 않음. -->
+    <insert id="insertMissionRewardHistory">
+        INSERT IGNORE INTO POINT_HISTORY (
+            user_id,
+            amount,
+            type,
+            reference_key,
+            description
+        ) VALUES (
+            #{userId},
+            #{amount},
+            'MISSION_REWARD',
+            #{referenceKey},
+            #{description}
+        )
+    </insert>
+
     <!-- 랜덤박스 즉시 지급 포인트를 사용자 잔액에 반영함. -->
     <update id="addPoints">
         UPDATE USERS
