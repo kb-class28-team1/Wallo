@@ -764,11 +764,11 @@ onBeforeUnmount(() => {
           <div
             class="upload-zone"
             :class="{ 'has-preview': previewUrl }"
-            :role="previewUrl ? 'button' : undefined"
-            :tabindex="previewUrl ? 0 : undefined"
-            @click="previewUrl && chooseFile()"
-            @keydown.enter.prevent="previewUrl && chooseFile()"
-            @keydown.space.prevent="previewUrl && chooseFile()"
+            role="button"
+            tabindex="0"
+            @click="chooseFile"
+            @keydown.enter.prevent="chooseFile"
+            @keydown.space.prevent="chooseFile"
           >
             <template v-if="previewUrl">
               <video
