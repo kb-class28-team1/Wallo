@@ -14,6 +14,7 @@ import com.wallo.chat.domain.Conversation;
 import com.wallo.chat.dto.ChatRequest;
 import com.wallo.chat.dto.ChatHistoryMessage;
 import com.wallo.chat.dto.ChatResponse;
+import com.wallo.chat.dto.AssetAnalysisView;
 import com.wallo.chat.dto.ConsumptionAnalysisView;
 import com.wallo.chat.dto.ConsumptionAnalysisPeriodContext;
 import com.wallo.chat.dto.SendConversationMessageRequest;
@@ -398,6 +399,50 @@ class ConversationMessageServiceTest {
         assertEquals(analysis, responses.get(0).getConsumptionAnalysis());
     }
 
+    @Test
+    void linksAssetAnalysisToSavedAssistantMessage() {
+        SendConversationMessageRequest request = request(7L, "analyze assets");
+        ChatMessage assistantMessage = message(2L, "ASSISTANT", "asset analysis answer");
+        Map<String, Object> calculation = Map.of(
+                "calculatedMetrics",
+                Map.of("totalAssetsKrw", 100_000_000L)
+        );
+        AssetAnalysisView analysis = emptyAssetAnalysis();
+
+        when(persistenceService.saveMessage(1L, "USER", request.getMessage()))
+                .thenReturn(message(1L, "USER", request.getMessage()));
+        when(chatService.chat(new ChatRequest(request.getMessage()), 7L))
+                .thenReturn(new ChatResponse(
+                        "asset analysis answer", null, null, null, calculation));
+        when(persistenceService.saveMessage(1L, "ASSISTANT", "asset analysis answer"))
+                .thenReturn(assistantMessage);
+        when(assetAnalysisViewAssembler.assemble(calculation)).thenReturn(analysis);
+
+        SendConversationMessageResponse response =
+                conversationMessageService.sendMessage(1L, 7L, request);
+
+        verify(assetAnalysisResultService).save(
+                7L, 2L, request.getMessage(), calculation, "asset analysis answer");
+        assertEquals(analysis, response.getAssetAnalysis());
+        assertEquals(analysis, response.getAssistantMessage().getAssetAnalysis());
+    }
+
+    @Test
+    void restoresAssetAnalysisWithConversationMessages() {
+        ChatMessage assistantMessage = message(2L, "ASSISTANT", "asset analysis answer");
+        AssetAnalysisView analysis = emptyAssetAnalysis();
+        when(persistenceService.getMessages(1L)).thenReturn(List.of(assistantMessage));
+        when(consumptionAnalysisResultService.findByAssistantMessageIds(List.of(2L)))
+                .thenReturn(Map.of());
+        when(assetAnalysisResultService.findByAssistantMessageIds(List.of(2L)))
+                .thenReturn(Map.of(2L, analysis));
+
+        List<com.wallo.chat.dto.ChatMessageResponse> responses =
+                conversationMessageService.getMessages(1L, 7L);
+
+        assertEquals(analysis, responses.get(0).getAssetAnalysis());
+    }
+
     private SendConversationMessageRequest request(Long userId, String content) {
         SendConversationMessageRequest request =
                 new SendConversationMessageRequest();
@@ -444,6 +489,19 @@ class ConversationMessageServiceTest {
                 new ConsumptionAnalysisView.SignalSet(
                         List.of(), List.of(), List.of(), List.of(), List.of(),
                         List.of(), null, List.of(), List.of(), List.of(), List.of())
+        );
+    }
+    private AssetAnalysisView emptyAssetAnalysis() {
+        return new AssetAnalysisView(
+                new AssetAnalysisView.SummaryInfo(
+                        100_000_000L, 10_000_000L, 90_000_000L),
+                new AssetAnalysisView.CashFlowInfo(
+                        5_000_000L, 2_000_000L, 3_000_000L,
+                        2_000_000L, 24_000_000L, 40.0),
+                List.of(new AssetAnalysisView.AssetItem(
+                        "Savings", "saving_cash", 80_000_000L,
+                        null, null, 80.0, false)),
+                List.of()
         );
     }
 }

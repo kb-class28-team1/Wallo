@@ -194,7 +194,8 @@ public class ConversationMessageService {
 
         return new SendConversationMessageResponse(
                 ChatMessageResponse.from(userMessage),
-                ChatMessageResponse.from(assistantMessage, consumptionAnalysis),
+                ChatMessageResponse.from(
+                        assistantMessage, consumptionAnalysis, assetAnalysis),
                 persistedGoalInterview == null
                         ? aiResponse.goalInterview()
                         : persistedGoalInterview,
