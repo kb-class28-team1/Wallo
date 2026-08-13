@@ -28,6 +28,7 @@ import java.time.ZoneId;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
@@ -76,6 +77,21 @@ public class AppConfig {
     }
 
     @Bean
+    public RestTemplate geminiRestTemplate(
+            @Value("${gemini.http.connect-timeout-ms:5000}") int connectTimeoutMs,
+            @Value("${gemini.http.read-timeout-ms:60000}") int readTimeoutMs
+    ) {
+        if (connectTimeoutMs < 1 || readTimeoutMs < 1) {
+            throw new IllegalArgumentException("Gemini HTTP timeouts must be positive.");
+        }
+
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(connectTimeoutMs);
+        requestFactory.setReadTimeout(readTimeoutMs);
+        return new RestTemplate(requestFactory);
+    }
+
+    @Bean
     public CodefAccessTokenProvider codefAccessTokenProvider(
             @Value("${codef.client.mode:mock}") String clientMode,
             @Value("${codef.api.access-token:}") String apiAccessToken,
@@ -108,6 +124,7 @@ public class AppConfig {
             "incomeProofClient"
     })
     public CodefMockClient codefClient(
+            @Qualifier("restTemplate")
             RestTemplate restTemplate,
             CodefAuthorizedRequestFactory requestFactory,
             CodefPasswordEncryptor passwordEncryptor,
@@ -154,7 +171,7 @@ public class AppConfig {
 
     @Bean
     public FeedAnalysisClient feedAnalysisClient(
-            RestTemplate restTemplate,
+            @Qualifier("geminiRestTemplate") RestTemplate geminiRestTemplate,
             ObjectMapper objectMapper,
             @Value("${gemini.enabled:false}") boolean geminiEnabled,
             @Value("${gemini.api-key:}") String geminiApiKey,
@@ -162,7 +179,7 @@ public class AppConfig {
     ) {
         if (geminiEnabled && geminiApiKey != null && !geminiApiKey.isBlank()) {
             return new GeminiFeedAnalysisClient(
-                    restTemplate,
+                    geminiRestTemplate,
                     objectMapper,
                     geminiApiKey.trim(),
                     geminiModel.trim()
