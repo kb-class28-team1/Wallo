@@ -343,6 +343,9 @@ const removeFeed = async (feed) => {
   }
 }
 const chooseFile = () => fileInput.value?.click()
+const pauseVideoPreview = (event) => {
+  event.currentTarget.pause()
+}
 const handleFile = async (event) => {
   const file = event.target.files?.[0]
   if (!file) return
@@ -628,7 +631,6 @@ onBeforeUnmount(() => {
                 v-if="feed.mediaType === 'VIDEO'"
                 class="feed-media"
                 :src="feed.mediaUrl"
-                autoplay
                 muted
                 loop
                 playsinline
@@ -782,6 +784,7 @@ onBeforeUnmount(() => {
                 controls
                 preload="auto"
                 @click.stop
+                @loadeddata="pauseVideoPreview"
                 aria-label="업로드할 영상 미리보기"
               ></video>
               <img v-else :src="previewUrl" alt="업로드 미리보기" />
@@ -1516,6 +1519,7 @@ onBeforeUnmount(() => {
   height: 100%;
   min-width: 0;
   min-height: 0;
+  background: #0d1633;
 }
 .chip-row {
   display: flex;
