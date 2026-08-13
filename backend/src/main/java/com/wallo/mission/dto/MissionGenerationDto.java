@@ -7,7 +7,9 @@ public final class MissionGenerationDto {
     private MissionGenerationDto() {}
 
     public record Request(Long userId, Long analysisResultId,
-                          Map<String, Object> consumptionAnalysis) {}
+                          Map<String, Object> consumptionAnalysis,
+                          int requestedMissionCount,
+                          List<String> excludedTitles) {}
 
     public record GeneratedMission(
             String title,

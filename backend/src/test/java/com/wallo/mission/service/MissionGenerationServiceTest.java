@@ -37,39 +37,39 @@ class MissionGenerationServiceTest {
         Clock clock = Clock.fixed(Instant.parse("2026-08-17T00:00:00Z"),
                 ZoneId.of("Asia/Seoul"));
         service = new MissionGenerationService(mapper, aiClient, new ObjectMapper(),
-                new MissionCycleCalculator(), clock);
+                new MissionCycleCalculator(), clock, () -> 2);
         MissionAnalysisSource source = new MissionAnalysisSource();
         source.setAnalysisResultId(11L);
         source.setUserId(7L);
         source.setCalculatedResultJson("{\"summary\":\"카페 소비 증가\"}");
         when(mapper.findLatestAnalysis(7L)).thenReturn(source);
-        when(aiClient.generate(any())).thenReturn(response(uniqueMissions()));
+        when(aiClient.generate(any())).thenReturn(response(uniqueMissions().subList(0, 2)));
     }
 
     @Test
-    void previewsTwentyMissionsWithoutWritingDatabase() {
+    void previewsThreeEasyMissionsWithoutWritingDatabase() {
+        when(aiClient.generate(any())).thenReturn(response(uniqueMissions().subList(0, 3)));
         MissionGenerationDto.Response response = service.preview(7L);
 
-        assertEquals(20, response.missions().size());
+        assertEquals(3, response.missions().size());
         verify(mapper, never()).insertCycle(any());
         verify(mapper, never()).insertMission(any());
     }
 
     @Test
-    void generatesAndStoresExactlyTwentyUniqueMissions() {
+    void generatesAndStoresDailyMissionCount() {
         MissionGenerationDto.Result result = service.generate(7L, false);
 
-        assertEquals(20, result.missionCount());
+        assertEquals(2, result.missionCount());
         assertEquals("ACTIVE", result.status());
-        verify(mapper, times(20)).insertMission(any());
-        verify(mapper).updateCycleStatus(any(), org.mockito.ArgumentMatchers.eq("ACTIVE"),
-                org.mockito.ArgumentMatchers.isNull());
+        verify(mapper, times(2)).insertMission(any());
+        verify(mapper, times(2)).insertDailyMission(any());
     }
 
     @Test
-    void rejectsFewerThanTwentyMissions() {
+    void rejectsFewerThanRequestedDailyMissions() {
         when(aiClient.generate(any())).thenReturn(
-                response(new ArrayList<>(uniqueMissions().subList(0, 10))));
+                response(new ArrayList<>(uniqueMissions().subList(0, 1))));
 
         assertThrows(IllegalStateException.class, () -> service.generate(7L, false));
         verify(mapper, never()).insertMission(any());
@@ -104,16 +104,14 @@ class MissionGenerationServiceTest {
     }
 
     @Test
-    void returnsExistingCycleWithoutCallingAi() {
-        com.wallo.mission.domain.MissionCycle cycle = new com.wallo.mission.domain.MissionCycle();
-        cycle.setMissionCycleId(5L);
-        cycle.setStatus("ACTIVE");
-        when(mapper.findCycle(anyLong(), any())).thenReturn(cycle);
-        when(mapper.countMissionsByCycleId(5L)).thenReturn(20);
+    void returnsExistingDailyMissionsWithoutCallingAi() {
+        com.wallo.mission.domain.DailyMission daily = new com.wallo.mission.domain.DailyMission();
+        daily.setMissionCycleId(5L);
+        when(mapper.findDailyMissions(anyLong(), any())).thenReturn(List.of(daily));
 
         MissionGenerationDto.Result result = service.generate(7L, false);
 
-        assertEquals(5L, result.missionCycleId());
+        assertEquals(1, result.missionCount());
         verify(aiClient, never()).generate(any());
     }
 
@@ -156,7 +154,7 @@ class MissionGenerationServiceTest {
 
     private List<MissionGenerationDto.GeneratedMission> uniqueMissions() {
         List<MissionGenerationDto.GeneratedMission> result = new ArrayList<>();
-        for (int index = 0; index < 20; index++) {
+        for (int index = 0; index < 3; index++) {
             result.add(new MissionGenerationDto.GeneratedMission(
                     "맞춤 미션 " + index, "서로 다른 행동 " + index,
                     "FOOD", 10, "MEDIA_AI",

@@ -6,7 +6,7 @@ from .schemas import MissionGenerateRequest
 MISSION_PROMPT_VERSION = "personalized-mission-v1"
 MISSION_GENERATION_INSTRUCTIONS = """
 당신은 사용자의 소비 습관 개선을 돕는 금융 코치입니다.
-제공된 소비분석 결과만 근거로, 앞으로 2주 동안 실천할 수 있는 미션을 요청된 개수만큼 만드세요.
+제공된 소비분석 결과만 근거로, 오늘 하루 실천할 수 있는 매우 쉬운 미션을 요청된 개수만큼 만드세요.
 
 출력 JSON 계약(반드시 그대로 준수):
 - JSON 이외의 설명, 마크다운, 코드 블록을 절대 출력하지 마세요.
@@ -29,6 +29,8 @@ MISSION_GENERATION_INSTRUCTIONS = """
 
 미션 작성 규칙:
 - requestedMissionCount에 지정된 개수만큼 미션을 만들고, excludedTitles와 중복되면 안 됩니다.
+- 모든 미션은 별도 준비나 큰 지출 없이 오늘 바로 끝낼 수 있는 쉬운 행동이어야 합니다.
+- 장기간 유지, 주간 횟수, 월간 예산처럼 오늘 완료 여부를 판단할 수 없는 미션은 만들지 마세요.
 - 필수 생활비, 의료비, 공과금과 안전을 해치는 절약을 제안하지 마세요.
 - 단발성 고액 소비와 excludedFromMission=true인 항목은 감축 미션의 근거로 사용하지 마세요.
 - 제목과 설명은 한국어로, 하루 안에 수행하거나 확인 가능한 구체적인 행동으로 작성하세요.
@@ -52,9 +54,9 @@ def build_mission_input(
             "analysisResultId": request.analysisResultId,
             "consumptionAnalysis": request.consumptionAnalysis,
             "promptVersion": MISSION_PROMPT_VERSION,
-            "requestedMissionCount": requested_count,
+            "requestedMissionCount": request.requestedMissionCount,
             "batchNumber": batch_number,
-            "excludedTitles": excluded_titles or [],
+            "excludedTitles": request.excludedTitles,
             "outputContract": {
                 "topLevelFields": ["missions", "promptVersion"],
                 "promptVersion": MISSION_PROMPT_VERSION,

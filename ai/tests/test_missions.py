@@ -52,11 +52,13 @@ def _sequence_client(batches: list[list[dict]]):
         completions=SimpleNamespace(create=create)))
 
 
-def _request() -> MissionGenerateRequest:
+def _request(count: int = 3) -> MissionGenerateRequest:
     return MissionGenerateRequest(
         userId=7,
         analysisResultId=10,
         consumptionAnalysis={"summary": "카페 소비가 증가했습니다."},
+        requestedMissionCount=count,
+        excludedTitles=[],
     )
 
 
@@ -89,21 +91,21 @@ def test_structured_schema_uses_only_single_concrete_field_types():
     )
 
 
-def test_generates_exactly_twenty_unique_missions():
+def test_generates_requested_daily_missions():
     result = generate_missions(
-        _client({"missions": [_mission(i) for i in range(20)],
+        _client({"missions": [_mission(i) for i in range(3)],
                  "promptVersion": "personalized-mission-v1"}),
         _request(),
         "test-model",
     )
-    assert len(result.missions) == 20
-    assert len({mission.title for mission in result.missions}) == 20
+    assert len(result.missions) == 3
+    assert len({mission.title for mission in result.missions}) == 3
 
 
-def test_rejects_less_than_twenty_missions():
+def test_rejects_less_than_requested_daily_missions():
     with pytest.raises(InvalidMissionResponseError):
         generate_missions(
-            _client({"missions": [_mission(i) for i in range(19)],
+            _client({"missions": [_mission(i) for i in range(2)],
                      "promptVersion": "personalized-mission-v1"}),
             _request(),
             "test-model",
@@ -111,7 +113,7 @@ def test_rejects_less_than_twenty_missions():
 
 
 def test_removes_semantically_identical_normalized_title():
-    missions = [_mission(i) for i in range(20)]
+    missions = [_mission(i) for i in range(3)]
     missions[1]["title"] = " 맞춤   미션 0 "
     missions[1]["description"] = "설명은 달라도 같은 제목이면 중복입니다."
     with pytest.raises(InvalidMissionResponseError):
@@ -122,56 +124,16 @@ def test_removes_semantically_identical_normalized_title():
         )
 
 
-def test_trims_extra_unique_missions_to_twenty():
-    result = generate_missions(
-        _client({"missions": [_mission(i) for i in range(23)],
-                 "promptVersion": "personalized-mission-v1"}),
-        _request(),
-        "test-model",
-    )
-
-    assert len(result.missions) == 20
-
-
 def test_structured_schema_accepts_small_over_generation_for_trimming():
     from app.missions.service import mission_response_schema
 
-    missions_schema = mission_response_schema(10)["schema"]["properties"]["missions"]
+    missions_schema = mission_response_schema(3)["schema"]["properties"]["missions"]
     assert missions_schema["minItems"] == 1
-    assert missions_schema["maxItems"] == 12
-
-
-def test_requests_only_missing_count_after_cross_batch_duplicate():
-    first = [_mission(i) for i in range(10)]
-    second = [_mission(0)] + [_mission(i) for i in range(10, 19)]
-    refill = [_mission(19)]
-
-    result = generate_missions(
-        _sequence_client([first, second, refill]),
-        _request(),
-        "test-model",
-    )
-
-    assert len(result.missions) == 20
-    assert len({mission.title for mission in result.missions}) == 20
-
-
-def test_refills_when_ai_returns_fewer_than_requested():
-    first = [_mission(i) for i in range(9)]
-    second = [_mission(i) for i in range(9, 19)]
-    refill = [_mission(19)]
-
-    result = generate_missions(
-        _sequence_client([first, second, refill]),
-        _request(),
-        "test-model",
-    )
-
-    assert len(result.missions) == 20
+    assert missions_schema["maxItems"] == 5
 
 
 def test_rejects_changed_field_names_and_missing_category():
-    missions = [_mission(i) for i in range(20)]
+    missions = [_mission(i) for i in range(3)]
     for mission in missions:
         mission["type"] = mission.pop("verificationType")
         mission["points"] = mission.pop("rewardPoint")
@@ -186,7 +148,7 @@ def test_rejects_changed_field_names_and_missing_category():
 
 
 def test_rejects_reward_points_other_than_ten():
-    missions = [_mission(i) for i in range(20)]
+    missions = [_mission(i) for i in range(3)]
     missions[0]["rewardPoint"] = 20
 
     with pytest.raises(InvalidMissionResponseError):

@@ -9,6 +9,8 @@ class MissionGenerateRequest(BaseModel):
     userId: int = Field(gt=0)
     analysisResultId: int | None = Field(default=None, gt=0)
     consumptionAnalysis: dict[str, Any]
+    requestedMissionCount: int = Field(ge=1, le=3)
+    excludedTitles: list[str] = Field(default_factory=list, max_length=50)
 
 
 class GeneratedMission(BaseModel):
@@ -36,7 +38,7 @@ class GeneratedMission(BaseModel):
 class MissionGenerateResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    missions: list[GeneratedMission] = Field(min_length=10, max_length=20)
+    missions: list[GeneratedMission] = Field(min_length=1, max_length=3)
     promptVersion: str = Field(min_length=1, max_length=50)
 
     @model_validator(mode="before")
@@ -53,7 +55,7 @@ class MissionGenerateResponse(BaseModel):
             if key and key not in title_keys:
                 title_keys.add(key)
                 unique.append(mission)
-            if len(unique) == 20:
+            if len(unique) == 3:
                 break
         return {**value, "missions": unique}
 

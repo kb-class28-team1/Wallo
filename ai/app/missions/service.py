@@ -95,48 +95,35 @@ def generate_missions(
     client: Groq, request: MissionGenerateRequest, model: str
 ) -> MissionGenerateResponse:
     try:
-        generated: list[GeneratedMission] = []
-        title_keys: set[str] = set()
-        for batch_number in (1, 2, 3, 4):
-            requested_count = min(10, 20 - len(generated))
-            if requested_count <= 0:
-                break
-            options = {
+        requested_count = request.requestedMissionCount
+        options = {
                 "response_format": {
                     "type": "json_schema",
                     "json_schema": mission_response_schema(requested_count),
                 },
                 "max_completion_tokens": get_mission_max_completion_tokens(),
-            }
-            if model.startswith("openai/gpt-oss-"):
-                options["reasoning_effort"] = "low"
-            response = client.chat.completions.create(
+        }
+        if model.startswith("openai/gpt-oss-"):
+            options["reasoning_effort"] = "low"
+        response = client.chat.completions.create(
                 model=model,
                 messages=[
                     {"role": "system", "content": MISSION_GENERATION_INSTRUCTIONS},
-                    {"role": "user", "content": build_mission_input(
-                        request,
-                        batch_number,
-                        [mission.title for mission in generated],
-                        requested_count,
-                    )},
+                    {"role": "user", "content": build_mission_input(request)},
                 ],
                 **options,
-            )
-            if not response.choices or not response.choices[0].message.content:
-                raise ValueError("mission response is empty")
-            batch = MissionBatchResponse.model_validate_json(
-                response.choices[0].message.content
-            )
-            for mission in batch.missions:
-                key = "".join(mission.title.lower().split())
-                if key not in title_keys:
-                    title_keys.add(key)
-                    generated.append(mission)
-                if len(generated) == 20:
-                    break
-        if len(generated) != 20:
-            raise ValueError("mission batches must produce exactly 20 unique missions")
+        )
+        if not response.choices or not response.choices[0].message.content:
+            raise ValueError("mission response is empty")
+        batch = MissionBatchResponse.model_validate_json(
+            response.choices[0].message.content
+        )
+        generated = batch.missions
+        if len(generated) != requested_count:
+            raise ValueError("AI must produce the requested daily mission count")
+        title_keys = {"".join(mission.title.lower().split()) for mission in generated}
+        if len(title_keys) != len(generated):
+            raise ValueError("daily missions must have unique titles")
         return MissionGenerateResponse(
             missions=generated,
             promptVersion="personalized-mission-v1",

@@ -20,7 +20,7 @@ public class MissionGenerationScheduler {
 
     public MissionGenerationScheduler(MissionGenerationService service,
                                       MissionCycleCalculator calculator, Clock clock,
-                                      @Value("${mission.scheduler.enabled:true}") boolean enabled) {
+                                      @Value("${mission.scheduler.enabled:false}") boolean enabled) {
         this.service = service;
         this.calculator = calculator;
         this.clock = clock;

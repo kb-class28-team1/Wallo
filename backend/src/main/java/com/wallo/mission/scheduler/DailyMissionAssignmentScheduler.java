@@ -37,7 +37,7 @@ public class DailyMissionAssignmentScheduler {
     public void assignDailyMissions() {
         if (!enabled) return;
         LocalDate today = LocalDate.now(clock);
-        List<Long> userIds = missionMapper.findActiveCycleUserIds(today);
+        List<Long> userIds = missionMapper.findUserIdsWithAnalysis();
         if (userIds == null) return;
         for (Long userId : userIds) {
             try {

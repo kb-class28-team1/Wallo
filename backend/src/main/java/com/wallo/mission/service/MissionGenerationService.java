@@ -7,6 +7,7 @@ import com.wallo.mission.client.MissionAiClient;
 import com.wallo.mission.domain.Mission;
 import com.wallo.mission.domain.MissionAnalysisSource;
 import com.wallo.mission.domain.MissionCycle;
+import com.wallo.mission.domain.DailyMission;
 import com.wallo.mission.dto.MissionGenerationDto;
 import com.wallo.mission.mapper.MissionMapper;
 import java.nio.charset.StandardCharsets;
@@ -20,12 +21,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.IntSupplier;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class MissionGenerationService {
-    private static final int REQUIRED_MISSION_COUNT = 20;
     private static final int FIXED_REWARD_POINT = 10;
     private static final int MAX_SUMMARY_LIST_ITEMS = 8;
     private static final int MAX_SUMMARY_TEXT_LENGTH = 500;
@@ -43,15 +46,26 @@ public class MissionGenerationService {
     private final ObjectMapper objectMapper;
     private final MissionCycleCalculator cycleCalculator;
     private final Clock clock;
+    private final IntSupplier dailyMissionCount;
 
+    @Autowired
     public MissionGenerationService(MissionMapper missionMapper, MissionAiClient missionAiClient,
                                     ObjectMapper objectMapper,
                                     MissionCycleCalculator cycleCalculator, Clock clock) {
+        this(missionMapper, missionAiClient, objectMapper, cycleCalculator, clock,
+                () -> ThreadLocalRandom.current().nextInt(1, 4));
+    }
+
+    MissionGenerationService(MissionMapper missionMapper, MissionAiClient missionAiClient,
+                             ObjectMapper objectMapper,
+                             MissionCycleCalculator cycleCalculator, Clock clock,
+                             IntSupplier dailyMissionCount) {
         this.missionMapper = missionMapper;
         this.missionAiClient = missionAiClient;
         this.objectMapper = objectMapper;
         this.cycleCalculator = cycleCalculator;
         this.clock = clock;
+        this.dailyMissionCount = dailyMissionCount;
     }
 
     public List<Long> eligibleUserIds() {
@@ -66,45 +80,68 @@ public class MissionGenerationService {
         if (source == null) throw new IllegalStateException("Consumption analysis is unavailable.");
         MissionGenerationDto.Response response = missionAiClient.generate(
                 new MissionGenerationDto.Request(userId, source.getAnalysisResultId(),
-                        summarizeAnalysis(parseAnalysis(source.getCalculatedResultJson()))));
-        validate(response);
+                        summarizeAnalysis(parseAnalysis(source.getCalculatedResultJson())),
+                        3, List.of()));
+        validate(response, 3);
         return response;
     }
 
     @Transactional
     public MissionGenerationDto.Result generate(Long userId, boolean force) {
+        return generateToday(userId, LocalDate.now(clock));
+    }
+
+    @Transactional
+    public MissionGenerationDto.Result generateToday(Long userId, LocalDate date) {
         if (userId == null || userId < 1) throw new IllegalArgumentException("userId is required.");
-        LocalDate start = cycleCalculator.cycleStart(LocalDate.now(clock));
-        MissionCycle existing = missionMapper.findCycle(userId, start);
-        if (existing != null && !force) {
-            return new MissionGenerationDto.Result(existing.getMissionCycleId(), userId,
-                    missionMapper.countMissionsByCycleId(existing.getMissionCycleId()),
-                    existing.getStatus());
-        }
-        if (existing != null) {
-            throw new IllegalStateException("Forced regeneration requires a new cycle version policy.");
+        if (date == null) throw new IllegalArgumentException("date is required.");
+        List<DailyMission> assigned = missionMapper.findDailyMissions(userId, date);
+        if (assigned != null && !assigned.isEmpty()) {
+            return new MissionGenerationDto.Result(
+                    assigned.get(0).getMissionCycleId(), userId, assigned.size(), "ACTIVE");
         }
 
+        LocalDate start = cycleCalculator.cycleStart(date);
+        MissionCycle cycle = missionMapper.findCycle(userId, start);
         MissionAnalysisSource source = missionMapper.findLatestAnalysis(userId);
         if (source == null) throw new IllegalStateException("Consumption analysis is unavailable.");
+        List<String> excludedTitles = cycle == null ? List.of()
+                : missionMapper.findMissionsByCycleId(cycle.getMissionCycleId()).stream()
+                        .map(Mission::getTitle).toList();
+        int requestedCount = dailyMissionCount.getAsInt();
+        if (requestedCount < 1 || requestedCount > 3) {
+            throw new IllegalStateException("Daily mission count must be between 1 and 3.");
+        }
         MissionGenerationDto.Response response = missionAiClient.generate(new MissionGenerationDto.Request(
                 userId, source.getAnalysisResultId(),
-                summarizeAnalysis(parseAnalysis(source.getCalculatedResultJson()))));
-        validate(response);
+                summarizeAnalysis(parseAnalysis(source.getCalculatedResultJson())),
+                requestedCount, excludedTitles));
+        validate(response, requestedCount);
 
-        MissionCycle cycle = new MissionCycle();
-        cycle.setUserId(userId);
-        cycle.setCycleStartDate(start);
-        cycle.setCycleEndDate(start.plusDays(13));
-        cycle.setStatus("GENERATING");
-        cycle.setSourceAnalysisResultId(source.getAnalysisResultId());
-        cycle.setPromptVersion(response.promptVersion());
-        missionMapper.insertCycle(cycle);
-
-        for (MissionGenerationDto.GeneratedMission generated : response.missions()) {
-            missionMapper.insertMission(toMission(cycle.getMissionCycleId(), generated));
+        if (cycle == null) {
+            cycle = new MissionCycle();
+            cycle.setUserId(userId);
+            cycle.setCycleStartDate(start);
+            cycle.setCycleEndDate(start.plusDays(13));
+            cycle.setStatus("ACTIVE");
+            cycle.setSourceAnalysisResultId(source.getAnalysisResultId());
+            cycle.setPromptVersion(response.promptVersion());
+            missionMapper.insertCycle(cycle);
         }
-        missionMapper.updateCycleStatus(cycle.getMissionCycleId(), "ACTIVE", null);
+
+        int displayOrder = 1;
+        for (MissionGenerationDto.GeneratedMission generated : response.missions()) {
+            Mission mission = toMission(cycle.getMissionCycleId(), generated);
+            missionMapper.insertMission(mission);
+            DailyMission daily = new DailyMission();
+            daily.setMissionCycleId(cycle.getMissionCycleId());
+            daily.setMissionId(mission.getMissionId());
+            daily.setUserId(userId);
+            daily.setAssignedDate(date);
+            daily.setDisplayOrder(displayOrder++);
+            daily.setStatus("ASSIGNED");
+            missionMapper.insertDailyMission(daily);
+        }
         return new MissionGenerationDto.Result(
                 cycle.getMissionCycleId(), userId, response.missions().size(), "ACTIVE");
     }
@@ -150,11 +187,11 @@ public class MissionGenerationService {
         return String.valueOf(value);
     }
 
-    private void validate(MissionGenerationDto.Response response) {
+    private void validate(MissionGenerationDto.Response response, int expectedCount) {
         if (response == null || response.missions() == null
-                || response.missions().size() != REQUIRED_MISSION_COUNT
+                || response.missions().size() != expectedCount
                 || isBlank(response.promptVersion())) {
-            throw new IllegalStateException("AI must return exactly 20 missions.");
+            throw new IllegalStateException("AI must return the requested daily mission count.");
         }
         Set<String> keys = new HashSet<>();
         for (MissionGenerationDto.GeneratedMission mission : response.missions()) {

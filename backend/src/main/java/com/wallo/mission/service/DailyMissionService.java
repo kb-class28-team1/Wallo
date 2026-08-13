@@ -26,19 +26,28 @@ public class DailyMissionService {
     private final MissionCycleCalculator cycleCalculator;
     private final Clock clock;
     private final SecureRandom random;
+    private final MissionGenerationService generationService;
 
     @Autowired
     public DailyMissionService(MissionMapper missionMapper,
-                               MissionCycleCalculator cycleCalculator, Clock clock) {
-        this(missionMapper, cycleCalculator, clock, new SecureRandom());
+                               MissionCycleCalculator cycleCalculator, Clock clock,
+                               MissionGenerationService generationService) {
+        this(missionMapper, cycleCalculator, clock, new SecureRandom(), generationService);
     }
 
     DailyMissionService(MissionMapper missionMapper, MissionCycleCalculator cycleCalculator,
                         Clock clock, SecureRandom random) {
+        this(missionMapper, cycleCalculator, clock, random, null);
+    }
+
+    DailyMissionService(MissionMapper missionMapper, MissionCycleCalculator cycleCalculator,
+                        Clock clock, SecureRandom random,
+                        MissionGenerationService generationService) {
         this.missionMapper = missionMapper;
         this.cycleCalculator = cycleCalculator;
         this.clock = clock;
         this.random = random;
+        this.generationService = generationService;
     }
 
     @Transactional
@@ -55,6 +64,12 @@ public class DailyMissionService {
         List<DailyMission> existing = missionMapper.findDailyMissions(userId, date);
         if (existing != null && !existing.isEmpty()) {
             return TodayMissionResponse.of(date, existing);
+        }
+
+        if (generationService != null) {
+            generationService.generateToday(userId, date);
+            return TodayMissionResponse.of(
+                    date, missionMapper.findDailyMissions(userId, date));
         }
 
         LocalDate cycleStart = cycleCalculator.cycleStart(date);
