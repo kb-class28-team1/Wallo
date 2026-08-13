@@ -619,10 +619,11 @@ onBeforeUnmount(() => {
               <img :src="feed.profileImageUrl || '/images/profiles/default-profile.svg'" alt="" />
               <div>
                 <strong>{{ feed.nickname }}</strong
-                ><small
+                ><span class="d-none">
                   >{{ spendingLabel(feed.spendingType) }} ·
-                  {{ categoryLabel(feed.category, feed.customCategory) }}</small
+
                 >
+                </span>
               </div>
               <span class="saving-badge">+ {{ formatWon(feed.savingAmount) }}</span>
             </header>
