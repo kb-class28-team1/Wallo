@@ -2,6 +2,8 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { useUserStore } from "@/stores/userStore"
+import { getAccessToken } from "@/api/authToken"
+import { refreshAccessToken } from "@/api/authApi"
 import { formatWon } from "@/commonUtils/formatters"
 import AppDialog from "@/components/common/AppDialog.vue"
 import { leaveChallenge as leaveChallengeRequest } from "@/api/challengeApi"
@@ -168,7 +170,8 @@ const loadMessages = async ({ forceScroll = false } = {}) => {
 
 const chatWebSocketUrl = () => {
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:"
-  return `${protocol}//${window.location.host}/ws/challenges/${challengeId.value}`
+  const token = encodeURIComponent(getAccessToken() || "")
+  return `${protocol}//${window.location.host}/ws/challenges/${challengeId.value}?accessToken=${token}`
 }
 
 const handleChatSocketMessage = async (event) => {
@@ -217,7 +220,14 @@ const connectChatSocket = () => {
   }
   chatSocket.onclose = () => {
     chatSocket = null
-    scheduleChatReconnect()
+    if (!shouldReconnectChat) return
+    if (getAccessToken()) {
+      scheduleChatReconnect()
+      return
+    }
+    refreshAccessToken()
+      .then(() => scheduleChatReconnect())
+      .catch(() => scheduleChatReconnect())
   }
 }
 
