@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } 
 import { useRoute, useRouter } from "vue-router"
 import { useUserStore } from "@/stores/userStore"
 import { formatWon } from "@/commonUtils/formatters"
+import arrowPaperPlaneUrl from "@/assets/arrow_paper_plane.svg"
 import AppDialog from "@/components/common/AppDialog.vue"
 import { leaveChallenge as leaveChallengeRequest } from "@/api/challengeApi"
 import {
@@ -693,10 +694,7 @@ onBeforeUnmount(() => {
                   title="언급하기"
                   @click.stop="mentionFeedFromCard(feed)"
                 >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M20 11.5a8 8 0 0 1-8 8 8 8 0 0 1-3.9-1L4 20l1.6-3.8A8 8 0 1 1 20 11.5Z"></path>
-                    <text x="12" y="15.6" text-anchor="middle">@</text>
-                  </svg>
+                  <img :src="arrowPaperPlaneUrl" alt="" />
                   언급하기
                 </button>
                 <button
@@ -1301,20 +1299,10 @@ onBeforeUnmount(() => {
   border-radius: 50%;
   font-size: 0;
 }
-.mention-feed-button svg {
+.mention-feed-button img {
   width: 18px;
   height: 18px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.mention-feed-button text {
-  fill: currentColor;
-  stroke: none;
-  font-size: 9px;
-  font-weight: 800;
+  filter: brightness(0) invert(1);
 }
 .mention-feed-button:hover {
   background: #7162de;
