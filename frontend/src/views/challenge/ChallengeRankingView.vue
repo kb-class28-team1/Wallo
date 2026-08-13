@@ -312,7 +312,7 @@ onMounted(() => {
   border-radius: 5px 3px 8px 4px;
   box-shadow: 3px 3px 0 rgb(58 54 56 / 15%);
   clip-path: polygon(0 13%, 18% 3%, 38% 10%, 58% 0, 80% 8%, 100% 3%, 99% 93%, 65% 100%, 38% 95%, 1% 89%);
-  transform: rotate(-0.45deg) skewX(-0.35deg);
+  transform: rotate(-0.8deg) skewX(-0.7deg);
 }
 
 .podium-grid.podium-count-1 {
@@ -338,25 +338,29 @@ onMounted(() => {
   border-radius: 6px 4px 5px 3px;
   background: #b5906b;
   box-shadow: 3px 4px 0 rgb(58 54 56 / 15%);
-  transform: rotate(-0.65deg) skewX(-0.3deg);
+  clip-path: polygon(1% 3%, 21% 1%, 44% 3%, 67% 0%, 99% 2%, 98% 31%, 100% 64%, 97% 99%, 76% 97%, 52% 100%, 26% 98%, 3% 100%, 1% 70%, 0% 38%);
+  transform: rotate(-1deg) skewX(-0.8deg);
 }
 
 .podium-card.rank-1 {
   min-height: 220px;
   background: #c19b67;
-  transform: rotate(0.25deg) skewX(0.2deg);
+  clip-path: polygon(0% 2%, 23% 0%, 48% 2%, 74% 0%, 100% 3%, 98% 36%, 100% 97%, 77% 99%, 52% 97%, 29% 100%, 2% 97%, 1% 64%);
+  transform: rotate(0.45deg) skewX(0.55deg);
 }
 
 .podium-card.rank-2 {
   min-height: 195px;
   background: #b99a78;
-  transform: rotate(-0.9deg) skewX(-0.35deg);
+  clip-path: polygon(2% 0%, 31% 2%, 58% 0%, 100% 4%, 98% 34%, 100% 96%, 67% 99%, 42% 97%, 17% 100%, 1% 96%, 3% 59%);
+  transform: rotate(-1.25deg) skewX(-0.85deg);
 }
 
 .podium-card.rank-3 {
   min-height: 174px;
   background: #ae8c6b;
-  transform: rotate(0.75deg) skewX(0.3deg);
+  clip-path: polygon(1% 4%, 25% 0%, 53% 3%, 78% 1%, 100% 4%, 99% 61%, 97% 98%, 74% 96%, 48% 100%, 22% 97%, 0% 100%, 2% 48%);
+  transform: rotate(1.05deg) skewX(0.7deg);
 }
 
 .rank-badge {
