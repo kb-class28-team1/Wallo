@@ -761,21 +761,27 @@ onBeforeUnmount(() => {
             accept="image/*,video/*"
             @change="handleFile"
           />
-          <button
+          <div
             class="upload-zone"
             :class="{ 'has-preview': previewUrl }"
-            type="button"
-            @click="chooseFile"
+            :role="previewUrl ? 'button' : undefined"
+            :tabindex="previewUrl ? 0 : undefined"
+            @click="previewUrl && chooseFile()"
+            @keydown.enter.prevent="previewUrl && chooseFile()"
+            @keydown.space.prevent="previewUrl && chooseFile()"
           >
             <template v-if="previewUrl">
               <video
                 v-if="isVideoFile"
+                :key="previewUrl"
                 :src="previewUrl"
                 autoplay
                 muted
                 loop
                 playsinline
-                preload="metadata"
+                controls
+                preload="auto"
+                @click.stop
                 aria-label="업로드할 영상 미리보기"
               ></video>
               <img v-else :src="previewUrl" alt="업로드 미리보기" />
@@ -784,7 +790,7 @@ onBeforeUnmount(() => {
               ><span>🖼️</span><strong>사진 / 동영상 업로드</strong
               ><small>클릭해 인증 사진 또는 영상을 올려주세요</small></template
             >
-          </button>
+          </div>
 
           <label class="section-label">세부 카테고리</label>
           <div class="chip-row">
@@ -1504,6 +1510,12 @@ onBeforeUnmount(() => {
   height: auto;
   object-fit: contain;
   border-radius: 10px;
+}
+.upload-zone video {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
 }
 .chip-row {
   display: flex;
