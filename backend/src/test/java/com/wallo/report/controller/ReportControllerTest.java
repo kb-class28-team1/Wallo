@@ -4,6 +4,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -13,6 +14,8 @@ import com.wallo.report.domain.NewsReportListItem;
 import com.wallo.report.dto.response.ReportListResponse;
 import com.wallo.report.service.NewsReportGenerationService;
 import com.wallo.report.service.NewsService;
+import com.wallo.report.scheduler.NewsCrawlingScheduler;
+import com.wallo.report.scheduler.FinancialReportGenerationScheduler;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
@@ -26,14 +29,23 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 class ReportControllerTest {
 
     private NewsService newsService;
+    private NewsCrawlingScheduler newsCrawlingScheduler;
+    private FinancialReportGenerationScheduler financialReportGenerationScheduler;
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
         newsService = mock(NewsService.class);
         NewsReportGenerationService newsReportGenerationService = mock(NewsReportGenerationService.class);
+        newsCrawlingScheduler = mock(NewsCrawlingScheduler.class);
+        financialReportGenerationScheduler = mock(FinancialReportGenerationScheduler.class);
 
-        ReportController controller = new ReportController(newsService, newsReportGenerationService);
+        ReportController controller = new ReportController(
+                newsService,
+                newsReportGenerationService,
+                newsCrawlingScheduler,
+                financialReportGenerationScheduler
+        );
 
         // 실제 운영 설정(AppConfig.objectMapper())과 동일하게 JavaTimeModule을 등록하고
         // 타임스탬프 배열 대신 ISO 문자열로 직렬화하도록 맞춘다.
@@ -102,5 +114,32 @@ class ReportControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data").isArray())
                 .andExpect(jsonPath("$.data").isEmpty());
+    }
+
+    @Test
+    void manuallyCrawlsNewsWithoutStartingAi() throws Exception {
+        NewsCrawlingScheduler.RunResult result = new NewsCrawlingScheduler.RunResult(true, 3);
+        when(newsCrawlingScheduler.runNow()).thenReturn(result);
+
+        mockMvc.perform(post("/api/reports/crawl-now"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.started").value(true))
+                .andExpect(jsonPath("$.data.crawledNewsCount").value(3));
+
+        verify(newsCrawlingScheduler).runNow();
+    }
+
+    @Test
+    void queuesBackgroundAiReportGeneration() throws Exception {
+        when(financialReportGenerationScheduler.requestGenerationNow())
+                .thenReturn(new FinancialReportGenerationScheduler.GenerationRequestResult(true, true));
+
+        mockMvc.perform(post("/api/reports/generate-missing"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.newlyStarted").value(true))
+                .andExpect(jsonPath("$.data.queued").value(true));
+
+        verify(financialReportGenerationScheduler).requestGenerationNow();
     }
 }

@@ -110,7 +110,14 @@ public class NewsCrawler {
 
         WebDriver driver = null;
         try {
-            driver = new ChromeDriver(new ChromeOptions());
+            ChromeOptions options = new ChromeOptions();
+            options.addArguments(
+                    "--headless=new",
+                    "--window-size=1920,1080",
+                    "--disable-gpu",
+                    "--disable-dev-shm-usage"
+            );
+            driver = new ChromeDriver(options);
             driver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(PAGE_LOAD_TIMEOUT_SECONDS));
 
             List<Long> savedNewsIds = new ArrayList<>();
