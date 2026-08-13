@@ -1,8 +1,8 @@
 package com.wallo.mission.controller;
 
 import com.wallo.auth.CurrentUserProvider;
-import com.wallo.mission.dto.MissionGenerationDto;
 import com.wallo.mission.service.MissionGenerationService;
+import com.wallo.mission.dto.TodayMissionResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -27,18 +27,11 @@ public class MissionDevController {
         this.enabled = enabled;
     }
 
-    @PostMapping("/preview")
-    public ResponseEntity<MissionGenerationDto.Response> preview() {
+    @PostMapping("/next-day")
+    public ResponseEntity<TodayMissionResponse> generateNextDay() {
         requireEnabled();
-        return ResponseEntity.ok(generationService.preview(
+        return ResponseEntity.ok(generationService.generateNextDayForDevelopment(
                 currentUserProvider.getCurrentUserId()));
-    }
-
-    @PostMapping("/generate")
-    public ResponseEntity<MissionGenerationDto.Result> generate() {
-        requireEnabled();
-        return ResponseEntity.ok(generationService.generate(
-                currentUserProvider.getCurrentUserId(), false));
     }
 
     private void requireEnabled() {

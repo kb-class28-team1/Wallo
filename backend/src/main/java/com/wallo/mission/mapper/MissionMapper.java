@@ -28,6 +28,7 @@ public interface MissionMapper {
     int insertDailyMission(DailyMission dailyMission);
     List<DailyMission> findDailyMissions(@Param("userId") Long userId,
                                          @Param("assignedDate") LocalDate assignedDate);
+    LocalDate findLatestAssignedDate(@Param("userId") Long userId);
     int updateDailyMissionStatus(@Param("dailyMissionId") Long dailyMissionId,
                                  @Param("userId") Long userId,
                                  @Param("status") String status);

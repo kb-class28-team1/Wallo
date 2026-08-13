@@ -9,6 +9,7 @@ import com.wallo.mission.domain.MissionAnalysisSource;
 import com.wallo.mission.domain.MissionCycle;
 import com.wallo.mission.domain.DailyMission;
 import com.wallo.mission.dto.MissionGenerationDto;
+import com.wallo.mission.dto.TodayMissionResponse;
 import com.wallo.mission.mapper.MissionMapper;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -89,6 +90,20 @@ public class MissionGenerationService {
     @Transactional
     public MissionGenerationDto.Result generate(Long userId, boolean force) {
         return generateToday(userId, LocalDate.now(clock));
+    }
+
+    @Transactional
+    public TodayMissionResponse generateNextDayForDevelopment(Long userId) {
+        if (userId == null || userId < 1) {
+            throw new IllegalArgumentException("userId is required.");
+        }
+        LocalDate today = LocalDate.now(clock);
+        LocalDate latest = missionMapper.findLatestAssignedDate(userId);
+        LocalDate baseDate = latest != null && latest.isAfter(today) ? latest : today;
+        LocalDate nextDate = baseDate.plusDays(1);
+        generateToday(userId, nextDate);
+        return TodayMissionResponse.of(
+                nextDate, missionMapper.findDailyMissions(userId, nextDate));
     }
 
     @Transactional

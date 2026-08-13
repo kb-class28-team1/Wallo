@@ -8,7 +8,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.wallo.auth.CurrentUserProvider;
-import com.wallo.mission.dto.MissionGenerationDto;
+import com.wallo.mission.dto.TodayMissionResponse;
+import java.time.LocalDate;
 import com.wallo.mission.service.MissionGenerationService;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -17,19 +18,19 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 class MissionDevControllerTest {
     @Test
-    void previewsAuthenticatedUsersMissionsWhenEnabled() throws Exception {
+    void generatesNextDayMissionsWhenEnabled() throws Exception {
         MissionGenerationService service = org.mockito.Mockito.mock(MissionGenerationService.class);
         CurrentUserProvider user = org.mockito.Mockito.mock(CurrentUserProvider.class);
         when(user.getCurrentUserId()).thenReturn(7L);
-        when(service.preview(7L)).thenReturn(new MissionGenerationDto.Response(
-                List.of(), "personalized-mission-v1"));
+        when(service.generateNextDayForDevelopment(7L)).thenReturn(
+                new TodayMissionResponse(LocalDate.of(2026, 8, 18), List.of()));
         MockMvc mvc = MockMvcBuilders.standaloneSetup(
                 new MissionDevController(service, user, true)).build();
 
-        mvc.perform(post("/api/dev/missions/preview"))
+        mvc.perform(post("/api/dev/missions/next-day"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.promptVersion").value("personalized-mission-v1"));
-        verify(service).preview(7L);
+                .andExpect(jsonPath("$.date").value("2026-08-18"));
+        verify(service).generateNextDayForDevelopment(7L);
     }
 
     @Test
@@ -39,7 +40,7 @@ class MissionDevControllerTest {
         MockMvc mvc = MockMvcBuilders.standaloneSetup(
                 new MissionDevController(service, user, false)).build();
 
-        mvc.perform(post("/api/dev/missions/generate"))
+        mvc.perform(post("/api/dev/missions/next-day"))
                 .andExpect(status().isNotFound());
         verify(user, never()).getCurrentUserId();
     }

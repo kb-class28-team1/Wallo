@@ -41,21 +41,16 @@ export const getTodayMissions = async () => {
   }
 }
 
-export const previewMissionGeneration = async () => {
+export const generateNextDayMissions = async () => {
   try {
-    const response = await httpClient.post("/api/dev/missions/preview")
-    return response.data
+    const response = await httpClient.post("/api/dev/missions/next-day")
+    const body = response.data || {}
+    return {
+      ...body,
+      missions: Array.isArray(body.missions) ? body.missions.map(normalizeMission) : [],
+    }
   } catch (error) {
-    throw toApiError(error, "AI 미션 미리보기에 실패했습니다.")
-  }
-}
-
-export const generateMissionCycle = async () => {
-  try {
-    const response = await httpClient.post("/api/dev/missions/generate")
-    return response.data
-  } catch (error) {
-    throw toApiError(error, "미션 생성에 실패했습니다.")
+    throw toApiError(error, "다음날 미션 생성에 실패했습니다.")
   }
 }
 

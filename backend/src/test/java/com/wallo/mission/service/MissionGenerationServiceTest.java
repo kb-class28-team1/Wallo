@@ -12,10 +12,12 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wallo.mission.client.MissionAiClient;
 import com.wallo.mission.domain.MissionAnalysisSource;
+import com.wallo.mission.domain.DailyMission;
 import com.wallo.mission.dto.MissionGenerationDto;
 import com.wallo.mission.mapper.MissionMapper;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
@@ -145,6 +147,24 @@ class MissionGenerationServiceTest {
         assertEquals("카페 소비 증가", sent.get("summary"));
         assertEquals(false, sent.containsKey("rawTransactions"));
         assertEquals(8, ((List<?>) sent.get("categoryOverview")).size());
+    }
+
+    @Test
+    void developmentNextDayAdvancesFromLatestSimulatedDate() {
+        LocalDate simulatedDate = LocalDate.of(2026, 8, 19);
+        DailyMission daily = new DailyMission();
+        daily.setDailyMissionId(31L);
+        daily.setTitle("내일의 쉬운 미션");
+        daily.setStatus("ASSIGNED");
+        when(mapper.findLatestAssignedDate(7L))
+                .thenReturn(LocalDate.of(2026, 8, 18));
+        when(mapper.findDailyMissions(7L, simulatedDate))
+                .thenReturn(List.of(), List.of(daily));
+
+        var response = service.generateNextDayForDevelopment(7L);
+
+        assertEquals(simulatedDate, response.date());
+        assertEquals(1, response.missions().size());
     }
 
     private MissionGenerationDto.Response response(

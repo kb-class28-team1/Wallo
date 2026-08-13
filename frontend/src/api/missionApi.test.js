@@ -1,9 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import httpClient from "@/api/httpClient"
 import {
-  generateMissionCycle,
+  generateNextDayMissions,
   getTodayMissions,
-  previewMissionGeneration,
   verifyMissionWithFeed,
 } from "./missionApi"
 
@@ -34,16 +33,16 @@ describe("missionApi", () => {
     expect(result.missions[0]).toMatchObject({ id: 3, icon: "🍚" })
   })
 
-  it("requests a dry preview without saving", async () => {
-    httpClient.post.mockResolvedValue({ data: { missions: Array(20), promptVersion: "v1" } })
-    await previewMissionGeneration()
-    expect(httpClient.post).toHaveBeenCalledWith("/api/dev/missions/preview")
-  })
-
-  it("requests current cycle generation", async () => {
-    httpClient.post.mockResolvedValue({ data: { missionCount: 20, status: "ACTIVE" } })
-    await generateMissionCycle()
-    expect(httpClient.post).toHaveBeenCalledWith("/api/dev/missions/generate")
+  it("generates and normalizes next-day missions for development", async () => {
+    httpClient.post.mockResolvedValue({
+      data: {
+        date: "2026-08-18",
+        missions: [{ dailyMissionId: 4, category: "CAFE", status: "ASSIGNED" }],
+      },
+    })
+    const result = await generateNextDayMissions()
+    expect(httpClient.post).toHaveBeenCalledWith("/api/dev/missions/next-day")
+    expect(result.missions[0]).toMatchObject({ id: 4, icon: "☕" })
   })
 
   it("verifies a mission using an already uploaded feed", async () => {

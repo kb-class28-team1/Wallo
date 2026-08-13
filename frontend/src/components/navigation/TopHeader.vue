@@ -3,9 +3,8 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue"
 import { storeToRefs } from "pinia"
 import { RouterLink, useRouter } from "vue-router"
 import {
-  generateMissionCycle,
+  generateNextDayMissions,
   getTodayMissions,
-  previewMissionGeneration,
 } from "@/api/missionApi"
 import { useUserStore } from "@/stores/userStore"
 import { formatNumber } from "@/commonUtils/formatters"
@@ -66,34 +65,16 @@ const loadTodayMissions = async () => {
   }
 }
 
-const previewMissions = async () => {
+const generateNextDay = async () => {
   isMissionDevLoading.value = true
   try {
-    const response = await previewMissionGeneration()
+    const response = await generateNextDayMissions()
+    missions.value = response.missions
     missionDevResult.value = {
-      mode: "미리보기",
-      count: response.missions?.length || 0,
-      titles: (response.missions || []).slice(0, 3).map((mission) => mission.title),
+      mode: `${response.date} 시뮬레이션`,
+      count: response.missions.length,
+      titles: response.missions.map((mission) => mission.title),
     }
-  } catch (error) {
-    alert(error.status === 404
-      ? "백엔드의 mission.dev-api.enabled 설정을 true로 변경해 주세요."
-      : error.message)
-  } finally {
-    isMissionDevLoading.value = false
-  }
-}
-
-const generateMissions = async () => {
-  isMissionDevLoading.value = true
-  try {
-    const response = await generateMissionCycle()
-    missionDevResult.value = {
-      mode: "저장 생성",
-      count: response.missionCount || 0,
-      titles: [],
-    }
-    await loadTodayMissions()
   } catch (error) {
     alert(error.status === 404
       ? "백엔드의 mission.dev-api.enabled 설정을 true로 변경해 주세요."
@@ -199,22 +180,14 @@ const handleLogout = async () => {
               <strong>개발자 검증</strong>
               <span>현재 로그인 사용자</span>
             </div>
-            <div class="d-flex gap-2">
+            <div>
               <button
                 type="button"
-                class="btn btn-sm btn-outline-secondary flex-fill"
+                class="btn btn-sm btn-primary w-100"
                 :disabled="isMissionDevLoading"
-                @click="previewMissions"
+                @click="generateNextDay"
               >
-                AI 20개 미리보기
-              </button>
-              <button
-                type="button"
-                class="btn btn-sm btn-primary flex-fill"
-                :disabled="isMissionDevLoading"
-                @click="generateMissions"
-              >
-                저장 생성
+                다음날 미션 생성
               </button>
             </div>
             <div v-if="isMissionDevLoading" class="mission-dev-result">처리 중...</div>
