@@ -60,6 +60,17 @@ public class AssetAnalysisViewAssembler {
             savingRate = roundOneDecimal(monthlySaving * 100.0 / monthlyIncome);
         }
 
+        Map<String, Object> directionSource = map(calculation.get("direction"));
+        AssetAnalysisView.DirectionInfo direction = directionSource.isEmpty()
+                ? null
+                : direction(directionSource);
+        Object priorityActionSource = calculation.get("priorityActions");
+        if (priorityActionSource == null) {
+            priorityActionSource = directionSource.get("priorityActions");
+        }
+        List<AssetAnalysisView.PriorityAction> priorityActions = priorityActions(
+                priorityActionSource, directionSource);
+
         return new AssetAnalysisView(
                 new AssetAnalysisView.SummaryInfo(totalAssets, totalDebt, netAssets),
                 new AssetAnalysisView.CashFlowInfo(
@@ -71,8 +82,71 @@ public class AssetAnalysisViewAssembler {
                         savingRate
                 ),
                 composition(profileAssets.get("items"), totalAssets),
-                texts(profile.get("data_quality_notes"))
+                texts(profile.get("data_quality_notes")),
+                direction,
+                priorityActions
         );
+    }
+
+    private AssetAnalysisView.DirectionInfo direction(Map<String, Object> source) {
+        return new AssetAnalysisView.DirectionInfo(
+                text(source.get("headline")),
+                text(source.get("currentStage")),
+                texts(source.get("reasons")),
+                text(source.get("keep")),
+                text(source.get("firstChange")),
+                text(source.get("threeMonthDirection")),
+                text(source.get("oneYearDirection")),
+                texts(source.get("riskSignals")),
+                texts(source.get("additionalInfo"))
+        );
+    }
+
+    private List<AssetAnalysisView.PriorityAction> priorityActions(
+            Object value,
+            Map<String, Object> direction
+    ) {
+        List<AssetAnalysisView.PriorityAction> actions = priorityActionMaps(value);
+        if (!actions.isEmpty()) {
+            return actions;
+        }
+
+        List<AssetAnalysisView.PriorityAction> derived = new ArrayList<>();
+        addAction(derived, "우선", "가장 먼저 바꿀 것", direction.get("firstChange"));
+        addAction(derived, "3개월", "3개월 실행 방향", direction.get("threeMonthDirection"));
+        addAction(derived, "1년", "1년 실행 방향", direction.get("oneYearDirection"));
+        return derived;
+    }
+
+    private List<AssetAnalysisView.PriorityAction> priorityActionMaps(Object value) {
+        List<AssetAnalysisView.PriorityAction> result = new ArrayList<>();
+        for (Map<String, Object> item : maps(value)) {
+            String description = text(item.get("description"));
+            if (description == null) {
+                description = text(item.get("detail"));
+            }
+            if (description == null) {
+                continue;
+            }
+            result.add(new AssetAnalysisView.PriorityAction(
+                    text(item.get("period")),
+                    text(item.get("title")),
+                    description
+            ));
+        }
+        return result;
+    }
+
+    private void addAction(
+            List<AssetAnalysisView.PriorityAction> actions,
+            String period,
+            String title,
+            Object description
+    ) {
+        String text = text(description);
+        if (text != null && !text.isBlank()) {
+            actions.add(new AssetAnalysisView.PriorityAction(period, title, text));
+        }
     }
 
     private List<AssetAnalysisView.AssetItem> composition(Object value, Long totalAssets) {
