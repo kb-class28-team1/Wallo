@@ -761,7 +761,12 @@ onBeforeUnmount(() => {
             accept="image/*,video/*"
             @change="handleFile"
           />
-          <button class="upload-zone" type="button" @click="chooseFile">
+          <button
+            class="upload-zone"
+            :class="{ 'has-preview': previewUrl }"
+            type="button"
+            @click="chooseFile"
+          >
             <template v-if="previewUrl">
               <video
                 v-if="isVideoFile"
@@ -1468,11 +1473,17 @@ onBeforeUnmount(() => {
   display: grid;
   place-items: center;
   width: 100%;
-  height: 170px;
+  min-height: 170px;
+  height: min(360px, 42vh);
+  padding: 10px;
   overflow: hidden;
   background: #fafbfe;
   border: 2px dashed #d9dcec;
   border-radius: 18px;
+}
+.upload-zone.has-preview {
+  height: min(420px, 48vh);
+  background: #f4f5fa;
 }
 .upload-zone > span {
   font-size: 2rem;
@@ -1486,9 +1497,13 @@ onBeforeUnmount(() => {
 }
 .upload-zone img,
 .upload-zone video {
-  width: 100%;
-  height: 100%;
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
   object-fit: contain;
+  border-radius: 10px;
 }
 .chip-row {
   display: flex;
