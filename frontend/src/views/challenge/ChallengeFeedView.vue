@@ -1301,6 +1301,7 @@ onBeforeUnmount(() => {
 .mention-feed-button img {
   width: 24px;
   height: 24px;
+  transform: translateY(2px);
   filter: brightness(0) invert(1);
 }
 .mention-feed-button:hover {
@@ -1325,7 +1326,7 @@ onBeforeUnmount(() => {
   position: relative;
   z-index: 2;
   margin-top: -56px;
-  padding: 55px 18px 18px;
+  padding: 49px 18px 18px;
   color: #fff;
   background: #121d3e;
 }
