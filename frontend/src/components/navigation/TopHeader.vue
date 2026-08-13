@@ -6,6 +6,7 @@ import {
   generateNextDayMissions,
   getTodayMissions,
 } from "@/api/missionApi"
+import AuthenticatedImage from "@/components/common/AuthenticatedImage.vue"
 import { useUserStore } from "@/stores/userStore"
 import { formatNumber } from "@/commonUtils/formatters"
 
@@ -208,11 +209,10 @@ const handleLogout = async () => {
         class="profile-link d-flex align-items-center"
         aria-label="설정 페이지로 이동"
       >
-        <img
+        <AuthenticatedImage
           :src="profileImageUrl"
           class="profile-image rounded-circle"
           alt="사용자 프로필"
-          @error="userStore.useDefaultProfileImage"
         />
 
         <span class="user-name">

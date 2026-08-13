@@ -6,12 +6,32 @@ import com.wallo.asset.mapper.ExpenseMapper;
 import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ExpenseService {
 
     private static final int MAX_SIZE = 100;
+    private static final String ETC_CATEGORY = "ETC";
+    private static final Set<String> FILTERABLE_CATEGORIES = Set.of(
+            "FOOD",
+            "CAFE",
+            "TRANSPORT",
+            "SHOPPING",
+            "DELIVERY",
+            "HOUSING",
+            "LIVING",
+            "CULTURE",
+            "HEALTH",
+            "EDUCATION",
+            "LOAN_REPAYMENT",
+            "INCOME",
+            "SEND",
+            ETC_CATEGORY
+    );
 
     private final ExpenseMapper expenseMapper;
 
@@ -40,6 +60,26 @@ public class ExpenseService {
         );
     }
 
+    @Transactional
+    public void updateTransactionCategory(
+            long userId,
+            long transactionId,
+            ExpenseDto.CategoryUpdateRequest request
+    ) {
+        if (transactionId <= 0 || request == null) {
+            throw new InvalidDashboardRequestException();
+        }
+
+        String category = normalizeCategory(request.getCategory());
+        if (category == null || expenseMapper.updateTransactionCategory(
+                userId,
+                transactionId,
+                category
+        ) != 1) {
+            throw new InvalidDashboardRequestException();
+        }
+    }
+
     private ExpenseDto.SearchCondition normalizeCondition(ExpenseDto.SearchCondition condition) {
         if (condition == null) {
             throw new InvalidDashboardRequestException();
@@ -48,6 +88,7 @@ public class ExpenseService {
         LocalDate endDate = parseRequired(condition.getEndDate());
         int page = condition.getPage();
         int size = condition.getSize();
+        String category = normalizeCategory(condition.getCategory());
 
         if (startDate.isAfter(endDate) || page < 0 || size < 1 || size > MAX_SIZE) {
             throw new InvalidDashboardRequestException();
@@ -59,11 +100,30 @@ public class ExpenseService {
                     endDate.toString(),
                     page,
                     size,
+                    category,
                     Math.multiplyExact(page, size)
             );
         } catch (ArithmeticException exception) {
             throw new InvalidDashboardRequestException();
         }
+    }
+
+    private String normalizeCategory(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        String normalized = value.trim().toUpperCase(Locale.ROOT);
+        if ("ALL".equals(normalized)) {
+            return null;
+        }
+        if ("OTHER".equals(normalized)) {
+            normalized = ETC_CATEGORY;
+        }
+        if (!FILTERABLE_CATEGORIES.contains(normalized)) {
+            throw new InvalidDashboardRequestException();
+        }
+        return normalized;
     }
 
     private LocalDate parseRequired(String value) {
