@@ -2,7 +2,7 @@
 import { getExpenseCategoryMeta } from "@/features/financial/financialCategories";
 import { formatNumber } from "@/commonUtils/formatters";
 
-defineProps({
+const props = defineProps({
   transactions: {
     type: Array,
     default: () => [],
@@ -23,9 +23,13 @@ defineProps({
     type: String,
     default: "이 달의 거래 내역이 없습니다.",
   },
+  editable: {
+    type: Boolean,
+    default: true,
+  },
 });
 
-defineEmits(["load-more"]);
+const emit = defineEmits(["load-more", "edit-category"]);
 
 const formatDate = (date) => {
   const [, month, day] = String(date || "").split("-");
@@ -84,8 +88,24 @@ const typeLabel = (type) => ({
 <template>
   <div>
     <ul v-if="transactions.length" class="transaction-list list-unstyled mb-0">
-      <li v-for="(transaction, index) in transactions" :key="`${transaction.date}-${transaction.merchantName}-${transaction.amount}-${index}`">
-        <span class="transaction-icon" :class="getExpenseCategoryMeta(transaction.category).colorClass">
+      <li v-for="(transaction, index) in transactions" :key="transaction.transactionId || `${transaction.date}-${transaction.merchantName}-${transaction.amount}-${index}`">
+        <button
+          v-if="props.editable && transaction.transactionId"
+          type="button"
+          class="transaction-icon transaction-icon-button"
+          :class="getExpenseCategoryMeta(transaction.category).colorClass"
+          data-testid="transaction-category-button"
+          aria-label="카테고리 수정"
+          title="카테고리 수정"
+          @click="emit('edit-category', transaction)"
+        >
+          <i :class="['bi', getExpenseCategoryMeta(transaction.category).icon]" aria-hidden="true"></i>
+        </button>
+        <span
+          v-else
+          class="transaction-icon"
+          :class="getExpenseCategoryMeta(transaction.category).colorClass"
+        >
           <i :class="['bi', getExpenseCategoryMeta(transaction.category).icon]" aria-hidden="true"></i>
         </span>
         <span class="transaction-info">
@@ -95,9 +115,11 @@ const typeLabel = (type) => ({
             {{ typeLabel(transaction.type) }}
           </small>
         </span>
-        <strong class="transaction-amount" :class="String(transaction.type || '').toLowerCase()">
-          {{ formatAmount(transaction) }}
-        </strong>
+        <div class="transaction-actions">
+          <strong class="transaction-amount" :class="String(transaction.type || '').toLowerCase()">
+            {{ formatAmount(transaction) }}
+          </strong>
+        </div>
       </li>
     </ul>
 
@@ -151,6 +173,24 @@ const typeLabel = (type) => ({
   font-size: 1.05rem;
 }
 
+.transaction-icon-button {
+  padding: 0;
+  border: 0;
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.transaction-icon-button:hover,
+.transaction-icon-button:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 3px rgba(129, 112, 255, 0.16);
+}
+
+.transaction-icon-button:focus-visible {
+  outline: 2px solid #6b5bd2;
+  outline-offset: 2px;
+}
+
 .transaction-icon.coral { color: #ff796f; background: #fff0ed; }
 .transaction-icon.green { color: #28b98a; background: #eafaf4; }
 .transaction-icon.blue { color: #4f73e8; background: #edf2ff; }
@@ -179,6 +219,13 @@ const typeLabel = (type) => ({
   color: #656b7c;
   font-size: 0.92rem;
   white-space: nowrap;
+}
+
+.transaction-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 .transaction-amount.income {
@@ -213,9 +260,9 @@ const typeLabel = (type) => ({
     grid-template-columns: 40px minmax(0, 1fr);
   }
 
-  .transaction-amount {
+  .transaction-actions {
     grid-column: 2;
-    justify-self: start;
+    justify-content: space-between;
   }
 }
 </style>

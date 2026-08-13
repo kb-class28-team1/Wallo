@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.wallo.asset.dto.ExpenseDto;
@@ -88,5 +89,32 @@ class ExpenseServiceTest {
                         new ExpenseDto.SearchCondition("2026-07-01", "2026-07-31", 0, 0, 0)
                 )
         );
+    }
+
+    @Test
+    void normalizesOtherBeforeUpdatingTransactionCategory() {
+        when(expenseMapper.updateTransactionCategory(7L, 42L, "ETC")).thenReturn(1);
+
+        expenseService.updateTransactionCategory(
+                7L,
+                42L,
+                new ExpenseDto.CategoryUpdateRequest(" other ")
+        );
+
+        verify(expenseMapper).updateTransactionCategory(7L, 42L, "ETC");
+    }
+
+    @Test
+    void rejectsUnknownCategoryBeforeCallingMapper() {
+        assertThrows(
+                InvalidDashboardRequestException.class,
+                () -> expenseService.updateTransactionCategory(
+                        7L,
+                        42L,
+                        new ExpenseDto.CategoryUpdateRequest("UNKNOWN")
+                )
+        );
+
+        org.mockito.Mockito.verifyNoInteractions(expenseMapper);
     }
 }
