@@ -18,10 +18,37 @@ const getCurrentMonthDateRange = () => {
   };
 };
 
+const createApiError = (error, fallbackMessage) => {
+  const apiError = new Error(getApiErrorMessage(error, fallbackMessage));
+  apiError.code = getApiErrorCode(error);
+  apiError.status = error.response?.status;
+  apiError.response = error.response;
+  return apiError;
+};
+
 export const getAssets = async () => {
   const response = await httpClient.get("/api/assets");
 
   return response.data;
+};
+
+export const syncAssets = async () => {
+  try {
+    const response = await httpClient.post("/api/assets/sync");
+
+    return response.data;
+  } catch (error) {
+    const apiError = new Error(
+      getApiErrorMessage(
+        error,
+        "자산 거래내역 동기화에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+      ),
+    );
+    apiError.code = getApiErrorCode(error);
+    apiError.status = error.response?.status;
+    apiError.response = error.response;
+    throw apiError;
+  }
 };
 
 export const connectAllAssets = async (consentAgreed) => {
@@ -58,6 +85,34 @@ export const putBudget = async (targetMonth, totalAmount) => {
   });
 
   return response.data;
+};
+
+export const getCategoryBudgets = async (targetMonth) => {
+  try {
+    const response = await httpClient.get("/api/budgets/categories", {
+      params: targetMonth ? { targetMonth } : {},
+    });
+
+    return response.data;
+  } catch (error) {
+    throw createApiError(
+      error,
+      "카테고리별 예산 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.",
+    );
+  }
+};
+
+export const putCategoryBudgets = async (request) => {
+  try {
+    const response = await httpClient.put("/api/budgets/categories", request);
+
+    return response.data;
+  } catch (error) {
+    throw createApiError(
+      error,
+      "카테고리별 예산을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+    );
+  }
 };
 
 export const getInsight = async () => {

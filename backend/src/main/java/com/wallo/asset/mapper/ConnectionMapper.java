@@ -1,5 +1,6 @@
 package com.wallo.asset.mapper;
 
+import com.wallo.asset.dto.AssetSyncDto;
 import com.wallo.asset.dto.ConnectionDto;
 import java.util.List;
 import org.apache.ibatis.annotations.Param;
@@ -18,6 +19,10 @@ public interface ConnectionMapper {
             @Param("userId") long userId,
             @Param("institutionId") Long institutionId
     );
+
+    List<AssetSyncDto.SyncTarget> findActiveSyncTargets(@Param("userId") long userId);
+
+    List<Long> findUserIdsWithActiveConnections();
 
     List<ConnectionDto.ConnectedAsset> findConnectedAssets(@Param("userId") long userId);
 

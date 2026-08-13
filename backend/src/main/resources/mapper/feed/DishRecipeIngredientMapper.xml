@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wallo.feed.mapper.DishRecipeIngredientMapper">
+    <resultMap id="dishRecipeIngredientMap"
+               type="com.wallo.feed.domain.DishRecipeIngredientRow">
+        <id property="id" column="id"/>
+        <result property="normalizedDishName" column="normalized_dish_name"/>
+        <result property="displayDishName" column="display_dish_name"/>
+        <result property="dishUnit" column="dish_unit"/>
+        <result property="category" column="category"/>
+        <result property="normalizedIngredientName" column="normalized_ingredient_name"/>
+        <result property="displayIngredientName" column="display_ingredient_name"/>
+        <result property="ingredientQuantity" column="ingredient_quantity"/>
+        <result property="ingredientUnit" column="ingredient_unit"/>
+        <result property="priceReferenceUnit" column="price_reference_unit"/>
+        <result property="note" column="note"/>
+        <result property="referencePrice" column="reference_price"/>
+        <result property="priceSource" column="price_source"/>
+        <result property="priceObservedAt" column="price_observed_at"/>
+    </resultMap>
+
+    <select id="findPricedIngredients" resultMap="dishRecipeIngredientMap">
+        SELECT r.id, r.normalized_dish_name, r.display_dish_name,
+               r.dish_unit, r.category, r.normalized_ingredient_name,
+               r.display_ingredient_name, r.ingredient_quantity,
+               r.ingredient_unit, r.price_reference_unit, r.note,
+               p.lowest_price AS reference_price,
+               p.source AS price_source,
+               p.observed_at AS price_observed_at
+        FROM FEED_DISH_RECIPE_INGREDIENT r
+        LEFT JOIN FEED_PRICE_REFERENCE p
+          ON p.normalized_item_name = r.normalized_ingredient_name
+         AND p.brand = ''
+         AND REPLACE(LOWER(p.unit), ' ', '')
+             = REPLACE(LOWER(r.price_reference_unit), ' ', '')
+        WHERE r.category = #{category}
+          AND REPLACE(LOWER(r.dish_unit), ' ', '') = #{normalizedDishUnit}
+          AND r.normalized_dish_name = (
+              SELECT r2.normalized_dish_name
+              FROM FEED_DISH_RECIPE_INGREDIENT r2
+              WHERE r2.category = #{category}
+                AND REPLACE(LOWER(r2.dish_unit), ' ', '') = #{normalizedDishUnit}
+                AND (
+                    r2.normalized_dish_name = #{normalizedDishName}
+                    OR r2.normalized_dish_name LIKE CONCAT('%', #{normalizedDishName}, '%')
+                    OR #{normalizedDishName} LIKE CONCAT('%', r2.normalized_dish_name, '%')
+                )
+              GROUP BY r2.normalized_dish_name
+              ORDER BY r2.normalized_dish_name = #{normalizedDishName} DESC,
+                       CHAR_LENGTH(r2.normalized_dish_name) DESC
+              LIMIT 1
+          )
+        ORDER BY r.id
+    </select>
+</mapper>

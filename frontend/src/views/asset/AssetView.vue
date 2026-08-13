@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted } from "vue";
+import { onMounted, ref } from "vue";
 import { storeToRefs } from "pinia";
 import AssetOverviewCard from "@/components/asset/AssetOverviewCard.vue";
 import ConsumptionReportCard from "@/components/asset/ConsumptionReportCard.vue";
@@ -7,7 +7,15 @@ import TaxDeductionTrackerCard from "@/components/asset/TaxDeductionTrackerCard.
 import { useAssetStore } from "@/stores/assetStore";
 
 const assetStore = useAssetStore();
-const { assets, error, isAssetLoading } = storeToRefs(assetStore);
+const {
+  assets,
+  error,
+  isAssetLoading,
+  isSyncing,
+  syncError,
+} = storeToRefs(assetStore);
+const reportRefreshKey = ref(0);
+const syncStatus = ref(null);
 
 const loadAssets = async () => {
   try {
@@ -17,19 +25,70 @@ const loadAssets = async () => {
   }
 };
 
+const syncAssets = async () => {
+  syncStatus.value = null;
+
+  try {
+    const result = await assetStore.syncAssets();
+    if (!result) return;
+
+    await assetStore.fetchAssets({ notifyError: false });
+    reportRefreshKey.value += 1;
+
+    const failedConnections = Number(result.failedConnections) || 0;
+    const summary = `신규 ${Number(result.inserted) || 0}건, 수정 ${Number(result.updated) || 0}건`;
+    syncStatus.value = failedConnections > 0
+      ? {
+          type: "warning",
+          message: `동기화가 완료되었습니다. ${summary}, 실패한 연결기관 ${failedConnections}건`,
+        }
+      : {
+          type: "success",
+          message: `동기화가 완료되었습니다. ${summary}`,
+        };
+  } catch {
+    syncStatus.value = {
+      type: "danger",
+      message: syncError.value || "자산 거래내역 동기화에 실패했습니다.",
+    };
+  }
+};
+
 onMounted(loadAssets);
 </script>
 
 <template>
   <section class="asset-view container-fluid px-4 py-4">
-    <header class="mb-4">
+    <header class="asset-page-header d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
       <div>
         <h1 class="h3 fw-bold mb-1">자산관리</h1>
         <p class="text-secondary mb-0">
           연결된 계좌와 투자 자산을 한곳에서 확인하세요.
         </p>
       </div>
+      <button
+        type="button"
+        class="btn btn-primary asset-sync-button"
+        :disabled="isSyncing || isAssetLoading"
+        @click="syncAssets"
+      >
+        <span
+          v-if="isSyncing"
+          class="spinner-border spinner-border-sm me-2"
+          aria-hidden="true"
+        ></span>
+        {{ isSyncing ? "동기화 중..." : "거래내역 새로고침" }}
+      </button>
     </header>
+
+    <div
+      v-if="syncStatus"
+      class="alert"
+      :class="`alert-${syncStatus.type}`"
+      role="status"
+    >
+      {{ syncStatus.message }}
+    </div>
 
     <section class="asset-overview-section" aria-label="자산 현황">
       <div v-if="isAssetLoading" class="asset-state" aria-live="polite">
@@ -65,11 +124,11 @@ onMounted(loadAssets);
 
     <section class="row g-4 mt-0 asset-report-grid" aria-label="자산 리포트">
       <div class="col-12 col-lg-6">
-        <ConsumptionReportCard />
+        <ConsumptionReportCard :key="`consumption-report-${reportRefreshKey}`" />
       </div>
 
       <div class="col-12 col-lg-6">
-        <TaxDeductionTrackerCard />
+        <TaxDeductionTrackerCard :key="`tax-deduction-${reportRefreshKey}`" />
       </div>
     </section>
   </section>
@@ -78,6 +137,10 @@ onMounted(loadAssets);
 <style scoped>
 .asset-view {
   width: 100%;
+}
+
+.asset-sync-button {
+  min-width: 172px;
 }
 
 .asset-overview-section {

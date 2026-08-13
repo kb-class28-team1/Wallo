@@ -6,8 +6,10 @@ import com.wallo.external.auth.IdentityCodefPasswordEncryptor;
 import com.wallo.external.CodefConstants;
 import com.wallo.external.dto.CodefDto;
 import org.springframework.http.HttpMethod;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
+import java.util.Locale;
 
 /**
  * Common CODEF adapter used by the local Mock API and CODEF Sandbox/production.
@@ -157,6 +159,12 @@ public class CodefMockClient
                     requestFactory.create(request),
                     CodefDto.Response.class
             ).getBody();
+        } catch (HttpStatusCodeException exception) {
+            return CodefDto.Response.failure(
+                    httpFailureCode(exception.getRawStatusCode()),
+                    failureMessage,
+                    exception.getStatusText()
+            );
         } catch (RestClientException exception) {
             return CodefDto.Response.failure(
                     CodefConstants.CLIENT_FAILURE_CODE,
@@ -164,6 +172,13 @@ public class CodefMockClient
                     exception.getMessage()
             );
         }
+    }
+
+    private String httpFailureCode(int statusCode) {
+        if (statusCode == 408) {
+            return CodefConstants.CLIENT_FAILURE_CODE;
+        }
+        return String.format(Locale.ROOT, "CF-%03d00", statusCode);
     }
 
     private String resolveAssetPath(String institutionType) {

@@ -1,6 +1,9 @@
 package com.wallo.feed.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wallo.feed.analysis.FeedAnalysisClient;
+import com.wallo.feed.analysis.SavingFeedbackAwareFeedAnalysisClient;
 import com.wallo.feed.domain.Feed;
 import com.wallo.feed.domain.FeedMessage;
 import com.wallo.feed.dto.FeedDtos.AnalysisResponse;
@@ -9,6 +12,7 @@ import com.wallo.feed.dto.FeedDtos.FeedListResponse;
 import com.wallo.feed.dto.FeedDtos.LikeResponse;
 import com.wallo.feed.dto.FeedDtos.MessageRequest;
 import com.wallo.feed.dto.FeedDtos.RoomResponse;
+import com.wallo.feed.dto.FeedDtos.SavingAmountFeedbackSummary;
 import com.wallo.feed.dto.FeedDtos.UpdateFeedRequest;
 import com.wallo.feed.mapper.FeedMapper;
 import com.wallo.feed.websocket.ChallengeChatBroadcaster;
@@ -28,6 +32,8 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 public class FeedService {
     private static final Set<String> SPENDING_TYPES = Set.of("SPENT", "REDUCED", "SAVED");
+    private static final Set<String> SAVING_AMOUNT_FEEDBACK_TYPES =
+            Set.of("SAME", "DIFFERENT", "UNKNOWN");
     private static final Set<String> FEED_CATEGORIES = Set.of(
             "FOOD", "CAFE", "TRANSPORT", "SHOPPING", "DELIVERY",
             "HOUSING", "LIVING", "CULTURE", "HEALTH", "ETC");
@@ -38,18 +44,24 @@ public class FeedService {
     private final FeedMapper feedMapper;
     private final FeedAnalysisClient analysisClient;
     private final ChallengeChatBroadcaster chatBroadcaster;
+    private final PriceReferenceService priceReferenceService;
+    private final ObjectMapper objectMapper;
 
     /** 분석 단위 테스트와 기존 호출부의 호환을 위한 생성자. */
     public FeedService(FeedMapper feedMapper, FeedAnalysisClient analysisClient) {
-        this(feedMapper, analysisClient, null);
+        this(feedMapper, analysisClient, null, null, new ObjectMapper());
     }
 
     @Autowired
     public FeedService(FeedMapper feedMapper, FeedAnalysisClient analysisClient,
-                       ChallengeChatBroadcaster chatBroadcaster) {
+                       ChallengeChatBroadcaster chatBroadcaster,
+                       PriceReferenceService priceReferenceService,
+                       ObjectMapper objectMapper) {
         this.feedMapper = feedMapper;
         this.analysisClient = analysisClient;
         this.chatBroadcaster = chatBroadcaster;
+        this.priceReferenceService = priceReferenceService;
+        this.objectMapper = objectMapper;
     }
 
     public FeedListResponse getFeeds(Long userId, Long challengeId, boolean mineOnly) {
@@ -73,7 +85,18 @@ public class FeedService {
         requireMember(userId, challengeId);
         String normalizedCategory = normalizeCategory(category);
         validate(media, spendingType, normalizedCategory);
-        AnalysisResponse analysis = analysisClient.analyze(media, spendingType, normalizedCategory);
+        SavingAmountFeedbackSummary feedbackSummary = feedMapper.findSavingAmountFeedbackSummary(
+                userId, normalizedCategory);
+        AnalysisResponse analysis;
+        if (analysisClient instanceof SavingFeedbackAwareFeedAnalysisClient feedbackAwareClient) {
+            analysis = feedbackAwareClient.analyze(
+                    media, spendingType, normalizedCategory, feedbackSummary);
+        } else {
+            analysis = analysisClient.analyze(media, spendingType, normalizedCategory);
+        }
+        if (priceReferenceService != null) {
+            analysis = priceReferenceService.enrich(analysis);
+        }
         return applyCategoryAverageFallback(userId, analysis);
     }
 
@@ -82,10 +105,44 @@ public class FeedService {
                        String spendingType, String category, String customCategory,
                        String caption, int savingAmount, String analysisSummary,
         double confidenceScore) {
+        return create(userId, challengeId, media, spendingType, category, customCategory,
+                caption, savingAmount, savingAmount, analysisSummary, confidenceScore,
+                "UNKNOWN", null, null, null);
+    }
+
+    @Transactional
+    public Feed create(Long userId, Long challengeId, MultipartFile media,
+                       String spendingType, String category, String customCategory,
+                       String caption, int savingAmount, int aiEstimatedSavingAmount,
+                       String analysisSummary, double confidenceScore,
+                       String savingAmountFeedback, Integer verifiedSavingAmount,
+                       String savingAmountFeedbackNote) {
+        return create(userId, challengeId, media, spendingType, category, customCategory,
+                caption, savingAmount, aiEstimatedSavingAmount, analysisSummary, confidenceScore,
+                savingAmountFeedback, verifiedSavingAmount, savingAmountFeedbackNote, null);
+    }
+
+    @Transactional
+    public Feed create(Long userId, Long challengeId, MultipartFile media,
+                       String spendingType, String category, String customCategory,
+                       String caption, int savingAmount, int aiEstimatedSavingAmount,
+                       String analysisSummary, double confidenceScore,
+                       String savingAmountFeedback, Integer verifiedSavingAmount,
+                       String savingAmountFeedbackNote, String analysisDetails) {
         requireMember(userId, challengeId);
         String normalizedCategory = normalizeCategory(category);
         validate(media, spendingType, normalizedCategory);
         validateCaption(caption);
+        String normalizedFeedback = normalizeSavingAmountFeedback(savingAmountFeedback);
+        int normalizedAiAmount = clampAmount(aiEstimatedSavingAmount);
+        int finalSavingAmount = clampAmount(savingAmount);
+        Integer normalizedVerifiedAmount = normalizeVerifiedSavingAmount(
+                normalizedFeedback, normalizedAiAmount, verifiedSavingAmount);
+        if ("SAME".equals(normalizedFeedback)) {
+            finalSavingAmount = normalizedAiAmount;
+        } else if ("DIFFERENT".equals(normalizedFeedback)) {
+            finalSavingAmount = normalizedVerifiedAmount;
+        }
         String mediaType = media.getContentType() != null
                 && media.getContentType().toLowerCase(Locale.ROOT).startsWith("video/")
                 ? "VIDEO" : "IMAGE";
@@ -98,15 +155,25 @@ public class FeedService {
         feed.setThumbnailUrl(mediaType.equals("IMAGE") ? mediaUrl : null);
         feed.setMediaType(mediaType);
         feed.setSpendingType(spendingType);
-        feed.setSavingAmount(Math.max(0, savingAmount));
+        feed.setSavingAmount(finalSavingAmount);
         feed.setCategory(normalizedCategory);
         // 새 인증 글은 공통 지출 카테고리만 사용하며 기존 custom_category 데이터는 유지함.
         feed.setCustomCategory(null);
         feed.setCaption(blankToNull(caption));
         feed.setAnalysisSummary(blankToNull(analysisSummary));
         feedMapper.insertFeed(feed);
+        AnalysisResponse details = parseAnalysisDetails(analysisDetails);
         feedMapper.insertAnalysis(feed.getId(), spendingType, normalizedCategory,
-                feed.getSavingAmount(), analysisSummary, confidenceScore);
+                normalizedAiAmount, analysisSummary, confidenceScore,
+                details == null ? 0 : safeLong(details.referenceValue()),
+                details == null ? 0 : safeLong(details.actualCost()),
+                details == null ? 0 : safeLong(details.savingDifference()),
+                details == null ? null : toJson(details.detectedItems()),
+                details == null ? null : toJson(details.priceReferences()));
+        feedMapper.insertSavingAmountFeedback(
+                feed.getId(), userId, normalizedCategory, normalizedAiAmount,
+                normalizedFeedback, normalizedVerifiedAmount,
+                blankToNull(savingAmountFeedbackNote));
         feedMapper.insertFeedShareMessage(challengeId, userId, feed.getId());
         publishMessageAfterCommit(challengeId, feedMapper.findMessageByLastInsertId());
         return feed;
@@ -208,6 +275,28 @@ public class FeedService {
         }
     }
 
+    private String normalizeSavingAmountFeedback(String feedback) {
+        String normalized = feedback == null ? "UNKNOWN" : feedback.trim().toUpperCase(Locale.ROOT);
+        if (!SAVING_AMOUNT_FEEDBACK_TYPES.contains(normalized)) {
+            throw new IllegalArgumentException("절약 금액 확인 방법을 선택해 주세요.");
+        }
+        return normalized;
+    }
+
+    private Integer normalizeVerifiedSavingAmount(
+            String feedback, int aiAmount, Integer verifiedAmount) {
+        if ("UNKNOWN".equals(feedback)) return null;
+        if ("SAME".equals(feedback)) return aiAmount;
+        if (verifiedAmount == null || verifiedAmount < 0) {
+            throw new IllegalArgumentException("실제 절약 금액을 입력해 주세요.");
+        }
+        return clampAmount(verifiedAmount);
+    }
+
+    private int clampAmount(int amount) {
+        return Math.min(10_000_000, Math.max(0, amount));
+    }
+
     private String normalizeCategory(String category) {
         return category == null ? "" : category.trim().toUpperCase(Locale.ROOT);
     }
@@ -215,6 +304,7 @@ public class FeedService {
     private AnalysisResponse applyCategoryAverageFallback(Long userId, AnalysisResponse analysis) {
         if (analysis == null
                 || analysis.estimatedSavingAmount() > 0
+                || analysis.referenceValue() > 0
                 || "SPENT".equals(analysis.spendingType())) {
             return analysis;
         }
@@ -248,7 +338,9 @@ public class FeedService {
         String summary = appendHistoryFallbackSummary(analysis.summary(), historyDays);
         return new AnalysisResponse(
                 analysis.spendingType(), analysis.category(), estimatedAmount,
-                summary, analysis.confidenceScore());
+                summary, analysis.confidenceScore(), analysis.detectedItems(),
+                analysis.referenceValue(), analysis.actualCost(), analysis.savingDifference(),
+                analysis.priceReferences());
     }
 
     private boolean hasEnoughHistory(CategoryExpenseAverage average) {
@@ -286,5 +378,29 @@ public class FeedService {
 
     private String blankToNull(String value) {
         return value == null || value.trim().isEmpty() ? null : value.trim();
+    }
+
+    private AnalysisResponse parseAnalysisDetails(String analysisDetails) {
+        if (analysisDetails == null || analysisDetails.isBlank()
+                || analysisDetails.length() > 100_000) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(analysisDetails, AnalysisResponse.class);
+        } catch (JsonProcessingException exception) {
+            return null;
+        }
+    }
+
+    private String toJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException exception) {
+            return null;
+        }
+    }
+
+    private long safeLong(long value) {
+        return Math.max(0, Math.min(10_000_000_000L, value));
     }
 }

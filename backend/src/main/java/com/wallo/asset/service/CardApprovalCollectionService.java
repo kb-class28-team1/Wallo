@@ -8,6 +8,7 @@ import com.wallo.asset.dto.AssetSyncDto;
 import com.wallo.asset.mapper.AssetSyncMapper;
 import com.wallo.external.auth.CodefCredential;
 import com.wallo.external.auth.CodefCredentialProvider;
+import com.wallo.external.CodefRetryExecutor;
 import com.wallo.external.client.CardApprovalClient;
 import com.wallo.external.CodefDateTime;
 import com.wallo.external.CodefResponseValidator;
@@ -19,10 +20,12 @@ import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.logging.Logger;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +39,7 @@ public class CardApprovalCollectionService {
 
     private final CardApprovalClient cardApprovalClient;
     private final CodefCredentialProvider codefCredentialProvider;
+    private final CodefRetryExecutor codefRetryExecutor;
     private final ObjectMapper objectMapper;
     private final ExpenseCategoryClassifier categoryClassifier;
     private final TransactionSourceKeyGenerator sourceKeyGenerator;
@@ -46,6 +50,7 @@ public class CardApprovalCollectionService {
     public CardApprovalCollectionService(
             CardApprovalClient cardApprovalClient,
             CodefCredentialProvider codefCredentialProvider,
+            CodefRetryExecutor codefRetryExecutor,
             ObjectMapper objectMapper,
             ExpenseCategoryClassifier categoryClassifier,
             TransactionSourceKeyGenerator sourceKeyGenerator,
@@ -55,6 +60,7 @@ public class CardApprovalCollectionService {
     ) {
         this.cardApprovalClient = cardApprovalClient;
         this.codefCredentialProvider = codefCredentialProvider;
+        this.codefRetryExecutor = codefRetryExecutor;
         this.objectMapper = objectMapper;
         this.categoryClassifier = categoryClassifier;
         this.sourceKeyGenerator = sourceKeyGenerator;
@@ -75,6 +81,16 @@ public class CardApprovalCollectionService {
             LocalDate startDate,
             LocalDate endDate
     ) {
+        return collectWithStats(userId, connectionId, institution, startDate, endDate).total();
+    }
+
+    public AssetSyncDto.SyncStats collectWithStats(
+            long userId,
+            long connectionId,
+            Institution institution,
+            LocalDate startDate,
+            LocalDate endDate
+    ) {
         validateCollectionRequest(institution, startDate, endDate);
 
         long startedAt = System.nanoTime();
@@ -83,31 +99,39 @@ public class CardApprovalCollectionService {
                 userId,
                 institution.getCodefOrganizationCode()
         );
-        CodefDto.Response response = cardApprovalClient.getApprovals(
-                new CodefDto.CardApprovalRequest(
-                        institution.getCodefOrganizationCode(),
-                        credential.loginType(),
-                        credential.id(),
-                        credential.password(),
-                        CodefDateTime.formatDate(startDate),
-                        CodefDateTime.formatDate(endDate)
-                )
+        CodefDto.CardApprovalRequest request = new CodefDto.CardApprovalRequest(
+                institution.getCodefOrganizationCode(),
+                credential.loginType(),
+                credential.id(),
+                credential.password(),
+                CodefDateTime.formatDate(startDate),
+                CodefDateTime.formatDate(endDate)
+        );
+        CodefDto.Response response = codefRetryExecutor.execute(
+                "card approval collection organization=" + institution.getCodefOrganizationCode(),
+                () -> cardApprovalClient.getApprovals(request)
         );
         long apiElapsedMs = elapsedMillis(apiStartedAt);
-        CodefResponseValidator.requireSuccess(response, "카드 승인내역을 가져오지 못했습니다");
+        CodefResponseValidator.requireSuccess(response, "Card approval collection");
 
         long conversionStartedAt = System.nanoTime();
         List<CodefDto.CardApproval> approvals = objectMapper.convertValue(
                 response.getData(),
                 new TypeReference<List<CodefDto.CardApproval>>() { }
         );
+        List<CodefDto.CardApproval> activeCardApprovals = filterActiveCardApprovals(
+                connectionId,
+                approvals
+        );
         long conversionElapsedMs = elapsedMillis(conversionStartedAt);
 
         int savedCount = 0;
+        int insertedCount = 0;
+        int updatedCount = 0;
         int reusedClassificationCount = 0;
         int aiRequestCount = 0;
         long classificationStartedAt = System.nanoTime();
-        List<PreparedApproval> preparedApprovals = safeList(approvals).stream()
+        List<PreparedApproval> preparedApprovals = safeList(activeCardApprovals).stream()
                 .map(approval -> prepareApproval(userId, connectionId, institution, approval))
                 .toList();
         preparedApprovals = TransactionBatchDeduplicator.deduplicate(
@@ -115,7 +139,8 @@ public class CardApprovalCollectionService {
                 approval -> approval.sourceIdentity().sourceDedupKey(),
                 SOURCE_TYPE
         );
-        int duplicateCount = safeList(approvals).size() - preparedApprovals.size();
+        int duplicateCount = safeList(activeCardApprovals).size() - preparedApprovals.size();
+        int inactiveCardApprovalCount = safeList(approvals).size() - safeList(activeCardApprovals).size();
         Map<String, ClassificationResolution> classifications = resolveClassifications(
                 userId,
                 institution,
@@ -128,7 +153,18 @@ public class CardApprovalCollectionService {
                     approval,
                     classifications.get(approval.sourceIdentity().sourceDedupKey())
             );
+            boolean existingTransaction = assetSyncMapper.findExistingTransactionId(
+                    mapping.transaction().getUserId(),
+                    mapping.transaction().getSourceType(),
+                    mapping.transaction().getSourceOrganizationCode(),
+                    mapping.transaction().getSourceDedupKey()
+            ) != null;
             assetSyncMapper.upsertTransaction(mapping.transaction());
+            if (existingTransaction) {
+                updatedCount++;
+            } else {
+                insertedCount++;
+            }
             if (mapping.reusedClassification()) {
                 reusedClassificationCount++;
             } else if (AssetTransactionConstants.AI_CATEGORY_SOURCE
@@ -144,20 +180,52 @@ public class CardApprovalCollectionService {
         LOGGER.info(String.format(
                 Locale.ROOT,
                 "asset-sync card organization=%s records=%d duplicates=%d saved=%d reusedClassification=%d aiRequests=%d "
-                        + "apiMs=%d conversionMs=%d classificationMs=%d processingMs=%d totalMs=%d",
+                        + "inactiveCardApprovals=%d apiMs=%d conversionMs=%d classificationMs=%d processingMs=%d totalMs=%d",
                 institution.getCodefOrganizationCode(),
                 safeList(approvals).size(),
                 duplicateCount,
                 savedCount,
                 reusedClassificationCount,
                 aiRequestCount,
+                inactiveCardApprovalCount,
                 apiElapsedMs,
                 conversionElapsedMs,
                 classificationElapsedMs,
                 processingElapsedMs,
                 elapsedMillis(startedAt)
         ));
-        return savedCount;
+        return new AssetSyncDto.SyncStats(insertedCount, updatedCount);
+    }
+
+    private List<CodefDto.CardApproval> filterActiveCardApprovals(
+            long connectionId,
+            List<CodefDto.CardApproval> approvals
+    ) {
+        List<String> activeCardNumbers = assetSyncMapper.findActiveCardNumbers(connectionId);
+        if (activeCardNumbers == null) {
+            return safeList(approvals);
+        }
+
+        Set<String> activeCardNumberSet = new HashSet<>();
+        for (String cardNumber : activeCardNumbers) {
+            if (cardNumber != null && !cardNumber.isBlank()) {
+                activeCardNumberSet.add(
+                        AssetIdentifierNormalizer.normalize(cardNumber, "card number")
+                );
+            }
+        }
+
+        return safeList(approvals).stream()
+                .filter(approval -> approval == null
+                        || approval.getResCardNo() == null
+                        || approval.getResCardNo().isBlank()
+                        || activeCardNumberSet.contains(
+                                AssetIdentifierNormalizer.normalize(
+                                        approval.getResCardNo(),
+                                        "card number"
+                                )
+                        ))
+                .toList();
     }
 
     private void invalidateConsumptionInsightCache(

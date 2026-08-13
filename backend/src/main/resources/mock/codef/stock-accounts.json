@@ -7,47 +7,18 @@
   "data": {
     "accounts": [
       {
-        "resAccountName": "위탁종합",
-        "resAccount": "12345678-01",
-        "resAccountDisplay": "123456**-**",
-        "resAccountBalance": "350000",
-        "resAccountEvalAmount": "14500000",
+        "resAccountName": "주식 투자",
+        "resAccount": "77777777-07",
+        "resAccountDisplay": "777777**-**",
+        "resAccountBalance": "0",
+        "resAccountEvalAmount": "15900000",
         "resAccountCurrency": "KRW",
         "resAccountStatus": "1",
         "resAccountSubtype": "STOCK"
-      },
-      {
-        "resAccountName": "CMA(RP형)",
-        "resAccount": "87654321-01",
-        "resAccountDisplay": "876543**-**",
-        "resAccountBalance": "2000000",
-        "resAccountEvalAmount": "2000000",
-        "resAccountCurrency": "KRW",
-        "resAccountStatus": "1",
-        "resAccountSubtype": "CMA"
-      },
-      {
-        "resAccountName": "연금저축",
-        "resAccount": "56781234-22",
-        "resAccountDisplay": "567812**-**",
-        "resAccountBalance": "0",
-        "resAccountEvalAmount": "8400000",
-        "resAccountCurrency": "KRW",
-        "resAccountStatus": "1",
-        "resAccountSubtype": "PENSION"
       }
     ],
-    "transactions": [
-      {
-        "resAccount": "12345678-01",
-        "resAccountTrNo": "STOCK-202607-0001",
-        "resAccountTrDate": "2026-07-24",
-        "resAccountTrTime": "10:05:00",
-        "resAccountTrType": "INCOME",
-        "resAccountTrAmount": "180000",
-        "resAccountTrDesc": "배당금",
-        "resAccountTrCategory": "INVESTMENT"
-      }
-    ]
+    "loans": [],
+    "assetSnapshots": [],
+    "transactions": []
   }
 }

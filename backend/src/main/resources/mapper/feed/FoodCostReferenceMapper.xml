@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wallo.feed.mapper.FoodCostReferenceMapper">
+    <resultMap id="foodCostReferenceMap" type="com.wallo.feed.domain.FoodCostReferenceRow">
+        <id property="id" column="id"/>
+        <result property="normalizedDishName" column="normalized_dish_name"/>
+        <result property="displayDishName" column="display_dish_name"/>
+        <result property="unit" column="unit"/>
+        <result property="category" column="category"/>
+        <result property="ingredientCost" column="ingredient_cost"/>
+        <result property="restaurantPrice" column="restaurant_price"/>
+        <result property="restaurantSource" column="restaurant_source"/>
+        <result property="restaurantSourceUrl" column="restaurant_source_url"/>
+        <result property="ingredientBasis" column="ingredient_basis"/>
+        <result property="observedAt" column="observed_at"/>
+        <result property="searchConfidence" column="search_confidence"/>
+    </resultMap>
+
+    <select id="findBestMatch" resultMap="foodCostReferenceMap">
+        SELECT id, normalized_dish_name, display_dish_name, unit, category,
+               ingredient_cost, restaurant_price, restaurant_source,
+               restaurant_source_url, ingredient_basis, observed_at, search_confidence
+        FROM FEED_FOOD_COST_REFERENCE
+        WHERE category = #{category}
+          AND REPLACE(LOWER(unit), ' ', '') = #{normalizedUnit}
+          AND (
+              normalized_dish_name = #{normalizedDishName}
+              OR normalized_dish_name LIKE CONCAT('%', #{normalizedDishName}, '%')
+              OR #{normalizedDishName} LIKE CONCAT('%', normalized_dish_name, '%')
+          )
+        ORDER BY normalized_dish_name = #{normalizedDishName} DESC,
+                 search_confidence DESC,
+                 updated_at DESC
+        LIMIT 1
+    </select>
+
+    <insert id="upsert" parameterType="com.wallo.feed.domain.FoodCostReferenceRow">
+        INSERT INTO FEED_FOOD_COST_REFERENCE
+        (normalized_dish_name, display_dish_name, unit, category,
+         ingredient_cost, restaurant_price, restaurant_source,
+         restaurant_source_url, ingredient_basis, observed_at, search_confidence)
+        VALUES
+        (#{normalizedDishName}, #{displayDishName}, #{unit}, #{category},
+         #{ingredientCost}, #{restaurantPrice}, #{restaurantSource},
+         #{restaurantSourceUrl}, #{ingredientBasis}, #{observedAt}, #{searchConfidence})
+        ON DUPLICATE KEY UPDATE
+            display_dish_name = VALUES(display_dish_name),
+            ingredient_cost = VALUES(ingredient_cost),
+            restaurant_price = VALUES(restaurant_price),
+            restaurant_source = VALUES(restaurant_source),
+            restaurant_source_url = VALUES(restaurant_source_url),
+            ingredient_basis = VALUES(ingredient_basis),
+            observed_at = VALUES(observed_at),
+            search_confidence = VALUES(search_confidence)
+    </insert>
+</mapper>

@@ -11,6 +11,7 @@ import { useGoalStore } from "./goalStore";
 
 vi.mock("@/api/goalApi", () => ({
   getAvailableGoalAccounts: vi.fn(),
+  getGoalByConversationId: vi.fn(),
   getGoalRoadmap: vi.fn(),
   getGoals: vi.fn(),
   selectGoalAccount: vi.fn(),

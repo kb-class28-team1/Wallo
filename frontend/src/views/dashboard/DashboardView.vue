@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { storeToRefs } from "pinia";
+import { useRouter } from "vue-router";
 import AssetSummaryCard from "@/components/dashboard/AssetSummaryCard.vue";
 import BudgetSummaryCard from "@/components/dashboard/BudgetSummaryCard.vue";
 import ExpenseSummaryCard from "@/components/dashboard/ExpenseSummaryCard.vue";
@@ -11,6 +12,7 @@ import { useGoalStore } from "@/stores/goalStore";
 
 const dashboardStore = useDashboardStore();
 const goalStore = useGoalStore();
+const router = useRouter();
 const {
   isLoading,
   assets,
@@ -22,10 +24,6 @@ const {
   goals,
   isLoading: isGoalLoading,
   error: goalError,
-  availableAccounts,
-  isAccountLoading,
-  isAccountSaving,
-  accountError,
 } = storeToRefs(goalStore);
 const { assetTrendChartData, expenseChartData } = useDashboardCharts(assets, expenses);
 
@@ -47,27 +45,15 @@ const hasDashboardData = computed(() => Boolean(
   goalError.value,
 ));
 
-const handleBudgetSave = async (totalAmount) => {
-  await dashboardStore.updateBudgetTotal(totalAmount);
+const handleBudgetSettings = async () => {
+  await router.push({
+    name: "expenses",
+    query: { budget: "edit" },
+  });
 };
 
 const handleGoalRetry = () => {
   goalStore.fetchGoals();
-};
-
-const handleAccountRetry = () => {
-  goalStore.fetchAvailableAccounts();
-};
-
-const handleAccountSelect = async ({ goalId, accountId }) => {
-  try {
-    await goalStore.saveGoalAccount(goalId, accountId);
-    // 계좌 연결 직후 목표 조회가 최신 잔액을 동기화하므로 카드와 계좌 목록을 다시 읽는다.
-    await refreshGoalData({ refreshDashboard: true });
-    await goalStore.fetchAvailableAccounts({ notifyError: false });
-  } catch {
-    // The store already exposes and alerts the API error; keep the component event handler settled.
-  }
 };
 
 const refreshGoalData = ({ refreshDashboard = false } = {}) => {
@@ -94,7 +80,6 @@ const loadDashboard = async () => {
     await refreshGoalData();
     await Promise.all([
       dashboardStore.fetchDashboardSummary(),
-      goalStore.fetchAvailableAccounts({ notifyError: false }),
     ]);
   } finally {
     isDashboardReady.value = true;
@@ -149,7 +134,7 @@ onBeforeUnmount(() => {
 
       <div class="dashboard-card-grid">
         <AssetSummaryCard :assets="assets" :chart-data="assetTrendChartData" />
-        <BudgetSummaryCard :budget="budget" @save-budget="handleBudgetSave" />
+        <BudgetSummaryCard :budget="budget" @open-budget-settings="handleBudgetSettings" />
       </div>
 
       <div class="dashboard-summary-grid">
@@ -158,13 +143,7 @@ onBeforeUnmount(() => {
           :goals="goals"
           :loading="isGoalLoading"
           :error="goalError"
-          :available-accounts="availableAccounts"
-          :account-loading="isAccountLoading"
-          :account-saving="isAccountSaving"
-          :account-error="accountError"
           @retry="handleGoalRetry"
-          @retry-accounts="handleAccountRetry"
-          @select-account="handleAccountSelect"
         />
       </div>
     </div>

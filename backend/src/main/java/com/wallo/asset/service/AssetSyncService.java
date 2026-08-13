@@ -53,7 +53,36 @@ public class AssetSyncService {
         this.clock = clock;
     }
 
-    public void sync(long userId, long connectionId, Institution institution, CodefDto.Response response) {
+    public AssetSyncDto.SyncStats sync(
+            long userId,
+            long connectionId,
+            Institution institution,
+            CodefDto.Response response
+    ) {
+        return syncInternal(userId, connectionId, institution, response, null, null);
+    }
+
+    public AssetSyncDto.SyncStats sync(
+            long userId,
+            long connectionId,
+            Institution institution,
+            CodefDto.Response response,
+            LocalDate startDate,
+            LocalDate endDate
+    ) {
+        validateSyncPeriod(startDate, endDate);
+        return syncInternal(userId, connectionId, institution, response, startDate, endDate);
+    }
+
+    private AssetSyncDto.SyncStats syncInternal(
+            long userId,
+            long connectionId,
+            Institution institution,
+            CodefDto.Response response,
+            LocalDate startDate,
+            LocalDate endDate
+    ) {
+        boolean initialSync = startDate == null;
         long startedAt = System.nanoTime();
         CodefResponseValidator.requireSuccess(response, "Asset synchronization");
         CodefDto.AssetData data = codefAssetResponseMapper.toAssetData(response);
@@ -70,7 +99,9 @@ public class AssetSyncService {
         }
 
         List<NormalizedAccount> normalizedAccounts = upsertAccounts(connectionId, institution, data);
-        for (CodefDto.Card card : values(data.getCards())) {
+        for (CodefDto.Card card : values(data.getCards()).stream()
+                .filter(card -> isActiveAssetStatus(card.getResCardState()))
+                .toList()) {
             assetSyncMapper.upsertCard(connectionId, new AssetSyncDto.Card(
                     AssetIdentifierNormalizer.normalize(card.getResCardNo(), "card number"),
                     card.getResCardName(), defaultValue(card.getResCardType(), "CREDIT"),
@@ -79,10 +110,20 @@ public class AssetSyncService {
         long assetStageElapsedMs = elapsedMillis(startedAt);
         long transactionStageStartedAt = System.nanoTime();
         int transactionDuplicateCount = 0;
+        AssetSyncDto.SyncStats transactionStats = AssetSyncDto.SyncStats.empty();
         if (AssetTransactionConstants.CARD_INSTITUTION_TYPE.equals(institution.getInstitutionType())) {
-            cardApprovalCollectionService.collectInitial(userId, connectionId, institution);
+            if (initialSync) {
+                int savedCount = cardApprovalCollectionService.collectInitial(userId, connectionId, institution);
+                transactionStats = new AssetSyncDto.SyncStats(savedCount, 0);
+            } else {
+                transactionStats = cardApprovalCollectionService.collectWithStats(
+                        userId, connectionId, institution, startDate, endDate
+                );
+            }
         } else if (AssetTransactionConstants.BANK_INSTITUTION_TYPE.equals(institution.getInstitutionType())) {
-            collectBankTransactions(userId, connectionId, institution, normalizedAccounts);
+            transactionStats = transactionStats.plus(
+                    collectBankTransactions(userId, connectionId, institution, normalizedAccounts, startDate, endDate)
+            );
             List<CodefDto.Transaction> loanTransactions = values(data.getTransactions()).stream()
                     .filter(source -> !blank(source.getResLoanAccount()))
                     .toList();
@@ -92,7 +133,7 @@ public class AssetSyncService {
             );
             transactionDuplicateCount = loanTransactions.size() - uniqueLoanTransactions.size();
             for (PreparedAssetTransaction transaction : uniqueLoanTransactions) {
-                syncTransaction(userId, connectionId, transaction);
+                transactionStats = transactionStats.plus(syncTransaction(userId, connectionId, transaction));
             }
         } else {
             List<CodefDto.Transaction> assetTransactions = values(data.getTransactions());
@@ -102,7 +143,7 @@ public class AssetSyncService {
             );
             transactionDuplicateCount = assetTransactions.size() - uniqueAssetTransactions.size();
             for (PreparedAssetTransaction transaction : uniqueAssetTransactions) {
-                syncTransaction(userId, connectionId, transaction);
+                transactionStats = transactionStats.plus(syncTransaction(userId, connectionId, transaction));
             }
         }
         upsertCurrentMonthSnapshot(userId, currentMonth);
@@ -111,7 +152,7 @@ public class AssetSyncService {
         LOGGER.info(String.format(
                 Locale.ROOT,
                 "asset-sync-service organization=%s type=%s snapshots=%d accounts=%d loans=%d cards=%d "
-                        + "transactionDuplicates=%d "
+                        + "transactionDuplicates=%d transactionInserted=%d transactionUpdated=%d "
                         + "assetStageMs=%d transactionStageMs=%d totalMs=%d",
                 institution.getCodefOrganizationCode(),
                 institution.getInstitutionType(),
@@ -120,10 +161,13 @@ public class AssetSyncService {
                 values(data.getLoans()).size(),
                 values(data.getCards()).size(),
                 transactionDuplicateCount,
+                transactionStats.getInserted(),
+                transactionStats.getUpdated(),
                 assetStageElapsedMs,
                 elapsedMillis(transactionStageStartedAt),
                 elapsedMillis(startedAt)
         ));
+        return transactionStats;
     }
 
     /** 선택된 목표 계좌의 잔액만 최신 Codef 응답으로 갱신한다. */
@@ -164,6 +208,7 @@ public class AssetSyncService {
             CodefDto.AssetData data
     ) {
         List<NormalizedAccount> normalizedAccounts = values(data.getAccounts()).stream()
+                .filter(account -> isActiveAssetStatus(account.getResAccountStatus()))
                 .map(account -> new NormalizedAccount(
                         account,
                         AssetIdentifierNormalizer.normalize(account.getResAccount(), "account number")
@@ -177,7 +222,9 @@ public class AssetSyncService {
                     amount(defaultValue(account.getResAccountEvalAmount(), account.getResAccountBalance())),
                     defaultValue(account.getResAccountCurrency(), "KRW"), status(account.getResAccountStatus())));
         }
-        for (CodefDto.Loan loan : values(data.getLoans())) {
+        for (CodefDto.Loan loan : values(data.getLoans()).stream()
+                .filter(loan -> isActiveAssetStatus(loan.getResLoanStatus()))
+                .toList()) {
             String accountNumber = AssetIdentifierNormalizer.normalize(loan.getResLoanAccount(), "loan account number");
             assetSyncMapper.upsertAccount(connectionId, new AssetSyncDto.Account(
                     accountNumber, loan.getResLoanDisplay(), loan.getResLoanName(), "LOAN", "LOAN",
@@ -191,27 +238,43 @@ public class AssetSyncService {
         return (System.nanoTime() - startedAt) / 1_000_000L;
     }
 
-    private void collectBankTransactions(
+    private AssetSyncDto.SyncStats collectBankTransactions(
             long userId,
             long connectionId,
             Institution institution,
-            List<NormalizedAccount> accounts
+            List<NormalizedAccount> accounts,
+            LocalDate startDate,
+            LocalDate endDate
     ) {
+        AssetSyncDto.SyncStats stats = AssetSyncDto.SyncStats.empty();
         for (NormalizedAccount normalizedAccount : values(accounts)) {
             CodefDto.Account account = normalizedAccount.source();
             Long accountId = required(
                     assetSyncMapper.findAccountId(connectionId, normalizedAccount.normalizedNumber())
             );
-            bankTransactionCollectionService.collectInitial(
-                    userId,
-                    accountId,
-                    account.getResAccount(),
-                    institution
-            );
+            if (startDate == null) {
+                int savedCount = bankTransactionCollectionService.collectInitial(
+                        userId,
+                        accountId,
+                        account.getResAccount(),
+                        institution
+                );
+                stats = stats.plus(new AssetSyncDto.SyncStats(savedCount, 0));
+            } else {
+                stats = stats.plus(bankTransactionCollectionService.collectWithStats(
+                        userId,
+                        accountId,
+                        account.getResAccount(),
+                        institution,
+                        startDate,
+                        endDate
+                ));
+            }
         }
+        return stats;
     }
 
-    private void syncTransaction(
+    private AssetSyncDto.SyncStats syncTransaction(
             long userId,
             long connectionId,
             PreparedAssetTransaction prepared
@@ -282,7 +345,16 @@ public class AssetSyncService {
                 sourceTransactionId,
                 sourceDedupKey
         );
+        boolean existingTransaction = assetSyncMapper.findExistingTransactionId(
+                userId,
+                sourceType,
+                sourceIdentity.sourceOrganizationCode(),
+                sourceDedupKey
+        ) != null;
         assetSyncMapper.upsertTransaction(transaction);
+        return existingTransaction
+                ? new AssetSyncDto.SyncStats(0, 1)
+                : new AssetSyncDto.SyncStats(1, 0);
     }
 
     private List<PreparedAssetTransaction> deduplicateAssetTransactions(
@@ -421,8 +493,20 @@ public class AssetSyncService {
         return CodefDateTime.parseYearMonth(value, "Asset snapshot month").toString();
     }
 
+    private void validateSyncPeriod(LocalDate startDate, LocalDate endDate) {
+        if (startDate == null || endDate == null || startDate.isAfter(endDate)) {
+            throw new IllegalArgumentException("Asset synchronization period is invalid.");
+        }
+    }
+
     private String status(String value) {
         return "1".equals(value) || "ACTIVE".equals(value) ? "ACTIVE" : "INACTIVE";
+    }
+
+    private boolean isActiveAssetStatus(String value) {
+        // Legacy CODEF payloads may omit the status field; keep those assets eligible
+        // while treating explicit inactive values as non-syncable.
+        return blank(value) || "1".equals(value) || "ACTIVE".equalsIgnoreCase(value);
     }
 
     private String defaultValue(String value, String defaultValue) {

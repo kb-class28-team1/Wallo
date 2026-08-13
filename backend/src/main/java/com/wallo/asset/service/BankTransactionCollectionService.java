@@ -8,6 +8,7 @@ import com.wallo.asset.dto.AssetSyncDto;
 import com.wallo.asset.mapper.AssetSyncMapper;
 import com.wallo.external.auth.CodefCredential;
 import com.wallo.external.auth.CodefCredentialProvider;
+import com.wallo.external.CodefRetryExecutor;
 import com.wallo.external.client.BankTransactionClient;
 import com.wallo.external.CodefDateTime;
 import com.wallo.external.CodefResponseValidator;
@@ -37,6 +38,7 @@ public class BankTransactionCollectionService {
 
     private final BankTransactionClient bankTransactionClient;
     private final CodefCredentialProvider codefCredentialProvider;
+    private final CodefRetryExecutor codefRetryExecutor;
     private final ObjectMapper objectMapper;
     private final ExpenseCategoryClassifier categoryClassifier;
     private final TransactionSourceKeyGenerator sourceKeyGenerator;
@@ -47,6 +49,7 @@ public class BankTransactionCollectionService {
     public BankTransactionCollectionService(
             BankTransactionClient bankTransactionClient,
             CodefCredentialProvider codefCredentialProvider,
+            CodefRetryExecutor codefRetryExecutor,
             ObjectMapper objectMapper,
             ExpenseCategoryClassifier categoryClassifier,
             TransactionSourceKeyGenerator sourceKeyGenerator,
@@ -56,6 +59,7 @@ public class BankTransactionCollectionService {
     ) {
         this.bankTransactionClient = bankTransactionClient;
         this.codefCredentialProvider = codefCredentialProvider;
+        this.codefRetryExecutor = codefRetryExecutor;
         this.objectMapper = objectMapper;
         this.categoryClassifier = categoryClassifier;
         this.sourceKeyGenerator = sourceKeyGenerator;
@@ -89,6 +93,24 @@ public class BankTransactionCollectionService {
             LocalDate startDate,
             LocalDate endDate
     ) {
+        return collectWithStats(
+                userId,
+                accountId,
+                accountNumber,
+                institution,
+                startDate,
+                endDate
+        ).total();
+    }
+
+    public AssetSyncDto.SyncStats collectWithStats(
+            long userId,
+            long accountId,
+            String accountNumber,
+            Institution institution,
+            LocalDate startDate,
+            LocalDate endDate
+    ) {
         validateCollectionRequest(accountNumber, institution, startDate, endDate);
         String normalizedAccountNumber = AssetIdentifierNormalizer.normalize(accountNumber, "account number");
 
@@ -98,19 +120,21 @@ public class BankTransactionCollectionService {
                 userId,
                 institution.getCodefOrganizationCode()
         );
-        CodefDto.Response response = bankTransactionClient.getTransactions(
-                new CodefDto.BankTransactionRequest(
-                        institution.getCodefOrganizationCode(),
-                        credential.loginType(),
-                        credential.id(),
-                        credential.password(),
-                        accountNumber,
-                        CodefDateTime.formatDate(startDate),
-                        CodefDateTime.formatDate(endDate)
-                )
+        CodefDto.BankTransactionRequest request = new CodefDto.BankTransactionRequest(
+                institution.getCodefOrganizationCode(),
+                credential.loginType(),
+                credential.id(),
+                credential.password(),
+                accountNumber,
+                CodefDateTime.formatDate(startDate),
+                CodefDateTime.formatDate(endDate)
+        );
+        CodefDto.Response response = codefRetryExecutor.execute(
+                "bank transaction collection organization=" + institution.getCodefOrganizationCode(),
+                () -> bankTransactionClient.getTransactions(request)
         );
         long apiElapsedMs = elapsedMillis(apiStartedAt);
-        CodefResponseValidator.requireSuccess(response, "은행 거래내역을 가져오지 못했습니다");
+        CodefResponseValidator.requireSuccess(response, "Bank transaction collection");
 
         long conversionStartedAt = System.nanoTime();
         List<CodefDto.BankTransaction> transactions = objectMapper.convertValue(
@@ -120,6 +144,8 @@ public class BankTransactionCollectionService {
         long conversionElapsedMs = elapsedMillis(conversionStartedAt);
 
         int savedCount = 0;
+        int insertedCount = 0;
+        int updatedCount = 0;
         int reusedClassificationCount = 0;
         int aiRequestCount = 0;
         long classificationStartedAt = System.nanoTime();
@@ -150,7 +176,18 @@ public class BankTransactionCollectionService {
                     source,
                     classifications.get(source.sourceIdentity().sourceDedupKey())
             );
+            boolean existingTransaction = assetSyncMapper.findExistingTransactionId(
+                    mapping.transaction().getUserId(),
+                    mapping.transaction().getSourceType(),
+                    mapping.transaction().getSourceOrganizationCode(),
+                    mapping.transaction().getSourceDedupKey()
+            ) != null;
             assetSyncMapper.upsertTransaction(mapping.transaction());
+            if (existingTransaction) {
+                updatedCount++;
+            } else {
+                insertedCount++;
+            }
             if (mapping.reusedClassification()) {
                 reusedClassificationCount++;
             } else if (AssetTransactionConstants.AI_CATEGORY_SOURCE
@@ -180,7 +217,7 @@ public class BankTransactionCollectionService {
                 processingElapsedMs,
                 elapsedMillis(startedAt)
         ));
-        return savedCount;
+        return new AssetSyncDto.SyncStats(insertedCount, updatedCount);
     }
 
     private void invalidateConsumptionInsightCache(

@@ -17,9 +17,17 @@ import com.wallo.external.client.CodefMockClient;
 import com.wallo.feed.analysis.FeedAnalysisClient;
 import com.wallo.feed.analysis.GeminiFeedAnalysisClient;
 import com.wallo.feed.analysis.MockFeedAnalysisClient;
+import com.wallo.feed.price.NoopShoppingPriceClient;
+import com.wallo.feed.price.NoopRestaurantPriceClient;
+import com.wallo.feed.price.RestaurantPriceClient;
+import com.wallo.feed.price.SerpApiRestaurantPriceClient;
+import com.wallo.feed.price.SerpApiShoppingPriceClient;
+import com.wallo.feed.price.ShoppingPriceClient;
 import java.time.Clock;
 import java.time.ZoneId;
 import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
@@ -31,6 +39,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
 
 @Configuration
@@ -52,8 +61,18 @@ public class AppConfig {
     }
 
     @Bean
-    public RestTemplate restTemplate() {
-        return new RestTemplate();
+    public RestTemplate restTemplate(
+            @Value("${codef.http.connect-timeout-ms:2000}") int connectTimeoutMs,
+            @Value("${codef.http.read-timeout-ms:3000}") int readTimeoutMs
+    ) {
+        if (connectTimeoutMs < 1 || readTimeoutMs < 1) {
+            throw new IllegalArgumentException("CODEF HTTP timeouts must be positive.");
+        }
+
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(connectTimeoutMs);
+        requestFactory.setReadTimeout(readTimeoutMs);
+        return new RestTemplate(requestFactory);
     }
 
     @Bean
@@ -150,6 +169,50 @@ public class AppConfig {
             );
         }
         return new MockFeedAnalysisClient();
+    }
+
+    @Bean
+    public ShoppingPriceClient shoppingPriceClient(
+            @Value("${shopping.price.enabled:false}") boolean enabled,
+            @Value("${shopping.price.serpapi.api-key:}") String apiKey,
+            @Value("${shopping.price.serpapi.base-url:https://serpapi.com/search.json}") String baseUrl,
+            @Value("${shopping.price.connect-timeout-ms:1500}") int connectTimeoutMs,
+            @Value("${shopping.price.read-timeout-ms:4500}") int readTimeoutMs,
+            @Value("${shopping.price.max-results:20}") int maxResults
+    ) {
+        if (!enabled || apiKey == null || apiKey.isBlank()) {
+            return new NoopShoppingPriceClient();
+        }
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(Math.max(500, connectTimeoutMs));
+        requestFactory.setReadTimeout(Math.max(1_000, readTimeoutMs));
+        return new SerpApiShoppingPriceClient(
+                new RestTemplate(requestFactory), baseUrl.trim(), apiKey.trim(), maxResults);
+    }
+
+    @Bean
+    public RestaurantPriceClient restaurantPriceClient(
+            @Value("${shopping.price.enabled:false}") boolean enabled,
+            @Value("${shopping.price.serpapi.api-key:}") String apiKey,
+            @Value("${shopping.price.serpapi.base-url:https://serpapi.com/search.json}") String baseUrl,
+            @Value("${shopping.price.connect-timeout-ms:1500}") int connectTimeoutMs,
+            @Value("${shopping.price.read-timeout-ms:4500}") int readTimeoutMs,
+            @Value("${shopping.price.max-results:20}") int maxResults
+    ) {
+        if (!enabled || apiKey == null || apiKey.isBlank()) {
+            return new NoopRestaurantPriceClient();
+        }
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(Math.max(500, connectTimeoutMs));
+        requestFactory.setReadTimeout(Math.max(1_000, readTimeoutMs));
+        return new SerpApiRestaurantPriceClient(
+                new RestTemplate(requestFactory), baseUrl.trim(), apiKey.trim(), maxResults);
+    }
+
+    @Bean(destroyMethod = "shutdown")
+    public ExecutorService shoppingPriceExecutor(
+            @Value("${shopping.price.max-concurrency:3}") int maxConcurrency) {
+        return Executors.newFixedThreadPool(Math.max(1, Math.min(3, maxConcurrency)));
     }
 
     @Bean
