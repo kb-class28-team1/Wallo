@@ -6,6 +6,7 @@ import ExpenseCategoryEditModal from "./ExpenseCategoryEditModal.vue";
 const transaction = {
   transactionId: 9,
   merchantName: "동네 상점",
+  type: "EXPENSE",
   category: "OTHER",
 };
 
@@ -18,12 +19,38 @@ describe("ExpenseCategoryEditModal", () => {
       },
     });
 
-    const options = wrapper.findAll("#expenseCategoryEditSelect option");
-    expect(wrapper.get("#expenseCategoryEditSelect").element.value).toBe("ETC");
-    expect(options).toHaveLength(Object.keys(EXPENSE_CATEGORY_META).length);
-    expect(options.map((option) => option.element.value)).toContain("INCOME");
-    expect(options.map((option) => option.element.value)).toContain("SEND");
-    expect(options.map((option) => option.element.value)).not.toContain("OTHER");
+    const options = wrapper.findAll(".category-option");
+    expect(wrapper.get('[data-testid="category-option-ETC"]').classes()).toContain("selected");
+    expect(wrapper.get('[data-testid="transaction-type-EXPENSE"]').classes()).toContain("active");
+    expect(options).toHaveLength(Object.keys(EXPENSE_CATEGORY_META).length - 2);
+    expect(wrapper.get('[data-testid="category-option-FOOD"] .category-option-icon').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="category-option-FOOD"] .category-option-label').text()).toBe(
+      EXPENSE_CATEGORY_META.FOOD.label,
+    );
+    expect(options.map((option) => option.attributes("data-testid"))).not.toContain(
+      "category-option-INCOME",
+    );
+    expect(options.map((option) => option.attributes("data-testid"))).not.toContain(
+      "category-option-SEND",
+    );
+  });
+
+  it("shows only the categories related to the selected transaction type", async () => {
+    const wrapper = mount(ExpenseCategoryEditModal, {
+      props: {
+        visible: true,
+        transaction,
+      },
+    });
+
+    await wrapper.get('[data-testid="transaction-type-INCOME"]').trigger("click");
+    expect(wrapper.findAll(".category-option")).toHaveLength(1);
+    expect(wrapper.get('[data-testid="category-option-INCOME"]').classes()).toContain("selected");
+    expect(wrapper.find('[data-testid="category-option-FOOD"]').exists()).toBe(false);
+
+    await wrapper.get('[data-testid="transaction-type-TRANSFER"]').trigger("click");
+    expect(wrapper.findAll(".category-option")).toHaveLength(1);
+    expect(wrapper.get('[data-testid="category-option-SEND"]').classes()).toContain("selected");
   });
 
   it("emits the selected category with the transaction id", async () => {
@@ -34,7 +61,7 @@ describe("ExpenseCategoryEditModal", () => {
       },
     });
 
-    await wrapper.get("#expenseCategoryEditSelect").setValue("FOOD");
+    await wrapper.get('[data-testid="category-option-FOOD"]').trigger("click");
     await wrapper.get("form").trigger("submit");
 
     expect(wrapper.emitted("save")?.[0]?.[0]).toEqual({

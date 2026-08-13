@@ -89,7 +89,23 @@ const typeLabel = (type) => ({
   <div>
     <ul v-if="transactions.length" class="transaction-list list-unstyled mb-0">
       <li v-for="(transaction, index) in transactions" :key="transaction.transactionId || `${transaction.date}-${transaction.merchantName}-${transaction.amount}-${index}`">
-        <span class="transaction-icon" :class="getExpenseCategoryMeta(transaction.category).colorClass">
+        <button
+          v-if="props.editable && transaction.transactionId"
+          type="button"
+          class="transaction-icon transaction-icon-button"
+          :class="getExpenseCategoryMeta(transaction.category).colorClass"
+          data-testid="transaction-category-button"
+          aria-label="카테고리 수정"
+          title="카테고리 수정"
+          @click="emit('edit-category', transaction)"
+        >
+          <i :class="['bi', getExpenseCategoryMeta(transaction.category).icon]" aria-hidden="true"></i>
+        </button>
+        <span
+          v-else
+          class="transaction-icon"
+          :class="getExpenseCategoryMeta(transaction.category).colorClass"
+        >
           <i :class="['bi', getExpenseCategoryMeta(transaction.category).icon]" aria-hidden="true"></i>
         </span>
         <span class="transaction-info">
@@ -103,16 +119,6 @@ const typeLabel = (type) => ({
           <strong class="transaction-amount" :class="String(transaction.type || '').toLowerCase()">
             {{ formatAmount(transaction) }}
           </strong>
-          <button
-            v-if="props.editable && transaction.transactionId"
-            type="button"
-            class="transaction-edit-button"
-            aria-label="카테고리 수정"
-            title="카테고리 수정"
-            @click="emit('edit-category', transaction)"
-          >
-            <i class="bi bi-pencil" aria-hidden="true"></i>
-          </button>
         </div>
       </li>
     </ul>
@@ -167,6 +173,24 @@ const typeLabel = (type) => ({
   font-size: 1.05rem;
 }
 
+.transaction-icon-button {
+  padding: 0;
+  border: 0;
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.transaction-icon-button:hover,
+.transaction-icon-button:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 3px rgba(129, 112, 255, 0.16);
+}
+
+.transaction-icon-button:focus-visible {
+  outline: 2px solid #6b5bd2;
+  outline-offset: 2px;
+}
+
 .transaction-icon.coral { color: #ff796f; background: #fff0ed; }
 .transaction-icon.green { color: #28b98a; background: #eafaf4; }
 .transaction-icon.blue { color: #4f73e8; background: #edf2ff; }
@@ -202,24 +226,6 @@ const typeLabel = (type) => ({
   align-items: center;
   justify-content: flex-end;
   gap: 10px;
-}
-
-.transaction-edit-button {
-  display: inline-flex;
-  width: 32px;
-  height: 32px;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid #e4e1f4;
-  border-radius: 9px;
-  color: #6b5bd2;
-  background: #ffffff;
-}
-
-.transaction-edit-button:hover,
-.transaction-edit-button:focus-visible {
-  color: #ffffff;
-  background: #8170ff;
 }
 
 .transaction-amount.income {
