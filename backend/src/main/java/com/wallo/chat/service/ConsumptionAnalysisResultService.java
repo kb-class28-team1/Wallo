@@ -14,6 +14,7 @@ import java.util.Optional;
 import com.wallo.chat.dto.ConsumptionAnalysisPeriodContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class ConsumptionAnalysisResultService {
@@ -22,6 +23,7 @@ public class ConsumptionAnalysisResultService {
     private final ConsumptionAnalysisViewAssembler viewAssembler;
     private final Clock clock;
 
+    @Autowired
     public ConsumptionAnalysisResultService(
             ConsumptionAnalysisResultMapper mapper,
             ObjectMapper objectMapper,
