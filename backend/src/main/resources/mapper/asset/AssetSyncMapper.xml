@@ -90,6 +90,8 @@
             account_id = COALESCE(VALUES(account_id), account_id),
             type = VALUES(type),
             category = CASE
+                WHEN category_source = 'USER'
+                    THEN category
                 WHEN category_source = 'AI' AND #{transaction.categorySource} = 'FALLBACK'
                     THEN category
                 ELSE #{transaction.category}
@@ -100,16 +102,22 @@
             original_sector = VALUES(original_sector),
             external_approval_no = VALUES(external_approval_no),
             category_source = CASE
+                WHEN category_source = 'USER'
+                    THEN category_source
                 WHEN category_source = 'AI' AND #{transaction.categorySource} = 'FALLBACK'
                     THEN category_source
                 ELSE #{transaction.categorySource}
             END,
             category_confidence = CASE
+                WHEN category_source = 'USER'
+                    THEN category_confidence
                 WHEN category_source = 'AI' AND #{transaction.categorySource} = 'FALLBACK'
                     THEN category_confidence
                 ELSE #{transaction.categoryConfidence}
             END,
             classifier_version = CASE
+                WHEN category_source = 'USER'
+                    THEN classifier_version
                 WHEN category_source = 'AI' AND #{transaction.categorySource} = 'FALLBACK'
                     THEN classifier_version
                 ELSE #{transaction.classifierVersion}

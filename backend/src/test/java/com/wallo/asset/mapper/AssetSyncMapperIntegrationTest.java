@@ -223,6 +223,41 @@ class AssetSyncMapperIntegrationTest {
     }
 
     @Test
+    void preservesUserCategoryWhenAResyncedTransactionIsUpserted() throws Exception {
+        AssetSyncDto.Transaction userClassified = transaction(
+                38_000L,
+                "LIVING",
+                "USER",
+                BigDecimal.ONE,
+                "user-v1"
+        );
+        AssetSyncDto.Transaction resynced = transaction(
+                39_000L,
+                "FOOD",
+                "AI",
+                new BigDecimal("0.8600"),
+                "ai-v1"
+        );
+
+        assetSyncMapper.upsertTransaction(userClassified);
+        assetSyncMapper.upsertTransaction(resynced);
+
+        try (Connection connection = dataSource.getConnection();
+             Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(
+                     "SELECT category, category_source, category_confidence, "
+                             + "classifier_version, amount FROM TRANSACTIONS"
+             )) {
+            resultSet.next();
+            assertEquals("LIVING", resultSet.getString("category"));
+            assertEquals("USER", resultSet.getString("category_source"));
+            assertEquals(new BigDecimal("1.0000"), resultSet.getBigDecimal("category_confidence"));
+            assertEquals("user-v1", resultSet.getString("classifier_version"));
+            assertEquals(39_000L, resultSet.getLong("amount"));
+        }
+    }
+
+    @Test
     void findsExistingClassificationBySourceIdentity() {
         assetSyncMapper.upsertTransaction(transaction(
                 38_000L,
