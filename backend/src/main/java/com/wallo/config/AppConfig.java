@@ -3,6 +3,8 @@ package com.wallo.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.wallo.auth.JwtAuthenticationFilter;
+import com.wallo.auth.JwtTokenService;
 import com.wallo.external.auth.CodefAccessTokenProvider;
 import com.wallo.external.auth.CodefAuthorizedRequestFactory;
 import com.wallo.external.auth.CodefCredentialProvider;
@@ -63,6 +65,11 @@ public class AppConfig {
     @Bean
     public static PropertySourcesPlaceholderConfigurer propertySourcesPlaceholderConfigurer() {
         return new PropertySourcesPlaceholderConfigurer();
+    }
+
+    @Bean(name = "jwtAuthenticationFilter")
+    public JwtAuthenticationFilter jwtAuthenticationFilter(JwtTokenService jwtTokenService) {
+        return new JwtAuthenticationFilter(jwtTokenService);
     }
 
     @Bean

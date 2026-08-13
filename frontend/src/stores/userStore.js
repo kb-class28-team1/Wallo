@@ -1,9 +1,9 @@
 import { computed, ref } from "vue"
 import { defineStore } from "pinia"
 import {
-  getCurrentUser,
   login as loginRequest,
   logout as logoutRequest,
+  refreshAccessToken,
 } from "@/api/authApi"
 import {
   changePassword as changePasswordRequest,
@@ -53,9 +53,9 @@ export const useUserStore = defineStore("user", () => {
   const login = async (credentials) => {
     isLoading.value = true
     try {
-      const authenticatedUser = await loginRequest(credentials)
-      setUser(authenticatedUser)
-      return authenticatedUser
+      const authResponse = await loginRequest(credentials)
+      setUser(authResponse.user)
+      return authResponse.user
     } finally {
       isLoading.value = false
     }
@@ -68,7 +68,8 @@ export const useUserStore = defineStore("user", () => {
 
     isLoading.value = true
     try {
-      setUser(await getCurrentUser())
+      const tokenResponse = await refreshAccessToken()
+      setUser(tokenResponse.user)
       return true
     } catch (error) {
       clearAuth()
