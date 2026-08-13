@@ -7,6 +7,7 @@ import com.wallo.feed.analysis.SavingFeedbackAwareFeedAnalysisClient;
 import com.wallo.feed.domain.Feed;
 import com.wallo.feed.domain.FeedMessage;
 import com.wallo.feed.dto.FeedDtos.AnalysisResponse;
+import com.wallo.feed.dto.FeedDtos.CategoryExpenseAverage;
 import com.wallo.feed.dto.FeedDtos.FeedListResponse;
 import com.wallo.feed.dto.FeedDtos.LikeResponse;
 import com.wallo.feed.dto.FeedDtos.MessageRequest;
@@ -19,6 +20,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.time.LocalDate;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
@@ -35,6 +37,9 @@ public class FeedService {
     private static final Set<String> FEED_CATEGORIES = Set.of(
             "FOOD", "CAFE", "TRANSPORT", "SHOPPING", "DELIVERY",
             "HOUSING", "LIVING", "CULTURE", "HEALTH", "ETC");
+    private static final int PRIMARY_HISTORY_DAYS = 60;
+    private static final int EXTENDED_HISTORY_DAYS = 90;
+    private static final int MINIMUM_HISTORY_TRANSACTIONS = 3;
     private static final Set<String> FEEDBACK_TYPES = Set.of("ACCEPTED", "ADJUSTED", "MANUAL");
     private static final Set<String> ANALYSIS_STATUSES = Set.of("AI_COMPLETED", "AI_FAILED", "MANUAL");
     private static final long MAX_FILE_SIZE = 50L * 1024 * 1024;
@@ -133,6 +138,9 @@ public class FeedService {
         String normalizedFeedback = normalizeSavingAmountFeedback(savingAmountFeedback);
         int normalizedAiAmount = clampAmount(aiEstimatedSavingAmount);
         int finalSavingAmount = clampAmount(savingAmount);
+        String normalizedAnalysisStatus = normalizeAnalysisStatus(
+                blankToNull(analysisDetails) == null ? "MANUAL" : "AI_COMPLETED",
+                normalizedAiAmount);
         Integer normalizedVerifiedAmount = normalizeVerifiedSavingAmount(
                 normalizedFeedback, normalizedAiAmount, verifiedSavingAmount);
         if ("SAME".equals(normalizedFeedback)) {
@@ -298,6 +306,10 @@ public class FeedService {
         return category == null ? "" : category.trim().toUpperCase(Locale.ROOT);
     }
 
+    private int normalizeAmount(Integer amount) {
+        return amount == null ? 0 : Math.max(0, amount);
+    }
+
     private AnalysisResponse applyCategoryAverageFallback(Long userId, AnalysisResponse analysis) {
         if (analysis == null
                 || analysis.estimatedSavingAmount() > 0
@@ -338,6 +350,23 @@ public class FeedService {
                 summary, analysis.confidenceScore(), analysis.detectedItems(),
                 analysis.referenceValue(), analysis.actualCost(), analysis.savingDifference(),
                 analysis.priceReferences());
+    }
+
+    private boolean hasEnoughHistory(CategoryExpenseAverage average) {
+        return average != null
+                && average.getTransactionCount() >= MINIMUM_HISTORY_TRANSACTIONS
+                && average.getAverageAmount() > 0;
+    }
+
+    private int toSavingAmount(long amount) {
+        return (int) Math.min(Integer.MAX_VALUE, Math.max(0L, amount));
+    }
+
+    private String appendHistoryFallbackSummary(String summary, int historyDays) {
+        String base = blankToNull(summary);
+        String fallback = "AI가 금액을 명확히 판단하지 못해 최근 "
+                + historyDays + "일간 해당 카테고리의 평균 결제 금액으로 추정했어요.";
+        return base == null ? fallback : base + " " + fallback;
     }
 
     private Integer normalizeOptionalAmount(Integer amount) {

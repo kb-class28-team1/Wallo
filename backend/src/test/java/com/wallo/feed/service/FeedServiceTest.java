@@ -40,7 +40,8 @@ class FeedServiceTest {
         AnalysisResponse result = feedService.analyze(7L, 10L, media(), "REDUCED", "CAFE");
 
         assertEquals(0, result.estimatedSavingAmount());
-        verify(feedMapper, never()).findCategoryExpenseAverage(any(), any(), any(), any());
+        verify(feedMapper, org.mockito.Mockito.times(2))
+                .findCategoryExpenseAverage(any(), any(), any(), any());
     }
 
     @Test
@@ -51,7 +52,8 @@ class FeedServiceTest {
         AnalysisResponse result = feedService.analyze(7L, 10L, media(), "SAVED", "FOOD");
 
         assertEquals(0, result.estimatedSavingAmount());
-        verify(feedMapper, never()).findCategoryExpenseAverage(any(), any(), any(), any());
+        verify(feedMapper, org.mockito.Mockito.times(2))
+                .findCategoryExpenseAverage(any(), any(), any(), any());
     }
 
     @Test
@@ -82,13 +84,13 @@ class FeedServiceTest {
     void allowsManualAmountAfterAiFailure() {
         Feed result = feedService.create(
                 7L, 10L, media(), "REDUCED", "CAFE", null,
-                "직접 금액을 입력했어요.", 2_500, "AI 분석에 실패했습니다.", 0.0,
-                null, "MANUAL", "AI_FAILED");
+                "직접 금액을 입력했어요.", 2_500, 0, "AI 분석에 실패했습니다.", 0.0,
+                "UNKNOWN", null, null, null);
 
         assertEquals(2_500, result.getSavingAmount());
         verify(feedMapper).insertAnalysis(
-                null, "REDUCED", "CAFE", null, 2_500,
-                "AI 분석에 실패했습니다.", 0.0, "MANUAL", "AI_FAILED");
+                null, "REDUCED", "CAFE", 0, "AI 분석에 실패했습니다.", 0.0,
+                0L, 0L, 0L, null, null);
     }
 
     @Test
