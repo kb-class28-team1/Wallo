@@ -56,8 +56,8 @@ const grantRewardsForTest = async () => {
 
   isRewarding.value = true
   try {
-    const response = await grantWeeklyRankingRewardsForTest()
-    alert(`${response?.rewardedCount || 0}명에게 주간 랭킹 보상을 지급했습니다.`)
+    await grantWeeklyRankingRewardsForTest()
+    alert("주간 랭킹 보상이 지급되었습니다.")
     // 지급 후 세션의 사용자 포인트를 강제로 다시 조회해 상단바를 갱신함.
     await userStore.restoreSession(true)
     await challengeStore.fetchWeeklyRanking()
