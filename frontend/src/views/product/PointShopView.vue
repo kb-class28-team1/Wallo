@@ -5,6 +5,7 @@ import {
   getPointShop,
   openRandomBox,
   openRandomBoxes,
+  useInventoryItem as useInventoryItemApi,
 } from "@/api/pointShopApi"
 import { useUserStore } from "@/stores/userStore"
 
@@ -105,6 +106,21 @@ const openInventoryDetail = (item) => {
 
 const closeInventoryDetail = () => {
   inventoryDetailModal.value.open = false
+}
+
+const handleUseInventoryItem = async () => {
+  const item = inventoryDetailModal.value.item
+  if (!item || item.used) {
+    return
+  }
+
+  try {
+    await useInventoryItemApi(item.id)
+    closeInventoryDetail()
+    await loadPointShop()
+  } catch (error) {
+    alert(error.message || "기프티콘을 사용 처리하지 못했습니다.")
+  }
 }
 
 const loadPointShop = async () => {
@@ -598,9 +614,19 @@ onMounted(loadPointShop)
               <dd>{{ inventoryDetailModal.item?.used ? "사용 완료" : "사용 가능" }}</dd>
             </div>
           </dl>
-          <button type="button" class="inventory-detail-confirm" @click="closeInventoryDetail">
-            확인
-          </button>
+          <div class="inventory-detail-actions">
+            <button
+              type="button"
+              class="inventory-detail-use"
+              :disabled="inventoryDetailModal.item?.used"
+              @click="handleUseInventoryItem"
+            >
+              {{ inventoryDetailModal.item?.used ? "사용 완료" : "사용하기" }}
+            </button>
+            <button type="button" class="inventory-detail-dismiss" @click="closeInventoryDetail">
+              닫기
+            </button>
+          </div>
         </article>
       </div>
     </Transition>
@@ -1823,19 +1849,48 @@ onMounted(loadPointShop)
   font-weight: 800;
 }
 
-.inventory-detail-confirm {
+.inventory-detail-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.inventory-detail-use,
+.inventory-detail-dismiss {
   width: 100%;
   padding: 11px 16px;
-  border: 0;
   border-radius: 12px;
-  background: #6c5ce7;
-  color: #fff;
   font-weight: 800;
 }
 
-.inventory-detail-confirm:hover,
-.inventory-detail-confirm:focus-visible {
+.inventory-detail-use {
+  border: 0;
+  background: #6c5ce7;
+  color: #fff;
+}
+
+.inventory-detail-use:hover:not(:disabled),
+.inventory-detail-use:focus-visible:not(:disabled) {
   background: #5d4ed4;
+}
+
+.inventory-detail-use:disabled {
+  background: #d9d9e8;
+  color: #9094a8;
+  cursor: not-allowed;
+}
+
+.inventory-detail-dismiss {
+  border: 1px solid #dedff0;
+  background: #fff;
+  color: #68718f;
+}
+
+.inventory-detail-dismiss:hover,
+.inventory-detail-dismiss:focus-visible {
+  border-color: #c9c5f4;
+  background: #f8f7ff;
+  color: #5546ca;
 }
 
 .inventory-detail-modal-enter-active,
