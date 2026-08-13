@@ -11,27 +11,38 @@ public class ChatMessageResponse {
     private final String content;
     private final String createdAt;
     private final ConsumptionAnalysisView consumptionAnalysis;
+    private final AssetAnalysisView assetAnalysis;
 
     private ChatMessageResponse(
             ChatMessage message,
-            ConsumptionAnalysisView consumptionAnalysis
+            ConsumptionAnalysisView consumptionAnalysis,
+            AssetAnalysisView assetAnalysis
     ) {
         this.messageId = message.getMessageId();
         this.role = message.getRole();
         this.content = message.getContent();
         this.createdAt = formatDateTime(message.getCreatedAt());
         this.consumptionAnalysis = consumptionAnalysis;
+        this.assetAnalysis = assetAnalysis;
     }
 
     public static ChatMessageResponse from(ChatMessage message) {
-        return new ChatMessageResponse(message, null);
+        return new ChatMessageResponse(message, null, null);
     }
 
     public static ChatMessageResponse from(
             ChatMessage message,
             ConsumptionAnalysisView consumptionAnalysis
     ) {
-        return new ChatMessageResponse(message, consumptionAnalysis);
+        return new ChatMessageResponse(message, consumptionAnalysis, null);
+    }
+
+    public static ChatMessageResponse from(
+            ChatMessage message,
+            ConsumptionAnalysisView consumptionAnalysis,
+            AssetAnalysisView assetAnalysis
+    ) {
+        return new ChatMessageResponse(message, consumptionAnalysis, assetAnalysis);
     }
 
     public Long getMessageId() {
@@ -52,6 +63,10 @@ public class ChatMessageResponse {
 
     public ConsumptionAnalysisView getConsumptionAnalysis() {
         return consumptionAnalysis;
+    }
+
+    public AssetAnalysisView getAssetAnalysis() {
+        return assetAnalysis;
     }
 
     private static String formatDateTime(LocalDateTime dateTime) {

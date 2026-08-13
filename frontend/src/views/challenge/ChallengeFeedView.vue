@@ -2,9 +2,12 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { useUserStore } from "@/stores/userStore"
+import { getAccessToken } from "@/api/authToken"
+import { refreshAccessToken } from "@/api/authApi"
 import { formatWon } from "@/commonUtils/formatters"
 import AppDialog from "@/components/common/AppDialog.vue"
 import { leaveChallenge as leaveChallengeRequest } from "@/api/challengeApi"
+import { getTodayMissions, verifyMissionWithFeed } from "@/api/missionApi"
 import {
   analyzeFeed,
   createFeed,
@@ -34,6 +37,8 @@ const errorMessage = ref("")
 const modalOpen = ref(false)
 const isAnalyzing = ref(false)
 const isUploading = ref(false)
+const todayMissions = ref([])
+const isMissionLoading = ref(false)
 const likingFeedId = ref(null)
 const likeBursts = ref([])
 const deletingFeedId = ref(null)
@@ -71,6 +76,7 @@ const form = reactive({
   confidenceScore: 0,
   analysisDetails: "",
   analysisFailed: false,
+  dailyMissionId: "",
 })
 
 const spendingTypes = [
@@ -91,6 +97,12 @@ const categoryLabel = (value, custom) =>
   custom || EXPENSE_CATEGORY_META[value]?.label || value || "기타"
 const spendingLabel = (value) => spendingTypes.find((item) => item.value === value)?.label || value
 const isVideoFile = computed(() => form.file?.type?.startsWith("video/"))
+const canConfirmSavingAmount = computed(() =>
+  ["AI_COMPLETED", "AI_FAILED", "MANUAL"].includes(form.analysisStatus),
+)
+const analysisTitle = computed(() =>
+  form.analysisStatus === "AI_FAILED" ? "✍️ 수기 입력" : "🤖 AI 추정",
+)
 const roomTitle = computed(() => `${challengeName.value} 채팅방`)
 const DEFAULT_SPENDING_TYPE = "REDUCED"
 
@@ -162,7 +174,8 @@ const loadMessages = async ({ forceScroll = false } = {}) => {
 
 const chatWebSocketUrl = () => {
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:"
-  return `${protocol}//${window.location.host}/ws/challenges/${challengeId.value}`
+  const token = encodeURIComponent(getAccessToken() || "")
+  return `${protocol}//${window.location.host}/ws/challenges/${challengeId.value}?accessToken=${token}`
 }
 
 const handleChatSocketMessage = async (event) => {
@@ -211,7 +224,14 @@ const connectChatSocket = () => {
   }
   chatSocket.onclose = () => {
     chatSocket = null
-    scheduleChatReconnect()
+    if (!shouldReconnectChat) return
+    if (getAccessToken()) {
+      scheduleChatReconnect()
+      return
+    }
+    refreshAccessToken()
+      .then(() => scheduleChatReconnect())
+      .catch(() => scheduleChatReconnect())
   }
 }
 
@@ -278,8 +298,21 @@ const leaveCurrentChallenge = async () => {
   }
 }
 
-const openModal = () => {
+const openModal = async () => {
   modalOpen.value = true
+  isMissionLoading.value = true
+  try {
+    const response = await getTodayMissions()
+    todayMissions.value = response.missions.filter((mission) =>
+      ["MEDIA_AI", "HYBRID"].includes(mission.verificationType)
+      && !mission.completed
+      && mission.status !== "VERIFYING")
+  } catch (error) {
+    todayMissions.value = []
+    await openDialog({ message: error.message })
+  } finally {
+    isMissionLoading.value = false
+  }
 }
 const closeModal = () => {
   modalOpen.value = false
@@ -297,6 +330,7 @@ const closeModal = () => {
     confidenceScore: 0,
     analysisDetails: "",
     analysisFailed: false,
+    dailyMissionId: "",
   })
   if (fileInput.value) fileInput.value.value = ""
 }
@@ -343,6 +377,13 @@ const removeFeed = async (feed) => {
   }
 }
 const chooseFile = () => fileInput.value?.click()
+const resetAnalysis = () => {
+  form.savingAmount = 0
+  form.aiEstimatedAmount = null
+  form.analysisSummary = ""
+  form.confidenceScore = 0
+  form.analysisStatus = "NOT_STARTED"
+}
 const handleFile = async (event) => {
   const file = event.target.files?.[0]
   if (!file) return
@@ -375,6 +416,10 @@ const selectCategory = (category) => {
 const validationMessage = ({ requireCaption = false } = {}) => {
   if (!form.file) return "사진이나 영상을 선택해 주세요."
   if (!form.category) return "세부 카테고리를 선택해 주세요."
+  if (!canConfirmSavingAmount.value) return "먼저 AI 분석을 진행해 주세요."
+  if (!Number.isFinite(form.savingAmount) || form.savingAmount < 0) {
+    return "절약 금액을 0원 이상 입력해 주세요."
+  }
   if (requireCaption && !form.caption.trim()) return "한줄요약을 작성해주세요"
   return ""
 }
@@ -436,9 +481,12 @@ const updateVerifiedSavingAmount = () => {
 }
 const savingAmountFeedbackError = () => {
   if (!form.savingAmountFeedback) return "AI 금액과 실제 절약 금액을 확인해 주세요."
-  if (form.savingAmountFeedback === "DIFFERENT"
-      && (form.verifiedSavingAmount === null || form.verifiedSavingAmount === ""
-        || Number(form.verifiedSavingAmount) < 0)) {
+  if (
+    form.savingAmountFeedback === "DIFFERENT" &&
+    (form.verifiedSavingAmount === null ||
+      form.verifiedSavingAmount === "" ||
+      Number(form.verifiedSavingAmount) < 0)
+  ) {
     return "실제 절약 금액을 입력해 주세요."
   }
   return ""
@@ -447,9 +495,10 @@ const uploadFeed = async () => {
   const invalid = validationMessage({ requireCaption: true })
   if (invalid) return openDialog({ message: invalid })
   if (!form.analysisSummary) return openDialog({ message: "먼저 AI 분석을 진행해 주세요." })
-  if (form.analysisFailed
-      && (form.savingAmount === null || form.savingAmount === ""
-        || Number(form.savingAmount) < 0)) {
+  if (
+    form.analysisFailed &&
+    (form.savingAmount === null || form.savingAmount === "" || Number(form.savingAmount) < 0)
+  ) {
     return openDialog({ message: "절약 금액을 직접 입력해 주세요." })
   }
   if (!form.analysisFailed) {
@@ -468,10 +517,49 @@ const uploadFeed = async () => {
     }
     data.append("analysisSummary", form.analysisSummary)
     data.append("confidenceScore", String(form.confidenceScore))
-    data.append("analysisDetails", form.analysisDetails)
+    if (form.aiEstimatedAmount !== null) {
+      data.append("aiEstimatedAmount", String(form.aiEstimatedAmount))
+    }
+    const feedbackType =
+      form.analysisStatus === "AI_COMPLETED"
+        ? form.savingAmount === form.aiEstimatedAmount
+          ? "ACCEPTED"
+          : "ADJUSTED"
+        : "MANUAL"
+    data.append("feedbackType", feedbackType)
+    data.append(
+      "analysisStatus",
+      form.analysisStatus === "AI_FAILED" ? "AI_FAILED" : "AI_COMPLETED",
+    )
     await createFeed(challengeId.value, data)
+    data.append("analysisDetails", form.analysisDetails)
+    const createdFeed = await createFeed(challengeId.value, data)
+    let verificationResult = null
+    let verificationError = null
+    if (form.dailyMissionId) {
+      try {
+        verificationResult = await verifyMissionWithFeed(form.dailyMissionId, createdFeed.id)
+        await userStore.fetchUserProfile()
+        window.dispatchEvent(new CustomEvent("wallo:mission-updated"))
+      } catch (error) {
+        verificationError = error
+      }
+    }
     closeModal()
     await Promise.all([loadFeeds(), loadMessages({ forceScroll: true })])
+    if (verificationResult) {
+      const resultMessage = verificationResult.decision === "PASS"
+        ? `미션을 달성했습니다! +${verificationResult.rewardedPoint}P`
+        : verificationResult.decision === "FAIL"
+          ? "미션 달성 근거가 부족해 인증에 실패했습니다."
+          : "AI 판단이 어려워 검토 중으로 처리했습니다."
+      await openDialog({ title: "미션 인증 결과", message: resultMessage })
+    } else if (verificationError) {
+      await openDialog({
+        title: "피드 업로드 완료",
+        message: `피드는 등록됐지만 미션 인증에 실패했습니다. ${verificationError.message}`,
+      })
+    }
   } catch (error) {
     openDialog({ message: error.message })
   } finally {
@@ -667,7 +755,14 @@ onBeforeUnmount(() => {
                   </button>
                 </div>
               </div>
-              <span>🤖 AI 분석 완료 · 절약 금액 {{ formatWon(feed.savingAmount) }}</span>
+              <span>
+                {{
+                  feed.analysisStatus === "AI_FAILED" || feed.analysisStatus === "MANUAL"
+                    ? "✍️ 사용자 입력 금액"
+                    : "🤖 AI 분석 · 사용자 확인 금액"
+                }}
+                {{ formatWon(feed.savingAmount) }}
+              </span>
             </footer>
           </article>
         </main>
@@ -795,6 +890,28 @@ onBeforeUnmount(() => {
             </button>
           </div>
 
+          <label class="section-label" for="mission-selection">오늘의 미션 인증 (선택)</label>
+          <select
+            id="mission-selection"
+            v-model="form.dailyMissionId"
+            class="form-select mission-selection"
+            :disabled="isMissionLoading"
+          >
+            <option value="">
+              {{ isMissionLoading ? "미션을 불러오는 중..." : "일반 피드로 등록" }}
+            </option>
+            <option
+              v-for="mission in todayMissions"
+              :key="mission.dailyMissionId"
+              :value="mission.dailyMissionId"
+            >
+              {{ mission.title }} (+{{ mission.rewardPoint }}P)
+            </option>
+          </select>
+          <small v-if="!isMissionLoading && !todayMissions.length" class="mission-selection-help">
+            현재 영상으로 인증할 수 있는 오늘의 미션이 없습니다.
+          </small>
+
           <div class="analysis-box">
             <div>
               <b>🤖 AI 분석</b><span>선택 정보와 미디어를 외부 AI 분석기로 전달합니다.</span>
@@ -823,7 +940,10 @@ onBeforeUnmount(() => {
                 :disabled="!form.analysisSummary"
               /><b>원</b>
             </div>
-            <div v-if="form.analysisSummary && !form.analysisFailed" class="saving-feedback-section">
+            <div
+              v-if="form.analysisSummary && !form.analysisFailed"
+              class="saving-feedback-section"
+            >
               <strong>실제 금액과 같나요?</strong>
               <div class="saving-feedback-buttons">
                 <button
@@ -1520,6 +1640,20 @@ textarea {
   background: #f3f0ff;
   border: 1px solid #d8d1ff;
   border-radius: 18px;
+}
+
+.mission-selection {
+  border-color: #dfe2ef;
+  border-radius: 12px;
+  color: #4b526d;
+  font-size: 13px;
+}
+
+.mission-selection-help {
+  display: block;
+  margin-top: 6px;
+  color: #9399ae;
+  font-size: 11px;
 }
 .analysis-box div {
   display: flex;

@@ -31,8 +31,248 @@
       "resTrDate": "20260806",
       "resTrTime": "190000",
       "resAccountIn": "0",
-      "resAccountOut": "840000",
-      "resAccountDesc": "\uC6D4\uAC04 \uC0DD\uD65C\uBE44",
+      "resAccountOut": "18000",
+      "resAccountDesc": "김밥천국",
+      "transactionKind": "CARD_PAYMENT"
+    },
+    {
+      "resAccount": "987654-01-321098",
+      "resTrNo": "BANK-202608-0004",
+      "resTrDate": "20260806",
+      "resTrTime": "203000",
+      "resAccountIn": "0",
+      "resAccountOut": "12000",
+      "resAccountDesc": "스타벅스",
+      "transactionKind": "CARD_PAYMENT"
+    },
+    {
+      "resAccount": "987654-01-321098",
+      "resTrNo": "BANK-202608-0005",
+      "resTrDate": "20260806",
+      "resTrTime": "210000",
+      "resAccountIn": "0",
+      "resAccountOut": "28000",
+      "resAccountDesc": "지하철 교통카드",
+      "transactionKind": "CARD_PAYMENT"
+    },
+    {
+      "resAccount": "987654-01-321098",
+      "resTrNo": "BANK-202608-0006",
+      "resTrDate": "20260807",
+      "resTrTime": "081500",
+      "resAccountIn": "0",
+      "resAccountOut": "38000",
+      "resAccountDesc": "회사 근처 식당",
+      "transactionKind": "CARD_PAYMENT"
+    },
+    {
+      "resAccount": "987654-01-321098",
+      "resTrNo": "BANK-202608-0007",
+      "resTrDate": "20260807",
+      "resTrTime": "123000",
+      "resAccountIn": "0",
+      "resAccountOut": "54000",
+      "resAccountDesc": "동네마트",
+      "transactionKind": "CARD_PAYMENT"
+    },
+    {
+      "resAccount": "987654-01-321098",
+      "resTrNo": "BANK-202608-0008",
+      "resTrDate": "20260807",
+      "resTrTime": "180500",
+      "resAccountIn": "0",
+      "resAccountOut": "28000",
+      "resAccountDesc": "배달의민족",
+      "transactionKind": "CARD_PAYMENT"
+    },
+    {
+      "resAccount": "987654-01-321098",
+      "resTrNo": "BANK-202608-0009",
+      "resTrDate": "20260807",
+      "resTrTime": "220000",
+      "resAccountIn": "0",
+      "resAccountOut": "18000",
+      "resAccountDesc": "편의점",
+      "transactionKind": "CARD_PAYMENT"
+    },
+    {
+      "resAccount": "987654-01-321098",
+      "resTrNo": "BANK-202608-0010",
+      "resTrDate": "20260808",
+      "resTrTime": "093000",
+      "resAccountIn": "0",
+      "resAccountOut": "15000",
+      "resAccountDesc": "카페 모카",
+      "transactionKind": "CARD_PAYMENT"
+    },
+    {
+      "resAccount": "987654-01-321098",
+      "resTrNo": "BANK-202608-0011",
+      "resTrDate": "20260808",
+      "resTrTime": "115000",
+      "resAccountIn": "0",
+      "resAccountOut": "31000",
+      "resAccountDesc": "버스 교통카드",
+      "transactionKind": "CARD_PAYMENT"
+    },
+    {
+      "resAccount": "987654-01-321098",
+      "resTrNo": "BANK-202608-0012",
+      "resTrDate": "20260808",
+      "resTrTime": "190000",
+      "resAccountIn": "0",
+      "resAccountOut": "84000",
+      "resAccountDesc": "주말 식당",
+      "transactionKind": "CARD_PAYMENT"
+    },
+    {
+      "resAccount": "987654-01-321098",
+      "resTrNo": "BANK-202608-0013",
+      "resTrDate": "20260808",
+      "resTrTime": "211500",
+      "resAccountIn": "0",
+      "resAccountOut": "22000",
+      "resAccountDesc": "요기요",
+      "transactionKind": "CARD_PAYMENT"
+    },
+    {
+      "resAccount": "987654-01-321098",
+      "resTrNo": "BANK-202608-0014",
+      "resTrDate": "20260809",
+      "resTrTime": "101000",
+      "resAccountIn": "0",
+      "resAccountOut": "26000",
+      "resAccountDesc": "이마트",
+      "transactionKind": "CARD_PAYMENT"
+    },
+    {
+      "resAccount": "987654-01-321098",
+      "resTrNo": "BANK-202608-0015",
+      "resTrDate": "20260809",
+      "resTrTime": "143000",
+      "resAccountIn": "0",
+      "resAccountOut": "45000",
+      "resAccountDesc": "온라인 쇼핑",
+      "transactionKind": "CARD_PAYMENT"
+    },
+    {
+      "resAccount": "987654-01-321098",
+      "resTrNo": "BANK-202608-0016",
+      "resTrDate": "20260809",
+      "resTrTime": "201000",
+      "resAccountIn": "0",
+      "resAccountOut": "9000",
+      "resAccountDesc": "동네 카페",
+      "transactionKind": "CARD_PAYMENT"
+    },
+    {
+      "resAccount": "987654-01-321098",
+      "resTrNo": "BANK-202608-0017",
+      "resTrDate": "20260809",
+      "resTrTime": "213000",
+      "resAccountIn": "0",
+      "resAccountOut": "32000",
+      "resAccountDesc": "서점",
+      "transactionKind": "CARD_PAYMENT"
+    },
+    {
+      "resAccount": "987654-01-321098",
+      "resTrNo": "BANK-202608-0018",
+      "resTrDate": "20260810",
+      "resTrTime": "083000",
+      "resAccountIn": "0",
+      "resAccountOut": "19000",
+      "resAccountDesc": "택시",
+      "transactionKind": "CARD_PAYMENT"
+    },
+    {
+      "resAccount": "987654-01-321098",
+      "resTrNo": "BANK-202608-0020",
+      "resTrDate": "20260810",
+      "resTrTime": "174500",
+      "resAccountIn": "0",
+      "resAccountOut": "55000",
+      "resAccountDesc": "휴대폰 요금",
+      "transactionKind": "CARD_PAYMENT"
+    },
+    {
+      "resAccount": "987654-01-321098",
+      "resTrNo": "BANK-202608-0021",
+      "resTrDate": "20260810",
+      "resTrTime": "200000",
+      "resAccountIn": "0",
+      "resAccountOut": "25000",
+      "resAccountDesc": "세탁소",
+      "transactionKind": "CARD_PAYMENT"
+    },
+    {
+      "resAccount": "987654-01-321098",
+      "resTrNo": "BANK-202608-0022",
+      "resTrDate": "20260811",
+      "resTrTime": "090000",
+      "resAccountIn": "0",
+      "resAccountOut": "19000",
+      "resAccountDesc": "카페",
+      "transactionKind": "CARD_PAYMENT"
+    },
+    {
+      "resAccount": "987654-01-321098",
+      "resTrNo": "BANK-202608-0023",
+      "resTrDate": "20260811",
+      "resTrTime": "130000",
+      "resAccountIn": "0",
+      "resAccountOut": "42000",
+      "resAccountDesc": "대중교통 충전",
+      "transactionKind": "CARD_PAYMENT"
+    },
+    {
+      "resAccount": "987654-01-321098",
+      "resTrNo": "BANK-202608-0024",
+      "resTrDate": "20260811",
+      "resTrTime": "190000",
+      "resAccountIn": "0",
+      "resAccountOut": "45000",
+      "resAccountDesc": "생활용품점",
+      "transactionKind": "CARD_PAYMENT"
+    },
+    {
+      "resAccount": "987654-01-321098",
+      "resTrNo": "BANK-202608-0025",
+      "resTrDate": "20260811",
+      "resTrTime": "210000",
+      "resAccountIn": "0",
+      "resAccountOut": "25000",
+      "resAccountDesc": "쿠팡이츠",
+      "transactionKind": "CARD_PAYMENT"
+    },
+    {
+      "resAccount": "987654-01-321098",
+      "resTrNo": "BANK-202608-0026",
+      "resTrDate": "20260812",
+      "resTrTime": "100000",
+      "resAccountIn": "0",
+      "resAccountOut": "95000",
+      "resAccountDesc": "전기·가스요금",
+      "transactionKind": "CARD_PAYMENT"
+    },
+    {
+      "resAccount": "987654-01-321098",
+      "resTrNo": "BANK-202608-0027",
+      "resTrDate": "20260812",
+      "resTrTime": "123000",
+      "resAccountIn": "0",
+      "resAccountOut": "38000",
+      "resAccountDesc": "약국",
+      "transactionKind": "CARD_PAYMENT"
+    },
+    {
+      "resAccount": "987654-01-321098",
+      "resTrNo": "BANK-202608-0028",
+      "resTrDate": "20260812",
+      "resTrTime": "160000",
+      "resAccountIn": "0",
+      "resAccountOut": "17000",
+      "resAccountDesc": "올리브영",
       "transactionKind": "CARD_PAYMENT"
     }
   ]

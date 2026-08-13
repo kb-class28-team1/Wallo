@@ -2,6 +2,8 @@ package com.wallo.config;
 
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.wallo.auth.JwtTokenService;
+import com.wallo.auth.JwtWebSocketHandshakeInterceptor;
 import com.wallo.feed.websocket.ChallengeChatWebSocketHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
@@ -15,7 +17,6 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
-import org.springframework.web.socket.server.support.HttpSessionHandshakeInterceptor;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.List;
@@ -34,6 +35,7 @@ import java.util.List;
         "com.wallo.challenge.controller",
         "com.wallo.chat.controller",
         "com.wallo.goal.controller",
+        "com.wallo.mission.controller",
         "com.wallo.pointshop.controller",
         "com.wallo.challenge.exception",
         "com.wallo.feed.controller",
@@ -45,6 +47,9 @@ public class WebMvcConfig implements WebMvcConfigurer, WebSocketConfigurer {
     @Autowired
     private ChallengeChatWebSocketHandler challengeChatWebSocketHandler;
 
+    @Autowired
+    private JwtTokenService jwtTokenService;
+
     @Bean
     public StandardServletMultipartResolver multipartResolver() {
         return new StandardServletMultipartResolver();
@@ -54,7 +59,7 @@ public class WebMvcConfig implements WebMvcConfigurer, WebSocketConfigurer {
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(challengeChatWebSocketHandler,
                         "/ws/challenges/{challengeId}")
-                .addInterceptors(new HttpSessionHandshakeInterceptor())
+                .addInterceptors(new JwtWebSocketHandshakeInterceptor(jwtTokenService))
                 .setAllowedOriginPatterns("http://localhost:*", "http://127.0.0.1:*");
     }
 

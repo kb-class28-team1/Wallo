@@ -18,6 +18,7 @@ import com.wallo.goal.dto.GoalInterviewDto;
 import java.time.LocalDate;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.http.HttpStatus;
@@ -66,6 +67,37 @@ class PythonAiClientTest {
         );
 
         assertEquals("다음 질문", response.answer());
+        server.verify();
+    }
+
+    @Test
+    void deserializesAssetAnalysisResponse() {
+        ObjectMapper objectMapper = objectMapper();
+        RestTemplate restTemplate = PythonAiClient.createRestTemplate(objectMapper);
+        MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
+        server.expect(requestTo("http://127.0.0.1:8000/api/chat"))
+                .andRespond(withSuccess(
+                        "{\"answer\":\"asset analysis answer\","
+                                + "\"assetAnalysis\":{"
+                                + "\"summary\":{"
+                                + "\"totalAssetsKrw\":100000000,"
+                                + "\"totalDebtKrw\":10000000,"
+                                + "\"netAssetsKrw\":90000000},"
+                                + "\"cashflow\":{},\"composition\":[],"
+                                + "\"dataQualityNotes\":[]}}",
+                        MediaType.APPLICATION_JSON
+                ));
+        PythonAiClient client = new PythonAiClient(
+                restTemplate,
+                "http://127.0.0.1:8000"
+        );
+
+        ChatResponse response = client.chat(new ChatRequest("analyze assets"));
+
+        assertNotNull(response.assetAnalysis());
+        Map<?, ?> summary = (Map<?, ?>) response.assetAnalysis().get("summary");
+        assertEquals(100_000_000L, ((Number) summary.get("totalAssetsKrw")).longValue());
+        assertEquals(90_000_000L, ((Number) summary.get("netAssetsKrw")).longValue());
         server.verify();
     }
 

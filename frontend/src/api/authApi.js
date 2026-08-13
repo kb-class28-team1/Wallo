@@ -1,5 +1,6 @@
 import httpClient from "./httpClient"
 import { getApiErrorCode, getApiErrorMessage } from "@/commonUtils/apiError"
+import { clearAccessToken, setAccessToken } from "./authToken"
 
 const createAuthError = (error, fallbackMessage) => {
   const authError = new Error(getApiErrorMessage(error, fallbackMessage))
@@ -20,6 +21,7 @@ export const signup = async (payload) => {
 export const login = async (payload) => {
   try {
     const response = await httpClient.post("/api/auth/login", payload)
+    setAccessToken(response.data?.accessToken)
     return response.data
   } catch (error) {
     throw createAuthError(error, "로그인에 실패했습니다.")
@@ -37,11 +39,26 @@ export const getCurrentUser = async () => {
   }
 }
 
+export const refreshAccessToken = async () => {
+  try {
+    const response = await httpClient.post("/api/auth/refresh")
+    setAccessToken(response.data?.accessToken)
+    return response.data
+  } catch (error) {
+    clearAccessToken()
+    const authError = new Error(getApiErrorMessage(error, "로그인 정보를 갱신하지 못했습니다."))
+    authError.status = error.response?.status
+    throw authError
+  }
+}
+
 export const logout = async () => {
   try {
     const response = await httpClient.post("/api/auth/logout")
+    clearAccessToken()
     return response.data
   } catch (error) {
+    clearAccessToken()
     throw new Error(getApiErrorMessage(error, "로그아웃에 실패했습니다."))
   }
 }

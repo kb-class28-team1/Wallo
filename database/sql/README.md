@@ -15,6 +15,7 @@ database/sql/
 ├── financial_term.sql
 ├── financial_term_add_short_definition.sql
 ├── news_term.sql
+├── feed_analysis_add_user_confirmation.sql
 └── README.md
 ```
 
@@ -25,6 +26,7 @@ database/sql/
 | `financial_term.sql` | 금융 용어 사전 테이블 |
 | `financial_term_add_short_definition.sql` | 기존 `financial_term` 테이블에 `short_definition` 컬럼을 추가하는 일회성 마이그레이션 |
 | `news_term.sql` | `news`와 `financial_term`의 다대다 연결 테이블 (복합 PK, 양쪽에 FK) |
+| `feed_analysis_add_user_confirmation.sql` | 기존 `feed_analysis`에 AI 원본 금액과 사용자 확인 금액을 저장하기 위한 MVP 컬럼 추가 |
 | `news_report_add_event_description.sql` | `news_report.sql`을 이미 실행해 테이블이 존재하는 환경에만 필요한 마이그레이션(`event_description` 컬럼 추가) |
 
 테이블 생성 SQL은 재실행해도 에러가 나지 않도록 `IF NOT EXISTS`를 사용하고, 파일 상단에 `USE wallo;`를 포함합니다.
@@ -133,7 +135,7 @@ database/sql/
 2. 각자 로컬(또는 팀 공용) MySQL 서버에 IntelliJ Database로 연결합니다 (위 1번 과정과 동일).
 3. 팀에서 별도로 관리하는 공통 데이터베이스 생성 스크립트를 적용받아 `wallo` 데이터베이스가 있는지 확인합니다.
 4. IntelliJ Database를 새로고침하고 `wallo`를 선택합니다.
-5. 위 "실행 순서"에 따라 `news.sql` → `financial_term.sql` → `news_report.sql` → `news_term.sql`을 순서대로 실행합니다. FK로 연결되지 않은 새 테이블이 추가돼 있다면 그 파일은 순서 상관없이 실행해도 됩니다.
+5. 위 "실행 순서"에 따라 `news.sql` → `financial_term.sql` → `news_report.sql` → `news_term.sql`을 순서대로 실행합니다. 기존 `feed_analysis` 테이블을 사용하는 DB에서는 `feed_analysis_add_user_confirmation.sql`도 한 번 실행합니다.
 6. 이미 스키마가 존재하는 팀원도 `IF NOT EXISTS` 덕분에 에러 없이 그대로 실행할 수 있습니다.
 
 ## 참고

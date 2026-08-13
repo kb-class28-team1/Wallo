@@ -40,6 +40,8 @@ public class FeedService {
     private static final int PRIMARY_HISTORY_DAYS = 60;
     private static final int EXTENDED_HISTORY_DAYS = 90;
     private static final int MINIMUM_HISTORY_TRANSACTIONS = 3;
+    private static final Set<String> FEEDBACK_TYPES = Set.of("ACCEPTED", "ADJUSTED", "MANUAL");
+    private static final Set<String> ANALYSIS_STATUSES = Set.of("AI_COMPLETED", "AI_FAILED", "MANUAL");
     private static final long MAX_FILE_SIZE = 50L * 1024 * 1024;
     private final FeedMapper feedMapper;
     private final FeedAnalysisClient analysisClient;
@@ -136,6 +138,9 @@ public class FeedService {
         String normalizedFeedback = normalizeSavingAmountFeedback(savingAmountFeedback);
         int normalizedAiAmount = clampAmount(aiEstimatedSavingAmount);
         int finalSavingAmount = clampAmount(savingAmount);
+        String normalizedAnalysisStatus = normalizeAnalysisStatus(
+                blankToNull(analysisDetails) == null ? "MANUAL" : "AI_COMPLETED",
+                normalizedAiAmount);
         Integer normalizedVerifiedAmount = normalizeVerifiedSavingAmount(
                 normalizedFeedback, normalizedAiAmount, verifiedSavingAmount);
         if ("SAME".equals(normalizedFeedback)) {
@@ -161,6 +166,7 @@ public class FeedService {
         feed.setCustomCategory(null);
         feed.setCaption(blankToNull(caption));
         feed.setAnalysisSummary(blankToNull(analysisSummary));
+        feed.setAnalysisStatus(normalizedAnalysisStatus);
         feedMapper.insertFeed(feed);
         AnalysisResponse details = parseAnalysisDetails(analysisDetails);
         feedMapper.insertAnalysis(feed.getId(), spendingType, normalizedCategory,
@@ -208,8 +214,7 @@ public class FeedService {
         if (category.isBlank() || !FEED_CATEGORIES.contains(category)) {
             throw new IllegalArgumentException("지원하지 않는 카테고리입니다.");
         }
-        int savingAmount = request.savingAmount() == null
-                ? 0 : Math.max(0, request.savingAmount());
+        int savingAmount = normalizeAmount(request.savingAmount());
         int updated = feedMapper.updateFeed(
                 feedId, userId, challengeId, category, request.spendingType(),
                 blankToNull(request.caption()), savingAmount);
@@ -301,6 +306,10 @@ public class FeedService {
         return category == null ? "" : category.trim().toUpperCase(Locale.ROOT);
     }
 
+    private int normalizeAmount(Integer amount) {
+        return amount == null ? 0 : Math.max(0, amount);
+    }
+
     private AnalysisResponse applyCategoryAverageFallback(Long userId, AnalysisResponse analysis) {
         if (analysis == null
                 || analysis.estimatedSavingAmount() > 0
@@ -358,6 +367,39 @@ public class FeedService {
         String fallback = "AI가 금액을 명확히 판단하지 못해 최근 "
                 + historyDays + "일간 해당 카테고리의 평균 결제 금액으로 추정했어요.";
         return base == null ? fallback : base + " " + fallback;
+    }
+
+    private Integer normalizeOptionalAmount(Integer amount) {
+        return amount == null ? null : Math.max(0, amount);
+    }
+
+    private double normalizeConfidence(double confidence) {
+        if (Double.isNaN(confidence) || Double.isInfinite(confidence)) {
+            return 0.0;
+        }
+        return Math.max(0.0, Math.min(1.0, confidence));
+    }
+
+    private String normalizeFeedbackType(String feedbackType, Integer aiEstimatedAmount) {
+        String normalized = feedbackType == null ? "" : feedbackType.trim().toUpperCase(Locale.ROOT);
+        if (normalized.isBlank()) {
+            return aiEstimatedAmount == null ? "MANUAL" : "ACCEPTED";
+        }
+        if (!FEEDBACK_TYPES.contains(normalized)) {
+            throw new IllegalArgumentException("지원하지 않는 AI 피드백 유형입니다.");
+        }
+        return normalized;
+    }
+
+    private String normalizeAnalysisStatus(String analysisStatus, Integer aiEstimatedAmount) {
+        String normalized = analysisStatus == null ? "" : analysisStatus.trim().toUpperCase(Locale.ROOT);
+        if (normalized.isBlank()) {
+            return aiEstimatedAmount == null ? "MANUAL" : "AI_COMPLETED";
+        }
+        if (!ANALYSIS_STATUSES.contains(normalized)) {
+            throw new IllegalArgumentException("지원하지 않는 AI 분석 상태입니다.");
+        }
+        return normalized;
     }
 
     private String store(MultipartFile media) {
