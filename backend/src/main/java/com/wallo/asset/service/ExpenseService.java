@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ExpenseService {
@@ -57,6 +58,26 @@ public class ExpenseService {
                         normalizedCondition.getPage() + 1 < totalPages
                 )
         );
+    }
+
+    @Transactional
+    public void updateTransactionCategory(
+            long userId,
+            long transactionId,
+            ExpenseDto.CategoryUpdateRequest request
+    ) {
+        if (transactionId <= 0 || request == null) {
+            throw new InvalidDashboardRequestException();
+        }
+
+        String category = normalizeCategory(request.getCategory());
+        if (category == null || expenseMapper.updateTransactionCategory(
+                userId,
+                transactionId,
+                category
+        ) != 1) {
+            throw new InvalidDashboardRequestException();
+        }
     }
 
     private ExpenseDto.SearchCondition normalizeCondition(ExpenseDto.SearchCondition condition) {

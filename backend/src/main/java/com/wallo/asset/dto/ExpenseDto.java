@@ -53,6 +53,14 @@ public final class ExpenseDto {
     @Setter
     @NoArgsConstructor
     @AllArgsConstructor
+    public static class CategoryUpdateRequest {
+        private String category;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class CategoryBreakdown {
         private String category;
         private long amount;

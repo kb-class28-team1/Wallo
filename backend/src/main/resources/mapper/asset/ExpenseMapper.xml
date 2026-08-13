@@ -92,6 +92,18 @@
         </if>
     </select>
 
+    <update id="updateTransactionCategory">
+        UPDATE TRANSACTIONS
+        SET category = #{category},
+            category_source = 'USER',
+            category_confidence = 1.0000,
+            classifier_version = 'user-v1'
+        WHERE transaction_id = #{transactionId}
+          AND user_id = #{userId}
+          AND type IN ('EXPENSE', 'INCOME', 'TRANSFER')
+          AND category &lt;&gt; 'CARD_WITHDRAWAL'
+    </update>
+
     <select id="selectAllExpenseTransactions"
             resultType="com.wallo.asset.dto.ExpenseDto$AnalysisTransaction">
         SELECT
