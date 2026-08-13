@@ -23,6 +23,8 @@ import com.wallo.feed.price.RestaurantPriceClient;
 import com.wallo.feed.price.SerpApiRestaurantPriceClient;
 import com.wallo.feed.price.SerpApiShoppingPriceClient;
 import com.wallo.feed.price.ShoppingPriceClient;
+import com.wallo.auth.JwtAuthenticationFilter;
+import com.wallo.auth.JwtTokenService;
 import java.time.Clock;
 import java.time.ZoneId;
 import java.util.Locale;
@@ -58,6 +60,11 @@ public class AppConfig {
     @Bean
     public static PropertySourcesPlaceholderConfigurer propertySourcesPlaceholderConfigurer() {
         return new PropertySourcesPlaceholderConfigurer();
+    }
+
+    @Bean(name = "jwtAuthenticationFilter")
+    public JwtAuthenticationFilter jwtAuthenticationFilter(JwtTokenService jwtTokenService) {
+        return new JwtAuthenticationFilter(jwtTokenService);
     }
 
     @Bean
