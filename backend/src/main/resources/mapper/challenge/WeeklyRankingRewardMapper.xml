@@ -73,6 +73,11 @@
                    AND feed.created_at &lt; DATE_ADD(#{weekStartDate}, INTERVAL 7 DAY)
                 WHERE challenge.challenge_type = 'GROUP'
                   AND challenge.status = 'ACTIVE'
+                  AND (
+                      SELECT COUNT(*)
+                      FROM USERS challenge_users
+                      WHERE challenge_users.current_challenge_id = challenge.id
+                  ) >= 2
                 GROUP BY
                     challenge.id,
                     users.id,

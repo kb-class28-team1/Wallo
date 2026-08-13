@@ -419,7 +419,7 @@ onMounted(loadDashboard)
   place-items: center;
   overflow: hidden;
   border-radius: 50%;
-  background: #8174f7;
+  background: #fff;
 }
 
 .profile-avatar img {

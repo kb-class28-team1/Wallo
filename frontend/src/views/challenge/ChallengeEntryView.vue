@@ -653,6 +653,13 @@ onMounted(loadCurrentChallenge)
   width: min(230px, 100%);
   height: auto;
   margin: -10px auto 24px;
+  /* 이미지 원본의 미세한 아이보리 배경이 카드와 분리되어 보이지 않도록 보정 */
+  filter: brightness(1.03);
+}
+
+:deep(.app-dialog-image) {
+  /* 생성 완료 이미지도 생성 화면과 같은 밝기 기준으로 표시 */
+  filter: brightness(1.03);
 }
 
 .form-copy {
