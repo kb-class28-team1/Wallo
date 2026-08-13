@@ -440,8 +440,12 @@ onMounted(() => {
 
 .podium-streak {
   margin-top: 5px;
-  color: #c9362f;
+  color: #c9551d;
   font-size: 11px;
+}
+
+.rank-1 .podium-streak {
+  color: #c9362f;
 }
 
 .ranking-table-card,
