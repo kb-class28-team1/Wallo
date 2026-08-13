@@ -37,7 +37,10 @@ public class NewsCrawlingScheduler {
 
     @Scheduled(cron = "0 0 6,12,15,18 * * *", zone = "Asia/Seoul")
     public void scheduledNewsCrawling() {
-        run(false);
+        RunResult result = runNow();
+        if (result.started()) {
+            financialReportGenerationScheduler.requestGeneration();
+        }
     }
 
     /**
@@ -45,23 +48,23 @@ public class NewsCrawlingScheduler {
      * 자동 스케줄과 수동 요청이 겹치면 새 실행을 시작하지 않아 중복 Chrome/AI 호출을 막는다.
      */
     public RunResult runNow() {
-        return run(true);
+        return run();
     }
 
-    private RunResult run(boolean manual) {
+    private RunResult run() {
         if (!isRunning.compareAndSet(false, true)) {
             log.warn("뉴스 크롤링과 금융 리포트 생성 작업이 이미 진행 중입니다.");
             return RunResult.alreadyRunning();
         }
 
         try {
-            return runCrawlAndReportGeneration(manual);
+            return runCrawlOnly();
         } finally {
             isRunning.set(false);
         }
     }
 
-    private RunResult runCrawlAndReportGeneration(boolean manual) {
+    private RunResult runCrawlOnly() {
         log.info("===== 뉴스 크롤링 시작 =====");
 
         List<Long> savedNewsIds = List.of();
@@ -73,49 +76,15 @@ public class NewsCrawlingScheduler {
             log.info("===== 뉴스 크롤링 종료 =====");
         }
 
-        FinancialReportGenerationScheduler.BatchResult reportResult =
-                triggerReportGeneration(savedNewsIds, manual);
-        return new RunResult(
-                true,
-                savedNewsIds.size(),
-                reportResult.total(),
-                reportResult.success(),
-                reportResult.failure(),
-                reportResult.skipped()
-        );
-    }
-
-    /**
-     * 크롤링 저장이 전부 끝난 뒤(성공/실패와 무관하게) 리포트가 없는 뉴스를 바로 채운다. 크롤링과는
-     * 별개 단계라 여기서 예외가 나도 이미 끝난 크롤링 결과에는 영향이 없다. 이번에 새로 저장된
-     * savedNewsIds는 batch-size 제한과 무관하게 항상 우선 생성 대상에 포함된다. 자동 실행은
-     * financial-report.scheduler.enabled 설정을 따르고, 수동 실행은 시연을 위해 활성화 여부와 무관하게
-     * 실행한다. 두 경로 모두 백로그 조회 건수는 batch-size 설정을 사용한다.
-     */
-    private FinancialReportGenerationScheduler.BatchResult triggerReportGeneration(
-            List<Long> savedNewsIds,
-            boolean manual
-    ) {
-        try {
-            return manual
-                    ? financialReportGenerationScheduler.generateManuallyForCrawledNews(savedNewsIds)
-                    : financialReportGenerationScheduler.generateForCrawledNews(savedNewsIds);
-        } catch (Exception e) {
-            log.error("===== 크롤링 후속 금융 리포트 생성 실패 =====", e);
-            return new FinancialReportGenerationScheduler.BatchResult(0, 0, 0, 0);
-        }
+        return new RunResult(true, savedNewsIds.size());
     }
 
     public record RunResult(
             boolean started,
-            int crawledNewsCount,
-            int targetReportCount,
-            int generatedReportCount,
-            int failedReportCount,
-            int skippedReportCount
+            int crawledNewsCount
     ) {
         private static RunResult alreadyRunning() {
-            return new RunResult(false, 0, 0, 0, 0, 0);
+            return new RunResult(false, 0);
         }
     }
 }

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import httpClient from "@/api/httpClient"
-import { generateReportsNow } from "./reportApi"
+import { crawlNewsNow, generateMissingReports } from "./reportApi"
 
 vi.mock("@/api/httpClient", () => ({
   default: {
@@ -14,7 +14,7 @@ describe("reportApi", () => {
     vi.clearAllMocks()
   })
 
-  it("requests immediate crawling and financial report generation", async () => {
+  it("requests news crawling without AI generation", async () => {
     const result = {
       started: true,
       crawledNewsCount: 3,
@@ -22,8 +22,16 @@ describe("reportApi", () => {
     }
     httpClient.post.mockResolvedValue({ data: { success: true, data: result } })
 
-    await expect(generateReportsNow()).resolves.toEqual(result)
-    expect(httpClient.post).toHaveBeenCalledWith("/api/reports/generate-now")
+    await expect(crawlNewsNow()).resolves.toEqual(result)
+    expect(httpClient.post).toHaveBeenCalledWith("/api/reports/crawl-now")
+  })
+
+  it("requests background AI report generation", async () => {
+    const result = { newlyStarted: true, queued: true }
+    httpClient.post.mockResolvedValue({ data: { success: true, data: result } })
+
+    await expect(generateMissingReports()).resolves.toEqual(result)
+    expect(httpClient.post).toHaveBeenCalledWith("/api/reports/generate-missing")
   })
 
   it("converts a manual generation failure into a user-facing error", async () => {
@@ -31,6 +39,6 @@ describe("reportApi", () => {
       response: { data: { error: { message: "리포트 생성 서버가 응답하지 않습니다." } } },
     })
 
-    await expect(generateReportsNow()).rejects.toThrow("리포트 생성 서버가 응답하지 않습니다.")
+    await expect(crawlNewsNow()).rejects.toThrow("리포트 생성 서버가 응답하지 않습니다.")
   })
 })

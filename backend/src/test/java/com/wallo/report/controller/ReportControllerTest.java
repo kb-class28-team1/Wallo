@@ -15,6 +15,7 @@ import com.wallo.report.dto.response.ReportListResponse;
 import com.wallo.report.service.NewsReportGenerationService;
 import com.wallo.report.service.NewsService;
 import com.wallo.report.scheduler.NewsCrawlingScheduler;
+import com.wallo.report.scheduler.FinancialReportGenerationScheduler;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
@@ -29,6 +30,7 @@ class ReportControllerTest {
 
     private NewsService newsService;
     private NewsCrawlingScheduler newsCrawlingScheduler;
+    private FinancialReportGenerationScheduler financialReportGenerationScheduler;
     private MockMvc mockMvc;
 
     @BeforeEach
@@ -36,11 +38,13 @@ class ReportControllerTest {
         newsService = mock(NewsService.class);
         NewsReportGenerationService newsReportGenerationService = mock(NewsReportGenerationService.class);
         newsCrawlingScheduler = mock(NewsCrawlingScheduler.class);
+        financialReportGenerationScheduler = mock(FinancialReportGenerationScheduler.class);
 
         ReportController controller = new ReportController(
                 newsService,
                 newsReportGenerationService,
-                newsCrawlingScheduler
+                newsCrawlingScheduler,
+                financialReportGenerationScheduler
         );
 
         // 실제 운영 설정(AppConfig.objectMapper())과 동일하게 JavaTimeModule을 등록하고
@@ -113,18 +117,29 @@ class ReportControllerTest {
     }
 
     @Test
-    void manuallyGeneratesReportsWithoutWaitingForSchedule() throws Exception {
-        NewsCrawlingScheduler.RunResult result = new NewsCrawlingScheduler.RunResult(true, 3, 3, 2, 1, 0);
+    void manuallyCrawlsNewsWithoutStartingAi() throws Exception {
+        NewsCrawlingScheduler.RunResult result = new NewsCrawlingScheduler.RunResult(true, 3);
         when(newsCrawlingScheduler.runNow()).thenReturn(result);
 
-        mockMvc.perform(post("/api/reports/generate-now"))
+        mockMvc.perform(post("/api/reports/crawl-now"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.started").value(true))
-                .andExpect(jsonPath("$.data.crawledNewsCount").value(3))
-                .andExpect(jsonPath("$.data.generatedReportCount").value(2))
-                .andExpect(jsonPath("$.data.failedReportCount").value(1));
+                .andExpect(jsonPath("$.data.crawledNewsCount").value(3));
 
         verify(newsCrawlingScheduler).runNow();
+    }
+
+    @Test
+    void queuesBackgroundAiReportGeneration() throws Exception {
+        when(financialReportGenerationScheduler.requestGenerationNow())
+                .thenReturn(new FinancialReportGenerationScheduler.GenerationRequestResult(true, true));
+
+        mockMvc.perform(post("/api/reports/generate-missing"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.newlyStarted").value(true))
+                .andExpect(jsonPath("$.data.queued").value(true));
+
+        verify(financialReportGenerationScheduler).requestGenerationNow();
     }
 }

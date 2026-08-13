@@ -156,8 +156,9 @@ class FinancialReportGenerationSchedulerTest {
         FinancialReportGenerationScheduler scheduler =
                 new FinancialReportGenerationScheduler(newsMapper, generationService, true, 10);
 
-        scheduler.generateMissingReports();
-        scheduler.generateMissingReports();
+        scheduler.requestGeneration();
+        scheduler.generateNextMissingReport();
+        scheduler.generateNextMissingReport();
 
         assertEquals(2, newsMapper.findNewsIdsWithoutReportCallCount);
         assertEquals(2, generationService.callCount());
@@ -256,7 +257,8 @@ class FinancialReportGenerationSchedulerTest {
                 new FinancialReportGenerationScheduler(newsMapper, generationService, true, 10);
         schedulerHolder[0] = scheduler;
 
-        scheduler.generateMissingReports();
+        scheduler.requestGeneration();
+        scheduler.generateNextMissingReport();
 
         // 재진입 호출이 대상을 실제로 처리했다면 백로그 조회와 generateIfAbsent 호출이 2번씩 찍혔을 것이다.
         assertEquals(1, newsMapper.findNewsIdsWithoutReportCallCount);
@@ -344,6 +346,11 @@ class FinancialReportGenerationSchedulerTest {
             return NewsReport.builder().newsId(newsId).summary("요약").build();
         }
 
+        @Override
+        public NewsReport regenerate(Long newsId) {
+            throw new UnsupportedOperationException();
+        }
+
         private int callCount() {
             return requestedNewsIds.size();
         }
@@ -368,6 +375,11 @@ class FinancialReportGenerationSchedulerTest {
             requestedNewsIds.add(newsId);
             overlappingCall.run();
             return NewsReport.builder().newsId(newsId).summary("요약").build();
+        }
+
+        @Override
+        public NewsReport regenerate(Long newsId) {
+            throw new UnsupportedOperationException();
         }
 
         private int callCount() {

@@ -6,6 +6,7 @@ import com.wallo.report.dto.response.ReportListResponse;
 import com.wallo.report.service.NewsReportGenerationService;
 import com.wallo.report.service.NewsService;
 import com.wallo.report.scheduler.NewsCrawlingScheduler;
+import com.wallo.report.scheduler.FinancialReportGenerationScheduler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -22,15 +23,18 @@ public class ReportController {
     private final NewsService newsService;
     private final NewsReportGenerationService newsReportGenerationService;
     private final NewsCrawlingScheduler newsCrawlingScheduler;
+    private final FinancialReportGenerationScheduler financialReportGenerationScheduler;
 
     public ReportController(
             NewsService newsService,
             NewsReportGenerationService newsReportGenerationService,
-            NewsCrawlingScheduler newsCrawlingScheduler
+            NewsCrawlingScheduler newsCrawlingScheduler,
+            FinancialReportGenerationScheduler financialReportGenerationScheduler
     ) {
         this.newsService = newsService;
         this.newsReportGenerationService = newsReportGenerationService;
         this.newsCrawlingScheduler = newsCrawlingScheduler;
+        this.financialReportGenerationScheduler = financialReportGenerationScheduler;
     }
 
     /**
@@ -63,9 +67,15 @@ public class ReportController {
         return CommonResponse.success(newsService.getReportDetail(newsId));
     }
 
-    /** 스케줄 시간을 기다리지 않고 뉴스 크롤링과 금융 리포트 생성을 즉시 실행한다. */
-    @PostMapping("/generate-now")
-    public CommonResponse<NewsCrawlingScheduler.RunResult> generateReportsNow() {
+    /** 뉴스만 크롤링해 DB에 저장하며 AI는 호출하지 않는다. */
+    @PostMapping("/crawl-now")
+    public CommonResponse<NewsCrawlingScheduler.RunResult> crawlNewsNow() {
         return CommonResponse.success(newsCrawlingScheduler.runNow());
+    }
+
+    /** 미생성 금융 리포트의 백그라운드 생성을 예약하고 즉시 응답한다. */
+    @PostMapping("/generate-missing")
+    public CommonResponse<FinancialReportGenerationScheduler.GenerationRequestResult> generateMissingReports() {
+        return CommonResponse.success(financialReportGenerationScheduler.requestGenerationNow());
     }
 }

@@ -27,7 +27,7 @@ export const getReportDetail = async (newsId) => {
   }
 }
 
-// 해당 뉴스의 AI 리포트를 생성함 (이미 있으면 새로 호출하지 않고 기존 결과를 그대로 반환함)
+// 해당 뉴스의 AI 리포트를 새로 가공함 (기존 결과가 있으면 교체함)
 export const generateReport = async (newsId) => {
   try {
     const response = await httpClient.post(`/api/reports/${newsId}/generate`)
@@ -38,11 +38,20 @@ export const generateReport = async (newsId) => {
 }
 
 // 시연용: 스케줄 시간을 기다리지 않고 뉴스 크롤링과 금융 리포트 생성을 즉시 실행함
-export const generateReportsNow = async () => {
+export const crawlNewsNow = async () => {
   try {
-    const response = await httpClient.post("/api/reports/generate-now")
+    const response = await httpClient.post("/api/reports/crawl-now")
     return unwrap(response)
   } catch (error) {
-    throw new Error(toUserMessage(error, "금융 리포트를 수동 생성하지 못했습니다."))
+    throw new Error(toUserMessage(error, "새 뉴스를 수집하지 못했습니다."))
+  }
+}
+
+export const generateMissingReports = async () => {
+  try {
+    const response = await httpClient.post("/api/reports/generate-missing")
+    return unwrap(response)
+  } catch (error) {
+    throw new Error(toUserMessage(error, "AI 리포트 생성 작업을 시작하지 못했습니다."))
   }
 }
