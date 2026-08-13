@@ -346,11 +346,6 @@ class FinancialReportGenerationSchedulerTest {
             return NewsReport.builder().newsId(newsId).summary("요약").build();
         }
 
-        @Override
-        public NewsReport regenerate(Long newsId) {
-            throw new UnsupportedOperationException();
-        }
-
         private int callCount() {
             return requestedNewsIds.size();
         }
@@ -375,11 +370,6 @@ class FinancialReportGenerationSchedulerTest {
             requestedNewsIds.add(newsId);
             overlappingCall.run();
             return NewsReport.builder().newsId(newsId).summary("요약").build();
-        }
-
-        @Override
-        public NewsReport regenerate(Long newsId) {
-            throw new UnsupportedOperationException();
         }
 
         private int callCount() {
