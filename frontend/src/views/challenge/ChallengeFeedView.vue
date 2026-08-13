@@ -705,7 +705,7 @@ onBeforeUnmount(() => {
                   </button>
                 </div>
               </div>
-              <span>🤖 AI 분석 완료 · 절약 금액 {{ formatWon(feed.savingAmount) }}</span>
+              <span>절약 금액 {{ formatWon(feed.savingAmount) }}</span>
             </footer>
           </article>
         </main>
