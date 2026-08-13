@@ -631,9 +631,11 @@ onBeforeUnmount(() => {
                 v-if="feed.mediaType === 'VIDEO'"
                 class="feed-media"
                 :src="feed.mediaUrl"
+                autoplay
                 muted
                 loop
                 playsinline
+                controls
                 preload="metadata"
                 :aria-label="feed.caption || '절약 인증 영상'"
               ></video>
