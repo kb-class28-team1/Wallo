@@ -54,7 +54,8 @@ const emit = defineEmits(["term-hover", "term-click"])
 
 <style scoped>
 .report-section-content {
-  white-space: pre-line;
+  /* 기존 DB에 개행이 포함된 리포트도 한 문단으로 표시한다. */
+  white-space: normal;
   line-height: 1.7;
 }
 
