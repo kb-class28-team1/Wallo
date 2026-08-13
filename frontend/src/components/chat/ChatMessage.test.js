@@ -59,4 +59,32 @@ describe("ChatMessage", () => {
     expect(wrapper.text()).toContain("일반 금융 상담 답변입니다.")
     expect(wrapper.find(".message-content--markdown").exists()).toBe(true)
   })
+
+  it("renders an asset analysis response as cards instead of markdown", () => {
+    const wrapper = mount(ChatMessage, {
+      props: {
+        message: {
+          id: 3,
+          role: "assistant",
+          content: "This prose should not be rendered for an asset analysis response.",
+          assetAnalysis: {
+            summary: {
+              totalAssetsKrw: 120000000,
+              totalDebtKrw: 20000000,
+              netAssetsKrw: 100000000,
+            },
+            cashflow: {},
+            composition: [],
+            dataQualityNotes: [],
+          },
+          animate: false,
+        },
+      },
+    })
+
+    expect(wrapper.find(".asset-analysis").exists()).toBe(true)
+    expect(wrapper.text()).toContain("120,000,000")
+    expect(wrapper.text()).not.toContain("This prose should not be rendered")
+    expect(wrapper.find(".message-content--markdown").exists()).toBe(false)
+  })
 })
