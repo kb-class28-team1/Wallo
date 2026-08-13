@@ -969,10 +969,7 @@ onBeforeUnmount(() => {
   margin: 0;
   overflow: hidden;
   padding: 10px 28px;
-  color: #fff;
-  background: #121d3e;
-  border-radius: 12px;
-  box-shadow: 0 8px 18px #29315a24;
+  color: #121d3e;
   font-size: 1.75rem;
   font-weight: 900;
   letter-spacing: -0.04em;
