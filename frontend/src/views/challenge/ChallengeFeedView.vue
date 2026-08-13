@@ -582,24 +582,6 @@ onBeforeUnmount(() => {
       <header class="feed-header">
         <div class="feed-header-row">
           <h1>{{ challengeName }}</h1>
-          <div class="feed-header-actions">
-            <div v-if="inviteCode" class="feed-invite-panel">
-              <button type="button" aria-label="초대 코드 복사" @click="copyInviteCode">
-                <i class="bi bi-copy" aria-hidden="true"></i>
-                초대코드 복사
-              </button>
-            </div>
-            <button
-              type="button"
-              class="feed-leave-button"
-              title="챌린지 나가기"
-              aria-label="챌린지 나가기"
-              :disabled="isLeavingChallenge"
-              @click="leaveCurrentChallenge"
-            >
-              <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
-            </button>
-          </div>
         </div>
         <p>함께 남긴 절약 기록을 확인하고 응원해 보세요.</p>
       </header>
@@ -615,6 +597,24 @@ onBeforeUnmount(() => {
                 내 피드
               </button>
             </nav>
+            <div class="feed-header-actions">
+              <div v-if="inviteCode" class="feed-invite-panel">
+                <button type="button" aria-label="초대 코드 복사" @click="copyInviteCode">
+                  <i class="bi bi-copy" aria-hidden="true"></i>
+                  초대코드 복사
+                </button>
+              </div>
+              <button
+                type="button"
+                class="feed-leave-button"
+                title="챌린지 나가기"
+                aria-label="챌린지 나가기"
+                :disabled="isLeavingChallenge"
+                @click="leaveCurrentChallenge"
+              >
+                <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+              </button>
+            </div>
           </div>
           <div v-if="!feeds.length" class="empty-feed">
             <span>📷</span><strong>아직 등록된 피드가 없어요</strong>
@@ -957,10 +957,7 @@ onBeforeUnmount(() => {
   margin-bottom: 24px;
 }
 .feed-header-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 16px;
+  display: block;
 }
 .feed-header h1 {
   justify-self: start;
@@ -1811,19 +1808,8 @@ textarea {
     width: 100%;
     margin-bottom: 20px;
   }
-  .feed-header-row {
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 10px;
-  }
   .feed-header h1 {
-    grid-column: 1;
-    grid-row: 1;
     font-size: 1.35rem;
-  }
-  .feed-header-actions {
-    grid-column: 2;
-    grid-row: 1;
-    gap: 4px;
   }
   .feed-toolbar {
     align-items: stretch;
@@ -1831,6 +1817,10 @@ textarea {
   }
   .feed-toolbar .feed-tabs {
     width: 100%;
+  }
+  .feed-toolbar .feed-header-actions {
+    align-self: flex-end;
+    gap: 4px;
   }
   .feed-toolbar .feed-tabs button {
     flex: 1;
