@@ -1,7 +1,7 @@
 package com.wallo.feed.websocket;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.wallo.auth.SessionCurrentUserProvider;
+import com.wallo.auth.JwtCurrentUserProvider;
 import com.wallo.feed.dto.FeedDtos.MessageRequest;
 import com.wallo.feed.service.FeedService;
 import java.io.IOException;
@@ -40,7 +40,7 @@ public class ChallengeChatWebSocketHandler extends TextWebSocketHandler {
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
         Long challengeId = parseChallengeId(session.getUri());
-        Long userId = asLong(session.getAttributes().get(SessionCurrentUserProvider.LOGIN_USER_ID));
+        Long userId = asLong(session.getAttributes().get(JwtCurrentUserProvider.USER_ID_ATTRIBUTE));
 
         if (challengeId == null || userId == null) {
             session.close(CloseStatus.NOT_ACCEPTABLE);

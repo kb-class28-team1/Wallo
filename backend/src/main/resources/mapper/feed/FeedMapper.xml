@@ -17,6 +17,7 @@
         <result property="customCategory" column="custom_category"/>
         <result property="caption" column="caption"/>
         <result property="analysisSummary" column="analysis_summary"/>
+        <result property="analysisStatus" column="analysis_status"/>
         <result property="likeCount" column="like_count"/>
         <result property="createdAt" column="created_at"/>
     </resultMap>
@@ -87,7 +88,7 @@
         SELECT invite_code FROM CHALLENGE WHERE id = #{challengeId}
     </select>
     <select id="findFeeds" resultMap="feedMap">
-        SELECT f.*, fa.analysis_summary, u.nickname, u.profile_image_url
+        SELECT f.*, fa.analysis_summary, NULL AS analysis_status, u.nickname, u.profile_image_url
         FROM FEED f
         JOIN USERS u ON u.id = f.user_id
         LEFT JOIN FEED_ANALYSIS fa ON fa.feed_id = f.id
@@ -154,7 +155,8 @@
         UPDATE FEED_ANALYSIS
         SET recommended_spending_type = #{spendingType},
             recommended_category = #{category},
-            estimated_saving_amount = #{savingAmount}
+            user_confirmed_saving_amount = #{savingAmount},
+            feedback_type = 'ADJUSTED'
         WHERE feed_id = #{feedId}
     </update>
     <update id="softDeleteFeed">
