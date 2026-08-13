@@ -42,7 +42,6 @@ const chatInputElement = ref(null)
 const mentionedFeed = ref(null)
 const fileInput = ref(null)
 const previewUrl = ref("")
-const previewError = ref(false)
 const focusedFeedElement = ref(null)
 const messagesElement = ref(null)
 const isSendingMessage = ref(false)
@@ -92,13 +91,6 @@ const categoryLabel = (value, custom) =>
   custom || EXPENSE_CATEGORY_META[value]?.label || value || "기타"
 const spendingLabel = (value) => spendingTypes.find((item) => item.value === value)?.label || value
 const isVideoFile = computed(() => form.file?.type?.startsWith("video/"))
-const selectedFileName = computed(() => form.file?.name || "")
-const selectedFileSize = computed(() => {
-  const size = Number(form.file?.size || 0)
-  if (!size) return ""
-  if (size < 1024 * 1024) return `${Math.max(1, Math.round(size / 1024))} KB`
-  return `${(size / 1024 / 1024).toFixed(1)} MB`
-})
 const roomTitle = computed(() => `${challengeName.value} 채팅방`)
 const DEFAULT_SPENDING_TYPE = "REDUCED"
 
@@ -293,7 +285,6 @@ const closeModal = () => {
   modalOpen.value = false
   if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
   previewUrl.value = ""
-  previewError.value = false
   Object.assign(form, {
     file: null,
     category: "",
@@ -351,33 +342,9 @@ const removeFeed = async (feed) => {
     deletingFeedId.value = null
   }
 }
-const chooseFile = () => {
-  if (fileInput.value) fileInput.value.value = ""
-  fileInput.value?.click()
-}
+const chooseFile = () => fileInput.value?.click()
 const playVideoPreview = (event) => {
   event.currentTarget.play().catch(() => {})
-}
-const handlePreviewError = () => {
-  previewError.value = true
-}
-const resetAnalysisState = () => {
-  form.aiEstimatedSavingAmount = 0
-  form.savingAmount = 0
-  form.savingAmountFeedback = ""
-  form.verifiedSavingAmount = null
-  form.analysisSummary = ""
-  form.confidenceScore = 0
-  form.analysisDetails = ""
-  form.analysisFailed = false
-}
-const clearSelectedFile = () => {
-  if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
-  previewUrl.value = ""
-  previewError.value = false
-  form.file = null
-  resetAnalysisState()
-  if (fileInput.value) fileInput.value.value = ""
 }
 const handleFile = async (event) => {
   const file = event.target.files?.[0]
@@ -389,7 +356,6 @@ const handleFile = async (event) => {
   if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
   form.file = file
   previewUrl.value = URL.createObjectURL(file)
-  previewError.value = false
   form.aiEstimatedSavingAmount = 0
   form.savingAmount = 0
   form.savingAmountFeedback = ""
@@ -799,17 +765,16 @@ onBeforeUnmount(() => {
           />
           <div
             class="upload-zone"
-            :class="{ 'has-preview': previewUrl, 'preview-error': previewError }"
+            :class="{ 'has-preview': previewUrl }"
             role="button"
             tabindex="0"
             @click="chooseFile"
             @keydown.enter.prevent="chooseFile"
             @keydown.space.prevent="chooseFile"
-            @error.capture="handlePreviewError"
           >
             <template v-if="previewUrl">
               <video
-                v-if="isVideoFile && !previewError"
+                v-if="isVideoFile"
                 :key="previewUrl"
                 :src="previewUrl"
                 autoplay
@@ -819,16 +784,10 @@ onBeforeUnmount(() => {
                 preload="auto"
                 @click.stop
                 @loadeddata="playVideoPreview"
-                @error="handlePreviewError"
                 aria-label="업로드할 영상 미리보기"
               ></video>
               <img v-else :src="previewUrl" alt="업로드 미리보기" />
             </template>
-            <div v-if="previewUrl && previewError" class="upload-file-fallback">
-              <i class="bi bi-file-earmark-play" aria-hidden="true"></i>
-              <strong>미리보기를 표시할 수 없는 파일입니다.</strong>
-              <small>파일 정보는 아래에서 확인할 수 있어요.</small>
-            </div>
             <template v-else
               ><span>🖼️</span><strong>사진 / 동영상 업로드</strong
               ><small>클릭해 인증 사진 또는 영상을 올려주세요</small></template
@@ -836,23 +795,6 @@ onBeforeUnmount(() => {
           </div>
 
           <label class="section-label">세부 카테고리</label>
-          <div v-if="form.file" class="selected-file-panel">
-            <div class="selected-file-main">
-              <i
-                :class="['bi', isVideoFile ? 'bi-file-earmark-play' : 'bi-file-earmark-image']"
-                aria-hidden="true"
-              ></i>
-              <div>
-                <strong :title="selectedFileName">{{ selectedFileName }}</strong>
-                <small>{{ form.file.type || "알 수 없는 형식" }} · {{ selectedFileSize }}</small>
-              </div>
-            </div>
-            <div class="selected-file-actions">
-              <button type="button" @click.stop="chooseFile">다시 선택</button>
-              <button type="button" class="remove" @click.stop="clearSelectedFile">삭제</button>
-            </div>
-          </div>
-
           <div class="chip-row">
             <button
               v-for="item in categories"
@@ -1578,85 +1520,6 @@ onBeforeUnmount(() => {
   min-height: 0;
   background: #0d1633;
 }
-.upload-zone.preview-error > img {
-  display: none;
-}
-.upload-file-fallback {
-  display: grid;
-  place-items: center;
-  gap: 8px;
-  width: 100%;
-  height: 100%;
-  padding: 24px;
-  color: #5f6880;
-  text-align: center;
-}
-.upload-file-fallback i {
-  color: #7162de;
-  font-size: 2.6rem;
-}
-.upload-file-fallback strong,
-.upload-file-fallback small {
-  max-width: 340px;
-}
-.selected-file-panel {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 10px;
-  padding: 10px 12px;
-  background: #f5f4ff;
-  border: 1px solid #e0ddfb;
-  border-radius: 12px;
-}
-.selected-file-main {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 10px;
-}
-.selected-file-main > i {
-  color: #7162de;
-  font-size: 1.35rem;
-}
-.selected-file-main div {
-  min-width: 0;
-}
-.selected-file-main strong,
-.selected-file-main small {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.selected-file-main strong {
-  color: #303752;
-  font-size: 0.86rem;
-}
-.selected-file-main small {
-  margin-top: 3px;
-  color: #9299ad;
-  font-size: 0.72rem;
-}
-.selected-file-actions {
-  display: flex;
-  flex-shrink: 0;
-  gap: 6px;
-}
-.selected-file-actions button {
-  padding: 6px 9px;
-  color: #6557d5;
-  background: #fff;
-  border: 1px solid #cfcaf5;
-  border-radius: 8px;
-  font-size: 0.75rem;
-  font-weight: 800;
-}
-.selected-file-actions button.remove {
-  color: #c65363;
-  border-color: #f0c5cc;
-}
 .chip-row {
   display: flex;
   flex-wrap: wrap;
@@ -1896,16 +1759,6 @@ textarea {
     height: 100%;
     max-height: none;
     border-radius: 0;
-  }
-  .selected-file-panel {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-  .selected-file-actions {
-    width: 100%;
-  }
-  .selected-file-actions button {
-    flex: 1;
   }
   .feed-caption-row {
     align-items: flex-start;
