@@ -53,6 +53,43 @@ const normalizeComposition = (composition) => (
     : []
 )
 
+const normalizeTextList = (value) => (
+  Array.isArray(value)
+    ? value.map(textOrNull).filter(Boolean)
+    : []
+)
+
+const normalizeDirection = (direction) => {
+  if (!direction || typeof direction !== "object") return null
+
+  const normalized = {
+    headline: textOrNull(direction.headline),
+    currentStage: textOrNull(direction.currentStage),
+    reasons: normalizeTextList(direction.reasons),
+    keep: textOrNull(direction.keep),
+    firstChange: textOrNull(direction.firstChange),
+    threeMonthDirection: textOrNull(direction.threeMonthDirection),
+    oneYearDirection: textOrNull(direction.oneYearDirection),
+    riskSignals: normalizeTextList(direction.riskSignals),
+    additionalInfo: normalizeTextList(direction.additionalInfo),
+  }
+
+  const hasContent = Object.entries(normalized).some(([key, value]) =>
+    Array.isArray(value) ? value.length > 0 : value !== null,
+  )
+  return hasContent ? normalized : null
+}
+
+const normalizePriorityActions = (actions) => (
+  Array.isArray(actions)
+    ? actions.map((action = {}) => ({
+      period: textOrNull(action.period),
+      title: textOrNull(action.title),
+      description: textOrNull(action.description ?? action.detail),
+    })).filter((action) => action.description)
+    : []
+)
+
 export const normalizeAssetAnalysis = (analysis) => {
   if (!analysis || typeof analysis !== "object") return null
 
@@ -63,6 +100,8 @@ export const normalizeAssetAnalysis = (analysis) => {
     dataQualityNotes: Array.isArray(analysis.dataQualityNotes)
       ? analysis.dataQualityNotes.map(textOrNull).filter(Boolean)
       : [],
+    direction: normalizeDirection(analysis.direction),
+    priorityActions: normalizePriorityActions(analysis.priorityActions),
   }
 
   const hasSummary = Object.values(normalized.summary).some((value) => value !== null)
@@ -70,6 +109,8 @@ export const normalizeAssetAnalysis = (analysis) => {
   return hasSummary || hasCashflow
     || normalized.composition.length > 0
     || normalized.dataQualityNotes.length > 0
+    || normalized.direction !== null
+    || normalized.priorityActions.length > 0
     ? normalized
     : null
 }
