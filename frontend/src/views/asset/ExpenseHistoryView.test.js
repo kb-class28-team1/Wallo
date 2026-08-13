@@ -183,4 +183,22 @@ describe("ExpenseHistoryView manual synchronization", () => {
     expect(getExpenses).toHaveBeenCalledOnce();
     expect(wrapper.text()).toContain("CODEF unavailable");
   });
+
+  it("applies the selected category only to list requests", async () => {
+    await wrapper.get(".view-toggle .btn:nth-child(2)").trigger("click");
+    await wrapper.get("#expenseCategoryFilter").setValue("FOOD");
+    await flushPromises();
+
+    expect(getExpenses.mock.calls[1][0]).toMatchObject({
+      page: 0,
+      size: 20,
+      category: "FOOD",
+    });
+
+    await wrapper.get(".view-toggle .btn:nth-child(1)").trigger("click");
+    await wrapper.get('[data-testid="select-date"]').trigger("click");
+    await flushPromises();
+
+    expect(getExpenses.mock.calls[2][0]).not.toHaveProperty("category");
+  });
 });

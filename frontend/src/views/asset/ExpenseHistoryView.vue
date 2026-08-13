@@ -9,6 +9,7 @@ import ExpenseTransactionList from "@/components/asset/ExpenseTransactionList.vu
 import { getExpenses } from "@/api/assetApi";
 import { getApiErrorMessage } from "@/commonUtils/apiError";
 import { formatWon } from "@/commonUtils/formatters";
+import { EXPENSE_CATEGORY_META } from "@/features/financial/financialCategories";
 import { useAssetStore } from "@/stores/assetStore";
 import { useBudgetStore } from "@/stores/budgetStore";
 
@@ -42,6 +43,7 @@ const createEmptyExpenseData = () => ({
 const now = new Date();
 const selectedMonth = ref(new Date(now.getFullYear(), now.getMonth(), 1));
 const activeView = ref("calendar");
+const selectedListCategory = ref("ALL");
 const expenseData = ref(createEmptyExpenseData());
 const isLoading = ref(false);
 const isLoadingMore = ref(false);
@@ -85,6 +87,14 @@ const isCurrentMonth = computed(() => {
   const today = new Date();
   return targetMonth.value === `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
 });
+
+const listCategoryOptions = computed(() => [
+  { value: "ALL", label: "전체" },
+  ...Object.entries(EXPENSE_CATEGORY_META).map(([value, meta]) => ({
+    value,
+    label: meta.label,
+  })),
+]);
 
 const canEditBudget = computed(() => (
   isCurrentMonth.value && !isBudgetLoading.value && !budgetError.value
@@ -177,6 +187,7 @@ const fetchExpensePage = async (page, append = false) => {
       ...dateRange.value,
       page,
       size: PAGE_SIZE,
+      category: selectedListCategory.value,
     });
 
     if (currentRequest !== requestVersion) return;
@@ -215,6 +226,10 @@ const fetchExpensePage = async (page, append = false) => {
       isLoadingMore.value = false;
     }
   }
+};
+
+const changeListCategory = async () => {
+  await fetchExpensePage(0);
 };
 
 const loadSelectedMonth = async () => {
@@ -468,6 +483,26 @@ onMounted(async () => {
                   리스트
                 </button>
               </div>
+
+              <div v-if="activeView === 'list'" class="category-filter d-flex align-items-center gap-2">
+                <label for="expenseCategoryFilter" class="small fw-bold text-secondary mb-0">
+                  카테고리
+                </label>
+                <select
+                  id="expenseCategoryFilter"
+                  v-model="selectedListCategory"
+                  class="form-select form-select-sm"
+                  @change="changeListCategory"
+                >
+                  <option
+                    v-for="option in listCategoryOptions"
+                    :key="option.value"
+                    :value="option.value"
+                  >
+                    {{ option.label }}
+                  </option>
+                </select>
+              </div>
             </div>
 
             <div class="monthly-summary d-flex flex-wrap gap-2">
@@ -636,6 +671,12 @@ onMounted(async () => {
 .view-toggle .btn.active {
   color: #6b5bd2;
   background: #f0edff;
+}
+
+.category-filter .form-select {
+  min-width: 142px;
+  border-color: #e4e1f4;
+  border-radius: 10px;
 }
 
 .history-card,
