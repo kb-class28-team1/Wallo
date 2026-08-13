@@ -1325,7 +1325,7 @@ onBeforeUnmount(() => {
   position: relative;
   z-index: 2;
   margin-top: -56px;
-  padding: 63px 18px 18px;
+  padding: 55px 18px 18px;
   color: #fff;
   background: #121d3e;
 }
