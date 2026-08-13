@@ -18,6 +18,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -31,6 +32,7 @@ public class GeminiFeedAnalysisClient implements FeedAnalysisClient, SavingFeedb
     private static final String API_ENDPOINT =
             "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s";
     private static final String DEFAULT_SUMMARY = "Gemini가 업로드한 미디어를 분석했습니다.";
+    private static final int MAX_RETRIES = 1;
 
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
@@ -61,8 +63,7 @@ public class GeminiFeedAnalysisClient implements FeedAnalysisClient, SavingFeedb
             headers.setContentType(MediaType.APPLICATION_JSON);
 
             String endpoint = API_ENDPOINT.formatted(model, apiKey);
-            JsonNode response = restTemplate.postForObject(
-                    endpoint, new HttpEntity<>(request, headers), JsonNode.class);
+            JsonNode response = requestWithRetry(endpoint, new HttpEntity<>(request, headers));
             return toAnalysisResponse(response, spendingType, category);
         } catch (RestClientResponseException exception) {
             throw new AiServerException(
@@ -71,6 +72,31 @@ public class GeminiFeedAnalysisClient implements FeedAnalysisClient, SavingFeedb
         } catch (RestClientException | IOException exception) {
             throw new AiServerException("Gemini 미디어 분석에 실패했습니다.", exception);
         }
+    }
+
+    private JsonNode requestWithRetry(String endpoint, HttpEntity<ObjectNode> request) {
+        for (int attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+            try {
+                return restTemplate.postForObject(endpoint, request, JsonNode.class);
+            } catch (RestClientResponseException exception) {
+                if (attempt == MAX_RETRIES || !isRetryableStatus(exception.getRawStatusCode())) {
+                    throw exception;
+                }
+            } catch (ResourceAccessException exception) {
+                if (attempt == MAX_RETRIES) {
+                    throw exception;
+                }
+            } catch (RestClientException exception) {
+                throw exception;
+            }
+        }
+        throw new IllegalStateException("Gemini 분석 요청 재시도에 실패했습니다.");
+    }
+
+    private boolean isRetryableStatus(int statusCode) {
+        return statusCode == 408
+                || statusCode == 429
+                || statusCode >= 500 && statusCode <= 599;
     }
 
     private ObjectNode buildRequest(

@@ -5,42 +5,44 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.wallo.auth.SessionCurrentUserProvider;
+import com.wallo.auth.JwtTokenService;
 import com.wallo.auth.dto.request.LoginRequest;
 import com.wallo.auth.dto.request.SignupRequest;
+import com.wallo.auth.dto.response.AuthTokenResponse;
 import com.wallo.auth.dto.response.AuthUserResponse;
 import com.wallo.auth.exception.AuthErrorCode;
 import com.wallo.auth.exception.AuthException;
 import com.wallo.auth.service.AuthService;
-import javax.servlet.http.HttpSession;
+import javax.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockHttpServletRequest;
-import org.springframework.mock.web.MockHttpSession;
 
 class AuthControllerTest {
 
     private final AuthController controller = new AuthController(new StubAuthService());
 
     @Test
-    void storesLoginUserIdInNewSession() {
-        MockHttpServletRequest request = new MockHttpServletRequest();
+    void returnsAccessTokenAndRefreshCookieOnLogin() {
         LoginRequest loginRequest = new LoginRequest();
         loginRequest.setEmail("test@wallo.com");
         loginRequest.setPassword("password123!");
 
-        controller.login(loginRequest, request);
+        AuthTokenResponse response = controller.login(loginRequest).getBody();
 
-        HttpSession session = request.getSession(false);
-        assertNotNull(session);
-        assertEquals(7L, session.getAttribute(SessionCurrentUserProvider.LOGIN_USER_ID));
+        assertNotNull(response);
+        assertNotNull(response.getAccessToken());
+        assertEquals(7L, response.getUser().getId());
+        assertNotNull(controller.login(loginRequest).getHeaders().getFirst("Set-Cookie"));
     }
 
     @Test
-    void returnsCurrentUserFromSession() {
+    void returnsCurrentUserFromBearerAccessToken() {
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.getSession(true)
-                .setAttribute(SessionCurrentUserProvider.LOGIN_USER_ID, 7L);
+        String token = new JwtTokenService(
+                "change-this-wall-o-jwt-secret-at-least-32-bytes", 1800, 1209600)
+                .createAccessToken(7L);
+        request.addHeader("Authorization", "Bearer " + token);
 
         AuthUserResponse response = controller.getCurrentUser(request).getBody();
 
@@ -49,7 +51,7 @@ class AuthControllerTest {
     }
 
     @Test
-    void rejectsCurrentUserRequestWithoutSession() {
+    void rejectsCurrentUserRequestWithoutAccessToken() {
         MockHttpServletRequest request = new MockHttpServletRequest();
 
         AuthException exception =
@@ -59,13 +61,26 @@ class AuthControllerTest {
     }
 
     @Test
-    void invalidatesSessionOnLogout() {
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        MockHttpSession session = (MockHttpSession) request.getSession(true);
-        session.setAttribute(SessionCurrentUserProvider.LOGIN_USER_ID, 7L);
+    void clearsRefreshCookieOnLogout() {
+        assertEquals(HttpStatus.OK, controller.logout().getStatusCode());
+        String cookie = controller.logout().getHeaders().getFirst("Set-Cookie");
+        assertNotNull(cookie);
+        assertTrue(cookie.contains("WALLO_REFRESH_TOKEN="));
+        assertTrue(cookie.contains("Max-Age=0"));
+    }
 
-        assertEquals(HttpStatus.OK, controller.logout(request).getStatusCode());
-        assertTrue(session.isInvalid());
+    @Test
+    void refreshesAccessTokenFromHttpOnlyCookie() {
+        JwtTokenService tokenService = new JwtTokenService(
+                "change-this-wall-o-jwt-secret-at-least-32-bytes", 1800, 1209600);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setCookies(new Cookie("WALLO_REFRESH_TOKEN", tokenService.createRefreshToken(7L)));
+
+        AuthTokenResponse response = controller.refresh(request).getBody();
+
+        assertNotNull(response);
+        assertEquals(7L, response.getUser().getId());
+        assertNotNull(response.getAccessToken());
     }
 
     private static class StubAuthService implements AuthService {

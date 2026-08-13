@@ -15,7 +15,7 @@ import com.wallo.asset.mapper.BudgetMapper;
 import com.wallo.asset.service.ConsumptionInsightCache;
 import com.wallo.asset.service.AssetReportService;
 import com.wallo.auth.CurrentUserProvider;
-import com.wallo.auth.SessionCurrentUserProvider;
+import com.wallo.auth.UnauthenticatedException;
 import com.wallo.common.exception.GlobalExceptionHandler;
 import java.time.Clock;
 import java.nio.charset.StandardCharsets;
@@ -90,7 +90,7 @@ class AssetReportControllerTest {
     }
 
     @Test
-    void returnsUnauthorizedWithoutLoginSession() throws Exception {
+    void returnsUnauthorizedWithoutAuthentication() throws Exception {
         AssetReportService assetReportService = new AssetReportService(
                 mock(AssetReportMapper.class),
                 mock(AssetReportAiClient.class),
@@ -98,9 +98,11 @@ class AssetReportControllerTest {
                 new ConsumptionInsightCache(),
                 Clock.system(ZoneId.of("Asia/Seoul"))
         );
+        CurrentUserProvider currentUserProvider = mock(CurrentUserProvider.class);
+        when(currentUserProvider.getCurrentUserId()).thenThrow(new UnauthenticatedException());
         AssetReportController assetReportController = new AssetReportController(
                 assetReportService,
-                new SessionCurrentUserProvider()
+                currentUserProvider
         );
         MockMvc mockMvc = MockMvcBuilders
                 .standaloneSetup(assetReportController)
