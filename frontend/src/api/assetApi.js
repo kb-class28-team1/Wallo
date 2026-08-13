@@ -72,6 +72,22 @@ export const getExpenses = async (params = {}) => {
   return response.data;
 };
 
+export const updateExpenseCategory = async (transactionId, category) => {
+  try {
+    const response = await httpClient.patch(
+      `/api/assets/expense/${transactionId}/category`,
+      { category },
+    );
+
+    return response.data;
+  } catch (error) {
+    throw createApiError(
+      error,
+      "거래내역 카테고리를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+    );
+  }
+};
+
 export const getBudgets = async () => {
   const response = await httpClient.get("/api/budgets");
 

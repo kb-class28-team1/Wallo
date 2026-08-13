@@ -8,6 +8,7 @@ import { useAssetStore } from "@/stores/assetStore";
 vi.mock("@/api/assetApi", () => ({
   getExpenses: vi.fn(),
   getCategoryBudgets: vi.fn(),
+  updateExpenseCategory: vi.fn(),
 }));
 
 vi.mock("@/stores/assetStore", () => ({
@@ -24,6 +25,7 @@ vi.mock("vue-router", () => ({
 }));
 
 import { getCategoryBudgets } from "@/api/assetApi";
+import { updateExpenseCategory } from "@/api/assetApi";
 import { useBudgetStore } from "@/stores/budgetStore";
 
 const createExpenseResponse = () => ({
@@ -33,7 +35,7 @@ const createExpenseResponse = () => ({
     totalIncome: 3_000_000,
     expenseCategoryBreakdown: [],
     dailyBreakdown: [{ date: "2026-08-11", amount: 120_000 }],
-    transactions: [{ id: 1, type: "EXPENSE", amount: 120_000 }],
+    transactions: [{ transactionId: 1, id: 1, type: "EXPENSE", amount: 120_000 }],
     pagination: {
       currentPage: 0,
       totalPages: 1,
@@ -73,7 +75,14 @@ const globalStubs = {
   ExpenseCalendar: {
     template: '<button data-testid="select-date" @click="$emit(\'select-date\', \'2026-08-11\')">calendar</button>',
   },
-  ExpenseTransactionList: { template: '<div data-testid="transaction-list" />' },
+  ExpenseTransactionList: {
+    props: ["transactions", "editable"],
+    template: '<div data-testid="transaction-list"><button v-if="editable && transactions.length" data-testid="edit-category" @click="$emit(\'edit-category\', transactions[0])">edit</button></div>',
+  },
+  ExpenseCategoryEditModal: {
+    props: ["visible", "transaction", "mode"],
+    template: '<div v-if="visible" :data-testid="mode === \'filter\' ? \'category-filter-modal\' : \'category-edit-modal\'"><button :data-testid="mode === \'filter\' ? \'save-filter-category\' : \'save-category\'" @click="$emit(\'save\', mode === \'filter\' ? { category: \'FOOD\' } : { transactionId: transaction.transactionId, category: \'FOOD\' })">save</button></div>',
+  },
   ExpenseCategoryBreakdown: { template: '<div data-testid="category-breakdown" />' },
 };
 
@@ -85,6 +94,7 @@ describe("ExpenseHistoryView manual synchronization", () => {
   beforeEach(async () => {
     getExpenses.mockResolvedValue(createExpenseResponse());
     getCategoryBudgets.mockResolvedValue({ success: true, data: {} });
+    updateExpenseCategory.mockResolvedValue({ success: true, data: null });
     store = createStore();
     budgetStore = createBudgetStore();
     store.syncAssets.mockResolvedValue({
@@ -182,5 +192,45 @@ describe("ExpenseHistoryView manual synchronization", () => {
 
     expect(getExpenses).toHaveBeenCalledOnce();
     expect(wrapper.text()).toContain("CODEF unavailable");
+  });
+
+  it("applies the selected category only to list requests", async () => {
+    await wrapper.get(".view-toggle .btn:nth-child(2)").trigger("click");
+    expect(wrapper.get('[data-testid="open-category-filter"]').text()).toContain("카테고리 필터");
+    expect(wrapper.get('[data-testid="open-category-filter"]').text()).not.toContain("전체");
+    await wrapper.get('[data-testid="open-category-filter"]').trigger("click");
+    expect(wrapper.find('[data-testid="category-filter-modal"]').exists()).toBe(true);
+    await wrapper.get('[data-testid="save-filter-category"]').trigger("click");
+    await flushPromises();
+
+    expect(getExpenses.mock.calls[1][0]).toMatchObject({
+      page: 0,
+      size: 20,
+      category: "FOOD",
+    });
+
+    await wrapper.get(".view-toggle .btn:nth-child(1)").trigger("click");
+    await wrapper.get('[data-testid="select-date"]').trigger("click");
+    await flushPromises();
+
+    expect(getExpenses.mock.calls[2][0]).not.toHaveProperty("category");
+  });
+
+  it("opens the category editor and reloads the filtered list after saving", async () => {
+    await wrapper.get(".view-toggle .btn:nth-child(2)").trigger("click");
+    await wrapper.get('[data-testid="edit-category"]').trigger("click");
+    expect(wrapper.find('[data-testid="category-edit-modal"]').exists()).toBe(true);
+
+    await wrapper.get('[data-testid="save-category"]').trigger("click");
+    await flushPromises();
+
+    expect(updateExpenseCategory).toHaveBeenCalledWith(1, "FOOD");
+    expect(getExpenses).toHaveBeenCalledTimes(2);
+    expect(getExpenses.mock.calls[1][0]).toMatchObject({
+      page: 0,
+      size: 20,
+      category: "ALL",
+    });
+    expect(wrapper.find('[data-testid="category-edit-modal"]').exists()).toBe(false);
   });
 });

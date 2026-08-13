@@ -5,10 +5,12 @@ import { useRoute, useRouter } from "vue-router";
 import ExpenseCalendar from "@/components/asset/ExpenseCalendar.vue";
 import CategoryBudgetEditor from "@/components/asset/CategoryBudgetEditor.vue";
 import ExpenseCategoryBreakdown from "@/components/asset/ExpenseCategoryBreakdown.vue";
+import ExpenseCategoryEditModal from "@/components/asset/ExpenseCategoryEditModal.vue";
 import ExpenseTransactionList from "@/components/asset/ExpenseTransactionList.vue";
-import { getExpenses } from "@/api/assetApi";
+import { getExpenses, updateExpenseCategory } from "@/api/assetApi";
 import { getApiErrorMessage } from "@/commonUtils/apiError";
 import { formatWon } from "@/commonUtils/formatters";
+import { EXPENSE_CATEGORY_META } from "@/features/financial/financialCategories";
 import { useAssetStore } from "@/stores/assetStore";
 import { useBudgetStore } from "@/stores/budgetStore";
 
@@ -42,6 +44,7 @@ const createEmptyExpenseData = () => ({
 const now = new Date();
 const selectedMonth = ref(new Date(now.getFullYear(), now.getMonth(), 1));
 const activeView = ref("calendar");
+const selectedListCategory = ref("ALL");
 const expenseData = ref(createEmptyExpenseData());
 const isLoading = ref(false);
 const isLoadingMore = ref(false);
@@ -57,6 +60,11 @@ const dailyError = ref("");
 const dailyLoadMoreError = ref("");
 const syncStatus = ref(null);
 const isBudgetEditorVisible = ref(false);
+const isCategoryEditModalVisible = ref(false);
+const selectedTransaction = ref(null);
+const isCategorySaving = ref(false);
+const isCategoryFilterModalVisible = ref(false);
+const isCategoryFilterSaving = ref(false);
 let requestVersion = 0;
 let dailyRequestVersion = 0;
 
@@ -85,6 +93,18 @@ const isCurrentMonth = computed(() => {
   const today = new Date();
   return targetMonth.value === `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
 });
+
+const listCategoryOptions = computed(() => [
+  { value: "ALL", label: "전체" },
+  ...Object.entries(EXPENSE_CATEGORY_META).map(([value, meta]) => ({
+    value,
+    label: meta.label,
+  })),
+]);
+
+const selectedListCategoryLabel = computed(() =>
+  listCategoryOptions.value.find((option) => option.value === selectedListCategory.value)?.label || "전체",
+);
 
 const canEditBudget = computed(() => (
   isCurrentMonth.value && !isBudgetLoading.value && !budgetError.value
@@ -177,6 +197,7 @@ const fetchExpensePage = async (page, append = false) => {
       ...dateRange.value,
       page,
       size: PAGE_SIZE,
+      category: selectedListCategory.value,
     });
 
     if (currentRequest !== requestVersion) return;
@@ -214,6 +235,74 @@ const fetchExpensePage = async (page, append = false) => {
       isLoading.value = false;
       isLoadingMore.value = false;
     }
+  }
+};
+
+const changeListCategory = async () => {
+  await fetchExpensePage(0);
+};
+
+const openCategoryFilter = () => {
+  if (!isCategoryFilterSaving.value) {
+    isCategoryFilterModalVisible.value = true;
+  }
+};
+
+const closeCategoryFilter = () => {
+  if (isCategoryFilterSaving.value) return;
+  isCategoryFilterModalVisible.value = false;
+};
+
+const applyCategoryFilter = async ({ category }) => {
+  if (isCategoryFilterSaving.value) return;
+
+  selectedListCategory.value = category || "ALL";
+  isCategoryFilterSaving.value = true;
+  try {
+    await changeListCategory();
+    if (!error.value) {
+      isCategoryFilterModalVisible.value = false;
+    }
+  } finally {
+    isCategoryFilterSaving.value = false;
+  }
+};
+
+const openCategoryEditor = (transaction) => {
+  if (!transaction?.transactionId) {
+    alert("거래 식별자를 확인할 수 없어 카테고리를 수정할 수 없습니다.");
+    return;
+  }
+
+  selectedTransaction.value = transaction;
+  isCategoryEditModalVisible.value = true;
+};
+
+const closeCategoryEditor = () => {
+  if (isCategorySaving.value) return;
+  isCategoryEditModalVisible.value = false;
+  selectedTransaction.value = null;
+};
+
+const saveTransactionCategory = async ({ transactionId, category }) => {
+  if (isCategorySaving.value) return;
+
+  isCategorySaving.value = true;
+  try {
+    const response = await updateExpenseCategory(transactionId, category);
+    if (!response?.success) {
+      throw new Error(response?.error?.message || "카테고리 수정 응답이 올바르지 않습니다.");
+    }
+
+    await fetchExpensePage(0);
+    if (!error.value) {
+      isCategoryEditModalVisible.value = false;
+      selectedTransaction.value = null;
+    }
+  } catch (caughtError) {
+    alert(getApiErrorMessage(caughtError, "카테고리를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요."));
+  } finally {
+    isCategorySaving.value = false;
   }
 };
 
@@ -468,6 +557,23 @@ onMounted(async () => {
                   리스트
                 </button>
               </div>
+
+              <div v-if="activeView === 'list'" class="category-filter d-flex align-items-center gap-2">
+                <button
+                  type="button"
+                  class="category-filter-trigger"
+                  data-testid="open-category-filter"
+                  aria-haspopup="dialog"
+                  :disabled="isCategoryFilterSaving"
+                  @click="openCategoryFilter"
+                >
+                  <span>카테고리 필터</span>
+                  <span v-if="selectedListCategory !== 'ALL'" class="category-filter-current">
+                    {{ selectedListCategoryLabel }}
+                  </span>
+                  <i class="bi bi-chevron-down" aria-hidden="true"></i>
+                </button>
+              </div>
             </div>
 
             <div class="monthly-summary d-flex flex-wrap gap-2">
@@ -496,10 +602,12 @@ onMounted(async () => {
           <ExpenseTransactionList
             v-else
             :transactions="expenseData.transactions"
+            :editable="true"
             :has-next="expenseData.pagination.hasNext"
             :is-loading-more="isLoadingMore"
             :load-more-error="loadMoreError"
             @load-more="loadMore"
+            @edit-category="openCategoryEditor"
           />
         </div>
       </article>
@@ -522,6 +630,23 @@ onMounted(async () => {
       :is-saving="isBudgetSaving"
       @close="closeBudgetEditor"
       @save="saveBudget"
+    />
+
+    <ExpenseCategoryEditModal
+      :visible="isCategoryEditModalVisible"
+      :transaction="selectedTransaction"
+      :is-saving="isCategorySaving"
+      @close="closeCategoryEditor"
+      @save="saveTransactionCategory"
+    />
+
+    <ExpenseCategoryEditModal
+      :visible="isCategoryFilterModalVisible"
+      mode="filter"
+      :initial-category="selectedListCategory"
+      :is-saving="isCategoryFilterSaving"
+      @close="closeCategoryFilter"
+      @save="applyCategoryFilter"
     />
 
     <div
@@ -573,6 +698,7 @@ onMounted(async () => {
               :has-next="dailyPagination.hasNext"
               :is-loading-more="isDailyLoadingMore"
               :load-more-error="dailyLoadMoreError"
+              :editable="false"
               empty-message="선택한 날짜의 거래 내역이 없습니다."
               @load-more="loadMoreDailyExpenses"
             />
@@ -636,6 +762,44 @@ onMounted(async () => {
 .view-toggle .btn.active {
   color: #6b5bd2;
   background: #f0edff;
+}
+
+.category-filter-trigger {
+  display: inline-flex;
+  min-width: 142px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 11px;
+  border: 1px solid #e4e1f4;
+  border-radius: 10px;
+  color: #343044;
+  background: #ffffff;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.category-filter-current {
+  margin-left: 2px;
+  color: #6b5bd2;
+  font-size: 0.78rem;
+}
+
+.category-filter-trigger:hover:not(:disabled),
+.category-filter-trigger:focus-visible {
+  border-color: #b9b0f2;
+  color: #6b5bd2;
+  background: #faf9ff;
+}
+
+.category-filter-trigger:focus-visible {
+  outline: 2px solid #6b5bd2;
+  outline-offset: 2px;
+}
+
+.category-filter-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .history-card,
