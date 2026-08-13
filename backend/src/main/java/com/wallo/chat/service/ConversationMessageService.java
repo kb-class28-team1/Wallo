@@ -15,14 +15,19 @@ import com.wallo.chat.dto.SummarizeConversationResponse;
 import com.wallo.goal.dto.GoalInterviewDto;
 import com.wallo.goal.service.GoalFeasibilityCalculator;
 import com.wallo.goal.service.GoalPersistenceService;
+import com.wallo.mission.service.MissionGenerationService;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class ConversationMessageService {
+    private static final Logger log = LoggerFactory.getLogger(ConversationMessageService.class);
 
     private static final int MAX_CONTEXT_MESSAGES = 20;
     private static final String USER_ROLE = "USER";
@@ -34,14 +39,17 @@ public class ConversationMessageService {
     private final GoalPersistenceService goalPersistenceService;
     private final ConsumptionAnalysisResultService consumptionAnalysisResultService;
     private final ConsumptionAnalysisViewAssembler consumptionAnalysisViewAssembler;
+    private final MissionGenerationService missionGenerationService;
 
+    @Autowired
     public ConversationMessageService(
             ConversationService conversationService,
             ChatMessagePersistenceService persistenceService,
             ChatService chatService,
             GoalPersistenceService goalPersistenceService,
             ConsumptionAnalysisResultService consumptionAnalysisResultService,
-            ConsumptionAnalysisViewAssembler consumptionAnalysisViewAssembler
+            ConsumptionAnalysisViewAssembler consumptionAnalysisViewAssembler,
+            MissionGenerationService missionGenerationService
     ) {
         this.conversationService = conversationService;
         this.persistenceService = persistenceService;
@@ -49,6 +57,19 @@ public class ConversationMessageService {
         this.goalPersistenceService = goalPersistenceService;
         this.consumptionAnalysisResultService = consumptionAnalysisResultService;
         this.consumptionAnalysisViewAssembler = consumptionAnalysisViewAssembler;
+        this.missionGenerationService = missionGenerationService;
+    }
+
+    ConversationMessageService(
+            ConversationService conversationService,
+            ChatMessagePersistenceService persistenceService,
+            ChatService chatService,
+            GoalPersistenceService goalPersistenceService,
+            ConsumptionAnalysisResultService consumptionAnalysisResultService,
+            ConsumptionAnalysisViewAssembler consumptionAnalysisViewAssembler
+    ) {
+        this(conversationService, persistenceService, chatService, goalPersistenceService,
+                consumptionAnalysisResultService, consumptionAnalysisViewAssembler, null);
     }
 
     public List<ChatMessageResponse> getMessages(
@@ -147,14 +168,22 @@ public class ConversationMessageService {
         ConsumptionAnalysisView consumptionAnalysis =
                 consumptionAnalysisViewAssembler.assemble(
                         aiResponse.consumptionAnalysis());
-        if (consumptionAnalysis != null) {
-            consumptionAnalysisResultService.save(
+        if (consumptionAnalysis != null && !aiResponse.consumptionAnalysisReused()) {
+            boolean firstAnalysis = consumptionAnalysisResultService.save(
                     currentUserId,
                     assistantMessage.getMessageId(),
                     content,
                     aiResponse.consumptionAnalysis(),
                     aiResponse.answer()
             );
+            if (firstAnalysis && missionGenerationService != null) {
+                try {
+                    missionGenerationService.generate(currentUserId, false);
+                } catch (RuntimeException exception) {
+                    log.error("initial daily mission generation failed userId={}",
+                            currentUserId, exception);
+                }
+            }
         }
         if (isFirstMessage) {
             String title = aiResponse.title() == null

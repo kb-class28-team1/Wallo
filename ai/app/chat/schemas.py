@@ -77,6 +77,10 @@ class ChatResponse(BaseModel):
         default=None,
         alias="consumptionAnalysis",
     )
+    consumption_analysis_reused: bool = Field(
+        default=False,
+        alias="consumptionAnalysisReused",
+    )
 
 
 class SummarizeConversationRequest(BaseModel):
