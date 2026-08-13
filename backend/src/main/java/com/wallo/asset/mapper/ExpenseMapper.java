@@ -36,6 +36,12 @@ public interface ExpenseMapper {
             @Param("condition") ExpenseDto.SearchCondition condition
     );
 
+    int updateTransactionCategory(
+            @Param("userId") long userId,
+            @Param("transactionId") long transactionId,
+            @Param("category") String category
+    );
+
     List<ExpenseDto.AnalysisTransaction> selectAllExpenseTransactions(
             @Param("userId") long userId
     );

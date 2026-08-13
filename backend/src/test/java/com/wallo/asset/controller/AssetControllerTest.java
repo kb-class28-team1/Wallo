@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -23,6 +24,7 @@ import java.time.LocalDateTime;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -119,6 +121,21 @@ class AssetControllerTest {
                         .param("endDate", "2026-07-31")
                         .param("page", "0"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void updateExpenseCategoryPassesCurrentUserTransactionAndRequestToService() throws Exception {
+        mockMvc.perform(patch("/api/assets/expense/123/category")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"category\":\"INCOME\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        ArgumentCaptor<ExpenseDto.CategoryUpdateRequest> captor = ArgumentCaptor.forClass(
+                ExpenseDto.CategoryUpdateRequest.class
+        );
+        verify(expenseService).updateTransactionCategory(eq(7L), eq(123L), captor.capture());
+        assertEquals("INCOME", captor.getValue().getCategory());
     }
 
     @Test

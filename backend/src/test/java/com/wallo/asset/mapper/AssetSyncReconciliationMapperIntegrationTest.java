@@ -82,6 +82,31 @@ class AssetSyncReconciliationMapperIntegrationTest {
         assertEquals(3, expenseMapper.selectTransactions(7L, condition).size());
     }
 
+    @Test
+    void preservesUserCategoryWhenBankWithdrawalReconciliationRuns() throws Exception {
+        insertUserClassifiedBankExpense();
+
+        List<AssetSyncDto.ReconciliationCandidate> bankCandidates =
+                assetSyncMapper.selectBankWithdrawalCandidates(7L);
+
+        assertEquals(1, bankCandidates.size());
+        assertEquals(1L, bankCandidates.get(0).getTransactionId());
+        assertEquals(0, assetSyncMapper.updateBankWithdrawalCategory(
+                7L, 5L, "CARD_WITHDRAWAL"
+        ));
+
+        try (Connection connection = dataSource.getConnection();
+             Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(
+                     "SELECT category, category_source "
+                             + "FROM TRANSACTIONS WHERE transaction_id = 5"
+             )) {
+            resultSet.next();
+            assertEquals("FOOD", resultSet.getString("category"));
+            assertEquals("USER", resultSet.getString("category_source"));
+        }
+    }
+
     private void createTablesAndData() throws Exception {
         TestDatabase.initializeAssetMapperSchema(dataSource);
         try (Connection connection = dataSource.getConnection();
@@ -110,6 +135,24 @@ class AssetSyncReconciliationMapperIntegrationTest {
                          50000, 'SK에너지', 'SK에너지', 'CARD_APPROVAL',
                          '0311', 'CARD-2', 'sync-reconciliation-4',
                          '2026-07-27', '10:00:00')
+                    """);
+        }
+    }
+
+    private void insertUserClassifiedBankExpense() throws Exception {
+        try (Connection connection = dataSource.getConnection();
+             Statement statement = connection.createStatement()) {
+            statement.execute("""
+                    INSERT INTO TRANSACTIONS (
+                        transaction_id, user_id, card_id, type, category, category_source,
+                        amount, merchant_name, original_merchant_name, source_type,
+                        source_organization_code, source_transaction_id, source_dedup_key,
+                        transaction_date, transaction_time
+                    ) VALUES
+                        (5, 7, NULL, 'EXPENSE', 'FOOD', 'USER',
+                         38000, '수동분류 거래', '수동분류 거래', 'BANK_TRANSACTION',
+                         '0004', 'BANK-USER-1', 'sync-reconciliation-user-1',
+                         '2026-07-26', '19:30:00')
                     """);
         }
     }

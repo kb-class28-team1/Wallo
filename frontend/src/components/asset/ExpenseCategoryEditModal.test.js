@@ -1,0 +1,105 @@
+import { mount } from "@vue/test-utils";
+import { describe, expect, it } from "vitest";
+import { EXPENSE_CATEGORY_META } from "@/features/financial/financialCategories";
+import ExpenseCategoryEditModal from "./ExpenseCategoryEditModal.vue";
+
+const transaction = {
+  transactionId: 9,
+  merchantName: "동네 상점",
+  type: "EXPENSE",
+  category: "OTHER",
+};
+
+describe("ExpenseCategoryEditModal", () => {
+  it("normalizes OTHER and shows only existing categories", () => {
+    const wrapper = mount(ExpenseCategoryEditModal, {
+      props: {
+        visible: true,
+        transaction,
+      },
+    });
+
+    const options = wrapper.findAll(".category-option");
+    expect(wrapper.get('[data-testid="category-option-ETC"]').classes()).toContain("selected");
+    expect(wrapper.get('[data-testid="transaction-type-EXPENSE"]').classes()).toContain("active");
+    expect(options).toHaveLength(Object.keys(EXPENSE_CATEGORY_META).length - 2);
+    expect(wrapper.get('[data-testid="category-option-FOOD"] .category-option-icon').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="category-option-FOOD"] .category-option-label').text()).toBe(
+      EXPENSE_CATEGORY_META.FOOD.label,
+    );
+    expect(options.map((option) => option.attributes("data-testid"))).not.toContain(
+      "category-option-INCOME",
+    );
+    expect(options.map((option) => option.attributes("data-testid"))).not.toContain(
+      "category-option-SEND",
+    );
+  });
+
+  it("shows only the categories related to the selected transaction type", async () => {
+    const wrapper = mount(ExpenseCategoryEditModal, {
+      props: {
+        visible: true,
+        transaction,
+      },
+    });
+
+    await wrapper.get('[data-testid="transaction-type-INCOME"]').trigger("click");
+    expect(wrapper.findAll(".category-option")).toHaveLength(1);
+    expect(wrapper.get('[data-testid="category-option-INCOME"]').classes()).toContain("selected");
+    expect(wrapper.find('[data-testid="category-option-FOOD"]').exists()).toBe(false);
+
+    await wrapper.get('[data-testid="transaction-type-TRANSFER"]').trigger("click");
+    expect(wrapper.findAll(".category-option")).toHaveLength(1);
+    expect(wrapper.get('[data-testid="category-option-SEND"]').classes()).toContain("selected");
+  });
+
+  it("reuses the category cards for an ALL filter and emits only the category", async () => {
+    const wrapper = mount(ExpenseCategoryEditModal, {
+      props: {
+        visible: true,
+        mode: "filter",
+        initialCategory: "ALL",
+      },
+    });
+
+    expect(wrapper.get("#expenseCategoryEditModalTitle").text()).toBe("카테고리 필터");
+    expect(wrapper.get('[data-testid="category-option-ALL"]').classes()).toContain("selected");
+
+    await wrapper.get('[data-testid="category-option-FOOD"]').trigger("click");
+    await wrapper.get("form").trigger("submit");
+
+    expect(wrapper.emitted("save")?.[0]?.[0]).toEqual({ category: "FOOD" });
+  });
+
+  it("emits the selected category with the transaction id", async () => {
+    const wrapper = mount(ExpenseCategoryEditModal, {
+      props: {
+        visible: true,
+        transaction,
+      },
+    });
+
+    await wrapper.get('[data-testid="category-option-FOOD"]').trigger("click");
+    await wrapper.get("form").trigger("submit");
+
+    expect(wrapper.emitted("save")?.[0]?.[0]).toEqual({
+      transactionId: 9,
+      category: "FOOD",
+    });
+  });
+
+  it("does not emit save while the request is in progress", async () => {
+    const wrapper = mount(ExpenseCategoryEditModal, {
+      props: {
+        visible: true,
+        transaction,
+        isSaving: true,
+      },
+    });
+
+    expect(wrapper.get('button[type="submit"]').element.disabled).toBe(true);
+    await wrapper.get("form").trigger("submit");
+
+    expect(wrapper.emitted("save")).toBeUndefined();
+  });
+});
