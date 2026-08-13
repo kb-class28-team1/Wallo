@@ -339,6 +339,7 @@ onMounted(() => {
   background: #b5906b;
   box-shadow: 3px 4px 0 rgb(58 54 56 / 15%);
   clip-path: polygon(1% 3%, 21% 1%, 44% 3%, 67% 0%, 99% 2%, 98% 31%, 100% 64%, 97% 99%, 76% 97%, 52% 100%, 26% 98%, 3% 100%, 1% 70%, 0% 38%);
+  filter: drop-shadow(1px 0 #3a3638) drop-shadow(-1px 0 #3a3638) drop-shadow(0 1px #3a3638) drop-shadow(0 -1px #3a3638);
   transform: rotate(-1deg) skewX(-0.8deg);
 }
 
