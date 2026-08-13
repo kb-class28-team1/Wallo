@@ -162,6 +162,7 @@
         FROM TRANSACTIONS
         WHERE user_id = #{userId}
           AND source_type = 'BANK_TRANSACTION'
+          AND category_source &lt;&gt; 'USER'
           AND (
               (
                   type = 'TRANSFER'
@@ -217,6 +218,7 @@
         WHERE transaction_id = #{transactionId}
           AND user_id = #{userId}
           AND source_type = 'BANK_TRANSACTION'
+          AND category_source &lt;&gt; 'USER'
           AND type IN ('TRANSFER', 'EXPENSE')
     </update>
 </mapper>
