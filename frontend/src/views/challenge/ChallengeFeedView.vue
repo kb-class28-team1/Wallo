@@ -520,6 +520,12 @@ const mentionFeed = (message) => {
   setMentionedFeed(message.referenceFeedId)
   chatInput.value = ""
 }
+const mentionFeedFromCard = async (feed) => {
+  mentionedFeed.value = makeMentionedFeed(feed)
+  chatInput.value = ""
+  await nextTick()
+  chatInputElement.value?.focus()
+}
 const sendMessage = async () => {
   const content = chatInput.value.trim()
   if ((!content && !mentionedFeed.value) || isSendingMessage.value) return
@@ -680,6 +686,13 @@ onBeforeUnmount(() => {
                 </span>
               </div>
               <div class="feed-like-row">
+                <button
+                  type="button"
+                  class="mention-feed-button"
+                  @click.stop="mentionFeedFromCard(feed)"
+                >
+                  언급하기
+                </button>
                 <button
                   type="button"
                   class="like-button"
@@ -1202,6 +1215,9 @@ onBeforeUnmount(() => {
   left: 18px;
   bottom: 14px;
   z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 .feed-sound-toggle {
   position: absolute;
@@ -1264,6 +1280,18 @@ onBeforeUnmount(() => {
 .like-button:disabled {
   cursor: wait;
   opacity: 0.6;
+}
+.mention-feed-button {
+  padding: 6px 10px;
+  color: #fff;
+  background: #08122dcc;
+  border: 1px solid #ffffff55;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 750;
+}
+.mention-feed-button:hover {
+  background: #7162de;
 }
 @keyframes like-heart-rise {
   0% {
