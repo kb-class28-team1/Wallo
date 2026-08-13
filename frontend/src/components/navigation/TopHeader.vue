@@ -1,8 +1,11 @@
 <script setup>
-import { computed, onMounted, ref } from "vue"
+import { computed, onBeforeUnmount, onMounted, ref } from "vue"
 import { storeToRefs } from "pinia"
 import { RouterLink, useRouter } from "vue-router"
-import { getTodayMissions } from "@/api/missionApi"
+import {
+  generateNextDayMissions,
+  getTodayMissions,
+} from "@/api/missionApi"
 import { useUserStore } from "@/stores/userStore"
 import { formatNumber } from "@/commonUtils/formatters"
 
@@ -12,8 +15,13 @@ const userStore = useUserStore()
 const router = useRouter()
 const { nickname, profileImageUrl, pointBalance, isLoading } = storeToRefs(userStore)
 const missions = ref([])
+const missionMenu = ref(null)
 const isMissionOpen = ref(false)
 const isMissionLoading = ref(false)
+const isMissionDevLoading = ref(false)
+const missionDevResult = ref(null)
+const isDevelopment = import.meta.env.DEV
+let missionCloseTimer = null
 
 // 포인트 숫자에 천 단위 구분 기호를 적용함
 const formattedPointBalance = computed(() => formatNumber(pointBalance.value))
@@ -36,13 +44,19 @@ const totalMissionReward = computed(() =>
 onMounted(() => {
   userStore.fetchUserProfile()
   loadTodayMissions()
+  window.addEventListener("wallo:mission-updated", loadTodayMissions)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener("wallo:mission-updated", loadTodayMissions)
+  clearTimeout(missionCloseTimer)
 })
 
 const loadTodayMissions = async () => {
   isMissionLoading.value = true
   try {
     const response = await getTodayMissions()
-    missions.value = Array.isArray(response?.data) ? response.data : response
+    missions.value = response.missions
   } catch (error) {
     missions.value = []
     alert(error.message || "오늘의 미션을 불러오지 못했습니다.")
@@ -51,12 +65,45 @@ const loadTodayMissions = async () => {
   }
 }
 
+const generateNextDay = async () => {
+  isMissionDevLoading.value = true
+  try {
+    const response = await generateNextDayMissions()
+    missions.value = response.missions
+    missionDevResult.value = {
+      mode: `${response.date} 시뮬레이션`,
+      count: response.missions.length,
+      titles: response.missions.map((mission) => mission.title),
+    }
+  } catch (error) {
+    alert(error.status === 404
+      ? "백엔드의 mission.dev-api.enabled 설정을 true로 변경해 주세요."
+      : error.message)
+  } finally {
+    isMissionDevLoading.value = false
+  }
+}
+
 const toggleMissionMenu = () => {
+  clearTimeout(missionCloseTimer)
   isMissionOpen.value = !isMissionOpen.value
 }
 
-const closeMissionMenu = () => {
-  isMissionOpen.value = false
+const openMissionMenu = () => {
+  clearTimeout(missionCloseTimer)
+  isMissionOpen.value = true
+}
+
+const scheduleMissionMenuClose = () => {
+  clearTimeout(missionCloseTimer)
+  missionCloseTimer = setTimeout(() => {
+    isMissionOpen.value = false
+  }, 250)
+}
+
+const handleMissionFocusOut = (event) => {
+  if (missionMenu.value?.contains(event.relatedTarget)) return
+  scheduleMissionMenuClose()
 }
 
 const handleLogout = async () => {
@@ -72,13 +119,13 @@ const handleLogout = async () => {
 <template>
   <header class="top-header d-flex flex-shrink-0 align-items-center justify-content-center">
     <div class="top-header-content">
-      <!-- 미션 테이블이 준비되기 전까지 임시 데이터를 호버 목록으로 표시함 -->
       <div
+        ref="missionMenu"
         class="mission-menu"
-        @mouseenter="isMissionOpen = true"
-        @mouseleave="closeMissionMenu"
-        @focusin="isMissionOpen = true"
-        @focusout="closeMissionMenu"
+        @mouseenter="openMissionMenu"
+        @mouseleave="scheduleMissionMenuClose"
+        @focusin="openMissionMenu"
+        @focusout="handleMissionFocusOut"
       >
         <button
           type="button"
@@ -90,7 +137,7 @@ const handleLogout = async () => {
           <span class="mission-check" aria-hidden="true">✓</span>
           <span>오늘의 미션</span>
           <strong v-if="missions.length">{{ completedMissionCount }}/{{ missions.length }}</strong>
-          <span v-else class="mission-planned-label">추후에 추가 예정</span>
+          <span v-else class="mission-planned-label">오늘 0개</span>
           <i class="bi bi-chevron-down" aria-hidden="true"></i>
         </button>
 
@@ -101,7 +148,9 @@ const handleLogout = async () => {
           </div>
 
           <div v-if="isMissionLoading" class="mission-loading">미션을 불러오는 중...</div>
-          <div v-else-if="!missions.length" class="mission-empty">추후에 추가 예정</div>
+          <div v-else-if="!missions.length" class="mission-empty">
+            오늘 배정된 미션이 없습니다.
+          </div>
           <div v-else class="mission-list">
             <div
               v-for="mission in missions"
@@ -112,8 +161,8 @@ const handleLogout = async () => {
               <span class="mission-item-icon" aria-hidden="true">{{ mission.icon }}</span>
               <span class="mission-item-content">
                 <strong>{{ mission.title }}</strong>
+                <span class="mission-item-description">{{ mission.description }}</span>
                 <span class="mission-item-meta">
-                  <em :class="`difficulty-${mission.difficulty}`">{{ mission.difficulty }}</em>
                   <b>● +{{ mission.rewardPoint }}P</b>
                 </span>
               </span>
@@ -123,6 +172,30 @@ const handleLogout = async () => {
                   aria-hidden="true"
                 ></i>
               </span>
+            </div>
+          </div>
+
+          <div v-if="isDevelopment" class="mission-dev-panel">
+            <div class="mission-dev-heading">
+              <strong>개발자 검증</strong>
+              <span>현재 로그인 사용자</span>
+            </div>
+            <div>
+              <button
+                type="button"
+                class="btn btn-sm btn-primary w-100"
+                :disabled="isMissionDevLoading"
+                @click="generateNextDay"
+              >
+                다음날 미션 생성
+              </button>
+            </div>
+            <div v-if="isMissionDevLoading" class="mission-dev-result">처리 중...</div>
+            <div v-else-if="missionDevResult" class="mission-dev-result">
+              {{ missionDevResult.mode }} 결과: {{ missionDevResult.count }}개
+              <ul v-if="missionDevResult.titles.length" class="mb-0 ps-3">
+                <li v-for="title in missionDevResult.titles" :key="title">{{ title }}</li>
+              </ul>
             </div>
           </div>
         </div>
@@ -332,6 +405,16 @@ const handleLogout = async () => {
   white-space: nowrap;
 }
 
+.mission-item-description {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #7d849d;
+  font-size: 10px;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
 .completed .mission-item-content > strong {
   color: #9aa0b5;
   text-decoration: line-through;
@@ -341,29 +424,6 @@ const handleLogout = async () => {
   display: flex;
   align-items: center;
   gap: 7px;
-}
-
-.mission-item-meta em {
-  padding: 3px 7px;
-  border-radius: 999px;
-  font-size: 10px;
-  font-style: normal;
-  font-weight: 700;
-}
-
-.difficulty-쉬움 {
-  background: #e5faf0;
-  color: #16a978;
-}
-
-.difficulty-보통 {
-  background: #e9f2ff;
-  color: #4a83d6;
-}
-
-.difficulty-어려움 {
-  background: #fff0f3;
-  color: #ed637c;
 }
 
 .mission-item-meta b {
@@ -386,6 +446,35 @@ const handleLogout = async () => {
   color: #98a0b8;
   font-size: 12px;
   text-align: center;
+}
+
+.mission-dev-panel {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed #dfe2ef;
+}
+
+.mission-dev-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  color: #555d78;
+  font-size: 11px;
+}
+
+.mission-dev-heading span {
+  color: #9ba1b6;
+  font-size: 9px;
+}
+
+.mission-dev-result {
+  margin-top: 8px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  background: #f6f7fb;
+  color: #68708b;
+  font-size: 10px;
 }
 
 .profile-link {

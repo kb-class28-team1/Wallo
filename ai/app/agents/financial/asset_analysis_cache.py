@@ -7,7 +7,7 @@ from typing import Any
 
 
 ASSET_ANALYSIS_CACHE_TTL_SECONDS = 24 * 60 * 60
-ASSET_ANALYSIS_PROMPT_VERSION = "asset-analysis-v1"
+ASSET_ANALYSIS_PROMPT_VERSION = "asset-analysis-v2"
 
 
 @dataclass(frozen=True)

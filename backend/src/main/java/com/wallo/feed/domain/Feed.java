@@ -17,6 +17,7 @@ public class Feed {
     private String customCategory;
     private String caption;
     private String analysisSummary;
+    private String analysisStatus;
     private Integer likeCount;
     private LocalDateTime createdAt;
 
@@ -48,6 +49,8 @@ public class Feed {
     public void setCaption(String caption) { this.caption = caption; }
     public String getAnalysisSummary() { return analysisSummary; }
     public void setAnalysisSummary(String analysisSummary) { this.analysisSummary = analysisSummary; }
+    public String getAnalysisStatus() { return analysisStatus; }
+    public void setAnalysisStatus(String analysisStatus) { this.analysisStatus = analysisStatus; }
     public Integer getLikeCount() { return likeCount; }
     public void setLikeCount(Integer likeCount) { this.likeCount = likeCount; }
     public LocalDateTime getCreatedAt() { return createdAt; }

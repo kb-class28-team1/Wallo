@@ -2,6 +2,7 @@ package com.wallo.chat.service;
 
 import com.wallo.chat.domain.ChatMessage;
 import com.wallo.chat.domain.Conversation;
+import com.wallo.chat.dto.AssetAnalysisView;
 import com.wallo.chat.dto.ChatHistoryMessage;
 import com.wallo.chat.dto.ChatMessageResponse;
 import com.wallo.chat.dto.ChatRequest;
@@ -15,14 +16,19 @@ import com.wallo.chat.dto.SummarizeConversationResponse;
 import com.wallo.goal.dto.GoalInterviewDto;
 import com.wallo.goal.service.GoalFeasibilityCalculator;
 import com.wallo.goal.service.GoalPersistenceService;
+import com.wallo.mission.service.MissionGenerationService;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class ConversationMessageService {
+    private static final Logger log = LoggerFactory.getLogger(ConversationMessageService.class);
 
     private static final int MAX_CONTEXT_MESSAGES = 20;
     private static final String USER_ROLE = "USER";
@@ -34,14 +40,21 @@ public class ConversationMessageService {
     private final GoalPersistenceService goalPersistenceService;
     private final ConsumptionAnalysisResultService consumptionAnalysisResultService;
     private final ConsumptionAnalysisViewAssembler consumptionAnalysisViewAssembler;
+    private final AssetAnalysisResultService assetAnalysisResultService;
+    private final AssetAnalysisViewAssembler assetAnalysisViewAssembler;
+    private final MissionGenerationService missionGenerationService;
 
+    @Autowired
     public ConversationMessageService(
             ConversationService conversationService,
             ChatMessagePersistenceService persistenceService,
             ChatService chatService,
             GoalPersistenceService goalPersistenceService,
             ConsumptionAnalysisResultService consumptionAnalysisResultService,
-            ConsumptionAnalysisViewAssembler consumptionAnalysisViewAssembler
+            ConsumptionAnalysisViewAssembler consumptionAnalysisViewAssembler,
+            AssetAnalysisResultService assetAnalysisResultService,
+            AssetAnalysisViewAssembler assetAnalysisViewAssembler,
+            MissionGenerationService missionGenerationService
     ) {
         this.conversationService = conversationService;
         this.persistenceService = persistenceService;
@@ -49,6 +62,51 @@ public class ConversationMessageService {
         this.goalPersistenceService = goalPersistenceService;
         this.consumptionAnalysisResultService = consumptionAnalysisResultService;
         this.consumptionAnalysisViewAssembler = consumptionAnalysisViewAssembler;
+        this.assetAnalysisResultService = assetAnalysisResultService;
+        this.assetAnalysisViewAssembler = assetAnalysisViewAssembler;
+        this.missionGenerationService = missionGenerationService;
+    }
+
+    ConversationMessageService(
+            ConversationService conversationService,
+            ChatMessagePersistenceService persistenceService,
+            ChatService chatService,
+            GoalPersistenceService goalPersistenceService,
+            ConsumptionAnalysisResultService consumptionAnalysisResultService,
+            ConsumptionAnalysisViewAssembler consumptionAnalysisViewAssembler,
+            AssetAnalysisResultService assetAnalysisResultService,
+            AssetAnalysisViewAssembler assetAnalysisViewAssembler
+    ) {
+        this(conversationService, persistenceService, chatService, goalPersistenceService,
+                consumptionAnalysisResultService, consumptionAnalysisViewAssembler,
+                assetAnalysisResultService, assetAnalysisViewAssembler, null);
+    }
+
+    ConversationMessageService(
+            ConversationService conversationService,
+            ChatMessagePersistenceService persistenceService,
+            ChatService chatService,
+            GoalPersistenceService goalPersistenceService,
+            ConsumptionAnalysisResultService consumptionAnalysisResultService,
+            ConsumptionAnalysisViewAssembler consumptionAnalysisViewAssembler,
+            MissionGenerationService missionGenerationService
+    ) {
+        this(conversationService, persistenceService, chatService, goalPersistenceService,
+                consumptionAnalysisResultService, consumptionAnalysisViewAssembler,
+                null, null, missionGenerationService);
+    }
+
+    ConversationMessageService(
+            ConversationService conversationService,
+            ChatMessagePersistenceService persistenceService,
+            ChatService chatService,
+            GoalPersistenceService goalPersistenceService,
+            ConsumptionAnalysisResultService consumptionAnalysisResultService,
+            ConsumptionAnalysisViewAssembler consumptionAnalysisViewAssembler
+    ) {
+        this(conversationService, persistenceService, chatService, goalPersistenceService,
+                consumptionAnalysisResultService, consumptionAnalysisViewAssembler,
+                null, null, null);
     }
 
     public List<ChatMessageResponse> getMessages(
@@ -64,9 +122,17 @@ public class ConversationMessageService {
         Map<Long, ConsumptionAnalysisView> analyses =
                 consumptionAnalysisResultService.findByAssistantMessageIds(
                         assistantMessageIds);
+        Map<Long, AssetAnalysisView> loadedAssetAnalyses = assetAnalysisResultService == null
+                ? Map.of()
+                : assetAnalysisResultService.findByAssistantMessageIds(assistantMessageIds);
+        Map<Long, AssetAnalysisView> assetAnalyses = loadedAssetAnalyses == null
+                ? Map.of()
+                : loadedAssetAnalyses;
         return messages.stream()
                 .map(message -> ChatMessageResponse.from(
-                        message, analyses.get(message.getMessageId())))
+                        message,
+                        analyses.get(message.getMessageId()),
+                        assetAnalyses.get(message.getMessageId())))
                 .collect(Collectors.toList());
     }
 
@@ -147,12 +213,32 @@ public class ConversationMessageService {
         ConsumptionAnalysisView consumptionAnalysis =
                 consumptionAnalysisViewAssembler.assemble(
                         aiResponse.consumptionAnalysis());
-        if (consumptionAnalysis != null) {
-            consumptionAnalysisResultService.save(
+        if (consumptionAnalysis != null && !aiResponse.consumptionAnalysisReused()) {
+            boolean firstAnalysis = consumptionAnalysisResultService.save(
                     currentUserId,
                     assistantMessage.getMessageId(),
                     content,
                     aiResponse.consumptionAnalysis(),
+                    aiResponse.answer()
+            );
+            if (firstAnalysis && missionGenerationService != null) {
+                try {
+                    missionGenerationService.generate(currentUserId, false);
+                } catch (RuntimeException exception) {
+                    log.error("initial daily mission generation failed userId={}",
+                            currentUserId, exception);
+                }
+            }
+        }
+        AssetAnalysisView assetAnalysis = assetAnalysisViewAssembler == null
+                ? null
+                : assetAnalysisViewAssembler.assemble(aiResponse.assetAnalysis());
+        if (assetAnalysis != null && assetAnalysisResultService != null) {
+            assetAnalysisResultService.save(
+                    currentUserId,
+                    assistantMessage.getMessageId(),
+                    content,
+                    aiResponse.assetAnalysis(),
                     aiResponse.answer()
             );
         }
@@ -168,11 +254,13 @@ public class ConversationMessageService {
 
         return new SendConversationMessageResponse(
                 ChatMessageResponse.from(userMessage),
-                ChatMessageResponse.from(assistantMessage, consumptionAnalysis),
+                ChatMessageResponse.from(
+                        assistantMessage, consumptionAnalysis, assetAnalysis),
                 persistedGoalInterview == null
                         ? aiResponse.goalInterview()
                         : persistedGoalInterview,
-                consumptionAnalysis
+                consumptionAnalysis,
+                assetAnalysis
         );
     }
 

@@ -15,6 +15,7 @@ import com.wallo.chat.dto.ChatRequest;
 import com.wallo.chat.dto.ChatResponse;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class ChatServiceTest {
@@ -46,6 +47,31 @@ class ChatServiceTest {
     }
 
     @Test
+    void returnsAssetAnalysisFromAiResponse() {
+        GoalAssetContextDto.Response financialContext = emptyContext(true);
+        ChatRequest request = new ChatRequest("analyze assets");
+        Map<String, Object> assetAnalysis = Map.of(
+                "calculatedMetrics",
+                Map.of("totalAssetsKrw", 100_000_000L)
+        );
+        ChatResponse aiResponse = new ChatResponse(
+                "asset analysis answer",
+                null,
+                null,
+                null,
+                assetAnalysis
+        );
+        when(assetService.getGoalAssetContext(7L)).thenReturn(financialContext);
+        when(pythonAiClient.chat(request.withFinancialContext(financialContext)))
+                .thenReturn(aiResponse);
+
+        ChatResponse response = chatService.chat(request, 7L);
+
+        assertEquals(assetAnalysis, response.assetAnalysis());
+        assertEquals(null, response.consumptionAnalysis());
+    }
+
+    @Test
     void returnsNonConsumptionResponseWithoutCalculation() {
         ConsumptionAnalysisContextService contextService =
                 mock(ConsumptionAnalysisContextService.class);
@@ -64,6 +90,25 @@ class ChatServiceTest {
         ChatResponse response = service.chat(request, 7L);
 
         assertEquals(null, response.consumptionAnalysis());
+    }
+
+    @Test
+    void reusesRecentConsumptionAnalysisWithoutCallingAiServer() {
+        ConsumptionAnalysisResultService resultService =
+                mock(ConsumptionAnalysisResultService.class);
+        ChatService service = new ChatService(
+                pythonAiClient, assetService, null, resultService);
+        Map<String, Object> calculation = Map.of("summary", "최근 소비분석");
+        when(resultService.findReusable(7L)).thenReturn(Optional.of(
+                new ConsumptionAnalysisResultService.CachedAnalysis(
+                        31L, calculation, "최근 분석 결과입니다.")));
+
+        ChatResponse response = service.chat(new ChatRequest("소비 분석해줘"), 7L);
+
+        assertEquals("최근 분석 결과입니다.", response.answer());
+        assertEquals(calculation, response.consumptionAnalysis());
+        assertEquals(true, response.consumptionAnalysisReused());
+        verifyNoInteractions(assetService, pythonAiClient);
     }
 
     @Test
