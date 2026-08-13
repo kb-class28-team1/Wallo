@@ -592,20 +592,37 @@ const setMentionedFeed = (feedId) => {
 }
 const handleChatInput = () => {
   const mention = chatInput.value.match(/@(피드)?(\d+)/i)
-  if (!mention || !setMentionedFeed(mention[2])) return
-  chatInput.value = chatInput.value
-    .replace(mention[0], "")
-    .replace(/\s{2,}/g, " ")
-    .trimStart()
+  if (mention && setMentionedFeed(mention[2])) {
+    chatInput.value = chatInput.value
+      .replace(mention[0], "")
+      .replace(/\s{2,}/g, " ")
+      .trimStart()
+  }
+  resizeChatInput()
+}
+const resizeChatInput = () => {
+  const element = chatInputElement.value
+  if (!element) return
+  const maxHeight = 120
+  element.style.height = "auto"
+  element.style.height = `${Math.min(element.scrollHeight, maxHeight)}px`
+  element.style.overflowY = element.scrollHeight > maxHeight ? "auto" : "hidden"
 }
 const mentionFeed = (message) => {
   setMentionedFeed(message.referenceFeedId)
   chatInput.value = ""
+  void nextTick(resizeChatInput)
 }
+const isFeedShareMessage = (message) =>
+  String(message?.messageType || "").toUpperCase() === "FEED_SHARE"
+const isFeedMentionMessage = (message) =>
+  Boolean(message?.referenceFeedId) && !isFeedShareMessage(message)
+const isMyMessage = (message) => Number(message?.userId) === Number(userStore.user?.id)
 const mentionFeedFromCard = async (feed) => {
   mentionedFeed.value = makeMentionedFeed(feed)
   chatInput.value = ""
   await nextTick()
+  resizeChatInput()
   chatInputElement.value?.focus()
 }
 const sendMessage = async () => {
@@ -625,6 +642,8 @@ const sendMessage = async () => {
     )
     chatInput.value = ""
     mentionedFeed.value = null
+    await nextTick()
+    resizeChatInput()
     await scrollMessagesToBottom()
   } catch (error) {
     openDialog({ message: error.message || "메시지를 보내지 못했습니다." })
@@ -820,27 +839,63 @@ onBeforeUnmount(() => {
                 v-for="item in messages"
                 :key="item.id"
                 class="message"
-                :class="{ mine: item.userId === userStore.user?.id }"
+                :class="{ mine: isMyMessage(item) }"
               >
-                <strong>{{ item.nickname }}</strong>
-                <button v-if="item.referenceFeedId" class="shared-feed" @click="mentionFeed(item)">
-                  <video
-                    v-if="item.mediaType === 'VIDEO'"
-                    :src="item.mediaUrl"
-                    autoplay
-                    muted
-                    loop
-                    playsinline
-                    preload="metadata"
-                    aria-label="공유 피드 영상"
-                  ></video>
-                  <img v-else :src="item.thumbnailUrl || item.mediaUrl" alt="공유 피드 썸네일" />
-                  <span
-                    ><b>피드 #{{ item.referenceFeedId }}</b
-                    ><small>눌러서 언급하기</small></span
-                  >
-                </button>
-                <p v-if="item.content">{{ item.content }}</p>
+                <div v-if="isFeedShareMessage(item)" class="feed-share-message">
+                  <strong class="message-author">{{ item.nickname }}</strong>
+                  <div class="feed-attachment">
+                    <small class="feed-attachment-label">피드 #{{ item.referenceFeedId }}</small>
+                    <button type="button" class="shared-feed" @click="mentionFeed(item)">
+                      <video
+                        v-if="item.mediaType === 'VIDEO'"
+                        :src="item.mediaUrl"
+                        autoplay
+                        muted
+                        loop
+                        playsinline
+                        preload="metadata"
+                        aria-label="공유된 피드 영상"
+                      ></video>
+                      <img
+                        v-else
+                        :src="item.thumbnailUrl || item.mediaUrl"
+                        alt="공유된 피드 썸네일"
+                      />
+                    </button>
+                  </div>
+                </div>
+                <template v-else-if="isFeedMentionMessage(item)">
+                  <strong class="message-author">{{ item.nickname }}</strong>
+                  <div class="feed-mention">
+                    <div class="feed-attachment">
+                      <small class="feed-attachment-label">피드 #{{ item.referenceFeedId }}</small>
+                      <button type="button" class="shared-feed" @click="mentionFeed(item)">
+                        <video
+                          v-if="item.mediaType === 'VIDEO'"
+                          :src="item.mediaUrl"
+                          autoplay
+                          muted
+                          loop
+                          playsinline
+                          preload="metadata"
+                          aria-label="첨부된 피드 영상"
+                        ></video>
+                        <img
+                          v-else
+                          :src="item.thumbnailUrl || item.mediaUrl"
+                          alt="첨부된 피드 썸네일"
+                        />
+                      </button>
+                    </div>
+                    <p v-if="item.content" class="message-bubble">{{ item.content }}</p>
+                  </div>
+                </template>
+                <template v-else>
+                  <div class="message-content">
+                    <strong class="message-author">{{ item.nickname }}</strong>
+                    <p v-if="item.content" class="message-bubble">{{ item.content }}</p>
+                  </div>
+                </template>
               </div>
             </div>
             <div v-if="mentionedFeed" class="mention-preview">
@@ -848,15 +903,16 @@ onBeforeUnmount(() => {
               <button @click="mentionedFeed = null">×</button>
             </div>
             <form class="chat-form" @submit.prevent="sendMessage">
-              <input
+              <textarea
                 ref="chatInputElement"
                 v-model="chatInput"
+                rows="1"
                 placeholder="메시지 보내기..."
                 :disabled="isSendingMessage"
                 @input="handleChatInput"
                 @keydown.enter.exact.prevent
                 @keyup.enter.exact.prevent="sendMessage"
-              />
+              ></textarea>
               <button type="submit" aria-label="메시지 전송" :disabled="isSendingMessage">
                 <i class="bi bi-send" aria-hidden="true"></i>
               </button>
@@ -1506,14 +1562,70 @@ onBeforeUnmount(() => {
 .message {
   margin-bottom: 14px;
 }
-.message > strong {
+.feed-share-message {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.message.mine .feed-share-message {
+  align-items: flex-end;
+}
+.message-author {
   display: block;
   margin-bottom: 4px;
   color: #8bdfbc;
   font-size: 0.75rem;
 }
-.message.mine > strong {
+.message.mine .message-author {
   color: #f6cf75;
+}
+.message.mine > .message-author {
+  text-align: right;
+}
+.feed-mention {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.message.mine .feed-mention {
+  align-items: flex-end;
+}
+.feed-attachment {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.message.mine .feed-attachment {
+  align-items: flex-end;
+}
+.feed-attachment-label {
+  color: #aeb8d4;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+.message-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.message.mine .message-content {
+  align-items: flex-end;
+}
+.message-bubble {
+  width: fit-content;
+  max-width: 100%;
+  padding: 8px 12px;
+  color: #f1f2ff;
+  background: #2b385e;
+  border-radius: 13px 13px 13px 4px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.message.mine .message-bubble {
+  margin-left: auto;
+  background: #7162de;
+  border-radius: 13px 13px 4px 13px;
 }
 .message p {
   margin: 5px 0;
@@ -1522,33 +1634,22 @@ onBeforeUnmount(() => {
 }
 .shared-feed {
   display: flex;
-  width: 100%;
-  gap: 10px;
-  align-items: center;
-  padding: 8px;
+  width: min(100%, 190px);
+  padding: 0;
+  overflow: hidden;
   color: #fff;
   text-align: left;
   background: #202b4d;
   border: 1px solid #ffffff12;
-  border-radius: 11px;
+  border-radius: 12px;
+  cursor: pointer;
 }
 .shared-feed img,
 .shared-feed video {
-  width: 56px;
-  height: 50px;
-  object-fit: cover;
-  border-radius: 8px;
-}
-.shared-feed span {
-  min-width: 0;
-}
-.shared-feed b,
-.shared-feed small {
   display: block;
-}
-.shared-feed small {
-  margin-top: 3px;
-  color: #939dbc;
+  width: 190px;
+  height: 140px;
+  object-fit: cover;
 }
 .mention-preview {
   display: flex;
@@ -1565,19 +1666,26 @@ onBeforeUnmount(() => {
 }
 .chat-form {
   display: flex;
+  align-items: flex-end;
   gap: 7px;
   padding: 12px;
   background: #172140;
 }
-.chat-form input {
+.chat-form textarea {
   min-width: 0;
   flex: 1;
+  min-height: 40px;
+  max-height: 120px;
   padding: 11px 13px;
   color: #fff;
   background: #222d4d;
   border: 0;
   border-radius: 12px;
   outline: 0;
+  resize: none;
+  overflow-y: hidden;
+  font: inherit;
+  line-height: 1.4;
 }
 .chat-form button,
 .floating-add {
