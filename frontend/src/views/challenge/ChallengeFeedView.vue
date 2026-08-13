@@ -72,12 +72,14 @@ const form = reactive({
   category: "",
   caption: "",
   aiEstimatedSavingAmount: 0,
+  aiEstimatedAmount: null,
   savingAmount: 0,
   savingAmountFeedback: "",
   verifiedSavingAmount: null,
   analysisSummary: "",
   confidenceScore: 0,
   analysisDetails: "",
+  analysisStatus: "NOT_STARTED",
   analysisFailed: false,
   dailyMissionId: "",
 })
@@ -306,13 +308,13 @@ const openModal = async () => {
   isMissionLoading.value = true
   try {
     const response = await getTodayMissions()
-    todayMissions.value = response.missions.filter((mission) =>
+    todayMissions.value = (response?.missions || []).filter((mission) =>
       ["MEDIA_AI", "HYBRID"].includes(mission.verificationType)
       && !mission.completed
       && mission.status !== "VERIFYING")
   } catch (error) {
+    // 미션 인증은 선택 기능이므로 미션 조회 실패가 일반 피드 업로드를 막지 않게 합니다.
     todayMissions.value = []
-    await openDialog({ message: error.message })
   } finally {
     isMissionLoading.value = false
   }
@@ -326,12 +328,14 @@ const closeModal = () => {
     category: "",
     caption: "",
     aiEstimatedSavingAmount: 0,
+    aiEstimatedAmount: null,
     savingAmount: 0,
     savingAmountFeedback: "",
     verifiedSavingAmount: null,
     analysisSummary: "",
     confidenceScore: 0,
     analysisDetails: "",
+    analysisStatus: "NOT_STARTED",
     analysisFailed: false,
     dailyMissionId: "",
   })
@@ -404,29 +408,34 @@ const handleFile = async (event) => {
   form.file = file
   previewUrl.value = URL.createObjectURL(file)
   form.aiEstimatedSavingAmount = 0
-  form.savingAmount = 0
-  form.savingAmountFeedback = ""
-  form.verifiedSavingAmount = null
-  form.analysisSummary = ""
-  form.analysisDetails = ""
-  form.analysisFailed = false
-}
-const selectCategory = (category) => {
-  form.category = category
-  form.aiEstimatedSavingAmount = 0
+  form.aiEstimatedAmount = null
   form.savingAmount = 0
   form.savingAmountFeedback = ""
   form.verifiedSavingAmount = null
   form.analysisSummary = ""
   form.confidenceScore = 0
   form.analysisDetails = ""
+  form.analysisStatus = "NOT_STARTED"
   form.analysisFailed = false
 }
-const validationMessage = ({ requireCaption = false } = {}) => {
+const selectCategory = (category) => {
+  form.category = category
+  form.aiEstimatedSavingAmount = 0
+  form.aiEstimatedAmount = null
+  form.savingAmount = 0
+  form.savingAmountFeedback = ""
+  form.verifiedSavingAmount = null
+  form.analysisSummary = ""
+  form.confidenceScore = 0
+  form.analysisDetails = ""
+  form.analysisStatus = "NOT_STARTED"
+  form.analysisFailed = false
+}
+const validationMessage = ({ requireCaption = false, requireAnalysis = false } = {}) => {
   if (!form.file) return "사진이나 영상을 선택해 주세요."
   if (!form.category) return "세부 카테고리를 선택해 주세요."
-  if (!canConfirmSavingAmount.value) return "먼저 AI 분석을 진행해 주세요."
-  if (!Number.isFinite(form.savingAmount) || form.savingAmount < 0) {
+  if (requireAnalysis && !canConfirmSavingAmount.value) return "먼저 AI 분석을 진행해 주세요."
+  if (requireAnalysis && (!Number.isFinite(form.savingAmount) || form.savingAmount < 0)) {
     return "절약 금액을 0원 이상 입력해 주세요."
   }
   if (requireCaption && !form.caption.trim()) return "한줄요약을 작성해주세요"
@@ -446,6 +455,8 @@ const requestAnalysis = async () => {
   try {
     const result = await analyzeFeed(challengeId.value, makeFormData())
     form.analysisFailed = false
+    form.analysisStatus = "AI_COMPLETED"
+    form.aiEstimatedAmount = Number(result.estimatedSavingAmount) || 0
     form.aiEstimatedSavingAmount = Number(result.estimatedSavingAmount) || 0
     form.savingAmount = form.aiEstimatedSavingAmount
     form.savingAmountFeedback = ""
@@ -455,6 +466,8 @@ const requestAnalysis = async () => {
     form.analysisDetails = JSON.stringify(result)
   } catch (error) {
     form.analysisFailed = true
+    form.analysisStatus = "AI_FAILED"
+    form.aiEstimatedAmount = null
     form.aiEstimatedSavingAmount = 0
     form.savingAmount = null
     form.savingAmountFeedback = "UNKNOWN"
@@ -501,7 +514,7 @@ const savingAmountFeedbackError = () => {
   return ""
 }
 const uploadFeed = async () => {
-  const invalid = validationMessage({ requireCaption: true })
+  const invalid = validationMessage({ requireCaption: true, requireAnalysis: true })
   if (invalid) return openDialog({ message: invalid })
   if (!form.analysisSummary) return openDialog({ message: "먼저 AI 분석을 진행해 주세요." })
   if (
@@ -526,6 +539,7 @@ const uploadFeed = async () => {
     }
     data.append("analysisSummary", form.analysisSummary)
     data.append("confidenceScore", String(form.confidenceScore))
+    data.append("analysisDetails", form.analysisDetails)
     if (form.aiEstimatedAmount !== null) {
       data.append("aiEstimatedAmount", String(form.aiEstimatedAmount))
     }
@@ -540,8 +554,6 @@ const uploadFeed = async () => {
       "analysisStatus",
       form.analysisStatus === "AI_FAILED" ? "AI_FAILED" : "AI_COMPLETED",
     )
-    await createFeed(challengeId.value, data)
-    data.append("analysisDetails", form.analysisDetails)
     const createdFeed = await createFeed(challengeId.value, data)
     let verificationResult = null
     let verificationError = null
