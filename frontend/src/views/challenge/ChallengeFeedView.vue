@@ -689,8 +689,14 @@ onBeforeUnmount(() => {
                 <button
                   type="button"
                   class="mention-feed-button"
+                  aria-label="언급하기"
+                  title="언급하기"
                   @click.stop="mentionFeedFromCard(feed)"
                 >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M20 11.5a8 8 0 0 1-8 8 8 8 0 0 1-3.9-1L4 20l1.6-3.8A8 8 0 1 1 20 11.5Z"></path>
+                    <text x="12" y="15.6" text-anchor="middle">@</text>
+                  </svg>
                   언급하기
                 </button>
                 <button
@@ -1257,6 +1263,7 @@ onBeforeUnmount(() => {
   animation: like-heart-rise 950ms ease-out forwards;
 }
 .like-button {
+  order: 1;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1282,13 +1289,32 @@ onBeforeUnmount(() => {
   opacity: 0.6;
 }
 .mention-feed-button {
-  padding: 6px 10px;
+  order: 2;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
   color: #fff;
   background: #08122dcc;
   border: 1px solid #ffffff55;
-  border-radius: 999px;
-  font-size: 0.76rem;
-  font-weight: 750;
+  border-radius: 50%;
+  font-size: 0;
+}
+.mention-feed-button svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.mention-feed-button text {
+  fill: currentColor;
+  stroke: none;
+  font-size: 9px;
+  font-weight: 800;
 }
 .mention-feed-button:hover {
   background: #7162de;
