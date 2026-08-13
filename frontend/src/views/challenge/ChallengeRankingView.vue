@@ -295,11 +295,26 @@ onMounted(() => {
 }
 
 .podium-grid {
+  position: relative;
   display: grid;
   align-items: end;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
-  padding-top: 14px;
+  isolation: isolate;
+  padding: 14px 10px 22px;
+}
+
+.podium-grid::before {
+  position: absolute;
+  z-index: -3;
+  right: 2%;
+  bottom: 4px;
+  left: 2%;
+  height: 34px;
+  content: "";
+  background: #b4916b;
+  clip-path: polygon(0 15%, 17% 5%, 38% 12%, 58% 0, 79% 9%, 100% 4%, 99% 94%, 42% 100%, 1% 88%);
+  transform: rotate(-0.35deg);
 }
 
 .podium-grid.podium-count-1 {
@@ -321,28 +336,57 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  border: 1px solid #dfe4fa;
-  border-radius: 18px;
-  background: #f6f7ff;
+  z-index: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  isolation: isolate;
+}
+
+.podium-card::before,
+.podium-card::after {
+  position: absolute;
+  z-index: -2;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+  clip-path: polygon(2% 4%, 24% 1%, 51% 3%, 77% 0, 98% 5%, 100% 30%, 97% 66%, 100% 96%, 69% 99%, 38% 97%, 3% 100%, 0 68%, 2% 34%);
+}
+
+.podium-card::before {
+  background: #37343a;
+  transform: rotate(-0.3deg);
+}
+
+.podium-card::after {
+  z-index: -1;
+  inset: 3px;
+  background: #b8956d;
+  clip-path: polygon(2% 4%, 24% 1%, 51% 3%, 77% 0, 98% 5%, 100% 30%, 97% 66%, 100% 96%, 69% 99%, 38% 97%, 3% 100%, 0 68%, 2% 34%);
 }
 
 .podium-card.rank-1 {
   min-height: 220px;
-  border-color: #f5d98c;
-  background: #fff9e8;
-  box-shadow: 0 10px 24px rgb(239 187 55 / 12%);
 }
 
 .podium-card.rank-2 {
   min-height: 195px;
-  border-color: #d5dced;
-  background: #f7f8fc;
 }
 
 .podium-card.rank-3 {
   min-height: 174px;
-  border-color: #f4d4c7;
-  background: #fff3ee;
+}
+
+.podium-card.rank-1::after {
+  background: #c19a62;
+}
+
+.podium-card.rank-2::after {
+  background: #b69a78;
+}
+
+.podium-card.rank-3::after {
+  background: #aa8968;
 }
 
 .rank-badge {
