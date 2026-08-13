@@ -1277,7 +1277,7 @@ onBeforeUnmount(() => {
   line-height: 1;
 }
 .like-button strong {
-  color: #ffe36e;
+  color: #ff9eb5;
   font-size: 0.9rem;
   line-height: 1;
 }
