@@ -5,6 +5,8 @@ app.routes를 직접 순회하는 대신 app.openapi()로 실제 노출되는 �
 실제로 서비스되는 경로 목록(OpenAPI 스키마)을 기준으로 검증하는 편이 더 안정적이다.
 """
 
+import importlib
+
 from fastapi import FastAPI
 
 from app.application import app
@@ -37,12 +39,26 @@ def test_chat_endpoint_is_not_registered_twice():
     assert len(matching_routes) == 1
 
 
+def test_category_classification_endpoints_are_registered():
+    post_paths = _registered_paths_with_method("POST")
+
+    assert "/api/category/classify" in post_paths
+    assert "/api/category/classify/batch" in post_paths
+
+
 def test_financial_report_generate_endpoint_is_registered():
     assert "/api/reports/generate" in _registered_paths_with_method("POST")
 
 
 def test_consumption_insight_generate_endpoint_is_registered():
     assert "/api/asset-reports/insights/generate" in _registered_paths_with_method("POST")
+
+
+def test_specialized_agents_are_not_registered_directly_in_application():
+    application_module = importlib.import_module("app.application")
+
+    assert not hasattr(application_module, "CategoryAgent")
+    assert not hasattr(application_module, "ConsumptionInsightAgent")
 
 
 def test_health_endpoint_is_registered():
