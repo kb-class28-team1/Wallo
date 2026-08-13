@@ -16,18 +16,23 @@ public interface AssetSyncMapper {
 
     Long findCardId(@Param("connectionId") long connectionId, @Param("cardNumber") String cardNumber);
 
+    List<String> findActiveCardNumbers(@Param("connectionId") long connectionId);
+
     int upsertAssetSnapshot(
             @Param("userId") long userId,
             @Param("snapshot") AssetSyncDto.AssetSnapshot snapshot
     );
 
-    int updateTransactionByApproval(@Param("transaction") AssetSyncDto.Transaction transaction);
-
-    int insertTransaction(@Param("transaction") AssetSyncDto.Transaction transaction);
-
     int upsertTransaction(@Param("transaction") AssetSyncDto.Transaction transaction);
 
     AssetSyncDto.ExistingClassification findExistingClassification(
+            @Param("userId") long userId,
+            @Param("sourceType") String sourceType,
+            @Param("sourceOrganizationCode") String sourceOrganizationCode,
+            @Param("sourceDedupKey") String sourceDedupKey
+    );
+
+    Long findExistingTransactionId(
             @Param("userId") long userId,
             @Param("sourceType") String sourceType,
             @Param("sourceOrganizationCode") String sourceOrganizationCode,

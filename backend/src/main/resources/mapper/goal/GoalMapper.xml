@@ -49,7 +49,22 @@
         goal.motivation,
         goal.priority,
         goal.initial_amount,
-        goal.initial_amount AS current_amount,
+        goal.initial_amount
+        + COALESCE((
+            SELECT SUM(
+                CASE
+                    WHEN COALESCE(account.balance, 0)
+                         > COALESCE(link.baseline_balance, 0)
+                    THEN COALESCE(account.balance, 0)
+                         - COALESCE(link.baseline_balance, 0)
+                    ELSE 0
+                END
+            )
+            FROM FINANCIAL_GOAL_ACCOUNTS link
+            INNER JOIN ACCOUNTS account
+                ON account.account_id = link.account_id
+            WHERE link.goal_id = goal.goal_id
+        ), 0) AS current_amount,
         goal.required_monthly_amount,
         goal.status,
         goal.created_at,
@@ -185,4 +200,41 @@
             #{status}
         )
     </insert>
+
+    <insert id="insertGoalRoadmap"
+            parameterType="com.wallo.goal.domain.GoalRoadmap"
+            useGeneratedKeys="true" keyProperty="roadmapId">
+        INSERT INTO GOAL_ROADMAPS (
+            goal_id, user_id, generation_status, roadmap_json,
+            failure_reason, prompt_version, current_step_number,
+            completed_step_numbers, generated_at
+        ) VALUES (
+            #{goalId}, #{userId}, #{generationStatus},
+            #{roadmapJson}, #{failureReason}, #{promptVersion}, 1, JSON_ARRAY(),
+            CASE WHEN #{generationStatus} = 'COMPLETED' THEN CURRENT_TIMESTAMP ELSE NULL END
+        )
+    </insert>
+
+    <select id="findGoalRoadmap" resultType="com.wallo.goal.domain.GoalRoadmap">
+        SELECT roadmap_id AS roadmapId, goal_id AS goalId, user_id AS userId,
+               generation_status AS generationStatus, roadmap_json AS roadmapJson,
+               failure_reason AS failureReason, prompt_version AS promptVersion,
+               current_step_number AS currentStepNumber,
+               completed_step_numbers AS completedStepNumbers,
+               progress_updated_at AS progressUpdatedAt,
+               generated_at AS generatedAt, created_at AS createdAt, updated_at AS updatedAt
+        FROM GOAL_ROADMAPS
+        WHERE user_id = #{userId} AND goal_id = #{goalId}
+        LIMIT 1
+    </select>
+
+    <update id="updateGoalRoadmapProgress">
+        UPDATE GOAL_ROADMAPS
+        SET current_step_number = #{currentStepNumber},
+            completed_step_numbers = #{completedStepNumbers},
+            progress_updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = #{userId}
+          AND goal_id = #{goalId}
+          AND generation_status = 'COMPLETED'
+    </update>
 </mapper>

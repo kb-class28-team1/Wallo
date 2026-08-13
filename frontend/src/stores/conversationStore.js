@@ -10,13 +10,39 @@ import {
   sendConversationMessage,
   updateConversationTitle,
 } from "@/api/conversationApi"
+import { getGoalByConversationId } from "@/api/goalApi"
 
-const toViewMessage = (message, animate = false) => ({
+const toViewMessage = (message, animate = false, consumptionAnalysis = null) => ({
   id: message.messageId,
   role: message.role.toLowerCase(),
   content: message.content,
   createdAt: message.createdAt,
   animate,
+  consumptionAnalysis: message.consumptionAnalysis ?? consumptionAnalysis,
+})
+
+const toConfirmedGoalInterview = (goal) => ({
+  action: "CONFIRM",
+  active: false,
+  draft: {
+    goalType: goal.goalType,
+    title: goal.title,
+    targetAmount: goal.targetAmount,
+    targetDate: goal.targetDate,
+    currentAmount: goal.currentAmount ?? goal.initialAmount,
+    state: "COMPLETED",
+    confirmed: true,
+    missingFields: [],
+  },
+  feasibility: goal.requiredMonthlyAmount === null
+    || goal.requiredMonthlyAmount === undefined
+    ? null
+    : {
+        status: Number(goal.currentAmount ?? goal.initialAmount) >= Number(goal.targetAmount)
+          ? "ALREADY_ACHIEVED"
+          : "CALCULATED",
+        requiredMonthlyAmount: goal.requiredMonthlyAmount,
+      },
 })
 
 export const useConversationStore = defineStore("conversation", () => {
@@ -24,6 +50,7 @@ export const useConversationStore = defineStore("conversation", () => {
   const activeConversationId = ref(null)
   const messages = ref([])
   const activeGoalInterview = ref(null)
+  const confirmedGoal = ref(null)
   const isLoading = ref(false)
   const isMessageLoading = ref(false)
   const isSending = ref(false)
@@ -34,6 +61,25 @@ export const useConversationStore = defineStore("conversation", () => {
         conversation.conversationId === activeConversationId.value,
     ),
   )
+
+  const fetchConfirmedGoal = async (conversationId) => {
+    if (!conversationId) {
+      confirmedGoal.value = null
+      return null
+    }
+
+    try {
+      const response = await getGoalByConversationId(conversationId)
+      confirmedGoal.value = response?.data ?? null
+      if (confirmedGoal.value && activeGoalInterview.value?.action === "CONFIRM") {
+        activeGoalInterview.value = toConfirmedGoalInterview(confirmedGoal.value)
+      }
+      return confirmedGoal.value
+    } catch {
+      confirmedGoal.value = null
+      return null
+    }
+  }
 
   const fetchConversations = async (userId) => {
     isLoading.value = true
@@ -66,10 +112,12 @@ export const useConversationStore = defineStore("conversation", () => {
     if (!conversationId) {
       messages.value = []
       activeGoalInterview.value = null
+      confirmedGoal.value = null
       return
     }
 
     activeGoalInterview.value = null
+    confirmedGoal.value = null
     isMessageLoading.value = true
     try {
       const response = await getConversationMessages(conversationId, userId)
@@ -77,17 +125,23 @@ export const useConversationStore = defineStore("conversation", () => {
 
       try {
         const interviewResponse = await getActiveGoalInterview(conversationId)
-        activeGoalInterview.value = interviewResponse.active
-          ? {
-              action: "CONTINUE",
-              active: true,
-              draft: interviewResponse.draft,
-              feasibility: interviewResponse.feasibility ?? null,
-            }
-          : null
+        if (interviewResponse.active) {
+          activeGoalInterview.value = {
+            action: "CONTINUE",
+            active: true,
+            draft: interviewResponse.draft,
+            feasibility: interviewResponse.feasibility ?? null,
+          }
+        } else {
+          const goal = await fetchConfirmedGoal(conversationId)
+          activeGoalInterview.value = goal
+            ? toConfirmedGoalInterview(goal)
+            : null
+        }
       } catch {
         // 기존 대화 메시지는 유지하고, 목표 카드 복구만 건너뛴다.
         activeGoalInterview.value = null
+        confirmedGoal.value = null
       }
     } catch (error) {
       messages.value = []
@@ -106,6 +160,7 @@ export const useConversationStore = defineStore("conversation", () => {
       activeConversationId.value = conversation.conversationId
       messages.value = []
       activeGoalInterview.value = null
+      confirmedGoal.value = null
       return conversation
     } catch (error) {
       alert(error.message || "새 채팅방을 만들지 못했습니다.")
@@ -118,6 +173,7 @@ export const useConversationStore = defineStore("conversation", () => {
   const selectConversation = async (conversationId, userId) => {
     activeConversationId.value = conversationId
     activeGoalInterview.value = null
+    confirmedGoal.value = null
     await fetchMessages(userId, conversationId)
   }
 
@@ -161,6 +217,7 @@ export const useConversationStore = defineStore("conversation", () => {
         } else {
           messages.value = []
           activeGoalInterview.value = null
+          confirmedGoal.value = null
         }
       }
       return true
@@ -202,6 +259,17 @@ export const useConversationStore = defineStore("conversation", () => {
 
       activeGoalInterview.value = response.goalInterview ?? null
 
+      const goalInterview = response.goalInterview
+      const isConfirmedGoal = goalInterview?.action === "CONFIRM"
+        || goalInterview?.draft?.confirmed
+        || goalInterview?.draft?.state === "COMPLETED"
+      if (isConfirmedGoal) {
+        const confirmed = await fetchConfirmedGoal(conversationId)
+        if (confirmed) {
+          activeGoalInterview.value = toConfirmedGoalInterview(confirmed)
+        }
+      }
+
       if (activeConversationId.value === conversationId) {
         const pendingMessageIndex = messages.value.findIndex(
           (message) => message.id === pendingMessageId,
@@ -213,7 +281,11 @@ export const useConversationStore = defineStore("conversation", () => {
         } else {
           messages.value.push(savedUserMessage)
         }
-        messages.value.push(toViewMessage(response.assistantMessage, true))
+        messages.value.push(toViewMessage(
+          response.assistantMessage,
+          true,
+          response.consumptionAnalysis ?? null,
+        ))
       }
 
       await fetchConversations(userId)
@@ -236,11 +308,13 @@ export const useConversationStore = defineStore("conversation", () => {
     activeConversationId,
     messages,
     activeGoalInterview,
+    confirmedGoal,
     isLoading,
     isMessageLoading,
     isSending,
     fetchConversations,
     fetchMessages,
+    fetchConfirmedGoal,
     startNewConversation,
     selectConversation,
     completeMessageAnimation,

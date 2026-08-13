@@ -1,18 +1,21 @@
 package com.wallo.asset.mapper;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import com.wallo.asset.dto.AssetSyncDto;
+import com.wallo.asset.service.TransactionSourceKeyGenerator;
+import com.wallo.test.TestDatabase;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.util.UUID;
+import java.util.List;
 import javax.sql.DataSource;
 import org.apache.ibatis.session.SqlSession;
-import org.h2.jdbcx.JdbcDataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,15 +30,8 @@ class AssetSyncMapperIntegrationTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        JdbcDataSource h2DataSource = new JdbcDataSource();
-        h2DataSource.setURL(
-                "jdbc:h2:mem:asset_sync_" + UUID.randomUUID() + ";MODE=MySQL;DB_CLOSE_DELAY=-1"
-        );
-        h2DataSource.setUser("sa");
-        h2DataSource.setPassword("");
-        dataSource = h2DataSource;
-        createTransactionsTable();
-        createAssetSnapshotsTable();
+        dataSource = TestDatabase.h2("asset_sync");
+        TestDatabase.initializeAssetMapperSchema(dataSource);
 
         SqlSessionFactoryBean factoryBean = new SqlSessionFactoryBean();
         factoryBean.setDataSource(dataSource);
@@ -71,6 +67,123 @@ class AssetSyncMapperIntegrationTest {
             assertEquals(1, resultSet.getInt("row_count"));
             assertEquals(39_000L, resultSet.getLong("amount"));
             assertEquals("FOOD", resultSet.getString("category"));
+        }
+    }
+
+    @Test
+    void sameSourceTransactionIdCanExistWhenSourceDedupKeysDiffer() throws Exception {
+        TransactionSourceKeyGenerator keyGenerator = new TransactionSourceKeyGenerator();
+        String firstKey = keyGenerator.forBankTransaction(
+                "0004", "123456-01-789012", "BANK-202607-0001"
+        );
+        String secondKey = keyGenerator.forBankTransaction(
+                "0004", "987654-01-321098", "BANK-202607-0001"
+        );
+
+        assetSyncMapper.upsertTransaction(bankTransaction(301L, 3_000_000L, firstKey));
+        assetSyncMapper.upsertTransaction(bankTransaction(402L, 3_100_000L, secondKey));
+
+        try (Connection connection = dataSource.getConnection();
+             Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(
+                     "SELECT COUNT(*) AS row_count FROM TRANSACTIONS"
+             )) {
+            resultSet.next();
+            assertEquals(2, resultSet.getInt("row_count"));
+        }
+    }
+
+    @Test
+    void reconnectionWithNewCardIdKeepsOneApprovalAndUpdatesCardRelation() throws Exception {
+        TransactionSourceKeyGenerator keyGenerator = new TransactionSourceKeyGenerator();
+        String sourceDedupKey = keyGenerator.forCardApproval("0311", "2468-0000-0000-1357", "87654321");
+        AssetSyncDto.Transaction first = cardTransaction(101L, 38_000L, "DELIVERY", sourceDedupKey);
+        AssetSyncDto.Transaction reconnected = cardTransaction(202L, 39_000L, "FOOD", sourceDedupKey);
+
+        assetSyncMapper.upsertTransaction(first);
+        assetSyncMapper.upsertTransaction(reconnected);
+
+        try (Connection connection = dataSource.getConnection();
+             Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(
+                     "SELECT COUNT(*) AS row_count, MAX(card_id) AS card_id, "
+                             + "MAX(amount) AS amount, MAX(source_dedup_key) AS source_dedup_key "
+                             + "FROM TRANSACTIONS"
+             )) {
+            resultSet.next();
+            assertEquals(1, resultSet.getInt("row_count"));
+            assertEquals(202L, resultSet.getLong("card_id"));
+            assertEquals(39_000L, resultSet.getLong("amount"));
+            assertEquals(sourceDedupKey, resultSet.getString("source_dedup_key"));
+        }
+    }
+
+    @Test
+    void nullIncomingCardIdPreservesExistingCardRelation() throws Exception {
+        TransactionSourceKeyGenerator keyGenerator = new TransactionSourceKeyGenerator();
+        String sourceDedupKey = keyGenerator.forCardApproval("0311", "2468-0000-0000-1357", "87654321");
+        AssetSyncDto.Transaction first = cardTransaction(101L, 38_000L, "DELIVERY", sourceDedupKey);
+        AssetSyncDto.Transaction reconnectedWithoutRelation =
+                cardTransaction(null, 39_000L, "FOOD", sourceDedupKey);
+
+        assetSyncMapper.upsertTransaction(first);
+        assetSyncMapper.upsertTransaction(reconnectedWithoutRelation);
+
+        try (Connection connection = dataSource.getConnection();
+             Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(
+                     "SELECT card_id, amount FROM TRANSACTIONS"
+             )) {
+            resultSet.next();
+            assertEquals(101L, resultSet.getLong("card_id"));
+            assertEquals(39_000L, resultSet.getLong("amount"));
+        }
+    }
+
+    @Test
+    void reconnectionWithNewAccountIdKeepsOneBankTransactionAndUpdatesAccountRelation() throws Exception {
+        TransactionSourceKeyGenerator keyGenerator = new TransactionSourceKeyGenerator();
+        String sourceDedupKey = keyGenerator.forBankTransaction("0004", "123456-01-789012", "BANK-202607-0001");
+        AssetSyncDto.Transaction first = bankTransaction(301L, 3_000_000L, sourceDedupKey);
+        AssetSyncDto.Transaction reconnected = bankTransaction(402L, 3_100_000L, sourceDedupKey);
+
+        assetSyncMapper.upsertTransaction(first);
+        assetSyncMapper.upsertTransaction(reconnected);
+
+        try (Connection connection = dataSource.getConnection();
+             Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(
+                     "SELECT COUNT(*) AS row_count, MAX(account_id) AS account_id, "
+                             + "MAX(amount) AS amount, MAX(source_dedup_key) AS source_dedup_key "
+                             + "FROM TRANSACTIONS"
+             )) {
+            resultSet.next();
+            assertEquals(1, resultSet.getInt("row_count"));
+            assertEquals(402L, resultSet.getLong("account_id"));
+            assertEquals(3_100_000L, resultSet.getLong("amount"));
+            assertEquals(sourceDedupKey, resultSet.getString("source_dedup_key"));
+        }
+    }
+
+    @Test
+    void nullIncomingAccountIdPreservesExistingAccountRelation() throws Exception {
+        TransactionSourceKeyGenerator keyGenerator = new TransactionSourceKeyGenerator();
+        String sourceDedupKey = keyGenerator.forBankTransaction("0004", "123456-01-789012", "BANK-202607-0001");
+        AssetSyncDto.Transaction first = bankTransaction(301L, 3_000_000L, sourceDedupKey);
+        AssetSyncDto.Transaction reconnectedWithoutRelation =
+                bankTransaction(null, 3_100_000L, sourceDedupKey);
+
+        assetSyncMapper.upsertTransaction(first);
+        assetSyncMapper.upsertTransaction(reconnectedWithoutRelation);
+
+        try (Connection connection = dataSource.getConnection();
+             Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(
+                     "SELECT account_id, amount FROM TRANSACTIONS"
+             )) {
+            resultSet.next();
+            assertEquals(301L, resultSet.getLong("account_id"));
+            assertEquals(3_100_000L, resultSet.getLong("amount"));
         }
     }
 
@@ -133,6 +246,46 @@ class AssetSyncMapperIntegrationTest {
     }
 
     @Test
+    void findsExistingTransactionIdBySourceIdentity() {
+        AssetSyncDto.Transaction saved = transaction(38_000L, "LIVING");
+        assetSyncMapper.upsertTransaction(saved);
+
+        Long existingId = assetSyncMapper.findExistingTransactionId(
+                7L,
+                "CARD_APPROVAL",
+                "0311",
+                saved.getSourceDedupKey()
+        );
+
+        assertNotNull(existingId);
+        assertNull(assetSyncMapper.findExistingTransactionId(
+                7L,
+                "CARD_APPROVAL",
+                "0311",
+                "missing-source-dedup-key"
+        ));
+    }
+
+    @Test
+    void findsOnlyActiveCardNumbersByConnection() throws Exception {
+        try (Connection connection = dataSource.getConnection();
+             Statement statement = connection.createStatement()) {
+            statement.execute("""
+                    INSERT INTO CARDS (
+                        card_id, connection_id, card_number, card_name, card_type, status, valid_period
+                    ) VALUES
+                        (1, 11, '9876', 'Active card 1', 'CHECK', 'ACTIVE', '12/30'),
+                        (2, 11, '4321', 'Active card 2', 'CREDIT', 'ACTIVE', '11/29'),
+                        (3, 11, '9999', 'Inactive card', 'CHECK', 'INACTIVE', '10/28'),
+                        (4, 12, '7777', 'Other connection card', 'CHECK', 'ACTIVE', '09/27')
+                    """);
+        }
+
+        assertEquals(List.of("9876", "4321"), assetSyncMapper.findActiveCardNumbers(11L));
+        assertEquals(List.of("7777"), assetSyncMapper.findActiveCardNumbers(12L));
+    }
+
+    @Test
     void snapshotMonthInsertsNewSnapshot() throws Exception {
         assetSyncMapper.upsertAssetSnapshot(7L, new AssetSyncDto.AssetSnapshot("2026-08", 39_000_000L));
 
@@ -173,6 +326,63 @@ class AssetSyncMapperIntegrationTest {
         );
     }
 
+    private AssetSyncDto.Transaction cardTransaction(
+            Long cardId,
+            long amount,
+            String category,
+            String sourceDedupKey
+    ) {
+        return new AssetSyncDto.Transaction(
+                7L,
+                cardId,
+                null,
+                "EXPENSE",
+                category,
+                amount,
+                "배달의민족",
+                "배달의민족",
+                "요식/음료",
+                "87654321",
+                LocalDate.of(2026, 7, 26),
+                LocalTime.of(19, 30),
+                "MERCHANT_KEYWORD",
+                new BigDecimal("0.9800"),
+                "keyword-v1",
+                "CARD_APPROVAL",
+                "0311",
+                "87654321",
+                sourceDedupKey
+        );
+    }
+
+    private AssetSyncDto.Transaction bankTransaction(
+            Long accountId,
+            long amount,
+            String sourceDedupKey
+    ) {
+        return new AssetSyncDto.Transaction(
+                7L,
+                null,
+                accountId,
+                "INCOME",
+                "INCOME",
+                amount,
+                "월급_7월",
+                "월급_7월",
+                null,
+                "BANK-202607-0001",
+                LocalDate.of(2026, 7, 25),
+                LocalTime.of(10, 0),
+                "BANK_DIRECTION",
+                BigDecimal.ONE,
+                "bank-direction-v1",
+                "BANK_TRANSACTION",
+                "0004",
+                "BANK-202607-0001",
+                sourceDedupKey
+        );
+    }
+
     private AssetSyncDto.Transaction transaction(
             long amount,
             String category,
@@ -203,51 +413,4 @@ class AssetSyncMapperIntegrationTest {
         );
     }
 
-    private void createTransactionsTable() throws Exception {
-        try (Connection connection = dataSource.getConnection();
-             Statement statement = connection.createStatement()) {
-            statement.execute("""
-                    CREATE TABLE TRANSACTIONS (
-                        transaction_id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                        user_id BIGINT NOT NULL,
-                        card_id BIGINT NULL,
-                        account_id BIGINT NULL,
-                        type VARCHAR(20) NOT NULL,
-                        category VARCHAR(50) NOT NULL,
-                        category_source VARCHAR(30) NOT NULL,
-                        category_confidence DECIMAL(5,4) NULL,
-                        classifier_version VARCHAR(30) NULL,
-                        amount BIGINT NOT NULL,
-                        merchant_name VARCHAR(100) NOT NULL,
-                        original_merchant_name VARCHAR(100) NULL,
-                        original_sector VARCHAR(100) NULL,
-                        external_approval_no VARCHAR(50) NULL,
-                        source_type VARCHAR(30) NULL,
-                        source_organization_code VARCHAR(20) NULL,
-                        source_transaction_id VARCHAR(100) NULL,
-                        source_dedup_key CHAR(64) NULL,
-                        transaction_date DATE NOT NULL,
-                        transaction_time TIME NOT NULL,
-                        UNIQUE (user_id, source_type, source_organization_code, source_dedup_key)
-                    )
-                    """);
-        }
-    }
-
-    private void createAssetSnapshotsTable() throws Exception {
-        try (Connection connection = dataSource.getConnection();
-             Statement statement = connection.createStatement()) {
-            statement.execute("""
-                    CREATE TABLE ASSET_SNAPSHOTS (
-                        asset_snapshot_id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                        user_id BIGINT NOT NULL,
-                        snapshot_month CHAR(7) NOT NULL,
-                        total_assets BIGINT NOT NULL,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        UNIQUE (user_id, snapshot_month)
-                    )
-                    """);
-        }
-    }
 }

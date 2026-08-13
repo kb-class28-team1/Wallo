@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref, watch } from "vue"
 import DOMPurify from "dompurify"
 import { marked } from "marked"
+import AnalysisResult from "@/components/analysis/AnalysisResult.vue"
 
 const props = defineProps({
   message: {
@@ -45,6 +46,13 @@ const startTyping = () => {
   stopTyping()
 
   const content = props.message.content || ""
+  if (props.message.role === "assistant" && props.message.consumptionAnalysis) {
+    displayedContent.value = ""
+    if (props.message.animate) {
+      emit("typing-complete", props.message.id)
+    }
+    return
+  }
   if (props.message.role !== "assistant" || !props.message.animate) {
     displayedContent.value = content
     return
@@ -68,7 +76,11 @@ const startTyping = () => {
 }
 
 watch(
-  () => [props.message.content, props.message.animate],
+  () => [
+    props.message.content,
+    props.message.animate,
+    props.message.consumptionAnalysis,
+  ],
   startTyping,
   { immediate: true },
 )
@@ -78,12 +90,19 @@ onBeforeUnmount(completeTyping)
 
 <template>
   <div class="message-row" :class="`message-row--${message.role}`">
-    <div class="message-bubble">
+    <div
+      class="message-bubble"
+      :class="{ 'message-bubble--analysis': message.consumptionAnalysis }"
+    >
       <span class="message-label">
         {{ message.role === "assistant" ? "Wallo AI" : "나" }}
       </span>
+      <AnalysisResult
+        v-if="message.role === 'assistant' && message.consumptionAnalysis"
+        :analysis="message.consumptionAnalysis"
+      />
       <div
-        v-if="message.role === 'assistant'"
+        v-else-if="message.role === 'assistant'"
         class="message-content message-content--markdown"
         v-html="renderedMarkdown"
       ></div>
@@ -105,6 +124,11 @@ onBeforeUnmount(completeTyping)
 
 .message-bubble {
   max-width: 75%;
+}
+
+.message-bubble--analysis {
+  width: min(100%, 720px);
+  max-width: 92%;
 }
 
 .message-label {

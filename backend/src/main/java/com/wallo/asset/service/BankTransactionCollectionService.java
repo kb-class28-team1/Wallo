@@ -5,19 +5,19 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wallo.asset.classification.ExpenseCategoryClassifier;
 import com.wallo.asset.domain.Institution;
 import com.wallo.asset.dto.AssetSyncDto;
-import com.wallo.asset.dto.ConnectionDto;
 import com.wallo.asset.mapper.AssetSyncMapper;
+import com.wallo.external.auth.CodefCredential;
+import com.wallo.external.auth.CodefCredentialProvider;
+import com.wallo.external.CodefRetryExecutor;
 import com.wallo.external.client.BankTransactionClient;
+import com.wallo.external.CodefDateTime;
+import com.wallo.external.CodefResponseValidator;
 import com.wallo.external.dto.CodefDto;
 import java.math.BigDecimal;
 import java.time.Clock;
-import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.YearMonth;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeFormatterBuilder;
-import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -33,25 +33,12 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class BankTransactionCollectionService {
 
-    private static final String BANK_INSTITUTION_TYPE = "BANK";
-    private static final String SOURCE_TYPE = "BANK_TRANSACTION";
-    private static final String INCOME = "INCOME";
-    private static final String TRANSFER = "TRANSFER";
-    private static final String CARD_PAYMENT = "CARD_PAYMENT";
-    private static final String BANK_DIRECTION_SOURCE = "BANK_DIRECTION";
-    private static final String BANK_DIRECTION_CLASSIFIER_VERSION = "bank-direction-v1";
-    private static final String BANK_DIRECTION_FALLBACK_SOURCE = "BANK_DIRECTION_FALLBACK";
-    private static final String BANK_DIRECTION_FALLBACK_CLASSIFIER_VERSION =
-            "bank-direction-fallback-v1";
-    private static final DateTimeFormatter REQUEST_DATE_FORMATTER = DateTimeFormatter.BASIC_ISO_DATE;
-    private static final DateTimeFormatter RESPONSE_TIME_FORMATTER = new DateTimeFormatterBuilder()
-            .appendValue(ChronoField.HOUR_OF_DAY, 2)
-            .appendValue(ChronoField.MINUTE_OF_HOUR, 2)
-            .appendValue(ChronoField.SECOND_OF_MINUTE, 2)
-            .toFormatter();
+    private static final String SOURCE_TYPE = AssetTransactionConstants.BANK_TRANSACTION_SOURCE_TYPE;
     private static final Logger LOGGER = Logger.getLogger(BankTransactionCollectionService.class.getName());
 
     private final BankTransactionClient bankTransactionClient;
+    private final CodefCredentialProvider codefCredentialProvider;
+    private final CodefRetryExecutor codefRetryExecutor;
     private final ObjectMapper objectMapper;
     private final ExpenseCategoryClassifier categoryClassifier;
     private final TransactionSourceKeyGenerator sourceKeyGenerator;
@@ -61,6 +48,8 @@ public class BankTransactionCollectionService {
 
     public BankTransactionCollectionService(
             BankTransactionClient bankTransactionClient,
+            CodefCredentialProvider codefCredentialProvider,
+            CodefRetryExecutor codefRetryExecutor,
             ObjectMapper objectMapper,
             ExpenseCategoryClassifier categoryClassifier,
             TransactionSourceKeyGenerator sourceKeyGenerator,
@@ -69,6 +58,8 @@ public class BankTransactionCollectionService {
             ConsumptionInsightCache consumptionInsightCache
     ) {
         this.bankTransactionClient = bankTransactionClient;
+        this.codefCredentialProvider = codefCredentialProvider;
+        this.codefRetryExecutor = codefRetryExecutor;
         this.objectMapper = objectMapper;
         this.categoryClassifier = categoryClassifier;
         this.sourceKeyGenerator = sourceKeyGenerator;
@@ -102,23 +93,48 @@ public class BankTransactionCollectionService {
             LocalDate startDate,
             LocalDate endDate
     ) {
+        return collectWithStats(
+                userId,
+                accountId,
+                accountNumber,
+                institution,
+                startDate,
+                endDate
+        ).total();
+    }
+
+    public AssetSyncDto.SyncStats collectWithStats(
+            long userId,
+            long accountId,
+            String accountNumber,
+            Institution institution,
+            LocalDate startDate,
+            LocalDate endDate
+    ) {
         validateCollectionRequest(accountNumber, institution, startDate, endDate);
+        String normalizedAccountNumber = AssetIdentifierNormalizer.normalize(accountNumber, "account number");
 
         long startedAt = System.nanoTime();
         long apiStartedAt = System.nanoTime();
-        CodefDto.Response response = bankTransactionClient.getTransactions(
-                new CodefDto.BankTransactionRequest(
-                        institution.getCodefOrganizationCode(),
-                        ConnectionDto.MOCK_LOGIN_TYPE,
-                        ConnectionDto.MOCK_ID,
-                        ConnectionDto.MOCK_PASSWORD,
-                        accountNumber,
-                        startDate.format(REQUEST_DATE_FORMATTER),
-                        endDate.format(REQUEST_DATE_FORMATTER)
-                )
+        CodefCredential credential = codefCredentialProvider.getCredential(
+                userId,
+                institution.getCodefOrganizationCode()
+        );
+        CodefDto.BankTransactionRequest request = new CodefDto.BankTransactionRequest(
+                institution.getCodefOrganizationCode(),
+                credential.loginType(),
+                credential.id(),
+                credential.password(),
+                accountNumber,
+                CodefDateTime.formatDate(startDate),
+                CodefDateTime.formatDate(endDate)
+        );
+        CodefDto.Response response = codefRetryExecutor.execute(
+                "bank transaction collection organization=" + institution.getCodefOrganizationCode(),
+                () -> bankTransactionClient.getTransactions(request)
         );
         long apiElapsedMs = elapsedMillis(apiStartedAt);
-        validateCodefResponse(response);
+        CodefResponseValidator.requireSuccess(response, "Bank transaction collection");
 
         long conversionStartedAt = System.nanoTime();
         List<CodefDto.BankTransaction> transactions = objectMapper.convertValue(
@@ -128,12 +144,26 @@ public class BankTransactionCollectionService {
         long conversionElapsedMs = elapsedMillis(conversionStartedAt);
 
         int savedCount = 0;
+        int insertedCount = 0;
+        int updatedCount = 0;
         int reusedClassificationCount = 0;
         int aiRequestCount = 0;
         long classificationStartedAt = System.nanoTime();
         List<PreparedBankTransaction> preparedTransactions = safeList(transactions).stream()
-                .map(source -> prepareTransaction(userId, accountId, accountNumber, institution, source))
+                .map(source -> prepareTransaction(
+                        userId,
+                        accountId,
+                        normalizedAccountNumber,
+                        institution,
+                        source
+                ))
                 .toList();
+        preparedTransactions = TransactionBatchDeduplicator.deduplicate(
+                preparedTransactions,
+                transaction -> transaction.sourceIdentity().sourceDedupKey(),
+                SOURCE_TYPE
+        );
+        int duplicateCount = safeList(transactions).size() - preparedTransactions.size();
         Map<String, ClassificationResolution> classifications = resolveClassifications(
                 userId,
                 institution,
@@ -144,12 +174,24 @@ public class BankTransactionCollectionService {
         for (PreparedBankTransaction source : preparedTransactions) {
             TransactionMapping mapping = toTransaction(
                     source,
-                    classifications.get(source.sourceDedupKey())
+                    classifications.get(source.sourceIdentity().sourceDedupKey())
             );
+            boolean existingTransaction = assetSyncMapper.findExistingTransactionId(
+                    mapping.transaction().getUserId(),
+                    mapping.transaction().getSourceType(),
+                    mapping.transaction().getSourceOrganizationCode(),
+                    mapping.transaction().getSourceDedupKey()
+            ) != null;
             assetSyncMapper.upsertTransaction(mapping.transaction());
+            if (existingTransaction) {
+                updatedCount++;
+            } else {
+                insertedCount++;
+            }
             if (mapping.reusedClassification()) {
                 reusedClassificationCount++;
-            } else if ("AI".equals(mapping.transaction().getCategorySource())) {
+            } else if (AssetTransactionConstants.AI_CATEGORY_SOURCE
+                    .equals(mapping.transaction().getCategorySource())) {
                 aiRequestCount++;
             }
             savedCount++;
@@ -160,11 +202,12 @@ public class BankTransactionCollectionService {
         long processingElapsedMs = elapsedMillis(processingStartedAt);
         LOGGER.info(String.format(
                 Locale.ROOT,
-                "asset-sync bank organization=%s account=%s records=%d saved=%d reusedClassification=%d "
+                "asset-sync bank organization=%s account=%s records=%d duplicates=%d saved=%d reusedClassification=%d "
                         + "aiRequests=%d apiMs=%d conversionMs=%d classificationMs=%d processingMs=%d totalMs=%d",
                 institution.getCodefOrganizationCode(),
                 accountNumber,
                 safeList(transactions).size(),
+                duplicateCount,
                 savedCount,
                 reusedClassificationCount,
                 aiRequestCount,
@@ -174,7 +217,7 @@ public class BankTransactionCollectionService {
                 processingElapsedMs,
                 elapsedMillis(startedAt)
         ));
-        return savedCount;
+        return new AssetSyncDto.SyncStats(insertedCount, updatedCount);
     }
 
     private void invalidateConsumptionInsightCache(
@@ -195,32 +238,32 @@ public class BankTransactionCollectionService {
     private PreparedBankTransaction prepareTransaction(
             long userId,
             long accountId,
-            String accountNumber,
+            String normalizedAccountNumber,
             Institution institution,
             CodefDto.BankTransaction source
     ) {
         if (source == null) {
             throw new IllegalArgumentException("은행 거래내역이 비어 있습니다.");
         }
+        TransactionSourceIdentity sourceIdentity = sourceKeyGenerator.identityForNormalizedBankTransaction(
+                institution.getCodefOrganizationCode(),
+                normalizedAccountNumber,
+                source.getResTrNo()
+        );
         if (source.getResAccount() != null
                 && !source.getResAccount().isBlank()
-                && !accountNumber.equals(source.getResAccount())) {
+                && !sourceIdentity.normalizedAssetIdentifier()
+                        .equals(AssetIdentifierNormalizer.normalize(source.getResAccount(), "account number"))) {
             throw new IllegalArgumentException("요청 계좌와 응답 계좌가 일치하지 않습니다.");
         }
 
         long accountIn = parseNonNegativeAmount(source.getResAccountIn());
         long accountOut = parseNonNegativeAmount(source.getResAccountOut());
-        String transactionId = required(source.getResTrNo(), "은행 거래번호");
         String description = defaultValue(source.getResAccountDesc(), "계좌 거래");
-        String sourceDedupKey = sourceKeyGenerator.forBankTransaction(
-                institution.getCodefOrganizationCode(),
-                accountNumber,
-                transactionId
-        );
         String normalizedKind = source.getTransactionKind() == null
                 ? ""
                 : source.getTransactionKind().trim().toUpperCase(Locale.ROOT);
-        boolean cardPayment = CARD_PAYMENT.equals(normalizedKind);
+        boolean cardPayment = AssetTransactionConstants.CARD_PAYMENT_KIND.equals(normalizedKind);
         ExpenseCategoryClassifier.Context context = cardPayment
                 ? new ExpenseCategoryClassifier.Context(description, null, accountOut)
                 : null;
@@ -236,9 +279,7 @@ public class BankTransactionCollectionService {
                 description,
                 parseDate(source.getResTrDate()),
                 parseTime(source.getResTrTime()),
-                institution.getCodefOrganizationCode(),
-                transactionId,
-                sourceDedupKey
+                sourceIdentity
         );
     }
 
@@ -248,7 +289,7 @@ public class BankTransactionCollectionService {
     ) {
         TransactionClassification classification = prepared.cardPayment()
                 ? new TransactionClassification(
-                        "EXPENSE",
+                        AssetTransactionConstants.EXPENSE_TYPE,
                         resolution.result().category(),
                         prepared.directionClassification().amount(),
                         resolution.result().source(),
@@ -257,6 +298,8 @@ public class BankTransactionCollectionService {
                         resolution.reused()
                 )
                 : prepared.directionClassification();
+        TransactionSourceIdentity sourceIdentity = prepared.sourceIdentity();
+        TransactionRelationValidator.validate(sourceIdentity.sourceType(), null, prepared.accountId());
         AssetSyncDto.Transaction transaction = new AssetSyncDto.Transaction(
                 prepared.userId(),
                 null,
@@ -273,10 +316,10 @@ public class BankTransactionCollectionService {
                 classification.categorySource(),
                 classification.confidence(),
                 classification.classifierVersion(),
-                SOURCE_TYPE,
-                prepared.sourceOrganizationCode(),
-                prepared.transactionId(),
-                prepared.sourceDedupKey()
+                sourceIdentity.sourceType(),
+                sourceIdentity.sourceOrganizationCode(),
+                sourceIdentity.sourceTransactionId(),
+                sourceIdentity.sourceDedupKey()
         );
         return new TransactionMapping(transaction, classification.reusedClassification());
     }
@@ -294,8 +337,8 @@ public class BankTransactionCollectionService {
         }
 
         return switch (normalizedKind) {
-            case INCOME -> classifyIncome(accountIn, accountOut);
-            case TRANSFER -> classifyTransfer(accountIn, accountOut);
+            case AssetTransactionConstants.INCOME_TYPE -> classifyIncome(accountIn, accountOut);
+            case AssetTransactionConstants.TRANSFER_TYPE -> classifyTransfer(accountIn, accountOut);
             default -> throw new IllegalArgumentException(
                     "지원하지 않는 은행 거래 유형입니다: " + transactionKind
             );
@@ -339,7 +382,7 @@ public class BankTransactionCollectionService {
         }
 
         return new TransactionClassification(
-                "EXPENSE",
+                AssetTransactionConstants.EXPENSE_TYPE,
                 null,
                 accountOut,
                 null,
@@ -359,7 +402,7 @@ public class BankTransactionCollectionService {
         for (PreparedBankTransaction transaction : transactions) {
             if (!transaction.cardPayment()) {
                 resolutions.put(
-                        transaction.sourceDedupKey(),
+                        transaction.sourceIdentity().sourceDedupKey(),
                         new ClassificationResolution(
                                 new ExpenseCategoryClassifier.Result(
                                         transaction.directionClassification().category(),
@@ -377,7 +420,7 @@ public class BankTransactionCollectionService {
                     categoryClassifier.classifyBeforeAi(transaction.context());
             if (deterministicClassification != null && deterministicClassification.isPresent()) {
                 resolutions.put(
-                        transaction.sourceDedupKey(),
+                        transaction.sourceIdentity().sourceDedupKey(),
                         new ClassificationResolution(deterministicClassification.get(), false)
                 );
                 continue;
@@ -385,13 +428,13 @@ public class BankTransactionCollectionService {
 
             AssetSyncDto.ExistingClassification existing = assetSyncMapper.findExistingClassification(
                     userId,
-                    SOURCE_TYPE,
-                    institution.getCodefOrganizationCode(),
-                    transaction.sourceDedupKey()
+                    transaction.sourceIdentity().sourceType(),
+                    transaction.sourceIdentity().sourceOrganizationCode(),
+                    transaction.sourceIdentity().sourceDedupKey()
             );
             if (isReusable(existing)) {
                 resolutions.put(
-                        transaction.sourceDedupKey(),
+                        transaction.sourceIdentity().sourceDedupKey(),
                         new ClassificationResolution(
                                 new ExpenseCategoryClassifier.Result(
                                         existing.getCategory(),
@@ -409,12 +452,12 @@ public class BankTransactionCollectionService {
 
         List<ExpenseCategoryClassifier.Result> classified = categoryClassifier.classifyBatch(pendingContexts);
         for (PreparedBankTransaction transaction : transactions) {
-            if (resolutions.containsKey(transaction.sourceDedupKey())) {
+            if (resolutions.containsKey(transaction.sourceIdentity().sourceDedupKey())) {
                 continue;
             }
             int contextIndex = pendingContexts.indexOf(transaction.context());
             resolutions.put(
-                    transaction.sourceDedupKey(),
+                    transaction.sourceIdentity().sourceDedupKey(),
                     new ClassificationResolution(classified.get(contextIndex), false)
             );
         }
@@ -427,33 +470,37 @@ public class BankTransactionCollectionService {
                 && !existing.getCategory().isBlank()
                 && existing.getCategorySource() != null
                 && !existing.getCategorySource().isBlank()
-                && !"FALLBACK".equals(existing.getCategorySource());
+                && !AssetTransactionConstants.FALLBACK_CATEGORY_SOURCE.equals(existing.getCategorySource());
     }
 
     private TransactionClassification incomeClassification(long amount, boolean fallback) {
         return new TransactionClassification(
-                INCOME,
-                INCOME,
+                AssetTransactionConstants.INCOME_TYPE,
+                AssetTransactionConstants.INCOME_CATEGORY,
                 amount,
-                fallback ? BANK_DIRECTION_FALLBACK_SOURCE : BANK_DIRECTION_SOURCE,
+                fallback
+                        ? AssetTransactionConstants.BANK_DIRECTION_FALLBACK_SOURCE
+                        : AssetTransactionConstants.BANK_DIRECTION_SOURCE,
                 BigDecimal.ONE,
                 fallback
-                        ? BANK_DIRECTION_FALLBACK_CLASSIFIER_VERSION
-                        : BANK_DIRECTION_CLASSIFIER_VERSION,
+                        ? AssetTransactionConstants.BANK_DIRECTION_FALLBACK_CLASSIFIER_VERSION
+                        : AssetTransactionConstants.BANK_DIRECTION_CLASSIFIER_VERSION,
                 false
         );
     }
 
     private TransactionClassification transferClassification(long amount, boolean fallback) {
         return new TransactionClassification(
-                TRANSFER,
-                "SEND",
+                AssetTransactionConstants.TRANSFER_TYPE,
+                AssetTransactionConstants.SEND_CATEGORY,
                 amount,
-                fallback ? BANK_DIRECTION_FALLBACK_SOURCE : BANK_DIRECTION_SOURCE,
+                fallback
+                        ? AssetTransactionConstants.BANK_DIRECTION_FALLBACK_SOURCE
+                        : AssetTransactionConstants.BANK_DIRECTION_SOURCE,
                 BigDecimal.ONE,
                 fallback
-                        ? BANK_DIRECTION_FALLBACK_CLASSIFIER_VERSION
-                        : BANK_DIRECTION_CLASSIFIER_VERSION,
+                        ? AssetTransactionConstants.BANK_DIRECTION_FALLBACK_CLASSIFIER_VERSION
+                        : AssetTransactionConstants.BANK_DIRECTION_CLASSIFIER_VERSION,
                 false
         );
     }
@@ -464,7 +511,8 @@ public class BankTransactionCollectionService {
             LocalDate startDate,
             LocalDate endDate
     ) {
-        if (institution == null || !BANK_INSTITUTION_TYPE.equals(institution.getInstitutionType())) {
+        if (institution == null
+                || !AssetTransactionConstants.BANK_INSTITUTION_TYPE.equals(institution.getInstitutionType())) {
             throw new IllegalArgumentException("은행 기관만 거래내역을 수집할 수 있습니다.");
         }
         if (accountNumber == null || accountNumber.isBlank()) {
@@ -472,17 +520,6 @@ public class BankTransactionCollectionService {
         }
         if (startDate == null || endDate == null || startDate.isAfter(endDate)) {
             throw new IllegalArgumentException("은행 거래내역 조회 기간이 올바르지 않습니다.");
-        }
-    }
-
-    private void validateCodefResponse(CodefDto.Response response) {
-        if (response == null
-                || response.getResult() == null
-                || !ConnectionDto.CODEF_SUCCESS_CODE.equals(response.getResult().getCode())) {
-            String message = response != null && response.getResult() != null
-                    ? response.getResult().getMessage()
-                    : "응답이 없습니다.";
-            throw new IllegalStateException("은행 거래내역을 가져오지 못했습니다: " + message);
         }
     }
 
@@ -499,26 +536,11 @@ public class BankTransactionCollectionService {
     }
 
     private LocalDate parseDate(String value) {
-        try {
-            return LocalDate.parse(value, REQUEST_DATE_FORMATTER);
-        } catch (DateTimeException exception) {
-            throw new IllegalArgumentException("은행 거래일 형식이 올바르지 않습니다.", exception);
-        }
+        return CodefDateTime.parseDate(value, "Bank transaction date");
     }
 
     private LocalTime parseTime(String value) {
-        try {
-            return LocalTime.parse(value, RESPONSE_TIME_FORMATTER);
-        } catch (DateTimeException exception) {
-            throw new IllegalArgumentException("은행 거래시간 형식이 올바르지 않습니다.", exception);
-        }
-    }
-
-    private String required(String value, String fieldName) {
-        if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException(fieldName + " 값이 필요합니다.");
-        }
-        return value.trim();
+        return CodefDateTime.parseTime(value, "Bank transaction time");
     }
 
     private String defaultValue(String value, String fallback) {
@@ -554,9 +576,7 @@ public class BankTransactionCollectionService {
             String description,
             LocalDate transactionDate,
             LocalTime transactionTime,
-            String sourceOrganizationCode,
-            String transactionId,
-            String sourceDedupKey
+            TransactionSourceIdentity sourceIdentity
     ) {
     }
 

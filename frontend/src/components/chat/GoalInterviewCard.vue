@@ -90,15 +90,11 @@ const feasibilityClass = computed(() => {
         </div>
       </div>
 
-      <div v-if="isCompleted" class="alert alert-success mt-3 mb-0 py-2" role="status">
-        목표가 저장되었습니다.
-      </div>
-
-      <div v-else-if="isCancelled" class="alert alert-secondary mt-3 mb-0 py-2" role="status">
+      <div v-if="isCancelled" class="alert alert-secondary mt-3 mb-0 py-2" role="status">
         목표 설정을 취소했습니다.
       </div>
 
-      <template v-else>
+      <template v-if="!isCancelled">
         <dl class="goal-details row g-2 mb-0 mt-3">
           <div class="col-6">
             <dt>목표 금액</dt>
@@ -133,7 +129,7 @@ const feasibilityClass = computed(() => {
           <span class="fw-semibold">{{ missingFieldLabels.join(", ") }}</span>
         </div>
 
-        <div v-if="isReviewable" class="d-flex gap-2 mt-3">
+        <div v-if="isReviewable && !isCompleted" class="d-flex gap-2 mt-3">
           <button
             type="button"
             class="btn btn-primary flex-grow-1"

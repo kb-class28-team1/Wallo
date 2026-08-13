@@ -3,10 +3,13 @@ package com.wallo.external.client;
 import com.wallo.external.auth.CodefAuthorizedRequestFactory;
 import com.wallo.external.auth.CodefPasswordEncryptor;
 import com.wallo.external.auth.IdentityCodefPasswordEncryptor;
+import com.wallo.external.CodefConstants;
 import com.wallo.external.dto.CodefDto;
 import org.springframework.http.HttpMethod;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
+import java.util.Locale;
 
 /**
  * Common CODEF adapter used by the local Mock API and CODEF Sandbox/production.
@@ -15,9 +18,6 @@ public class CodefMockClient
         implements CodefClient, BankTransactionClient, CardApprovalClient, IncomeProofClient {
 
     private static final String DEFAULT_MOCK_PATH_PREFIX = "/mock/v1";
-    private static final String BANK = "BANK";
-    private static final String CARD = "CARD";
-    private static final String STOCK = "STOCK";
     private static final String BANK_TRANSACTION_PATH = "/kr/bank/p/account/transaction-list";
     private static final String CARD_APPROVAL_PATH = "/kr/card/p/approval-list";
     private static final String INCOME_PROOF_PATH = "/kr/public/mw/issuance/proof-income";
@@ -159,21 +159,38 @@ public class CodefMockClient
                     requestFactory.create(request),
                     CodefDto.Response.class
             ).getBody();
+        } catch (HttpStatusCodeException exception) {
+            return CodefDto.Response.failure(
+                    httpFailureCode(exception.getRawStatusCode()),
+                    failureMessage,
+                    exception.getStatusText()
+            );
         } catch (RestClientException exception) {
-            return CodefDto.Response.failure("CF-99999", failureMessage, exception.getMessage());
+            return CodefDto.Response.failure(
+                    CodefConstants.CLIENT_FAILURE_CODE,
+                    failureMessage,
+                    exception.getMessage()
+            );
         }
     }
 
+    private String httpFailureCode(int statusCode) {
+        if (statusCode == 408) {
+            return CodefConstants.CLIENT_FAILURE_CODE;
+        }
+        return String.format(Locale.ROOT, "CF-%03d00", statusCode);
+    }
+
     private String resolveAssetPath(String institutionType) {
-        if (BANK.equals(institutionType)) {
+        if (CodefConstants.BANK_INSTITUTION_TYPE.equals(institutionType)) {
             return "/kr/bank/p/account/account-list";
         }
 
-        if (CARD.equals(institutionType)) {
+        if (CodefConstants.CARD_INSTITUTION_TYPE.equals(institutionType)) {
             return "/kr/card/p/account/card-list";
         }
 
-        if (STOCK.equals(institutionType)) {
+        if (CodefConstants.STOCK_INSTITUTION_TYPE.equals(institutionType)) {
             return "/kr/stock/p/account/account-list";
         }
 

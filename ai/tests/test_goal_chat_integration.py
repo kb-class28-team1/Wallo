@@ -113,7 +113,8 @@ def test_active_confirmation_is_confirmed_without_another_llm_call():
     assert response.goal_interview.active is False
     assert response.goal_interview.draft.state == InterviewState.COMPLETED
     assert response.goal_interview.draft.confirmed is True
-    client.chat.completions.create.assert_not_called()
+    assert client.chat.completions.create.call_count == 1
+    assert "로드맵 생성에 실패" in response.answer
 
 
 def test_ui_confirmation_phrase_is_confirmed_without_another_llm_call():
@@ -128,7 +129,49 @@ def test_ui_confirmation_phrase_is_confirmed_without_another_llm_call():
     assert response.goal_interview.active is False
     assert response.goal_interview.draft.state == InterviewState.COMPLETED
     assert response.goal_interview.draft.confirmed is True
-    client.chat.completions.create.assert_not_called()
+    assert client.chat.completions.create.call_count == 1
+
+
+def test_confirmation_generates_and_saves_goal_roadmap():
+    client = Mock()
+    roadmap_arguments = {
+        "summary": "여행 목표 핵심 로드맵",
+        "strategy": "전용 계좌에 적립하고 핵심 시점마다 점검한다.",
+        "steps": [
+            {
+                "stepNumber": 1,
+                "title": "여행 계좌 만들기",
+                "description": "여행 자금을 분리한다.",
+                "targetDate": "2026-12-01",
+                "targetAmount": 4000000,
+                "monthlyContribution": 600000,
+                "actionItems": ["전용 계좌 선택"],
+            },
+            {
+                "stepNumber": 2,
+                "title": "여행 자금 완성",
+                "description": "최종 금액을 확인한다.",
+                "targetDate": "2027-06-01",
+                "targetAmount": 8000000,
+                "monthlyContribution": 600000,
+                "actionItems": ["최종 잔액 확인"],
+            },
+        ],
+    }
+    roadmap_call = SimpleNamespace(
+        function=SimpleNamespace(arguments=json.dumps(roadmap_arguments, ensure_ascii=False)),
+    )
+    client.chat.completions.create.return_value = completion(
+        SimpleNamespace(content=None, tool_calls=[roadmap_call]),
+    )
+
+    response = ChatService(client).chat(
+        ChatRequest(message="확정해줘", goal_draft=complete_draft()),
+    )
+
+    assert "AI 로드맵 2단계를 생성했습니다" in response.answer
+    assert response.goal_interview.roadmap is not None
+    assert len(response.goal_interview.roadmap.steps) == 2
 
 
 def test_confirmation_without_active_goal_does_not_start_an_empty_interview():

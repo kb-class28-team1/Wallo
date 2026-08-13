@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wallo.feed.mapper.PriceReferenceMapper">
+    <resultMap id="priceReferenceMap" type="com.wallo.feed.domain.PriceReferenceRow">
+        <id property="id" column="id"/>
+        <result property="normalizedItemName" column="normalized_item_name"/>
+        <result property="displayItemName" column="display_item_name"/>
+        <result property="brand" column="brand"/>
+        <result property="unit" column="unit"/>
+        <result property="category" column="category"/>
+        <result property="lowestPrice" column="lowest_price"/>
+        <result property="source" column="source"/>
+        <result property="sourceUrl" column="source_url"/>
+        <result property="observedAt" column="observed_at"/>
+        <result property="searchConfidence" column="search_confidence"/>
+    </resultMap>
+
+    <select id="findBestMatch" resultMap="priceReferenceMap">
+        SELECT id, normalized_item_name, display_item_name, brand, unit, category,
+               lowest_price, source, source_url, observed_at, search_confidence
+        FROM FEED_PRICE_REFERENCE
+        WHERE (category IS NULL OR category = #{category})
+          AND REPLACE(LOWER(unit), ' ', '') = #{normalizedUnit}
+          AND (
+              normalized_item_name = #{normalizedItemName}
+              OR normalized_item_name LIKE CONCAT('%', #{normalizedItemName}, '%')
+              OR #{normalizedItemName} LIKE CONCAT('%', normalized_item_name, '%')
+          )
+          AND (
+              brand = ''
+              OR #{normalizedBrand} = ''
+              OR REPLACE(LOWER(brand), ' ', '') = #{normalizedBrand}
+          )
+        ORDER BY
+            normalized_item_name = #{normalizedItemName} DESC,
+            REPLACE(LOWER(brand), ' ', '') = #{normalizedBrand} DESC,
+            search_confidence DESC,
+            updated_at DESC
+        LIMIT 1
+    </select>
+
+    <insert id="upsert" parameterType="com.wallo.feed.domain.PriceReferenceRow">
+        INSERT INTO FEED_PRICE_REFERENCE
+        (normalized_item_name, display_item_name, brand, unit, category,
+         lowest_price, source, source_url, observed_at, expires_at, search_confidence)
+        VALUES
+        (#{normalizedItemName}, #{displayItemName}, #{brand}, #{unit}, #{category},
+         #{lowestPrice}, #{source}, #{sourceUrl}, #{observedAt}, NULL, #{searchConfidence})
+        ON DUPLICATE KEY UPDATE
+            display_item_name = VALUES(display_item_name),
+            category = VALUES(category),
+            lowest_price = VALUES(lowest_price),
+            source = VALUES(source),
+            source_url = VALUES(source_url),
+            observed_at = VALUES(observed_at),
+            expires_at = NULL,
+            search_confidence = VALUES(search_confidence)
+    </insert>
+</mapper>

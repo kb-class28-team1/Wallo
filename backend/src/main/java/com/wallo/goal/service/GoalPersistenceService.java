@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wallo.goal.domain.FinancialGoal;
 import com.wallo.goal.domain.GoalInterviewSession;
+import com.wallo.goal.domain.GoalRoadmap;
 import com.wallo.goal.dto.GoalInterviewDto;
 import com.wallo.goal.mapper.GoalMapper;
 import java.time.LocalDate;
@@ -69,7 +70,7 @@ public class GoalPersistenceService {
                 return withFeasibility(result, feasibility);
             }
             case CONFIRM -> {
-                confirmGoal(userId, conversationId, result.getDraft(), feasibility);
+                confirmGoal(userId, conversationId, result, feasibility);
                 return withFeasibility(result, feasibility);
             }
             case CANCEL -> {
@@ -119,9 +120,10 @@ public class GoalPersistenceService {
     private void confirmGoal(
             Long userId,
             Long conversationId,
-            GoalInterviewDto.Draft draft,
+            GoalInterviewDto.Result result,
             GoalInterviewDto.Feasibility feasibility
     ) {
+        GoalInterviewDto.Draft draft = result.getDraft();
         validateConfirmedDraft(draft, feasibility);
         if (hasFinancialGoalForUser(userId)) {
             throw new IllegalArgumentException(EXISTING_GOAL_MESSAGE);
@@ -155,9 +157,28 @@ public class GoalPersistenceService {
             throw new IllegalArgumentException(EXISTING_GOAL_MESSAGE, exception);
         }
 
+        GoalRoadmap roadmap = new GoalRoadmap();
+        roadmap.setGoalId(goal.getGoalId());
+        roadmap.setUserId(userId);
+        roadmap.setGenerationStatus(result.getRoadmap() == null ? "FAILED" : "COMPLETED");
+        roadmap.setRoadmapJson(result.getRoadmap() == null
+                ? null : result.getRoadmap().toString());
+        roadmap.setFailureReason(result.getRoadmap() == null
+                ? defaultRoadmapError(result.getRoadmapError()) : null);
+        roadmap.setPromptVersion("goal-roadmap-v1");
+        if (goalMapper.insertGoalRoadmap(roadmap) != 1) {
+            throw new IllegalStateException("목표 로드맵을 저장하지 못했습니다.");
+        }
+
         if (goalMapper.completeSession(session.getSessionId(), COMPLETED) != 1) {
             throw new IllegalStateException("목표 인터뷰를 완료 처리하지 못했습니다.");
         }
+    }
+
+    private String defaultRoadmapError(String error) {
+        return error == null || error.isBlank()
+                ? "AI 로드맵 생성 결과가 없습니다."
+                : error.substring(0, Math.min(error.length(), 500));
     }
 
     private void finishSession(Long userId, Long conversationId, String status) {
@@ -213,7 +234,9 @@ public class GoalPersistenceService {
                 result.getAction(),
                 result.isActive(),
                 result.getDraft(),
-                feasibility
+                feasibility,
+                result.getRoadmap(),
+                result.getRoadmapError()
         );
     }
 }

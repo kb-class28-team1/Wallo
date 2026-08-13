@@ -1,6 +1,10 @@
 <script setup>
 import { computed, ref, watch } from "vue";
 import { formatWon } from "@/commonUtils/formatters";
+import {
+  getGoalAchievementRate,
+  getGoalCurrentAmount,
+} from "@/commonUtils/goalProgress";
 
 const props = defineProps({
   goals: {
@@ -15,37 +19,12 @@ const props = defineProps({
     type: String,
     default: null,
   },
-  availableAccounts: {
-    type: Array,
-    default: () => [],
-  },
-  accountLoading: {
-    type: Boolean,
-    default: false,
-  },
-  accountSaving: {
-    type: Boolean,
-    default: false,
-  },
-  accountError: {
-    type: String,
-    default: null,
-  },
 });
 
-const emit = defineEmits(["retry", "retry-accounts", "select-account"]);
+const emit = defineEmits(["retry"]);
 const selectedGoalIndex = ref(0);
-const selectedAccountId = ref(null);
 
 const selectedGoal = computed(() => props.goals[selectedGoalIndex.value] ?? null);
-const savedAccountId = computed(() => {
-  const selectedAccount = props.availableAccounts.find((account) => account.selected);
-  return selectedAccount?.accountId ?? null;
-});
-const accountSelectionChanged = computed(() => (
-  selectedAccountId.value !== null
-  && Number(selectedAccountId.value) !== Number(savedAccountId.value)
-));
 
 watch(
   () => props.goals.length,
@@ -59,15 +38,6 @@ watch(
       selectedGoalIndex.value = goalCount - 1;
     }
   },
-);
-
-watch(
-  () => props.availableAccounts,
-  (accounts) => {
-    const selectedAccount = accounts.find((account) => account.selected);
-    selectedAccountId.value = selectedAccount?.accountId ?? null;
-  },
-  { deep: true, immediate: true },
 );
 
 const showPreviousGoal = () => {
@@ -102,48 +72,6 @@ const formatGoalDate = (date) => {
   }).format(parsedDate);
 };
 
-const getCurrentAmount = (goal) => {
-  const currentAmount = Number(goal?.currentAmount);
-  if (Number.isFinite(currentAmount)) {
-    return currentAmount;
-  }
-
-  return Number(goal?.initialAmount) || 0;
-};
-
-const getAchievementRate = (goal) => {
-  const targetAmount = Number(goal?.targetAmount);
-  const serverRate = Number(goal?.achievementRate);
-
-  if (Number.isFinite(serverRate)) {
-    return Math.min(100, Math.max(0, Math.round(serverRate)));
-  }
-
-  if (!Number.isFinite(targetAmount) || targetAmount <= 0) {
-    return 0;
-  }
-
-  return Math.min(100, Math.max(0, Math.round((getCurrentAmount(goal) / targetAmount) * 100)));
-};
-
-const formatAccountBalance = (account) => {
-  if (!account?.currency || account.currency === "KRW") {
-    return formatWon(account?.balance);
-  }
-
-  return `${new Intl.NumberFormat("ko-KR").format(Number(account.balance) || 0)} ${account.currency}`;
-};
-
-const submitAccountSelection = () => {
-  if (!selectedGoal.value?.goalId || !accountSelectionChanged.value) {
-    return;
-  }
-
-  emit("select-account", {
-    goalId: selectedGoal.value.goalId,
-    accountId: selectedAccountId.value,
-  });
-};
 </script>
 
 <template>
@@ -156,8 +84,8 @@ const submitAccountSelection = () => {
           </h2>
         </div>
 
-        <RouterLink to="/ai-consulting" class="btn dashboard-action-button flex-shrink-0 ms-auto">
-          목표 설정
+        <RouterLink to="/chat" class="btn dashboard-action-button flex-shrink-0 ms-auto">
+          채팅에서 계좌 설정
           <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
         </RouterLink>
       </div>
@@ -190,22 +118,22 @@ const submitAccountSelection = () => {
             <p class="goal-progress-caption mb-1">목표 설정 당시 준비금 기준</p>
             <div class="d-flex align-items-baseline justify-content-between gap-3">
               <div class="goal-progress-amount">
-                <strong>{{ formatWon(getCurrentAmount(selectedGoal)) }}</strong>
+                <strong>{{ formatWon(getGoalCurrentAmount(selectedGoal)) }}</strong>
                 <span>/ {{ formatWon(selectedGoal.targetAmount) }}</span>
               </div>
-              <strong class="goal-progress-rate">{{ getAchievementRate(selectedGoal) }}%</strong>
+              <strong class="goal-progress-rate">{{ getGoalAchievementRate(selectedGoal) }}%</strong>
             </div>
             <div
               class="progress goal-progress mt-2"
               role="progressbar"
               :aria-label="`${selectedGoal.title || '금융 목표'} 달성률`"
-              :aria-valuenow="getAchievementRate(selectedGoal)"
+              :aria-valuenow="getGoalAchievementRate(selectedGoal)"
               aria-valuemin="0"
               aria-valuemax="100"
             >
               <div
                 class="progress-bar goal-progress-bar"
-                :style="{ width: `${getAchievementRate(selectedGoal)}%` }"
+                :style="{ width: `${getGoalAchievementRate(selectedGoal)}%` }"
               ></div>
             </div>
           </div>
@@ -224,94 +152,6 @@ const submitAccountSelection = () => {
               <dd>{{ formatWon(selectedGoal.requiredMonthlyAmount) }}</dd>
             </div>
           </dl>
-
-          <section class="goal-account-selection" aria-labelledby="goal-account-selection-title">
-            <div class="goal-account-heading d-flex align-items-start justify-content-between gap-3">
-              <div>
-                <h3 id="goal-account-selection-title" class="h6 fw-bold mb-1">
-                  목표에 사용할 계좌
-                </h3>
-                <p class="small text-secondary mb-0">
-                  연결된 계좌 중 하나를 선택해 주세요.
-                </p>
-              </div>
-              <span v-if="availableAccounts.length > 0" class="small text-secondary text-nowrap">
-                {{ availableAccounts.length }}개 사용 가능
-              </span>
-            </div>
-
-            <div v-if="accountLoading" class="goal-account-state text-secondary" role="status">
-              <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
-              사용 가능한 계좌를 불러오는 중입니다.
-            </div>
-
-            <div v-else class="mt-3">
-              <div v-if="accountError" class="alert alert-danger py-2" role="alert">
-                <div class="d-flex align-items-center justify-content-between gap-3">
-                  <span>{{ accountError }}</span>
-                  <button
-                    type="button"
-                    class="btn btn-sm btn-outline-danger text-nowrap"
-                    @click="emit('retry-accounts')"
-                  >
-                    다시 시도
-                  </button>
-                </div>
-              </div>
-
-              <div v-if="availableAccounts.length === 0" class="goal-account-empty text-secondary">
-                <p class="mb-1 fw-semibold text-dark">사용 가능한 계좌가 없습니다.</p>
-                <p class="small mb-0">입출금·예금·적금·CMA 계좌를 연결해 주세요.</p>
-              </div>
-
-              <div v-else>
-                <div class="goal-account-list" role="radiogroup" aria-label="목표에 사용할 계좌 선택">
-                  <label
-                    v-for="account in availableAccounts"
-                    :key="account.accountId"
-                    class="goal-account-option"
-                    :class="{ 'goal-account-option-selected': Number(selectedAccountId) === Number(account.accountId) }"
-                  >
-                    <input
-                      v-model="selectedAccountId"
-                      class="form-check-input mt-1"
-                      type="radio"
-                      :name="`goal-account-${selectedGoal.goalId}`"
-                      :value="account.accountId"
-                    />
-                    <span class="goal-account-content">
-                      <span class="d-flex align-items-center justify-content-between gap-3">
-                        <span class="min-w-0">
-                          <strong class="d-block text-truncate">{{ account.bankName }}</strong>
-                          <span class="small text-secondary d-block text-truncate">
-                            {{ account.accountName }} · {{ account.displayNumber }}
-                          </span>
-                        </span>
-                        <span class="text-end text-nowrap">
-                          <span class="goal-account-type d-block">{{ account.accountType }}</span>
-                          <strong class="d-block">{{ formatAccountBalance(account) }}</strong>
-                        </span>
-                      </span>
-                    </span>
-                  </label>
-                </div>
-
-                <button
-                  type="button"
-                  class="btn btn-primary w-100 mt-3"
-                  :disabled="!accountSelectionChanged || accountSaving"
-                  @click="submitAccountSelection"
-                >
-                  <span
-                    v-if="accountSaving"
-                    class="spinner-border spinner-border-sm me-2"
-                    aria-hidden="true"
-                  ></span>
-                  {{ accountSaving ? "계좌 저장 중..." : "이 계좌를 목표 계좌로 선택" }}
-                </button>
-              </div>
-            </div>
-          </section>
 
           <div v-if="goals.length > 1" class="goal-carousel-footer">
             <div class="goal-carousel-controls" aria-label="목표 선택">
@@ -499,64 +339,6 @@ const submitAccountSelection = () => {
 .goal-progress-bar {
   border-radius: inherit;
   background: linear-gradient(90deg, #5d52f4, #766bff);
-}
-
-.goal-account-selection {
-  margin-top: 2rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid #eef0f5;
-}
-
-.goal-account-heading {
-  min-width: 0;
-}
-
-.goal-account-state,
-.goal-account-empty {
-  padding: 1rem;
-  border-radius: 14px;
-  background: #f8f9fc;
-  text-align: center;
-}
-
-.goal-account-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
-}
-
-.goal-account-option {
-  display: flex;
-  gap: 0.75rem;
-  margin: 0;
-  padding: 0.85rem 1rem;
-  border: 1px solid #e4e8f0;
-  border-radius: 14px;
-  background: #ffffff;
-  cursor: pointer;
-  transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.goal-account-option:hover {
-  border-color: #aaa4ee;
-  background: #fafaff;
-}
-
-.goal-account-option-selected {
-  border-color: #6559e8;
-  background: #f7f6ff;
-  box-shadow: 0 0 0 2px rgb(101 89 232 / 10%);
-}
-
-.goal-account-content {
-  min-width: 0;
-  flex: 1;
-}
-
-.goal-account-type {
-  color: #6559e8;
-  font-size: 0.75rem;
-  font-weight: 700;
 }
 
 @media (max-width: 575.98px) {

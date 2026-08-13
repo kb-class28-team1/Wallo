@@ -1,13 +1,29 @@
 <script setup>
-import { computed, onMounted, ref } from "vue";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { storeToRefs } from "pinia";
+import { useRoute, useRouter } from "vue-router";
 import ExpenseCalendar from "@/components/asset/ExpenseCalendar.vue";
+import CategoryBudgetEditor from "@/components/asset/CategoryBudgetEditor.vue";
 import ExpenseCategoryBreakdown from "@/components/asset/ExpenseCategoryBreakdown.vue";
 import ExpenseTransactionList from "@/components/asset/ExpenseTransactionList.vue";
 import { getExpenses } from "@/api/assetApi";
 import { getApiErrorMessage } from "@/commonUtils/apiError";
 import { formatWon } from "@/commonUtils/formatters";
+import { useAssetStore } from "@/stores/assetStore";
+import { useBudgetStore } from "@/stores/budgetStore";
 
 const PAGE_SIZE = 20;
+const assetStore = useAssetStore();
+const budgetStore = useBudgetStore();
+const route = useRoute();
+const router = useRouter();
+const { isSyncing, syncError } = storeToRefs(assetStore);
+const {
+  categorySummary: budgetSummary,
+  error: budgetError,
+  isLoading: isBudgetLoading,
+  isSaving: isBudgetSaving,
+} = storeToRefs(budgetStore);
 
 const createEmptyExpenseData = () => ({
   totalExpense: 0,
@@ -39,6 +55,8 @@ const isDailyLoading = ref(false);
 const isDailyLoadingMore = ref(false);
 const dailyError = ref("");
 const dailyLoadMoreError = ref("");
+const syncStatus = ref(null);
+const isBudgetEditorVisible = ref(false);
 let requestVersion = 0;
 let dailyRequestVersion = 0;
 
@@ -56,6 +74,56 @@ const dateRange = computed(() => {
     endDate: formatDate(new Date(year, month + 1, 0)),
   };
 });
+
+const targetMonth = computed(() => {
+  const year = selectedMonth.value.getFullYear();
+  const month = String(selectedMonth.value.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+});
+
+const isCurrentMonth = computed(() => {
+  const today = new Date();
+  return targetMonth.value === `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+});
+
+const canEditBudget = computed(() => (
+  isCurrentMonth.value && !isBudgetLoading.value && !budgetError.value
+));
+
+const openBudgetEditor = async () => {
+  if (!canEditBudget.value) {
+    alert("예산은 현재 월에서만 수정할 수 있습니다.");
+    return;
+  }
+
+  isBudgetEditorVisible.value = true;
+  if (route.query.budget !== "edit") {
+    await router.replace({
+      query: {
+        ...route.query,
+        budget: "edit",
+      },
+    });
+  }
+};
+
+const closeBudgetEditor = async () => {
+  isBudgetEditorVisible.value = false;
+  if (route.query.budget === "edit") {
+    const query = { ...route.query };
+    delete query.budget;
+    await router.replace({ query });
+  }
+};
+
+const saveBudget = async (request) => {
+  try {
+    await budgetStore.saveCategoryBudgets(request);
+    await closeBudgetEditor();
+  } catch {
+    // The store handles the user-facing API error message.
+  }
+};
 
 const hasAnyData = computed(() =>
   Number(expenseData.value.totalExpense) > 0 ||
@@ -154,7 +222,48 @@ const loadSelectedMonth = async () => {
   isLoadingMore.value = false;
   loadMoreError.value = "";
   expenseData.value = createEmptyExpenseData();
-  await fetchExpensePage(0);
+  await Promise.all([
+    fetchExpensePage(0),
+    budgetStore.fetchCategoryBudgets(targetMonth.value, { notifyError: false }).catch(() => null),
+  ]);
+};
+
+const syncCurrentMonth = async () => {
+  if (isSyncing.value) return;
+
+  syncStatus.value = null;
+  closeDailyModal();
+
+  try {
+    const result = await assetStore.syncAssets();
+    if (!result) return;
+
+    await loadSelectedMonth();
+    if (error.value) {
+      syncStatus.value = {
+        type: "warning",
+        message: "동기화는 완료되었지만 현재 월 거래내역을 다시 불러오지 못했습니다.",
+      };
+      return;
+    }
+
+    const failedConnections = Number(result.failedConnections) || 0;
+    const summary = `신규 ${Number(result.inserted) || 0}건, 수정 ${Number(result.updated) || 0}건`;
+    syncStatus.value = failedConnections > 0
+      ? {
+          type: "warning",
+          message: `동기화가 완료되었습니다. ${summary}, 실패한 연결기관 ${failedConnections}건`,
+        }
+      : {
+          type: "success",
+          message: `동기화가 완료되었습니다. ${summary}`,
+        };
+  } catch {
+    syncStatus.value = {
+      type: "danger",
+      message: syncError.value || "자산 거래내역 동기화에 실패했습니다.",
+    };
+  }
 };
 
 const closeDailyModal = () => {
@@ -252,7 +361,20 @@ const loadMore = async () => {
   await fetchExpensePage(expenseData.value.pagination.currentPage + 1, true);
 };
 
-onMounted(loadSelectedMonth);
+watch(
+  () => route.query.budget,
+  (budgetQuery) => {
+    isBudgetEditorVisible.value = budgetQuery === "edit" && canEditBudget.value;
+  },
+);
+
+onMounted(async () => {
+  await loadSelectedMonth();
+  if (route.query.budget === "edit") {
+    await nextTick();
+    isBudgetEditorVisible.value = canEditBudget.value;
+  }
+});
 </script>
 
 <template>
@@ -268,7 +390,29 @@ onMounted(loadSelectedMonth);
         </div>
       </div>
 
+      <button
+        type="button"
+        class="btn btn-primary expense-sync-button"
+        :disabled="isSyncing || isLoading || isDailyLoading"
+        @click="syncCurrentMonth"
+      >
+        <span
+          v-if="isSyncing"
+          class="spinner-border spinner-border-sm me-2"
+          aria-hidden="true"
+        ></span>
+        {{ isSyncing ? "동기화 중..." : "거래내역 새로고침" }}
+      </button>
     </header>
+
+    <div
+      v-if="syncStatus"
+      class="alert"
+      :class="`alert-${syncStatus.type}`"
+      role="status"
+    >
+      {{ syncStatus.message }}
+    </div>
 
     <div v-if="isLoading" class="page-state card border-0 shadow-sm" aria-live="polite">
       <div class="spinner-border text-primary" role="status">
@@ -363,8 +507,22 @@ onMounted(loadSelectedMonth);
       <ExpenseCategoryBreakdown
         :breakdown="expenseData.expenseCategoryBreakdown"
         :total-expense="expenseData.totalExpense"
+        :budget-summary="budgetSummary"
+        :budget-loading="isBudgetLoading"
+        :budget-error="budgetError"
+        :can-edit-budget="canEditBudget"
+        @edit-budget="openBudgetEditor"
       />
     </template>
+
+    <CategoryBudgetEditor
+      :visible="isBudgetEditorVisible"
+      :budget-summary="budgetSummary"
+      :target-month="targetMonth"
+      :is-saving="isBudgetSaving"
+      @close="closeBudgetEditor"
+      @save="saveBudget"
+    />
 
     <div
       v-if="isDailyModalVisible"
@@ -428,6 +586,10 @@ onMounted(loadSelectedMonth);
 <style scoped>
 .expense-history-view {
   width: 100%;
+}
+
+.expense-sync-button {
+  min-width: 172px;
 }
 
 .back-button,

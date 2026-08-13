@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wallo.asset.dto.ConnectionDto;
 import com.wallo.asset.mapper.AnnualSalaryMapper;
+import com.wallo.external.auth.MockCodefCredentialProvider;
 import com.wallo.external.client.IncomeProofClient;
 import com.wallo.external.dto.CodefDto;
 import java.time.Clock;
@@ -33,6 +34,7 @@ class AnnualSalarySyncServiceTest {
         annualSalaryMapper = mock(AnnualSalaryMapper.class);
         service = new AnnualSalarySyncService(
                 incomeProofClient,
+                new MockCodefCredentialProvider("1", "mock_id", "mock_pw"),
                 annualSalaryMapper,
                 new ObjectMapper(),
                 Clock.fixed(
@@ -65,6 +67,9 @@ class AnnualSalarySyncServiceTest {
                 ArgumentCaptor.forClass(CodefDto.IncomeProofRequest.class);
         verify(incomeProofClient).getIncomeProof(requestCaptor.capture());
         assertEquals("0001", requestCaptor.getValue().getOrganization());
+        assertEquals("1", requestCaptor.getValue().getLoginType());
+        assertEquals("mock_id", requestCaptor.getValue().getId());
+        assertEquals("mock_pw", requestCaptor.getValue().getPassword());
         assertEquals("2025", requestCaptor.getValue().getSearchStartYear());
         assertEquals("2025", requestCaptor.getValue().getSearchEndYear());
         verify(annualSalaryMapper).updateAnnualSalary(7L, 60_000_000L);

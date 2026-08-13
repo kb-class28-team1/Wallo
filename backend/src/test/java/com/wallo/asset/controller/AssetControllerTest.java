@@ -7,14 +7,19 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.wallo.asset.dto.AssetDto;
+import com.wallo.asset.dto.AssetSyncDto;
 import com.wallo.asset.dto.ExpenseDto;
 import com.wallo.asset.service.AssetService;
+import com.wallo.asset.service.AssetSyncOrchestrator;
 import com.wallo.asset.service.ExpenseService;
 import com.wallo.auth.CurrentUserProvider;
 import java.util.Collections;
+import java.time.LocalDateTime;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -25,13 +30,19 @@ class AssetControllerTest {
 
     private final AssetService assetService = mock(AssetService.class);
     private final ExpenseService expenseService = mock(ExpenseService.class);
+    private final AssetSyncOrchestrator assetSyncOrchestrator = mock(AssetSyncOrchestrator.class);
     private final CurrentUserProvider currentUserProvider = mock(CurrentUserProvider.class);
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders.standaloneSetup(
-                new AssetController(assetService, expenseService, currentUserProvider)
+                new AssetController(
+                        assetService,
+                        expenseService,
+                        assetSyncOrchestrator,
+                        currentUserProvider
+                )
         ).build();
         when(currentUserProvider.getCurrentUserId()).thenReturn(7L);
     }
@@ -108,5 +119,47 @@ class AssetControllerTest {
                         .param("endDate", "2026-07-31")
                         .param("page", "0"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void syncAssetsUsesCurrentUserAndReturnsSyncSummary() throws Exception {
+        when(assetSyncOrchestrator.syncNow(7L)).thenReturn(
+                new AssetSyncDto.SyncResponse(
+                        LocalDateTime.of(2026, 8, 11, 15, 30),
+                        3,
+                        42,
+                        0
+                )
+        );
+
+        mockMvc.perform(post("/api/assets/sync"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.inserted").value(3))
+                .andExpect(jsonPath("$.data.updated").value(42))
+                .andExpect(jsonPath("$.data.failedConnections").value(0));
+
+        verify(assetSyncOrchestrator).syncNow(7L);
+    }
+
+    @Test
+    void syncAssetsReturnsFailedConnectionCountFromOrchestrator() throws Exception {
+        when(assetSyncOrchestrator.syncNow(7L)).thenReturn(
+                new AssetSyncDto.SyncResponse(
+                        LocalDateTime.of(2026, 8, 11, 15, 30),
+                        0,
+                        12,
+                        1
+                )
+        );
+
+        mockMvc.perform(post("/api/assets/sync"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.inserted").value(0))
+                .andExpect(jsonPath("$.data.updated").value(12))
+                .andExpect(jsonPath("$.data.failedConnections").value(1));
+
+        verify(assetSyncOrchestrator).syncNow(7L);
     }
 }

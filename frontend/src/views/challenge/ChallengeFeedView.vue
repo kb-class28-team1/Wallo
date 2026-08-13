@@ -63,17 +63,25 @@ const form = reactive({
   file: null,
   category: "",
   caption: "",
+  aiEstimatedSavingAmount: 0,
   savingAmount: 0,
-  aiEstimatedAmount: null,
+  savingAmountFeedback: "",
+  verifiedSavingAmount: null,
   analysisSummary: "",
   confidenceScore: 0,
-  analysisStatus: "NOT_STARTED",
+  analysisDetails: "",
+  analysisFailed: false,
 })
 
 const spendingTypes = [
   { value: "SPENT", label: "💸 썼다" },
   { value: "REDUCED", label: "✂️ 줄였다" },
   { value: "SAVED", label: "🐷 모았다" },
+]
+const savingFeedbackOptions = [
+  { value: "SAME", label: "같아요" },
+  { value: "DIFFERENT", label: "달라요" },
+  { value: "UNKNOWN", label: "몰라요" },
 ]
 const categories = FEED_CATEGORY_CODES.map((value) => ({
   value,
@@ -287,11 +295,14 @@ const closeModal = () => {
     file: null,
     category: "",
     caption: "",
+    aiEstimatedSavingAmount: 0,
     savingAmount: 0,
-    aiEstimatedAmount: null,
+    savingAmountFeedback: "",
+    verifiedSavingAmount: null,
     analysisSummary: "",
     confidenceScore: 0,
-    analysisStatus: "NOT_STARTED",
+    analysisDetails: "",
+    analysisFailed: false,
   })
   if (fileInput.value) fileInput.value.value = ""
 }
@@ -355,7 +366,24 @@ const handleFile = async (event) => {
   if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
   form.file = file
   previewUrl.value = URL.createObjectURL(file)
-  resetAnalysis()
+  form.aiEstimatedSavingAmount = 0
+  form.savingAmount = 0
+  form.savingAmountFeedback = ""
+  form.verifiedSavingAmount = null
+  form.analysisSummary = ""
+  form.analysisDetails = ""
+  form.analysisFailed = false
+}
+const selectCategory = (category) => {
+  form.category = category
+  form.aiEstimatedSavingAmount = 0
+  form.savingAmount = 0
+  form.savingAmountFeedback = ""
+  form.verifiedSavingAmount = null
+  form.analysisSummary = ""
+  form.confidenceScore = 0
+  form.analysisDetails = ""
+  form.analysisFailed = false
 }
 const validationMessage = ({ requireCaption = false } = {}) => {
   if (!form.file) return "사진이나 영상을 선택해 주세요."
@@ -380,41 +408,101 @@ const requestAnalysis = async () => {
   isAnalyzing.value = true
   try {
     const result = await analyzeFeed(challengeId.value, makeFormData())
-    form.aiEstimatedAmount = Number.isFinite(result.estimatedSavingAmount)
-      ? result.estimatedSavingAmount : null
-    form.savingAmount = form.aiEstimatedAmount ?? 0
+    form.analysisFailed = false
+    form.aiEstimatedSavingAmount = Number(result.estimatedSavingAmount) || 0
+    form.savingAmount = form.aiEstimatedSavingAmount
+    form.savingAmountFeedback = ""
+    form.verifiedSavingAmount = null
     form.analysisSummary = result.summary
     form.confidenceScore = result.confidenceScore
-    form.analysisStatus = "AI_COMPLETED"
+    form.analysisDetails = JSON.stringify(result)
   } catch (error) {
-    form.aiEstimatedAmount = null
-    form.savingAmount = 0
+    form.analysisFailed = true
+    form.aiEstimatedSavingAmount = 0
+    form.savingAmount = null
+    form.savingAmountFeedback = "UNKNOWN"
+    form.verifiedSavingAmount = null
+    form.analysisSummary = "AI 분석에 실패해 사용자가 절약 금액을 직접 입력했습니다."
     form.confidenceScore = 0
-    form.analysisStatus = "AI_FAILED"
-    form.analysisSummary = "AI 분석에 실패했습니다. 절약 금액을 직접 입력해 주세요."
-    await openDialog({ message: `${error.message}\nAI 분석 없이 금액을 직접 입력할 수 있습니다.` })
+    form.analysisDetails = ""
+    await openDialog({
+      message: `${error.message}\n절약 금액을 직접 입력하면 피드는 계속 올릴 수 있어요.`,
+    })
   } finally {
     isAnalyzing.value = false
   }
 }
+const selectSavingAmountFeedback = (feedbackType) => {
+  form.savingAmountFeedback = feedbackType
+  if (feedbackType === "SAME") {
+    form.verifiedSavingAmount = form.aiEstimatedSavingAmount
+    form.savingAmount = form.aiEstimatedSavingAmount
+    return
+  }
+  if (feedbackType === "UNKNOWN") {
+    form.verifiedSavingAmount = null
+    form.savingAmount = form.aiEstimatedSavingAmount
+    return
+  }
+  form.verifiedSavingAmount = null
+}
+const updateVerifiedSavingAmount = () => {
+  if (form.savingAmountFeedback === "DIFFERENT") {
+    form.savingAmount = Math.max(0, Number(form.verifiedSavingAmount) || 0)
+  }
+}
+const savingAmountFeedbackError = () => {
+  if (!form.savingAmountFeedback) return "AI 금액과 실제 절약 금액을 확인해 주세요."
+  if (
+    form.savingAmountFeedback === "DIFFERENT" &&
+    (form.verifiedSavingAmount === null ||
+      form.verifiedSavingAmount === "" ||
+      Number(form.verifiedSavingAmount) < 0)
+  ) {
+    return "실제 절약 금액을 입력해 주세요."
+  }
+  return ""
+}
 const uploadFeed = async () => {
   const invalid = validationMessage({ requireCaption: true })
   if (invalid) return openDialog({ message: invalid })
+  if (!form.analysisSummary) return openDialog({ message: "먼저 AI 분석을 진행해 주세요." })
+  if (
+    form.analysisFailed &&
+    (form.savingAmount === null || form.savingAmount === "" || Number(form.savingAmount) < 0)
+  ) {
+    return openDialog({ message: "절약 금액을 직접 입력해 주세요." })
+  }
+  if (!form.analysisFailed) {
+    const feedbackError = savingAmountFeedbackError()
+    if (feedbackError) return openDialog({ message: feedbackError })
+  }
   isUploading.value = true
   try {
     const data = makeFormData()
     data.append("caption", form.caption)
-    data.append("savingAmount", String(form.savingAmount))
+    data.append("savingAmount", String(Math.max(0, Number(form.savingAmount) || 0)))
+    data.append("aiEstimatedSavingAmount", String(form.aiEstimatedSavingAmount))
+    data.append("savingAmountFeedback", form.savingAmountFeedback)
+    if (form.verifiedSavingAmount !== null && form.verifiedSavingAmount !== "") {
+      data.append("verifiedSavingAmount", String(form.verifiedSavingAmount))
+    }
     data.append("analysisSummary", form.analysisSummary)
     data.append("confidenceScore", String(form.confidenceScore))
     if (form.aiEstimatedAmount !== null) {
       data.append("aiEstimatedAmount", String(form.aiEstimatedAmount))
     }
-    const feedbackType = form.analysisStatus === "AI_COMPLETED"
-      ? form.savingAmount === form.aiEstimatedAmount ? "ACCEPTED" : "ADJUSTED"
-      : "MANUAL"
+    const feedbackType =
+      form.analysisStatus === "AI_COMPLETED"
+        ? form.savingAmount === form.aiEstimatedAmount
+          ? "ACCEPTED"
+          : "ADJUSTED"
+        : "MANUAL"
     data.append("feedbackType", feedbackType)
-    data.append("analysisStatus", form.analysisStatus === "AI_FAILED" ? "AI_FAILED" : "AI_COMPLETED")
+    data.append(
+      "analysisStatus",
+      form.analysisStatus === "AI_FAILED" ? "AI_FAILED" : "AI_COMPLETED",
+    )
     await createFeed(challengeId.value, data)
     closeModal()
     await Promise.all([loadFeeds(), loadMessages({ forceScroll: true })])
@@ -614,9 +702,11 @@ onBeforeUnmount(() => {
                 </div>
               </div>
               <span>
-                {{ feed.analysisStatus === "AI_FAILED" || feed.analysisStatus === "MANUAL"
-                  ? "✍️ 사용자 입력 금액"
-                  : "🤖 AI 분석 · 사용자 확인 금액" }}
+                {{
+                  feed.analysisStatus === "AI_FAILED" || feed.analysisStatus === "MANUAL"
+                    ? "✍️ 사용자 입력 금액"
+                    : "🤖 AI 분석 · 사용자 확인 금액"
+                }}
                 {{ formatWon(feed.savingAmount) }}
               </span>
             </footer>
@@ -739,7 +829,7 @@ onBeforeUnmount(() => {
               :key="item.value"
               type="button"
               :class="{ selected: form.category === item.value }"
-              @click="form.category = item.value; resetAnalysis()"
+              @click="selectCategory(item.value)"
             >
               <i :class="['bi', item.icon]" aria-hidden="true"></i>
               {{ item.label }}
@@ -754,16 +844,60 @@ onBeforeUnmount(() => {
               {{ isAnalyzing ? "분석 중..." : "✨ AI에게 분석 맡기기" }}
             </button>
           </div>
-          <div class="result-box" :class="{ ready: canConfirmSavingAmount }">
-            <span>{{ analysisTitle }}</span
+          <div class="result-box" :class="{ ready: form.analysisSummary }">
+            <span>{{ form.analysisFailed ? "✍️ 직접 입력 금액" : "🤖 AI 추정 금액" }}</span
             ><small>{{ form.analysisSummary || "분석하면 예상 절약 금액을 알려드려요." }}</small>
             <div>
               <input
+                v-if="form.analysisFailed"
                 v-model.number="form.savingAmount"
                 type="number"
                 min="0"
-                :disabled="!canConfirmSavingAmount"
+                placeholder="절약한 금액을 입력하세요"
+              />
+              <input
+                v-else
+                :value="form.aiEstimatedSavingAmount"
+                type="number"
+                min="0"
+                readonly
+                :disabled="!form.analysisSummary"
               /><b>원</b>
+            </div>
+            <div
+              v-if="form.analysisSummary && !form.analysisFailed"
+              class="saving-feedback-section"
+            >
+              <strong>실제 금액과 같나요?</strong>
+              <div class="saving-feedback-buttons">
+                <button
+                  v-for="option in savingFeedbackOptions"
+                  :key="option.value"
+                  type="button"
+                  :class="{ selected: form.savingAmountFeedback === option.value }"
+                  @click="selectSavingAmountFeedback(option.value)"
+                >
+                  {{ option.label }}
+                </button>
+              </div>
+              <div v-if="form.savingAmountFeedback === 'DIFFERENT'" class="verified-amount-row">
+                <label for="verified-saving-amount">실제 절약 금액</label>
+                <div>
+                  <input
+                    id="verified-saving-amount"
+                    v-model.number="form.verifiedSavingAmount"
+                    type="number"
+                    min="0"
+                    @input="updateVerifiedSavingAmount"
+                  /><b>원</b>
+                </div>
+              </div>
+              <small v-if="form.savingAmountFeedback === 'UNKNOWN'" class="feedback-help">
+                AI 추정 금액을 그대로 저장하지만 보정 학습에는 사용하지 않아요.
+              </small>
+              <small v-else-if="form.savingAmountFeedback === 'DIFFERENT'" class="feedback-help">
+                입력한 실제 금액이 피드에 저장되고 다음 분석의 보정 자료로 사용돼요.
+              </small>
             </div>
           </div>
           <label class="section-label" for="feed-caption">한줄요약 (필수)</label>
@@ -1474,6 +1608,62 @@ textarea {
   border: 1px solid #dedfeb;
   border-radius: 12px;
 }
+.result-box > div.saving-feedback-section {
+  display: grid;
+  align-items: stretch;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #dfe8e3;
+}
+.saving-feedback-section > strong {
+  font-size: 0.9rem;
+}
+.saving-feedback-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  width: 100%;
+}
+.saving-feedback-buttons button {
+  min-width: 0;
+  min-height: 40px;
+  padding: 9px 6px;
+  color: #61677a;
+  background: #fff;
+  border: 1px solid #d9dce8;
+  border-radius: 11px;
+  font-size: 0.86rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+.saving-feedback-buttons button.selected {
+  color: #287b5b;
+  background: #e4faef;
+  border-color: #54bd8d;
+}
+.verified-amount-row {
+  display: grid;
+  gap: 7px;
+  width: 100%;
+}
+.verified-amount-row label {
+  color: #626a7e;
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+.verified-amount-row > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.verified-amount-row input {
+  flex: 1;
+}
+.feedback-help {
+  color: #6e768a;
+  line-height: 1.45;
+}
 .result-box.ready {
   background: #f0fff7;
 }
@@ -1514,7 +1704,8 @@ textarea {
   border: 0;
 }
 .submit:disabled,
-.analysis-box button:disabled {
+.analysis-box button:disabled,
+.saving-feedback-buttons button:disabled {
   opacity: 0.55;
 }
 @keyframes focus-pulse {

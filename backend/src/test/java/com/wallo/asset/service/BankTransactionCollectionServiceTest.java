@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -14,6 +15,10 @@ import com.wallo.asset.classification.ExpenseCategoryClassifier;
 import com.wallo.asset.domain.Institution;
 import com.wallo.asset.dto.AssetSyncDto;
 import com.wallo.asset.mapper.AssetSyncMapper;
+import com.wallo.external.CodefConstants;
+import com.wallo.external.CodefRetryExecutor;
+import com.wallo.external.CodefSyncException;
+import com.wallo.external.auth.MockCodefCredentialProvider;
 import com.wallo.external.client.BankTransactionClient;
 import com.wallo.external.dto.CodefDto;
 import java.time.Clock;
@@ -43,6 +48,8 @@ class BankTransactionCollectionServiceTest {
         );
         service = new BankTransactionCollectionService(
                 bankTransactionClient,
+                new MockCodefCredentialProvider("1", "mock_id", "mock_pw"),
+                new CodefRetryExecutor(2, 0, 0, 6500),
                 new ObjectMapper(),
                 categoryClassifier,
                 new TransactionSourceKeyGenerator(),
@@ -91,6 +98,9 @@ class BankTransactionCollectionServiceTest {
         ArgumentCaptor<CodefDto.BankTransactionRequest> requestCaptor =
                 ArgumentCaptor.forClass(CodefDto.BankTransactionRequest.class);
         verify(bankTransactionClient).getTransactions(requestCaptor.capture());
+        assertEquals("1", requestCaptor.getValue().getLoginType());
+        assertEquals("mock_id", requestCaptor.getValue().getId());
+        assertEquals("mock_pw", requestCaptor.getValue().getPassword());
         assertEquals("123456-01-789012", requestCaptor.getValue().getAccount());
         assertEquals("20260701", requestCaptor.getValue().getStartDate());
         assertEquals("20260731", requestCaptor.getValue().getEndDate());
@@ -112,6 +122,56 @@ class BankTransactionCollectionServiceTest {
         assertNull(savedTransactions.get(1).getApprovalNo());
         assertEquals(64, savedTransactions.get(1).getSourceDedupKey().length());
         verify(categoryClassifier, never()).classify(any());
+    }
+
+    @Test
+    void collectWithStatsCountsNewBankTransactionAsInserted() {
+        when(bankTransactionClient.getTransactions(any())).thenReturn(CodefDto.Response.success(List.of(
+                transaction("BANK-NEW-1", "3000000", "0", "income", "INCOME")
+        )));
+        when(assetSyncMapper.findExistingTransactionId(
+                eq(7L),
+                eq("BANK_TRANSACTION"),
+                eq("0004"),
+                any()
+        )).thenReturn((Long) null);
+
+        AssetSyncDto.SyncStats stats = service.collectWithStats(
+                7L,
+                31L,
+                "123456-01-789012",
+                institution,
+                LocalDate.of(2026, 8, 1),
+                LocalDate.of(2026, 8, 3)
+        );
+
+        assertEquals(1, stats.getInserted());
+        assertEquals(0, stats.getUpdated());
+    }
+
+    @Test
+    void collectWithStatsCountsExistingBankTransactionAsUpdated() {
+        when(bankTransactionClient.getTransactions(any())).thenReturn(CodefDto.Response.success(List.of(
+                transaction("BANK-EXISTING-1", "3000000", "0", "income", "INCOME")
+        )));
+        when(assetSyncMapper.findExistingTransactionId(
+                eq(7L),
+                eq("BANK_TRANSACTION"),
+                eq("0004"),
+                any()
+        )).thenReturn(99L);
+
+        AssetSyncDto.SyncStats stats = service.collectWithStats(
+                7L,
+                31L,
+                "123456-01-789012",
+                institution,
+                LocalDate.of(2026, 8, 1),
+                LocalDate.of(2026, 8, 3)
+        );
+
+        assertEquals(0, stats.getInserted());
+        assertEquals(1, stats.getUpdated());
     }
 
     @Test
@@ -172,6 +232,71 @@ class BankTransactionCollectionServiceTest {
         assertEquals("BANK_DIRECTION_FALLBACK", savedTransaction.getCategorySource());
         assertEquals("bank-direction-fallback-v1", savedTransaction.getClassifierVersion());
         verify(categoryClassifier, never()).classify(any());
+    }
+
+    @Test
+    void acceptsEquivalentAccountFormattingFromCodefResponse() {
+        CodefDto.BankTransaction source = transaction(
+                "BANK-FORMATTED-1", "3000000", "0", "월급", "INCOME"
+        );
+        source.setResAccount("12345601789012");
+        when(bankTransactionClient.getTransactions(any())).thenReturn(
+                CodefDto.Response.success(List.of(source))
+        );
+
+        service.collect(
+                7L,
+                31L,
+                "123456-01-789012",
+                institution,
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 7, 31)
+        );
+
+        verify(assetSyncMapper).upsertTransaction(any(AssetSyncDto.Transaction.class));
+    }
+
+    @Test
+    void removesRepeatedBankTransactionWithTheSameSourceIdentity() {
+        CodefDto.BankTransaction first = transaction(
+                "BANK-DUPLICATE-1", "3000000", "0", "월급", "INCOME"
+        );
+        CodefDto.BankTransaction duplicate = transaction(
+                "BANK-DUPLICATE-1", "3000000", "0", "월급", "INCOME"
+        );
+        when(bankTransactionClient.getTransactions(any())).thenReturn(
+                CodefDto.Response.success(List.of(first, duplicate))
+        );
+
+        int collectedCount = service.collect(
+                7L,
+                31L,
+                "123456-01-789012",
+                institution,
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 7, 31)
+        );
+
+        assertEquals(1, collectedCount);
+        verify(assetSyncMapper).upsertTransaction(any(AssetSyncDto.Transaction.class));
+    }
+
+    @Test
+    void rejectsConflictingBankPayloadWithTheSameSourceIdentity() {
+        when(bankTransactionClient.getTransactions(any())).thenReturn(CodefDto.Response.success(List.of(
+                transaction("BANK-DUPLICATE-1", "3000000", "0", "월급", "INCOME"),
+                transaction("BANK-DUPLICATE-1", "3100000", "0", "월급", "INCOME")
+        )));
+
+        assertThrows(IllegalArgumentException.class, () -> service.collect(
+                7L,
+                31L,
+                "123456-01-789012",
+                institution,
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 7, 31)
+        ));
+        verify(assetSyncMapper, never()).upsertTransaction(any());
     }
 
     @Test
@@ -251,7 +376,7 @@ class BankTransactionCollectionServiceTest {
                 CodefDto.Response.failure("CF-99999", "Mock API 호출 실패", "")
         );
 
-        assertThrows(IllegalStateException.class, () -> service.collect(
+        assertThrows(CodefSyncException.class, () -> service.collect(
                 7L,
                 31L,
                 "123456-01-789012",
@@ -259,6 +384,49 @@ class BankTransactionCollectionServiceTest {
                 LocalDate.of(2026, 7, 1),
                 LocalDate.of(2026, 7, 31)
         ));
+        verify(assetSyncMapper, never()).upsertTransaction(any());
+    }
+
+    @Test
+    void missingBankTransactionNumberDoesNotWriteTransaction() {
+        when(bankTransactionClient.getTransactions(any())).thenReturn(CodefDto.Response.success(List.of(
+                transaction(null, "3000000", "0", "income", "INCOME")
+        )));
+
+        assertThrows(IllegalArgumentException.class, () -> service.collect(
+                7L,
+                31L,
+                "123456-01-789012",
+                institution,
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 7, 31)
+        ));
+        verify(assetSyncMapper, never()).upsertTransaction(any());
+    }
+
+    @Test
+    void retriesTransientCodefResponseBeforeProcessingTransactions() {
+        CodefDto.Response temporaryFailure = CodefDto.Response.failure(
+                CodefConstants.CLIENT_FAILURE_CODE,
+                "temporary failure",
+                "timeout"
+        );
+        when(bankTransactionClient.getTransactions(any())).thenReturn(
+                temporaryFailure,
+                CodefDto.Response.success(List.of())
+        );
+
+        int collectedCount = service.collect(
+                7L,
+                31L,
+                "123456-01-789012",
+                institution,
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 7, 31)
+        );
+
+        assertEquals(0, collectedCount);
+        verify(bankTransactionClient, org.mockito.Mockito.times(2)).getTransactions(any());
         verify(assetSyncMapper, never()).upsertTransaction(any());
     }
 

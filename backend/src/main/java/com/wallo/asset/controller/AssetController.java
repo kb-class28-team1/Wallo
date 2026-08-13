@@ -2,11 +2,14 @@ package com.wallo.asset.controller;
 
 import com.wallo.auth.CurrentUserProvider;
 import com.wallo.asset.dto.AssetDto;
+import com.wallo.asset.dto.AssetSyncDto;
 import com.wallo.asset.dto.ExpenseDto;
 import com.wallo.asset.service.AssetService;
+import com.wallo.asset.service.AssetSyncOrchestrator;
 import com.wallo.asset.service.ExpenseService;
 import com.wallo.common.response.CommonResponse;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -17,14 +20,17 @@ public class AssetController {
 
     private final AssetService assetService;
     private final ExpenseService expenseService;
+    private final AssetSyncOrchestrator assetSyncOrchestrator;
     private final CurrentUserProvider currentUserProvider;
 
     public AssetController(
             AssetService assetService,
             ExpenseService expenseService,
+            AssetSyncOrchestrator assetSyncOrchestrator,
             CurrentUserProvider currentUserProvider) {
         this.assetService = assetService;
         this.expenseService = expenseService;
+        this.assetSyncOrchestrator = assetSyncOrchestrator;
         this.currentUserProvider = currentUserProvider;
     }
 
@@ -50,5 +56,12 @@ public class AssetController {
 
         return CommonResponse.success(expenseService.getExpenseSummary(
                 currentUserProvider.getCurrentUserId(), condition));
+    }
+
+    @PostMapping("/sync")
+    public CommonResponse<AssetSyncDto.SyncResponse> syncAssets() {
+        return CommonResponse.success(
+                assetSyncOrchestrator.syncNow(currentUserProvider.getCurrentUserId())
+        );
     }
 }

@@ -3,6 +3,7 @@ package com.wallo.asset.service;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -15,11 +16,13 @@ import com.wallo.asset.exception.ConnectionConsentRequiredException;
 import com.wallo.asset.exception.ConnectionNotFoundException;
 import com.wallo.asset.mapper.ConnectionMapper;
 import com.wallo.common.exception.ErrorCode;
+import com.wallo.external.auth.MockCodefCredentialProvider;
 import com.wallo.external.client.CodefClient;
 import com.wallo.external.dto.CodefDto;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
+import org.mockito.ArgumentCaptor;
 import org.junit.Test;
 
 public class ConnectionServiceTest {
@@ -33,6 +36,7 @@ public class ConnectionServiceTest {
     private final AnnualSalarySyncService annualSalarySyncService = mock(AnnualSalarySyncService.class);
     private final ConnectionService connectionService = new ConnectionService(
             codefClient,
+            new MockCodefCredentialProvider("1", "mock_id", "mock_pw"),
             institutionService,
             connectionMapper,
             assetSyncService,
@@ -76,9 +80,20 @@ public class ConnectionServiceTest {
                 ConnectionDto.AnnualSalaryLookupStatus.AVAILABLE,
                 response.getAnnualSalaryLookupStatus()
         );
-        verify(codefClient, times(3)).connectInstitution(any(CodefDto.Request.class));
+        ArgumentCaptor<CodefDto.Request> requestCaptor =
+                ArgumentCaptor.forClass(CodefDto.Request.class);
+        verify(codefClient, times(3)).connectInstitution(requestCaptor.capture());
+        assertEquals("1", requestCaptor.getAllValues().get(0).getLoginType());
+        assertEquals("mock_id", requestCaptor.getAllValues().get(0).getId());
+        assertEquals("mock_pw", requestCaptor.getAllValues().get(0).getPassword());
         verify(connectionMapper).insertConnections(any(), org.mockito.ArgumentMatchers.eq(7L), any(), any(), any());
         verify(annualSalarySyncService).syncAnnualSalary(7L);
+        verify(assetSyncService, times(3)).sync(
+                eq(7L),
+                eq(1L),
+                any(Institution.class),
+                any(CodefDto.Response.class)
+        );
         verify(cardWithdrawalReconciliationService).reconcile(7L);
     }
 
@@ -109,6 +124,12 @@ public class ConnectionServiceTest {
         assertEquals(
                 ConnectionDto.AnnualSalaryLookupStatus.UNAVAILABLE,
                 response.getAnnualSalaryLookupStatus()
+        );
+        verify(assetSyncService, times(2)).sync(
+                eq(7L),
+                eq(1L),
+                any(Institution.class),
+                any(CodefDto.Response.class)
         );
     }
 

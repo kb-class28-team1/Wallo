@@ -53,32 +53,20 @@
         WHERE connection_id = #{connectionId} AND card_number = #{cardNumber}
     </select>
 
+    <select id="findActiveCardNumbers" resultType="java.lang.String">
+        SELECT card_number
+        FROM CARDS
+        WHERE connection_id = #{connectionId}
+          AND status = 'ACTIVE'
+        ORDER BY card_id
+    </select>
+
     <insert id="upsertAssetSnapshot">
         INSERT INTO ASSET_SNAPSHOTS (user_id, snapshot_month, total_assets)
         VALUES (#{userId}, #{snapshot.month}, #{snapshot.totalAssets})
         ON DUPLICATE KEY UPDATE
             total_assets = VALUES(total_assets),
             updated_at = CURRENT_TIMESTAMP
-    </insert>
-
-    <update id="updateTransactionByApproval">
-        UPDATE TRANSACTIONS
-        SET card_id = #{transaction.cardId}, account_id = #{transaction.accountId},
-            type = #{transaction.type}, category = #{transaction.category}, amount = #{transaction.amount},
-            merchant_name = #{transaction.merchantName}, transaction_date = #{transaction.date},
-            transaction_time = #{transaction.time}
-        WHERE user_id = #{transaction.userId} AND external_approval_no = #{transaction.approvalNo}
-    </update>
-
-    <insert id="insertTransaction">
-        INSERT INTO TRANSACTIONS (
-            user_id, card_id, account_id, type, category, amount, merchant_name,
-            external_approval_no, transaction_date, transaction_time
-        ) VALUES (
-            #{transaction.userId}, #{transaction.cardId}, #{transaction.accountId},
-            #{transaction.type}, #{transaction.category}, #{transaction.amount}, #{transaction.merchantName},
-            #{transaction.approvalNo}, #{transaction.date}, #{transaction.time}
-        )
     </insert>
 
     <insert id="upsertTransaction">
@@ -98,8 +86,8 @@
             #{transaction.date}, #{transaction.time}
         )
         ON DUPLICATE KEY UPDATE
-            card_id = VALUES(card_id),
-            account_id = VALUES(account_id),
+            card_id = COALESCE(VALUES(card_id), card_id),
+            account_id = COALESCE(VALUES(account_id), account_id),
             type = VALUES(type),
             category = CASE
                 WHEN category_source = 'AI' AND #{transaction.categorySource} = 'FALLBACK'
@@ -137,6 +125,16 @@
             category_source AS categorySource,
             category_confidence AS categoryConfidence,
             classifier_version AS classifierVersion
+        FROM TRANSACTIONS
+        WHERE user_id = #{userId}
+          AND source_type = #{sourceType}
+          AND source_organization_code = #{sourceOrganizationCode}
+          AND source_dedup_key = #{sourceDedupKey}
+        LIMIT 1
+    </select>
+
+    <select id="findExistingTransactionId" resultType="java.lang.Long">
+        SELECT transaction_id
         FROM TRANSACTIONS
         WHERE user_id = #{userId}
           AND source_type = #{sourceType}

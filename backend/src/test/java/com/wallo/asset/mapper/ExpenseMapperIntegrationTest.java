@@ -3,13 +3,12 @@ package com.wallo.asset.mapper;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.wallo.asset.dto.ExpenseDto;
+import com.wallo.test.TestDatabase;
 import java.sql.Connection;
 import java.sql.Statement;
 import java.util.List;
-import java.util.UUID;
 import javax.sql.DataSource;
 import org.apache.ibatis.session.SqlSession;
-import org.h2.jdbcx.JdbcDataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,14 +22,9 @@ class ExpenseMapperIntegrationTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        JdbcDataSource dataSource = new JdbcDataSource();
-        dataSource.setURL(
-                "jdbc:h2:mem:expense_mapper_" + UUID.randomUUID()
-                        + ";MODE=MySQL;DB_CLOSE_DELAY=-1"
-        );
-        dataSource.setUser("sa");
-        dataSource.setPassword("");
-        createTransactions(dataSource);
+        DataSource dataSource = TestDatabase.h2("expense_mapper");
+        TestDatabase.initializeAssetMapperSchema(dataSource);
+        createExpenseFixtures(dataSource);
 
         SqlSessionFactoryBean factoryBean = new SqlSessionFactoryBean();
         factoryBean.setDataSource(dataSource);
@@ -92,11 +86,11 @@ class ExpenseMapperIntegrationTest {
         assertEquals("ETC", normalizedOther.getCategory());
     }
 
-    private void createTransactions(DataSource dataSource) throws Exception {
+    private void createExpenseFixtures(DataSource dataSource) throws Exception {
         try (Connection connection = dataSource.getConnection();
              Statement statement = connection.createStatement()) {
             statement.execute("""
-                    CREATE TABLE TRANSACTIONS (
+                    CREATE TABLE TRANSACTIONS_INPUT (
                         transaction_id BIGINT PRIMARY KEY,
                         user_id BIGINT NOT NULL,
                         type VARCHAR(20) NOT NULL,
@@ -108,7 +102,7 @@ class ExpenseMapperIntegrationTest {
                     )
                     """);
             statement.execute("""
-                    INSERT INTO TRANSACTIONS (
+                    INSERT INTO TRANSACTIONS_INPUT (
                         transaction_id, user_id, type, category, amount,
                         merchant_name, transaction_date, transaction_time
                     ) VALUES
@@ -122,6 +116,21 @@ class ExpenseMapperIntegrationTest {
                         (8, 7, 'EXPENSE', 'OTHER', 70, '기타 상점', '2026-07-01', '15:00:00'),
                         (9, 7, 'EXPENSE', 'ETC', 40, '동네 상점', '2026-07-01', '16:00:00')
                     """);
+            statement.execute("""
+                    INSERT INTO TRANSACTIONS (
+                        transaction_id, user_id, card_id, account_id, type, category,
+                        category_source, amount, merchant_name,
+                        source_type, source_organization_code, source_transaction_id,
+                        source_dedup_key, transaction_date, transaction_time
+                    )
+                    SELECT transaction_id, user_id, NULL, NULL, type, category,
+                           'TEST', amount, merchant_name,
+                           'TEST_TRANSACTION', 'TEST', CONCAT('EXP-', transaction_id),
+                           LPAD(CAST(transaction_id AS VARCHAR), 64, '0'),
+                           transaction_date, transaction_time
+                    FROM TRANSACTIONS_INPUT
+                    """);
+            statement.execute("DROP TABLE TRANSACTIONS_INPUT");
         }
     }
 }

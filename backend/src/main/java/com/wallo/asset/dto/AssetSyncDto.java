@@ -1,6 +1,7 @@
 package com.wallo.asset.dto;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -10,6 +11,55 @@ import lombok.Setter;
 public final class AssetSyncDto {
 
     private AssetSyncDto() {
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class SyncTarget {
+        private Long userId;
+        private Long connectionId;
+        private Long institutionId;
+        private String codefOrganizationCode;
+        private String institutionName;
+        private String financialGroupCode;
+        private String financialGroupName;
+        private String institutionType;
+        private String logoUrl;
+    }
+
+    @Getter
+    @AllArgsConstructor
+    public static class SyncResponse {
+        private final LocalDateTime syncedAt;
+        private final int inserted;
+        private final int updated;
+        private final int failedConnections;
+    }
+
+    @Getter
+    @AllArgsConstructor
+    public static class SyncStats {
+        private final int inserted;
+        private final int updated;
+
+        public static SyncStats empty() {
+            return new SyncStats(0, 0);
+        }
+
+        public int total() {
+            return inserted + updated;
+        }
+
+        public SyncStats plus(SyncStats other) {
+            if (other == null) {
+                return this;
+            }
+            return new SyncStats(
+                    inserted + other.inserted,
+                    updated + other.updated
+            );
+        }
     }
 
     @Getter
@@ -73,25 +123,6 @@ public final class AssetSyncDto {
                 String category,
                 long amount,
                 String merchantName,
-                String approvalNo,
-                LocalDate date,
-                LocalTime time
-        ) {
-            this(
-                    userId, cardId, accountId, type, category, amount, merchantName,
-                    merchantName, null, approvalNo, date, time,
-                    "LEGACY", null, null, null, null, null, null
-            );
-        }
-
-        public Transaction(
-                long userId,
-                Long cardId,
-                Long accountId,
-                String type,
-                String category,
-                long amount,
-                String merchantName,
                 String originalMerchantName,
                 String originalSector,
                 String approvalNo,
@@ -120,10 +151,17 @@ public final class AssetSyncDto {
             this.categorySource = categorySource;
             this.categoryConfidence = categoryConfidence;
             this.classifierVersion = classifierVersion;
-            this.sourceType = sourceType;
-            this.sourceOrganizationCode = sourceOrganizationCode;
-            this.sourceTransactionId = sourceTransactionId;
-            this.sourceDedupKey = sourceDedupKey;
+            this.sourceType = requiredSourceField(sourceType, "sourceType");
+            this.sourceOrganizationCode = requiredSourceField(sourceOrganizationCode, "sourceOrganizationCode");
+            this.sourceTransactionId = requiredSourceField(sourceTransactionId, "sourceTransactionId");
+            this.sourceDedupKey = requiredSourceField(sourceDedupKey, "sourceDedupKey");
+        }
+
+        private String requiredSourceField(String value, String fieldName) {
+            if (value == null || value.isBlank()) {
+                throw new IllegalArgumentException(fieldName + " is required for a persisted transaction.");
+            }
+            return value.trim();
         }
     }
 

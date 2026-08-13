@@ -12,9 +12,14 @@ import com.wallo.external.dto.CodefDto;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
+import java.nio.charset.StandardCharsets;
 
 class CodefMockClientTest {
 
@@ -195,5 +200,49 @@ class CodefMockClientTest {
         );
         CodefDto.Request sentRequest = (CodefDto.Request) entityCaptor.getValue().getBody();
         assertEquals("encrypted(real_pw)", sentRequest.getPassword());
+    }
+
+    @Test
+    void mapsUnauthorizedHttpFailureToNonRetryableCode() {
+        CodefDto.Request request = new CodefDto.Request();
+        request.setInstitutionType("CARD");
+        when(restTemplate.exchange(
+                eq("http://localhost:8080/mock/v1/kr/card/p/account/card-list"),
+                eq(HttpMethod.POST),
+                any(HttpEntity.class),
+                eq(CodefDto.Response.class)
+        )).thenThrow(HttpClientErrorException.create(
+                HttpStatus.UNAUTHORIZED,
+                "Unauthorized",
+                new HttpHeaders(),
+                new byte[0],
+                StandardCharsets.UTF_8
+        ));
+
+        CodefDto.Response actual = client.connectInstitution(request);
+
+        assertEquals("CF-40100", actual.getResult().getCode());
+    }
+
+    @Test
+    void mapsServerHttpFailureToRetryableCode() {
+        CodefDto.Request request = new CodefDto.Request();
+        request.setInstitutionType("CARD");
+        when(restTemplate.exchange(
+                eq("http://localhost:8080/mock/v1/kr/card/p/account/card-list"),
+                eq(HttpMethod.POST),
+                any(HttpEntity.class),
+                eq(CodefDto.Response.class)
+        )).thenThrow(HttpServerErrorException.create(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "Service Unavailable",
+                new HttpHeaders(),
+                new byte[0],
+                StandardCharsets.UTF_8
+        ));
+
+        CodefDto.Response actual = client.connectInstitution(request);
+
+        assertEquals("CF-50300", actual.getResult().getCode());
     }
 }

@@ -3,6 +3,7 @@ package com.wallo.asset.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -19,6 +20,10 @@ import com.wallo.asset.classification.MerchantSectorCategoryRule;
 import com.wallo.asset.domain.Institution;
 import com.wallo.asset.dto.AssetSyncDto;
 import com.wallo.asset.mapper.AssetSyncMapper;
+import com.wallo.external.CodefConstants;
+import com.wallo.external.CodefRetryExecutor;
+import com.wallo.external.CodefSyncException;
+import com.wallo.external.auth.MockCodefCredentialProvider;
 import com.wallo.external.client.CardApprovalClient;
 import com.wallo.external.dto.CodefDto;
 import java.time.Clock;
@@ -59,6 +64,8 @@ class CardApprovalCollectionServiceTest {
         );
         service = new CardApprovalCollectionService(
                 cardApprovalClient,
+                new MockCodefCredentialProvider("1", "mock_id", "mock_pw"),
+                new CodefRetryExecutor(2, 0, 0, 6500),
                 new ObjectMapper(),
                 classifier,
                 new TransactionSourceKeyGenerator(),
@@ -66,6 +73,7 @@ class CardApprovalCollectionServiceTest {
                 clock,
                 new ConsumptionInsightCache()
         );
+        when(assetSyncMapper.findActiveCardNumbers(anyLong())).thenReturn(List.of("9876", "4321"));
         institution = new Institution(2L, "0311", "하나카드", "CARD", "card-logo");
     }
 
@@ -92,6 +100,9 @@ class CardApprovalCollectionServiceTest {
         ArgumentCaptor<CodefDto.CardApprovalRequest> requestCaptor =
                 ArgumentCaptor.forClass(CodefDto.CardApprovalRequest.class);
         verify(cardApprovalClient).getApprovals(requestCaptor.capture());
+        assertEquals("1", requestCaptor.getValue().getLoginType());
+        assertEquals("mock_id", requestCaptor.getValue().getId());
+        assertEquals("mock_pw", requestCaptor.getValue().getPassword());
         assertEquals("20260701", requestCaptor.getValue().getStartDate());
         assertEquals("20260731", requestCaptor.getValue().getEndDate());
 
@@ -129,6 +140,75 @@ class CardApprovalCollectionServiceTest {
         verify(cardApprovalClient).getApprovals(requestCaptor.capture());
         assertEquals("20260503", requestCaptor.getValue().getStartDate());
         assertEquals("20260803", requestCaptor.getValue().getEndDate());
+    }
+
+    @Test
+    void excludesApprovalForInactiveCard() {
+        when(cardApprovalClient.getApprovals(any())).thenReturn(CodefDto.Response.success(List.of(
+                approval("9999", "10000001", "inactive card merchant", "food", "12000")
+        )));
+
+        AssetSyncDto.SyncStats stats = service.collectWithStats(
+                7L,
+                11L,
+                institution,
+                LocalDate.of(2026, 8, 1),
+                LocalDate.of(2026, 8, 3)
+        );
+
+        assertEquals(0, stats.total());
+        verify(assetSyncMapper).findActiveCardNumbers(11L);
+        verify(assetSyncMapper, never()).upsertTransaction(any());
+    }
+
+    @Test
+    void collectWithStatsCountsNewApprovalAsInserted() {
+        when(cardApprovalClient.getApprovals(any())).thenReturn(CodefDto.Response.success(List.of(
+                approval("9876", "10000001", "new merchant", "food", "12000")
+        )));
+        when(assetSyncMapper.findCardId(11L, "9876")).thenReturn(21L);
+        when(assetSyncMapper.findExistingTransactionId(
+                eq(7L),
+                eq("CARD_APPROVAL"),
+                eq("0311"),
+                any()
+        )).thenReturn((Long) null);
+
+        AssetSyncDto.SyncStats stats = service.collectWithStats(
+                7L,
+                11L,
+                institution,
+                LocalDate.of(2026, 8, 1),
+                LocalDate.of(2026, 8, 3)
+        );
+
+        assertEquals(1, stats.getInserted());
+        assertEquals(0, stats.getUpdated());
+    }
+
+    @Test
+    void collectWithStatsCountsExistingApprovalAsUpdated() {
+        when(cardApprovalClient.getApprovals(any())).thenReturn(CodefDto.Response.success(List.of(
+                approval("9876", "10000001", "existing merchant", "food", "12000")
+        )));
+        when(assetSyncMapper.findCardId(11L, "9876")).thenReturn(21L);
+        when(assetSyncMapper.findExistingTransactionId(
+                eq(7L),
+                eq("CARD_APPROVAL"),
+                eq("0311"),
+                any()
+        )).thenReturn(123L);
+
+        AssetSyncDto.SyncStats stats = service.collectWithStats(
+                7L,
+                11L,
+                institution,
+                LocalDate.of(2026, 8, 1),
+                LocalDate.of(2026, 8, 3)
+        );
+
+        assertEquals(0, stats.getInserted());
+        assertEquals(1, stats.getUpdated());
     }
 
     @Test
@@ -185,12 +265,55 @@ class CardApprovalCollectionServiceTest {
     }
 
     @Test
+    void removesRepeatedApprovalWithTheSameSourceIdentity() {
+        CodefDto.CardApproval first = approval(
+                "9876", "10000001", "배달의민족", "요식/음료", "12000"
+        );
+        CodefDto.CardApproval duplicate = approval(
+                "9876", "10000001", "배달의민족", "요식/음료", "12000"
+        );
+        when(cardApprovalClient.getApprovals(any())).thenReturn(
+                CodefDto.Response.success(List.of(first, duplicate))
+        );
+        when(assetSyncMapper.findCardId(11L, "9876")).thenReturn(21L);
+
+        int collectedCount = service.collect(
+                7L,
+                11L,
+                institution,
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 7, 31)
+        );
+
+        assertEquals(1, collectedCount);
+        verify(assetSyncMapper).upsertTransaction(any(AssetSyncDto.Transaction.class));
+    }
+
+    @Test
+    void rejectsConflictingApprovalPayloadWithTheSameSourceIdentity() {
+        when(cardApprovalClient.getApprovals(any())).thenReturn(CodefDto.Response.success(List.of(
+                approval("9876", "10000001", "배달의민족", "요식/음료", "12000"),
+                approval("9876", "10000001", "배달의민족", "요식/음료", "13000")
+        )));
+        when(assetSyncMapper.findCardId(11L, "9876")).thenReturn(21L);
+
+        assertThrows(IllegalArgumentException.class, () -> service.collect(
+                7L,
+                11L,
+                institution,
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 7, 31)
+        ));
+        verify(assetSyncMapper, never()).upsertTransaction(any());
+    }
+
+    @Test
     void failedCodefResponseDoesNotWriteTransactions() {
         when(cardApprovalClient.getApprovals(any())).thenReturn(
                 CodefDto.Response.failure("CF-99999", "Mock API 호출 실패", "")
         );
 
-        assertThrows(IllegalStateException.class, () -> service.collect(
+        assertThrows(CodefSyncException.class, () -> service.collect(
                 7L,
                 11L,
                 institution,
@@ -206,6 +329,64 @@ class CardApprovalCollectionServiceTest {
                 approval("9876", "10000001", "배달의민족", "요식/음료", "not-a-number")
         )));
         when(assetSyncMapper.findCardId(eq(11L), eq("9876"))).thenReturn(21L);
+
+        assertThrows(IllegalArgumentException.class, () -> service.collect(
+                7L,
+                11L,
+                institution,
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 7, 31)
+        ));
+        verify(assetSyncMapper, never()).upsertTransaction(any());
+    }
+
+    @Test
+    void missingCardNumberDoesNotWriteTransaction() {
+        when(cardApprovalClient.getApprovals(any())).thenReturn(CodefDto.Response.success(List.of(
+                approval(null, "10000001", "merchant", "sector", "12000")
+        )));
+
+        assertThrows(IllegalArgumentException.class, () -> service.collect(
+                7L,
+                11L,
+                institution,
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 7, 31)
+        ));
+        verify(assetSyncMapper, never()).upsertTransaction(any());
+    }
+
+    @Test
+    void retriesTransientCodefResponseBeforeProcessingApprovals() {
+        CodefDto.Response temporaryFailure = CodefDto.Response.failure(
+                CodefConstants.CLIENT_FAILURE_CODE,
+                "temporary failure",
+                "timeout"
+        );
+        when(cardApprovalClient.getApprovals(any())).thenReturn(
+                temporaryFailure,
+                CodefDto.Response.success(List.of())
+        );
+
+        int collectedCount = service.collect(
+                7L,
+                11L,
+                institution,
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 7, 31)
+        );
+
+        assertEquals(0, collectedCount);
+        verify(cardApprovalClient, org.mockito.Mockito.times(2)).getApprovals(any());
+        verify(assetSyncMapper, never()).upsertTransaction(any());
+    }
+
+    @Test
+    void missingApprovalNumberDoesNotWriteTransaction() {
+        when(cardApprovalClient.getApprovals(any())).thenReturn(CodefDto.Response.success(List.of(
+                approval("9876", null, "merchant", "sector", "12000")
+        )));
+        when(assetSyncMapper.findCardId(11L, "9876")).thenReturn(21L);
 
         assertThrows(IllegalArgumentException.class, () -> service.collect(
                 7L,
