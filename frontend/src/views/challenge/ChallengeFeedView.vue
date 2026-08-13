@@ -5,6 +5,7 @@ import { useUserStore } from "@/stores/userStore"
 import { getAccessToken } from "@/api/authToken"
 import { refreshAccessToken } from "@/api/authApi"
 import { formatWon } from "@/commonUtils/formatters"
+import arrowPaperPlaneUrl from "@/assets/arrow_paper_plane.svg"
 import AppDialog from "@/components/common/AppDialog.vue"
 import { leaveChallenge as leaveChallengeRequest } from "@/api/challengeApi"
 import { getTodayMissions, verifyMissionWithFeed } from "@/api/missionApi"
@@ -41,6 +42,7 @@ const todayMissions = ref([])
 const isMissionLoading = ref(false)
 const likingFeedId = ref(null)
 const likeBursts = ref([])
+const unmutedFeedIds = ref(new Set())
 const deletingFeedId = ref(null)
 const chatInput = ref("")
 const chatInputElement = ref(null)
@@ -377,12 +379,18 @@ const removeFeed = async (feed) => {
   }
 }
 const chooseFile = () => fileInput.value?.click()
-const resetAnalysis = () => {
-  form.savingAmount = 0
-  form.aiEstimatedAmount = null
-  form.analysisSummary = ""
-  form.confidenceScore = 0
-  form.analysisStatus = "NOT_STARTED"
+const isFeedMuted = (feedId) => !unmutedFeedIds.value.has(feedId)
+const toggleFeedMute = (feed) => {
+  const nextUnmutedFeedIds = new Set(unmutedFeedIds.value)
+  if (nextUnmutedFeedIds.has(feed.id)) {
+    nextUnmutedFeedIds.delete(feed.id)
+  } else {
+    nextUnmutedFeedIds.add(feed.id)
+  }
+  unmutedFeedIds.value = nextUnmutedFeedIds
+}
+const playVideoPreview = (event) => {
+  event.currentTarget.play().catch(() => {})
 }
 const handleFile = async (event) => {
   const file = event.target.files?.[0]
@@ -594,6 +602,12 @@ const mentionFeed = (message) => {
   setMentionedFeed(message.referenceFeedId)
   chatInput.value = ""
 }
+const mentionFeedFromCard = async (feed) => {
+  mentionedFeed.value = makeMentionedFeed(feed)
+  chatInput.value = ""
+  await nextTick()
+  chatInputElement.value?.focus()
+}
 const sendMessage = async () => {
   const content = chatInput.value.trim()
   if ((!content && !mentionedFeed.value) || isSendingMessage.value) return
@@ -647,13 +661,10 @@ onBeforeUnmount(() => {
     </div>
     <template v-else>
       <header class="feed-header">
-        <div class="feed-heading-content">
-          <span>MY SAVING FEED</span>
-          <div class="feed-title-row">
-            <h1>{{ challengeName }}</h1>
-          </div>
-          <p>함께 남긴 절약 기록을 확인하고 응원해 보세요.</p>
+        <div class="feed-header-row">
+          <h1>{{ challengeName }}</h1>
         </div>
+        <p>함께 남긴 절약 기록을 확인하고 응원해 보세요.</p>
       </header>
 
       <div class="feed-layout">
@@ -667,13 +678,22 @@ onBeforeUnmount(() => {
                 내 피드
               </button>
             </nav>
-            <div v-if="inviteCode" class="feed-invite-panel">
-              <div>
-                <small>친구 초대 코드</small>
-                <strong>{{ inviteCode }}</strong>
+            <div class="feed-header-actions">
+              <div v-if="inviteCode" class="feed-invite-panel">
+                <button type="button" aria-label="초대 코드 복사" @click="copyInviteCode">
+                  <i class="bi bi-copy" aria-hidden="true"></i>
+                  초대코드 복사
+                </button>
               </div>
-              <button type="button" aria-label="초대 코드 복사" @click="copyInviteCode">
-                <i class="bi bi-copy" aria-hidden="true"></i>
+              <button
+                type="button"
+                class="feed-leave-button"
+                title="챌린지 나가기"
+                aria-label="챌린지 나가기"
+                :disabled="isLeavingChallenge"
+                @click="leaveCurrentChallenge"
+              >
+                <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
               </button>
             </div>
           </div>
@@ -694,10 +714,12 @@ onBeforeUnmount(() => {
               <img :src="feed.profileImageUrl || '/images/profiles/default-profile.svg'" alt="" />
               <div>
                 <strong>{{ feed.nickname }}</strong
-                ><small
+                ><span class="d-none">
                   >{{ spendingLabel(feed.spendingType) }} ·
-                  {{ categoryLabel(feed.category, feed.customCategory) }}</small
+
                 >
+                </span>
+                <small>{{ categoryLabel(feed.category, feed.customCategory) }}</small>
               </div>
               <span class="saving-badge">+ {{ formatWon(feed.savingAmount) }}</span>
             </header>
@@ -707,12 +729,24 @@ onBeforeUnmount(() => {
                 class="feed-media"
                 :src="feed.mediaUrl"
                 autoplay
-                muted
+                :muted="isFeedMuted(feed.id)"
                 loop
                 playsinline
                 preload="metadata"
                 :aria-label="feed.caption || '절약 인증 영상'"
               ></video>
+              <button
+                v-if="feed.mediaType === 'VIDEO'"
+                type="button"
+                class="feed-sound-toggle"
+                :aria-label="isFeedMuted(feed.id) ? '소리 켜기' : '소리 끄기'"
+                @click.stop="toggleFeedMute(feed)"
+              >
+                <i
+                  :class="['bi', isFeedMuted(feed.id) ? 'bi-volume-mute-fill' : 'bi-volume-up-fill']"
+                  aria-hidden="true"
+                ></i>
+              </button>
               <img
                 v-else
                 class="feed-media"
@@ -730,6 +764,16 @@ onBeforeUnmount(() => {
                 </span>
               </div>
               <div class="feed-like-row">
+                <button
+                  type="button"
+                  class="mention-feed-button"
+                  aria-label="언급하기"
+                  title="언급하기"
+                  @click.stop="mentionFeedFromCard(feed)"
+                >
+                  <img :src="arrowPaperPlaneUrl" alt="" />
+                  언급하기
+                </button>
                 <button
                   type="button"
                   class="like-button"
@@ -755,29 +799,11 @@ onBeforeUnmount(() => {
                   </button>
                 </div>
               </div>
-              <span>
-                {{
-                  feed.analysisStatus === "AI_FAILED" || feed.analysisStatus === "MANUAL"
-                    ? "✍️ 사용자 입력 금액"
-                    : "🤖 AI 분석 · 사용자 확인 금액"
-                }}
-                {{ formatWon(feed.savingAmount) }}
-              </span>
             </footer>
           </article>
         </main>
 
         <aside class="feed-sidebar">
-          <button
-            type="button"
-            class="feed-leave-button"
-            title="챌린지 탈퇴"
-            aria-label="챌린지 탈퇴"
-            :disabled="isLeavingChallenge"
-            @click="leaveCurrentChallenge"
-          >
-            <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
-          </button>
           <div class="saving-total">
             <small>나의 누적 절약 금액</small><strong>{{ formatWon(mySavingTotal) }}</strong>
           </div>
@@ -856,16 +882,27 @@ onBeforeUnmount(() => {
             accept="image/*,video/*"
             @change="handleFile"
           />
-          <button class="upload-zone" type="button" @click="chooseFile">
+          <div
+            class="upload-zone"
+            :class="{ 'has-preview': previewUrl }"
+            role="button"
+            tabindex="0"
+            @click="chooseFile"
+            @keydown.enter.prevent="chooseFile"
+            @keydown.space.prevent="chooseFile"
+          >
             <template v-if="previewUrl">
               <video
                 v-if="isVideoFile"
+                :key="previewUrl"
                 :src="previewUrl"
                 autoplay
                 muted
                 loop
                 playsinline
-                preload="metadata"
+                preload="auto"
+                @click.stop
+                @loadeddata="playVideoPreview"
                 aria-label="업로드할 영상 미리보기"
               ></video>
               <img v-else :src="previewUrl" alt="업로드 미리보기" />
@@ -874,7 +911,7 @@ onBeforeUnmount(() => {
               ><span>🖼️</span><strong>사진 / 동영상 업로드</strong
               ><small>클릭해 인증 사진 또는 영상을 올려주세요</small></template
             >
-          </button>
+          </div>
 
           <label class="section-label">세부 카테고리</label>
           <div class="chip-row">
@@ -1011,6 +1048,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .feed-page {
   min-height: calc(100vh - 130px);
+  position: relative;
   color: #202840;
 }
 .page-state {
@@ -1021,36 +1059,38 @@ onBeforeUnmount(() => {
   gap: 18px;
 }
 .feed-header {
+  width: calc(100% - 352px);
   margin-bottom: 24px;
 }
-.feed-heading-content > span {
-  color: #7164de;
-  font-size: 0.76rem;
-  font-weight: 900;
-  letter-spacing: 0.14em;
-}
-.feed-title-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
+.feed-header-row {
+  display: block;
 }
 .feed-header h1 {
+  justify-self: start;
+  min-width: 0;
+  max-width: 100%;
   margin: 8px 0 4px;
+  overflow: hidden;
+  color: inherit;
   font-size: 2rem;
   font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.feed-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 .feed-header p {
-  margin: 0;
+  margin: 8px 0 0;
   color: #939bad;
+  font-size: 0.67rem;
 }
 .feed-leave-button {
   display: inline-flex !important;
   visibility: visible !important;
-  position: absolute;
-  top: 20px;
-  left: -58px;
-  z-index: 2;
+  position: static;
   width: 44px;
   height: 44px;
   align-items: center;
@@ -1123,18 +1163,19 @@ onBeforeUnmount(() => {
 }
 .feed-tabs {
   display: flex;
-  gap: 6px;
-  padding: 5px;
+  gap: 2px;
+  padding: 3px;
   background: #f0eff7;
-  border-radius: 13px;
+  border-radius: 9px;
   width: max-content;
 }
 .feed-tabs button {
-  padding: 10px 22px;
+  padding: 5px 10px;
   border: 0;
-  border-radius: 10px;
+  border-radius: 7px;
   color: #8b91a3;
   background: transparent;
+  font-size: 0.75rem;
   font-weight: 800;
 }
 .feed-tabs button.active {
@@ -1144,42 +1185,22 @@ onBeforeUnmount(() => {
 .feed-invite-panel {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-width: 190px;
-  padding: 8px 11px 8px 14px;
-  background: #fff;
-  border: 1px solid #e3e1f4;
-  border-radius: 13px;
-  box-shadow: 0 5px 15px #29315a0d;
-}
-.feed-invite-panel div {
   min-width: 0;
-  flex: 1;
-}
-.feed-invite-panel small,
-.feed-invite-panel strong {
-  display: block;
-}
-.feed-invite-panel small {
-  margin-bottom: 2px;
-  color: #989db1;
-  font-size: 0.7rem;
-  font-weight: 700;
-}
-.feed-invite-panel strong {
-  color: #6658d4;
-  font-size: 0.92rem;
-  letter-spacing: 0.1em;
 }
 .feed-invite-panel button {
-  display: grid;
-  width: 30px;
-  height: 30px;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+  height: 36px;
+  padding: 0 12px;
   color: #6f61dc;
   background: #f0edff;
-  border: 0;
-  border-radius: 8px;
+  border: 1px solid #dcd6ff;
+  border-radius: 10px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  white-space: nowrap;
 }
 .empty-feed {
   display: grid;
@@ -1282,6 +1303,28 @@ onBeforeUnmount(() => {
   left: 18px;
   bottom: 14px;
   z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.feed-sound-toggle {
+  position: absolute;
+  right: 18px;
+  bottom: 70px;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  color: #fff;
+  background: #08122dcc;
+  border: 1px solid #ffffff55;
+  border-radius: 50%;
+  font-size: 1rem;
+}
+.feed-sound-toggle:hover {
+  background: #7162de;
 }
 .like-burst-layer {
   position: absolute;
@@ -1302,6 +1345,7 @@ onBeforeUnmount(() => {
   animation: like-heart-rise 950ms ease-out forwards;
 }
 .like-button {
+  order: 1;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1318,13 +1362,37 @@ onBeforeUnmount(() => {
   line-height: 1;
 }
 .like-button strong {
-  color: #ffe36e;
+  color: #ff9eb5;
   font-size: 0.9rem;
   line-height: 1;
 }
 .like-button:disabled {
   cursor: wait;
   opacity: 0.6;
+}
+.mention-feed-button {
+  order: 2;
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  transform: translateX(4px);
+  color: #fff;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  font-size: 0;
+}
+.mention-feed-button img {
+  width: 24px;
+  height: 24px;
+  transform: translateY(2px);
+  filter: brightness(0) invert(1);
+}
+.mention-feed-button:hover {
+  color: #dcd7ff;
+  background: transparent;
 }
 @keyframes like-heart-rise {
   0% {
@@ -1341,8 +1409,12 @@ onBeforeUnmount(() => {
   }
 }
 .feed-card footer {
-  padding: 15px 18px 18px;
+  position: relative;
+  z-index: 2;
+  margin-top: -56px;
+  padding: 49px 18px 18px;
   color: #fff;
+  background: #121d3e;
 }
 .feed-caption-row {
   display: flex;
@@ -1587,11 +1659,18 @@ onBeforeUnmount(() => {
   display: grid;
   place-items: center;
   width: 100%;
-  height: 170px;
+  min-height: 170px;
+  height: min(360px, 42vh);
+  padding: 10px;
   overflow: hidden;
   background: #fafbfe;
   border: 2px dashed #d9dcec;
   border-radius: 18px;
+}
+.upload-zone.has-preview {
+  height: auto;
+  min-height: 170px;
+  background: #f4f5fa;
 }
 .upload-zone > span {
   font-size: 2rem;
@@ -1605,9 +1684,23 @@ onBeforeUnmount(() => {
 }
 .upload-zone img,
 .upload-zone video {
-  width: 100%;
-  height: 100%;
+  display: block;
+  max-width: 100%;
+  width: auto;
+  height: auto;
   object-fit: contain;
+  border-radius: 10px;
+}
+.upload-zone img {
+  width: 100%;
+  max-height: none;
+}
+.upload-zone video {
+  width: 100%;
+  max-height: min(420px, 48vh);
+  min-width: 0;
+  min-height: 0;
+  background: #0d1633;
 }
 .chip-row {
   display: flex;
@@ -1809,6 +1902,9 @@ textarea {
   }
 }
 @media (max-width: 1200px) {
+  .feed-header {
+    width: 100%;
+  }
   .feed-layout {
     grid-template-columns: 1fr;
   }
@@ -1816,11 +1912,6 @@ textarea {
     position: static;
     width: auto;
     height: auto;
-  }
-  .feed-leave-button {
-    position: static;
-    align-self: flex-end;
-    margin-bottom: -8px;
   }
   .chat-room {
     flex: none;
@@ -1834,25 +1925,25 @@ textarea {
 }
 @media (max-width: 650px) {
   .feed-header {
+    width: 100%;
     margin-bottom: 20px;
   }
-  .feed-title-row {
-    align-items: flex-start;
-    flex-wrap: wrap;
-    gap: 8px 14px;
+  .feed-header h1 {
+    font-size: 1.35rem;
   }
   .feed-toolbar {
     align-items: stretch;
     flex-direction: column;
   }
-  .feed-tabs {
+  .feed-toolbar .feed-tabs {
     width: 100%;
   }
-  .feed-tabs button {
-    flex: 1;
-  }
-  .feed-invite-panel {
+  .feed-toolbar .feed-header-actions {
     align-self: flex-end;
+    gap: 4px;
+  }
+  .feed-toolbar .feed-tabs button {
+    flex: 1;
   }
   .modal-layer {
     padding: 0;
