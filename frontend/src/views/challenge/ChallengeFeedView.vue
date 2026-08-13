@@ -722,7 +722,6 @@ onBeforeUnmount(() => {
                   </button>
                 </div>
               </div>
-              <span>절약 금액 {{ formatWon(feed.savingAmount) }}</span>
             </footer>
           </article>
         </main>
@@ -1326,7 +1325,7 @@ onBeforeUnmount(() => {
   position: relative;
   z-index: 2;
   margin-top: -56px;
-  padding: 71px 18px 18px;
+  padding: 63px 18px 18px;
   color: #fff;
   background: #121d3e;
 }
