@@ -1226,7 +1226,7 @@ onBeforeUnmount(() => {
 .feed-sound-toggle {
   position: absolute;
   right: 18px;
-  bottom: 14px;
+  bottom: 70px;
   z-index: 4;
   display: grid;
   place-items: center;
