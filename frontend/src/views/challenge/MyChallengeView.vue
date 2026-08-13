@@ -13,6 +13,7 @@ import {
 } from "chart.js"
 import { getMyChallengeDashboard } from "@/api/challengeApi"
 import { formatNumber, formatWon } from "@/commonUtils/formatters"
+import AuthenticatedImage from "@/components/common/AuthenticatedImage.vue"
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler)
 
@@ -155,9 +156,6 @@ const formatDate = (date) => String(date || "").replaceAll("-", ".")
 
 // 프로필 이미지가 없거나 로드에 실패하면 프로젝트 기본 이미지를 사용함
 const profileImage = computed(() => dashboard.value?.profileImageUrl || DEFAULT_PROFILE_IMAGE)
-const handleProfileImageError = (event) => {
-  event.target.src = DEFAULT_PROFILE_IMAGE
-}
 
 // 썸네일이 없는 피드는 원본 미디어를 사용하고 모두 없으면 아이콘을 표시함
 const isVideoFeed = (feed) => {
@@ -214,10 +212,9 @@ onMounted(loadDashboard)
       <article class="dashboard-card profile-card">
         <div class="profile-header">
           <div class="profile-avatar">
-            <img
+            <AuthenticatedImage
               :src="profileImage"
               :alt="`${dashboard.nickname} 프로필 이미지`"
-              @error="handleProfileImageError"
             />
           </div>
           <div>

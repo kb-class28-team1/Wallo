@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from "vue"
 import { storeToRefs } from "pinia"
 import { getApiErrorMessage } from "@/commonUtils/apiError"
+import AuthenticatedImage from "@/components/common/AuthenticatedImage.vue"
 import { useUserStore } from "@/stores/userStore"
 
 const userStore = useUserStore()
@@ -182,11 +183,10 @@ onMounted(loadProfile)
       <h2 id="profile-settings-title" class="h5 fw-bold mb-4">프로필 편집</h2>
 
       <div class="profile-image-section d-flex flex-column flex-sm-row align-items-sm-center gap-3 mb-4">
-        <img
+        <AuthenticatedImage
           :src="displayProfileImageUrl"
           alt="프로필 이미지"
           class="profile-image rounded-circle"
-          @error="userStore.useDefaultProfileImage"
         />
         <div>
           <p class="fw-semibold mb-1">프로필 사진</p>

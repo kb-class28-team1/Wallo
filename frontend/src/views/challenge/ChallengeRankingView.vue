@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from "vue"
 import { storeToRefs } from "pinia"
 import { grantWeeklyRankingRewardsForTest } from "@/api/challengeApi"
+import AuthenticatedImage from "@/components/common/AuthenticatedImage.vue"
 import { useChallengeStore } from "@/stores/challengeStore"
 import { formatNumber, formatWon } from "@/commonUtils/formatters"
 import { useUserStore } from "@/stores/userStore"
@@ -44,9 +45,6 @@ const formatDate = (date) => date.replaceAll("-", ".")
 
 // DB 프로필 주소가 없거나 이미지 로드에 실패하면 기본 프로필을 표시함
 const profileImage = (url) => url || DEFAULT_PROFILE_IMAGE
-const handleImageError = (event) => {
-  event.target.src = DEFAULT_PROFILE_IMAGE
-}
 
 // 테스트 버튼에서 현재 주 랭킹 보상 지급 API를 호출함
 const grantRewardsForTest = async () => {
@@ -116,10 +114,9 @@ onMounted(() => {
             <span class="rank-badge">{{ ranking.rank }}</span>
             <span v-if="ranking.rank === 1" class="crown" aria-hidden="true">👑</span>
             <div class="profile-circle">
-              <img
+              <AuthenticatedImage
                 :src="profileImage(ranking.profileImageUrl)"
                 :alt="`${ranking.nickname} 프로필 이미지`"
-                @error="handleImageError"
               />
             </div>
             <strong class="podium-nickname">{{ ranking.nickname }}</strong>
@@ -144,10 +141,9 @@ onMounted(() => {
           >
             <strong class="rank-number">{{ ranking.rank }}</strong>
             <div class="ranking-user">
-              <img
+              <AuthenticatedImage
                 :src="profileImage(ranking.profileImageUrl)"
                 :alt="`${ranking.nickname} 프로필 이미지`"
-                @error="handleImageError"
               />
               <span>{{ ranking.nickname }}</span>
             </div>
@@ -165,10 +161,9 @@ onMounted(() => {
           <h2>내 순위</h2>
           <div class="my-rank-user">
             <div class="ranking-user">
-              <img
+              <AuthenticatedImage
                 :src="profileImage(myRanking.profileImageUrl)"
                 alt="내 프로필 이미지"
-                @error="handleImageError"
               />
               <strong>{{ myRanking.nickname }}</strong>
             </div>

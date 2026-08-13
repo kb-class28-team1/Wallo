@@ -6,6 +6,7 @@ import { getAccessToken } from "@/api/authToken"
 import { refreshAccessToken } from "@/api/authApi"
 import { formatWon } from "@/commonUtils/formatters"
 import AppDialog from "@/components/common/AppDialog.vue"
+import AuthenticatedImage from "@/components/common/AuthenticatedImage.vue"
 import { leaveChallenge as leaveChallengeRequest } from "@/api/challengeApi"
 import { getTodayMissions, verifyMissionWithFeed } from "@/api/missionApi"
 import {
@@ -691,7 +692,7 @@ onBeforeUnmount(() => {
           >
             <span v-if="isFocusedFeed(feed)" class="focus-badge">선택한 게시물</span>
             <header>
-              <img :src="feed.profileImageUrl || '/images/profiles/default-profile.svg'" alt="" />
+              <AuthenticatedImage :src="feed.profileImageUrl" alt="" />
               <div>
                 <strong>{{ feed.nickname }}</strong
                 ><small
