@@ -312,7 +312,7 @@ onMounted(() => {
   border-radius: 5px 3px 8px 4px;
   box-shadow: 3px 3px 0 rgb(58 54 56 / 15%);
   clip-path: polygon(0 13%, 18% 3%, 38% 10%, 58% 0, 80% 8%, 100% 3%, 99% 93%, 65% 100%, 38% 95%, 1% 89%);
-  transform: rotate(-0.3deg);
+  transform: rotate(-0.45deg) skewX(-0.35deg);
 }
 
 .podium-grid.podium-count-1 {
@@ -338,25 +338,25 @@ onMounted(() => {
   border-radius: 6px 4px 5px 3px;
   background: #b5906b;
   box-shadow: 3px 4px 0 rgb(58 54 56 / 15%);
-  transform: rotate(-0.35deg);
+  transform: rotate(-0.65deg) skewX(-0.3deg);
 }
 
 .podium-card.rank-1 {
   min-height: 220px;
   background: #c19b67;
-  transform: rotate(0.15deg);
+  transform: rotate(0.25deg) skewX(0.2deg);
 }
 
 .podium-card.rank-2 {
   min-height: 195px;
   background: #b99a78;
-  transform: rotate(-0.6deg);
+  transform: rotate(-0.9deg) skewX(-0.35deg);
 }
 
 .podium-card.rank-3 {
   min-height: 174px;
   background: #ae8c6b;
-  transform: rotate(0.45deg);
+  transform: rotate(0.75deg) skewX(0.3deg);
 }
 
 .rank-badge {
