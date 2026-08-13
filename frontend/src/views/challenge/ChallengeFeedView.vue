@@ -92,6 +92,15 @@ const categories = FEED_CATEGORY_CODES.map((value) => ({
 const categoryLabel = (value, custom) =>
   custom || EXPENSE_CATEGORY_META[value]?.label || value || "기타"
 const spendingLabel = (value) => spendingTypes.find((item) => item.value === value)?.label || value
+const savingBadgeStyle = (amount) => {
+  const ratio = Math.min(Math.max(Number(amount) || 0, 0), 100_000) / 100_000
+  const startColor = [220, 215, 255]
+  const endColor = [255, 64, 64]
+  const color = startColor.map((channel, index) =>
+    Math.round(channel + (endColor[index] - channel) * ratio),
+  )
+  return { color: `rgb(${color.join(", ")})` }
+}
 const isVideoFile = computed(() => form.file?.type?.startsWith("video/"))
 const roomTitle = computed(() => `${challengeName.value} 채팅방`)
 const DEFAULT_SPENDING_TYPE = "REDUCED"
@@ -644,7 +653,10 @@ onBeforeUnmount(() => {
                 </span>
                 <small>{{ categoryLabel(feed.category, feed.customCategory) }}</small>
               </div>
-              <span class="saving-badge">+ {{ formatWon(feed.savingAmount) }}</span>
+              <span
+                class="saving-badge"
+                :style="savingBadgeStyle(feed.savingAmount)"
+              >+ {{ formatWon(feed.savingAmount) }}</span>
             </header>
             <div class="feed-media-wrap">
               <video
