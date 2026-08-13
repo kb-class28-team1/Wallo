@@ -50,6 +50,7 @@
 
     <select id="selectTransactions" resultType="com.wallo.asset.dto.ExpenseDto$Transaction">
         SELECT
+            transaction_id AS transactionId,
             transaction_date AS date,
             type AS type,
             CASE WHEN category = 'OTHER' THEN 'ETC' ELSE category END AS category,
@@ -59,6 +60,16 @@
         WHERE user_id = #{userId}
           AND transaction_date BETWEEN #{condition.startDate} AND #{condition.endDate}
           AND category &lt;&gt; 'CARD_WITHDRAWAL'
+        <if test="condition.category != null and condition.category != ''">
+            <choose>
+                <when test="condition.category == 'ETC'">
+                    AND category IN ('OTHER', 'ETC')
+                </when>
+                <otherwise>
+                    AND category = #{condition.category}
+                </otherwise>
+            </choose>
+        </if>
         ORDER BY transaction_date DESC, transaction_time DESC, transaction_id DESC
         LIMIT #{condition.size} OFFSET #{condition.offset}
     </select>
@@ -69,6 +80,16 @@
         WHERE user_id = #{userId}
           AND transaction_date BETWEEN #{condition.startDate} AND #{condition.endDate}
           AND category &lt;&gt; 'CARD_WITHDRAWAL'
+        <if test="condition.category != null and condition.category != ''">
+            <choose>
+                <when test="condition.category == 'ETC'">
+                    AND category IN ('OTHER', 'ETC')
+                </when>
+                <otherwise>
+                    AND category = #{condition.category}
+                </otherwise>
+            </choose>
+        </if>
     </select>
 
     <select id="selectAllExpenseTransactions"

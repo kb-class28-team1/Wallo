@@ -44,13 +44,15 @@ public class AssetController {
             @RequestParam("startDate") String startDate,
             @RequestParam("endDate") String endDate,
             @RequestParam("page") int page,
-            @RequestParam("size") int size
+            @RequestParam("size") int size,
+            @RequestParam(value = "category", required = false) String category
     ) {
         ExpenseDto.SearchCondition condition = new ExpenseDto.SearchCondition(
                 startDate,
                 endDate,
                 page,
                 size,
+                category,
                 0
         );
 

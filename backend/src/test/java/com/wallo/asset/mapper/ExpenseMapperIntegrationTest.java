@@ -86,6 +86,25 @@ class ExpenseMapperIntegrationTest {
         assertEquals("ETC", normalizedOther.getCategory());
     }
 
+    @Test
+    void filtersTransactionsByCategoryWithoutChangingAggregateQueries() {
+        ExpenseDto.SearchCondition condition = new ExpenseDto.SearchCondition(
+                "2026-07-01", "2026-07-02", 0, 20, "ETC", 0
+        );
+
+        List<ExpenseDto.Transaction> transactions = expenseMapper.selectTransactions(7L, condition);
+
+        assertEquals(2, transactions.size());
+        assertEquals(9L, transactions.get(0).getTransactionId());
+        assertEquals("ETC", transactions.get(0).getCategory());
+        assertEquals(8L, transactions.get(1).getTransactionId());
+        assertEquals("ETC", transactions.get(1).getCategory());
+        assertEquals(2L, expenseMapper.countTransactions(7L, condition));
+
+        assertEquals(410L, expenseMapper.selectTotalExpense(7L, condition));
+        assertEquals(2, expenseMapper.selectDailyBreakdown(7L, condition).size());
+    }
+
     private void createExpenseFixtures(DataSource dataSource) throws Exception {
         try (Connection connection = dataSource.getConnection();
              Statement statement = connection.createStatement()) {
