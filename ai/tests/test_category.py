@@ -12,8 +12,10 @@ class FakeChatCompletions:
     def __init__(self, content=None):
         self.content = content
         self.kwargs = None
+        self.call_count = 0
 
     def create(self, **kwargs):
+        self.call_count += 1
         self.kwargs = kwargs
         return SimpleNamespace(
             choices=[
@@ -69,6 +71,7 @@ class CategoryClassificationApiTest(unittest.TestCase):
             fake_client.chat.completions.kwargs["response_format"],
             {"type": "json_object"},
         )
+        self.assertEqual(fake_client.chat.completions.call_count, 1)
 
     def test_rejects_invalid_request(self):
         response = self.client.post(
@@ -120,6 +123,7 @@ class CategoryClassificationApiTest(unittest.TestCase):
             len(fake_client.chat.completions.kwargs["messages"][1]["content"].split("unknown")) - 1,
             2,
         )
+        self.assertEqual(fake_client.chat.completions.call_count, 1)
 
     def test_returns_bad_gateway_when_ai_returns_no_result(self):
         fake_client = FakeGroqClient(content=None)
