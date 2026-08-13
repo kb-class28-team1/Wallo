@@ -18,6 +18,14 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  mode: {
+    type: String,
+    default: "edit",
+  },
+  initialCategory: {
+    type: String,
+    default: "ALL",
+  },
 });
 
 const emit = defineEmits(["close", "save"]);
@@ -50,7 +58,23 @@ const TYPE_TABS = Object.freeze([
 const selectedCategory = ref("");
 const selectedType = ref("EXPENSE");
 
-const categoryOptions = computed(() => CATEGORY_GROUPS[selectedType.value].map((value) => {
+const isFilterMode = computed(() => props.mode === "filter");
+
+const categoryValues = (type) => [
+  ...(isFilterMode.value && type === "EXPENSE" ? ["ALL"] : []),
+  ...CATEGORY_GROUPS[type],
+];
+
+const categoryOptions = computed(() => categoryValues(selectedType.value).map((value) => {
+  if (value === "ALL") {
+    return {
+      value,
+      label: "전체",
+      icon: "bi-grid-3x3-gap",
+      colorClass: "gray",
+    };
+  }
+
   const meta = EXPENSE_CATEGORY_META[value];
   return {
     value,
@@ -61,7 +85,9 @@ const categoryOptions = computed(() => CATEGORY_GROUPS[selectedType.value].map((
 }));
 
 const canSave = computed(() => Boolean(
-  props.transaction?.transactionId && selectedCategory.value && !props.isSaving,
+  (isFilterMode.value || props.transaction?.transactionId) &&
+  selectedCategory.value &&
+  !props.isSaving,
 ));
 
 const normalizeTransactionType = (type) => {
@@ -71,21 +97,41 @@ const normalizeTransactionType = (type) => {
 
 const selectType = (type) => {
   selectedType.value = type;
-  const nextOptions = CATEGORY_GROUPS[type];
+  const nextOptions = categoryValues(type);
   if (!nextOptions.includes(selectedCategory.value)) {
     selectedCategory.value = nextOptions[0];
   }
 };
 
+const initialCategory = (transaction) => {
+  if (isFilterMode.value) {
+    return props.initialCategory === "ALL"
+      ? "ALL"
+      : normalizeExpenseCategory(props.initialCategory);
+  }
+
+  return normalizeExpenseCategory(transaction?.category);
+};
+
 watch(
-  [() => props.visible, () => props.transaction],
+  [() => props.visible, () => props.transaction, () => props.initialCategory, () => props.mode],
   ([visible, transaction]) => {
     if (visible && transaction) {
       selectedType.value = normalizeTransactionType(transaction.type);
-      selectedCategory.value = normalizeExpenseCategory(transaction.category);
-      if (!CATEGORY_GROUPS[selectedType.value].includes(selectedCategory.value)) {
-        selectedCategory.value = CATEGORY_GROUPS[selectedType.value][0];
-      }
+    } else if (visible && isFilterMode.value) {
+      const category = initialCategory(transaction);
+      selectedType.value = category === "INCOME"
+        ? "INCOME"
+        : category === "SEND"
+          ? "TRANSFER"
+          : "EXPENSE";
+    }
+
+    if (visible) {
+      const category = initialCategory(transaction);
+      selectedCategory.value = categoryValues(selectedType.value).includes(category)
+        ? category
+        : categoryValues(selectedType.value)[0];
     }
   },
   { immediate: true },
@@ -98,10 +144,15 @@ const close = () => {
 const save = () => {
   if (!canSave.value) return;
 
-  emit("save", {
-    transactionId: props.transaction.transactionId,
-    category: selectedCategory.value,
-  });
+  emit(
+    "save",
+    isFilterMode.value
+      ? { category: selectedCategory.value }
+      : {
+          transactionId: props.transaction.transactionId,
+          category: selectedCategory.value,
+        },
+  );
 };
 </script>
 
@@ -121,7 +172,7 @@ const save = () => {
           <div class="modal-header">
             <div>
               <h2 id="expenseCategoryEditModalTitle" class="modal-title h5 fw-bold mb-1">
-                카테고리 선택
+                {{ isFilterMode ? "카테고리 필터" : "카테고리 선택" }}
               </h2>
             </div>
             <button
@@ -183,7 +234,7 @@ const save = () => {
                 class="spinner-border spinner-border-sm me-2"
                 aria-hidden="true"
               ></span>
-              {{ isSaving ? "저장 중..." : "확인" }}
+              {{ isSaving ? "처리 중..." : isFilterMode ? "적용" : "확인" }}
             </button>
           </div>
         </form>

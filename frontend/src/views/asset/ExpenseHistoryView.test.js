@@ -80,8 +80,8 @@ const globalStubs = {
     template: '<div data-testid="transaction-list"><button v-if="editable && transactions.length" data-testid="edit-category" @click="$emit(\'edit-category\', transactions[0])">edit</button></div>',
   },
   ExpenseCategoryEditModal: {
-    props: ["visible", "transaction"],
-    template: '<div v-if="visible" data-testid="category-edit-modal"><button data-testid="save-category" @click="$emit(\'save\', { transactionId: transaction.transactionId, category: \'FOOD\' })">save</button></div>',
+    props: ["visible", "transaction", "mode"],
+    template: '<div v-if="visible" :data-testid="mode === \'filter\' ? \'category-filter-modal\' : \'category-edit-modal\'"><button :data-testid="mode === \'filter\' ? \'save-filter-category\' : \'save-category\'" @click="$emit(\'save\', mode === \'filter\' ? { category: \'FOOD\' } : { transactionId: transaction.transactionId, category: \'FOOD\' })">save</button></div>',
   },
   ExpenseCategoryBreakdown: { template: '<div data-testid="category-breakdown" />' },
 };
@@ -196,7 +196,11 @@ describe("ExpenseHistoryView manual synchronization", () => {
 
   it("applies the selected category only to list requests", async () => {
     await wrapper.get(".view-toggle .btn:nth-child(2)").trigger("click");
-    await wrapper.get("#expenseCategoryFilter").setValue("FOOD");
+    expect(wrapper.get('[data-testid="open-category-filter"]').text()).toContain("카테고리 필터");
+    expect(wrapper.get('[data-testid="open-category-filter"]').text()).not.toContain("전체");
+    await wrapper.get('[data-testid="open-category-filter"]').trigger("click");
+    expect(wrapper.find('[data-testid="category-filter-modal"]').exists()).toBe(true);
+    await wrapper.get('[data-testid="save-filter-category"]').trigger("click");
     await flushPromises();
 
     expect(getExpenses.mock.calls[1][0]).toMatchObject({

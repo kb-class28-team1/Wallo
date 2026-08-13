@@ -53,6 +53,24 @@ describe("ExpenseCategoryEditModal", () => {
     expect(wrapper.get('[data-testid="category-option-SEND"]').classes()).toContain("selected");
   });
 
+  it("reuses the category cards for an ALL filter and emits only the category", async () => {
+    const wrapper = mount(ExpenseCategoryEditModal, {
+      props: {
+        visible: true,
+        mode: "filter",
+        initialCategory: "ALL",
+      },
+    });
+
+    expect(wrapper.get("#expenseCategoryEditModalTitle").text()).toBe("카테고리 필터");
+    expect(wrapper.get('[data-testid="category-option-ALL"]').classes()).toContain("selected");
+
+    await wrapper.get('[data-testid="category-option-FOOD"]').trigger("click");
+    await wrapper.get("form").trigger("submit");
+
+    expect(wrapper.emitted("save")?.[0]?.[0]).toEqual({ category: "FOOD" });
+  });
+
   it("emits the selected category with the transaction id", async () => {
     const wrapper = mount(ExpenseCategoryEditModal, {
       props: {

@@ -63,6 +63,8 @@ const isBudgetEditorVisible = ref(false);
 const isCategoryEditModalVisible = ref(false);
 const selectedTransaction = ref(null);
 const isCategorySaving = ref(false);
+const isCategoryFilterModalVisible = ref(false);
+const isCategoryFilterSaving = ref(false);
 let requestVersion = 0;
 let dailyRequestVersion = 0;
 
@@ -99,6 +101,10 @@ const listCategoryOptions = computed(() => [
     label: meta.label,
   })),
 ]);
+
+const selectedListCategoryLabel = computed(() =>
+  listCategoryOptions.value.find((option) => option.value === selectedListCategory.value)?.label || "전체",
+);
 
 const canEditBudget = computed(() => (
   isCurrentMonth.value && !isBudgetLoading.value && !budgetError.value
@@ -234,6 +240,32 @@ const fetchExpensePage = async (page, append = false) => {
 
 const changeListCategory = async () => {
   await fetchExpensePage(0);
+};
+
+const openCategoryFilter = () => {
+  if (!isCategoryFilterSaving.value) {
+    isCategoryFilterModalVisible.value = true;
+  }
+};
+
+const closeCategoryFilter = () => {
+  if (isCategoryFilterSaving.value) return;
+  isCategoryFilterModalVisible.value = false;
+};
+
+const applyCategoryFilter = async ({ category }) => {
+  if (isCategoryFilterSaving.value) return;
+
+  selectedListCategory.value = category || "ALL";
+  isCategoryFilterSaving.value = true;
+  try {
+    await changeListCategory();
+    if (!error.value) {
+      isCategoryFilterModalVisible.value = false;
+    }
+  } finally {
+    isCategoryFilterSaving.value = false;
+  }
 };
 
 const openCategoryEditor = (transaction) => {
@@ -527,23 +559,20 @@ onMounted(async () => {
               </div>
 
               <div v-if="activeView === 'list'" class="category-filter d-flex align-items-center gap-2">
-                <label for="expenseCategoryFilter" class="small fw-bold text-secondary mb-0">
-                  카테고리
-                </label>
-                <select
-                  id="expenseCategoryFilter"
-                  v-model="selectedListCategory"
-                  class="form-select form-select-sm"
-                  @change="changeListCategory"
+                <button
+                  type="button"
+                  class="category-filter-trigger"
+                  data-testid="open-category-filter"
+                  aria-haspopup="dialog"
+                  :disabled="isCategoryFilterSaving"
+                  @click="openCategoryFilter"
                 >
-                  <option
-                    v-for="option in listCategoryOptions"
-                    :key="option.value"
-                    :value="option.value"
-                  >
-                    {{ option.label }}
-                  </option>
-                </select>
+                  <span>카테고리 필터</span>
+                  <span v-if="selectedListCategory !== 'ALL'" class="category-filter-current">
+                    {{ selectedListCategoryLabel }}
+                  </span>
+                  <i class="bi bi-chevron-down" aria-hidden="true"></i>
+                </button>
               </div>
             </div>
 
@@ -609,6 +638,15 @@ onMounted(async () => {
       :is-saving="isCategorySaving"
       @close="closeCategoryEditor"
       @save="saveTransactionCategory"
+    />
+
+    <ExpenseCategoryEditModal
+      :visible="isCategoryFilterModalVisible"
+      mode="filter"
+      :initial-category="selectedListCategory"
+      :is-saving="isCategoryFilterSaving"
+      @close="closeCategoryFilter"
+      @save="applyCategoryFilter"
     />
 
     <div
@@ -726,10 +764,42 @@ onMounted(async () => {
   background: #f0edff;
 }
 
-.category-filter .form-select {
+.category-filter-trigger {
+  display: inline-flex;
   min-width: 142px;
-  border-color: #e4e1f4;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 11px;
+  border: 1px solid #e4e1f4;
   border-radius: 10px;
+  color: #343044;
+  background: #ffffff;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.category-filter-current {
+  margin-left: 2px;
+  color: #6b5bd2;
+  font-size: 0.78rem;
+}
+
+.category-filter-trigger:hover:not(:disabled),
+.category-filter-trigger:focus-visible {
+  border-color: #b9b0f2;
+  color: #6b5bd2;
+  background: #faf9ff;
+}
+
+.category-filter-trigger:focus-visible {
+  outline: 2px solid #6b5bd2;
+  outline-offset: 2px;
+}
+
+.category-filter-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .history-card,
