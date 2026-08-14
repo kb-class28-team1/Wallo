@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import DashboardView from "./DashboardView.vue"
 import { getAssets, getBudgets, getExpenses } from "@/api/assetApi"
-import { getGoalRoadmap, getGoals } from "@/api/goalApi"
+import { getAvailableGoalAccounts, getGoalRoadmap, getGoals } from "@/api/goalApi"
 
 vi.mock("@/api/goalApi", () => ({
   getAvailableGoalAccounts: vi.fn(),
@@ -63,6 +63,7 @@ describe("DashboardView", () => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
     getGoals.mockResolvedValue({ data: [latestGoal] })
+    getAvailableGoalAccounts.mockResolvedValue({ data: [] })
     getGoalRoadmap.mockResolvedValue({ data: null })
     getAssets.mockResolvedValue({ data: null })
     getBudgets.mockResolvedValue({ data: null })
@@ -80,6 +81,7 @@ describe("DashboardView", () => {
     await vi.waitFor(() => expect(wrapper.find(".goal-summary-card").exists()).toBe(true))
 
     expect(getGoals).toHaveBeenCalledWith({ syncAccounts: false })
+    expect(getAvailableGoalAccounts).toHaveBeenCalledWith()
     expect(wrapper.find(".goal-progress-amount").text()).toContain("1,400,000")
     expect(wrapper.find(".goal-progress-rate").text()).toContain("14%")
 

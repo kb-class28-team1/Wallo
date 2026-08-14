@@ -26,6 +26,8 @@ const {
   initialLoading: isGoalInitialLoading,
   refreshing: isGoalRefreshing,
   error: goalError,
+  availableAccounts,
+  isAccountLoading,
 } = storeToRefs(goalStore);
 const { assetTrendChartData, expenseChartData } = useDashboardCharts(assets, expenses);
 
@@ -78,14 +80,22 @@ const refreshGoalData = ({ refreshDashboard = false } = {}) => {
       notifyError: false,
       syncAccounts: false,
     });
+    const accountRequest = goalRequest.then((loadedGoals) => {
+      if (!loadedGoals.length) {
+        return [];
+      }
+
+      return goalStore.fetchAvailableAccounts({ notifyError: false });
+    });
+
     if (refreshDashboard) {
       await Promise.all([
-        goalRequest,
+        accountRequest,
         dashboardStore.fetchDashboardSummary(),
       ]);
       return;
     }
-    await goalRequest;
+    await accountRequest;
   })().finally(() => {
     goalRefreshInFlight = null;
   });
@@ -175,6 +185,8 @@ onBeforeUnmount(() => {
           :goals="goals"
           :loading="isGoalInitialLoading"
           :error="goalError"
+          :available-accounts="availableAccounts"
+          :accounts-loading="isAccountLoading"
           @retry="handleGoalRetry"
         />
       </div>
