@@ -105,6 +105,11 @@ describe("GoalSummaryCard", () => {
     });
 
     expect(wrapper.text()).toContain("아직 확정된 금융 목표가 없습니다.");
+    expect(wrapper.text()).toContain("목표 설정하기");
+    expect(wrapper.text()).not.toContain("채팅에서 계좌 설정");
+    expect(wrapper.find("a").attributes("data-to")).toBe(
+      "/chat?start=goal-setting",
+    );
     expect(wrapper.find(".goal-state").exists()).toBe(true);
   });
 

@@ -84,8 +84,11 @@ const formatGoalDate = (date) => {
           </h2>
         </div>
 
-        <RouterLink to="/chat" class="btn dashboard-action-button flex-shrink-0 ms-auto">
-          채팅에서 계좌 설정
+        <RouterLink
+          :to="goals.length > 0 ? '/chat' : '/chat?start=goal-setting'"
+          class="btn dashboard-action-button flex-shrink-0 ms-auto"
+        >
+          {{ goals.length > 0 ? "채팅에서 계좌 설정" : "목표 설정하기" }}
           <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
         </RouterLink>
       </div>
