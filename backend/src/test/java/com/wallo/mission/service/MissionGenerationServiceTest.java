@@ -14,6 +14,7 @@ import com.wallo.mission.client.MissionAiClient;
 import com.wallo.mission.domain.MissionAnalysisSource;
 import com.wallo.mission.domain.DailyMission;
 import com.wallo.mission.dto.MissionGenerationDto;
+import com.wallo.mission.dto.TodayMissionResponse;
 import com.wallo.mission.mapper.MissionMapper;
 import java.time.Clock;
 import java.time.Instant;
@@ -115,6 +116,18 @@ class MissionGenerationServiceTest {
 
         assertEquals(1, result.missionCount());
         verify(aiClient, never()).generate(any());
+    }
+
+    @Test
+    void returnsWaitingForAnalysisWhenConsumptionAnalysisIsUnavailable() {
+        when(mapper.findLatestAnalysis(7L)).thenReturn(null);
+
+        MissionGenerationDto.Result result = service.generate(7L, false);
+
+        assertEquals(TodayMissionResponse.WAITING_ANALYSIS_STATUS, result.status());
+        assertEquals(0, result.missionCount());
+        verify(aiClient, never()).generate(any());
+        verify(mapper, never()).insertCycle(any());
     }
 
     @Test
