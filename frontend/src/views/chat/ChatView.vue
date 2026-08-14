@@ -176,6 +176,7 @@ const openDeleteDialog = async (conversation) => {
   if (isDeletingConversation.value) return
 
   const goals = await goalStore.fetchGoals({
+    userId: userId.value,
     notifyError: false,
     force: true,
     syncAccounts: false,

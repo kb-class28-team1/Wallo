@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from "vue"
 import { useRouter } from "vue-router"
 import { storeToRefs } from "pinia"
 import { useGoalStore } from "@/stores/goalStore"
+import { useUserStore } from "@/stores/userStore"
 import { formatWon } from "@/commonUtils/formatters"
 import {
   getGoalAchievementRate,
@@ -12,6 +13,7 @@ import {
 
 const router = useRouter()
 const goalStore = useGoalStore()
+const userStore = useUserStore()
 const {
   goals,
   initialLoading,
@@ -22,11 +24,13 @@ const {
   roadmapError,
   isRoadmapProgressSaving,
 } = storeToRefs(goalStore)
+const { user } = storeToRefs(userStore)
 
 const walloCharacter = "/images/profiles/thinking-penguin.svg"
 const hasGoal = computed(() => goals.value.length > 0)
 const currentGoal = computed(() => goals.value[0] ?? null)
 const roadmapSlider = ref(null)
+const userId = computed(() => user.value?.id ?? null)
 
 const currentAmount = computed(() => getGoalCurrentAmount(currentGoal.value))
 const targetAmount = computed(() => getGoalTargetAmount(currentGoal.value))
@@ -142,6 +146,7 @@ const benefits = [
 const loadGoalPage = async ({ force = false } = {}) => {
   error.value = null
   await goalStore.fetchGoals({
+    userId: userId.value,
     notifyError: false,
     force,
   })

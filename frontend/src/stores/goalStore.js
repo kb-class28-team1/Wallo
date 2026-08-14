@@ -12,6 +12,13 @@ import { getApiErrorMessage } from "@/commonUtils/apiError";
 const GOAL_STALE_TIME = 5 * 60 * 1000;
 const ROADMAP_STALE_TIME = 5 * 60 * 1000;
 const AVAILABLE_ACCOUNTS_STALE_TIME = 60 * 1000;
+const normalizeUserId = (userId) => {
+  if (userId === null || userId === undefined || userId === "") {
+    return null
+  }
+
+  return String(userId)
+}
 
 export const useGoalStore = defineStore("goal", () => {
   const goals = ref([]);
@@ -20,10 +27,13 @@ export const useGoalStore = defineStore("goal", () => {
   const refreshing = ref(false);
   const error = ref(null);
   const lastFetchedAt = ref(0);
+  const lastFetchedUserId = ref(null);
   const hasFetchedGoals = ref(false);
   let goalsInFlight = null;
+  let inFlightUserId = null;
   let inFlightIncludesSync = false;
   let lastFetchIncludedSync = false;
+  let activeUserId = null;
   const availableAccounts = ref([]);
   const isAccountLoading = ref(false);
   const initialAccountLoading = ref(false);
@@ -147,17 +157,27 @@ export const useGoalStore = defineStore("goal", () => {
   }
 
   const fetchGoals = ({
+    userId = null,
     notifyError = true,
     force = false,
     staleTime = GOAL_STALE_TIME,
     syncAccounts = true,
   } = {}) => {
-    if (goalsInFlight && (!syncAccounts || inFlightIncludesSync)) {
+    const requestedUserId = normalizeUserId(userId)
+
+    if (
+      goalsInFlight &&
+      requestedUserId === inFlightUserId &&
+      (!syncAccounts || inFlightIncludesSync)
+    ) {
       return goalsInFlight
     }
 
     const requestVersion = sessionVersion
+    activeUserId = requestedUserId
     const isFresh = (
+      requestedUserId !== null &&
+      lastFetchedUserId.value === requestedUserId &&
       lastFetchedAt.value > 0 &&
       Date.now() - lastFetchedAt.value < staleTime &&
       (!syncAccounts || lastFetchIncludedSync)
@@ -174,16 +194,18 @@ export const useGoalStore = defineStore("goal", () => {
     error.value = null;
 
     let request
+    inFlightUserId = requestedUserId
     inFlightIncludesSync = syncAccounts
     request = (async () => {
       try {
         const response = await getGoals({ syncAccounts });
-        if (requestVersion !== sessionVersion) {
+        if (requestVersion !== sessionVersion || activeUserId !== requestedUserId) {
           return []
         }
 
         goals.value = Array.isArray(response?.data) ? response.data : [];
         lastFetchedAt.value = Date.now()
+        lastFetchedUserId.value = requestedUserId
         lastFetchIncludedSync = syncAccounts
         hasFetchedGoals.value = true
         await fetchGoalRoadmap(goals.value[0]?.goalId, {
@@ -191,19 +213,20 @@ export const useGoalStore = defineStore("goal", () => {
           force,
         })
 
-        if (requestVersion !== sessionVersion) {
+        if (requestVersion !== sessionVersion || activeUserId !== requestedUserId) {
           return []
         }
 
         return goals.value;
       } catch (caughtError) {
-        if (requestVersion !== sessionVersion) {
+        if (requestVersion !== sessionVersion || activeUserId !== requestedUserId) {
           return []
         }
 
         if (isInitialLoad) {
           goals.value = [];
           lastFetchedAt.value = 0
+          lastFetchedUserId.value = null
           lastFetchIncludedSync = false
           hasFetchedGoals.value = false
         }
@@ -224,6 +247,7 @@ export const useGoalStore = defineStore("goal", () => {
           isLoading.value = false;
           if (goalsInFlight === request) {
             goalsInFlight = null
+            inFlightUserId = null
             inFlightIncludesSync = false
           }
         }
@@ -385,10 +409,13 @@ export const useGoalStore = defineStore("goal", () => {
     refreshing.value = false
     error.value = null
     lastFetchedAt.value = 0
+    lastFetchedUserId.value = null
     hasFetchedGoals.value = false
     goalsInFlight = null
+    inFlightUserId = null
     inFlightIncludesSync = false
     lastFetchIncludedSync = false
+    activeUserId = null
 
     availableAccounts.value = []
     isAccountLoading.value = false
@@ -415,6 +442,7 @@ export const useGoalStore = defineStore("goal", () => {
     initialLoading,
     refreshing,
     lastFetchedAt,
+    lastFetchedUserId,
     error,
     fetchGoals,
     reset,

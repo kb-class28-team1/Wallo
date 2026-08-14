@@ -73,6 +73,51 @@ describe("goalStore", () => {
     expect(getGoals).toHaveBeenNthCalledWith(2, { syncAccounts: true });
   });
 
+  it("reuses goals only for the user that owns the cache", async () => {
+    const goals = [{ goalId: 1, title: "Emergency fund" }];
+    getGoals.mockResolvedValue({ success: true, data: goals });
+
+    const store = useGoalStore();
+
+    await store.fetchGoals({
+      userId: 7,
+      notifyError: false,
+      syncAccounts: false,
+    });
+    await store.fetchGoals({
+      userId: 7,
+      notifyError: false,
+      syncAccounts: false,
+    });
+
+    expect(getGoals).toHaveBeenCalledOnce();
+    expect(store.lastFetchedUserId).toBe("7");
+  });
+
+  it("fetches fresh goals when the authenticated user changes", async () => {
+    const firstUserGoals = [{ goalId: 1, title: "User A goal" }];
+    getGoals
+      .mockResolvedValueOnce({ success: true, data: firstUserGoals })
+      .mockResolvedValueOnce({ success: true, data: [] });
+
+    const store = useGoalStore();
+
+    await store.fetchGoals({
+      userId: 7,
+      notifyError: false,
+      syncAccounts: false,
+    });
+    await store.fetchGoals({
+      userId: 8,
+      notifyError: false,
+      syncAccounts: false,
+    });
+
+    expect(getGoals).toHaveBeenCalledTimes(2);
+    expect(store.goals).toEqual([]);
+    expect(store.lastFetchedUserId).toBe("8");
+  });
+
   it("stores the AI roadmap returned for a confirmed goal", async () => {
     const roadmap = {
       goalId: 31,
