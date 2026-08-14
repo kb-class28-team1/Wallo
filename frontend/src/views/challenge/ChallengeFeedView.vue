@@ -100,6 +100,7 @@ const form = reactive({
   analysisSummary: "",
   confidenceScore: 0,
   analysisDetails: "",
+  analysisStatus: "IDLE",
   analysisFailed: false,
   dailyMissionId: "",
 })
@@ -418,6 +419,7 @@ const closeModal = () => {
     analysisSummary: "",
     confidenceScore: 0,
     analysisDetails: "",
+    analysisStatus: "IDLE",
     analysisFailed: false,
     dailyMissionId: "",
   })
@@ -497,6 +499,7 @@ const handleFile = async (event) => {
   form.verifiedSavingAmount = null
   form.analysisSummary = ""
   form.analysisDetails = ""
+  form.analysisStatus = "IDLE"
   form.analysisFailed = false
 }
 const selectCategory = (category) => {
@@ -508,13 +511,14 @@ const selectCategory = (category) => {
   form.analysisSummary = ""
   form.confidenceScore = 0
   form.analysisDetails = ""
+  form.analysisStatus = "IDLE"
   form.analysisFailed = false
 }
-const validationMessage = ({ requireCaption = false } = {}) => {
+const validationMessage = ({ requireCaption = false, requireAnalysis = true } = {}) => {
   if (!form.file) return "사진이나 영상을 선택해 주세요."
   if (!form.category) return "세부 카테고리를 선택해 주세요."
-  if (!canConfirmSavingAmount.value) return "먼저 AI 분석을 진행해 주세요."
-  if (!Number.isFinite(form.savingAmount) || form.savingAmount < 0) {
+  if (requireAnalysis && !canConfirmSavingAmount.value) return "먼저 AI 분석을 진행해 주세요."
+  if (requireAnalysis && (!Number.isFinite(form.savingAmount) || form.savingAmount < 0)) {
     return "절약 금액을 0원 이상 입력해 주세요."
   }
   if (requireCaption && !form.caption.trim()) return "한줄요약을 작성해주세요"
@@ -528,12 +532,14 @@ const makeFormData = () => {
   return data
 }
 const requestAnalysis = async () => {
-  const invalid = validationMessage()
+  const invalid = validationMessage({ requireAnalysis: false })
   if (invalid) return openDialog({ message: invalid })
+  form.analysisStatus = "ANALYZING"
   isAnalyzing.value = true
   try {
     const result = await analyzeFeed(challengeId.value, makeFormData())
     form.analysisFailed = false
+    form.analysisStatus = "AI_COMPLETED"
     form.aiEstimatedSavingAmount = Number(result.estimatedSavingAmount) || 0
     form.savingAmount = form.aiEstimatedSavingAmount
     form.savingAmountFeedback = ""
@@ -543,6 +549,7 @@ const requestAnalysis = async () => {
     form.analysisDetails = JSON.stringify(result)
   } catch (error) {
     form.analysisFailed = true
+    form.analysisStatus = "AI_FAILED"
     form.aiEstimatedSavingAmount = 0
     form.savingAmount = null
     form.savingAmountFeedback = "UNKNOWN"
@@ -614,12 +621,10 @@ const uploadFeed = async () => {
     }
     data.append("analysisSummary", form.analysisSummary)
     data.append("confidenceScore", String(form.confidenceScore))
-    if (form.aiEstimatedAmount !== null) {
-      data.append("aiEstimatedAmount", String(form.aiEstimatedAmount))
-    }
+    data.append("analysisDetails", form.analysisDetails)
     const feedbackType =
       form.analysisStatus === "AI_COMPLETED"
-        ? form.savingAmount === form.aiEstimatedAmount
+        ? form.savingAmount === form.aiEstimatedSavingAmount
           ? "ACCEPTED"
           : "ADJUSTED"
         : "MANUAL"
@@ -628,8 +633,6 @@ const uploadFeed = async () => {
       "analysisStatus",
       form.analysisStatus === "AI_FAILED" ? "AI_FAILED" : "AI_COMPLETED",
     )
-    await createFeed(challengeId.value, data)
-    data.append("analysisDetails", form.analysisDetails)
     const createdFeed = await createFeed(challengeId.value, data)
     let verificationResult = null
     let verificationError = null
