@@ -285,6 +285,13 @@ describe("ChatView", () => {
     await wrapper.find(".goal-interview-card .btn-primary").trigger("click")
     await flushPromises()
 
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    await vi.waitFor(() => expect(wrapper.findAll('input[type="radio"]')).toHaveLength(2))
+
+    await wrapper.findAll('input[type="radio"]')[1].setValue()
+    await wrapper.find(".goal-account-selection button.btn-primary").trigger("click")
+    await flushPromises()
+
     expect(wrapper.find('[role="dialog"]').text()).toContain(
       "목표 설정 및 로드맵이 완성되었습니다!",
     )

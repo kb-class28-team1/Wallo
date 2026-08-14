@@ -60,6 +60,8 @@ const isGoalSettingStarting = ref(false)
 const isMissingGoalConversation = ref(false)
 const isGoalCompletionChecking = ref(false)
 const isGoalCompletionDialogVisible = ref(false)
+const isGoalRoadmapReady = ref(false)
+const isGoalAccountConfigured = ref(false)
 const userId = computed(() => user.value?.id ?? null)
 const isGoalDeleteBlocked = computed(
   () => deleteTargetConversation.value?.hasGoal === true,
@@ -95,6 +97,22 @@ const displayMessages = computed(() => {
   return [{ ...WELCOME_MESSAGE }]
 })
 
+const resetGoalCompletionFlow = () => {
+  isGoalCompletionDialogVisible.value = false
+  isGoalRoadmapReady.value = false
+  isGoalAccountConfigured.value = false
+}
+
+const showGoalCompletionDialogIfReady = () => {
+  if (!isGoalRoadmapReady.value || !isGoalAccountConfigured.value) {
+    return
+  }
+
+  isGoalRoadmapReady.value = false
+  isGoalAccountConfigured.value = false
+  isGoalCompletionDialogVisible.value = true
+}
+
 watch(
   () => confirmedGoal.value?.goalId,
   async (goalId) => {
@@ -125,7 +143,7 @@ const selectConversation = async (conversationId) => {
   isGoalSettingEntry.value = false
   isGoalSettingStarting.value = false
   isMissingGoalConversation.value = false
-  isGoalCompletionDialogVisible.value = false
+  resetGoalCompletionFlow()
   errorMessage.value = ""
   await conversationStore.selectConversation(conversationId, userId.value)
   await scrollToBottom()
@@ -140,7 +158,7 @@ const startNewConversation = async () => {
   isGoalSettingEntry.value = false
   isGoalSettingStarting.value = false
   isMissingGoalConversation.value = false
-  isGoalCompletionDialogVisible.value = false
+  resetGoalCompletionFlow()
   const conversation = await conversationStore.startNewConversation(userId.value)
 
   if (conversation) errorMessage.value = ""
@@ -249,18 +267,22 @@ const handleAccountSelect = async (accountId) => {
   if (!goalId) return
 
   try {
-    await goalStore.saveGoalAccount(goalId, accountId)
+    const selectedAccount = await goalStore.saveGoalAccount(goalId, accountId)
+    if (!selectedAccount) return
+
     await conversationStore.fetchConfirmedGoal(activeConversationId.value, {
       force: true,
     })
     await goalStore.fetchAvailableAccounts({ notifyError: false })
+    isGoalAccountConfigured.value = true
+    showGoalCompletionDialogIfReady()
   } catch {
     // goalStore가 API 오류와 사용자 알림을 처리한다.
   }
 }
 
 const confirmGoal = async () => {
-  isGoalCompletionDialogVisible.value = false
+  resetGoalCompletionFlow()
   const sent = await sendMessage("이대로 확정할게")
   if (!sent || activeGoalInterview.value?.action !== "CONFIRM") return
 
@@ -277,10 +299,12 @@ const confirmGoal = async () => {
       force: true,
     })
     if (roadmap?.generationStatus === "COMPLETED") {
-      isGoalCompletionDialogVisible.value = true
+      isGoalRoadmapReady.value = true
+      showGoalCompletionDialogIfReady()
       return
     }
 
+    isGoalRoadmapReady.value = false
     errorMessage.value = roadmap?.generationStatus === "FAILED"
       ? "목표 설정은 완료되었지만 로드맵 생성에 실패했습니다."
       : "목표 설정 결과를 확인하지 못했습니다."
@@ -290,6 +314,7 @@ const confirmGoal = async () => {
 }
 
 const cancelGoal = async () => {
+  resetGoalCompletionFlow()
   await sendMessage("그만할래")
 }
 
@@ -312,7 +337,7 @@ const startGoalSettingConversation = async () => {
   isGoalSettingEntry.value = true
   isGoalSettingStarting.value = true
   isMissingGoalConversation.value = false
-  isGoalCompletionDialogVisible.value = false
+  resetGoalCompletionFlow()
   errorMessage.value = ""
 
   try {
@@ -335,7 +360,7 @@ const startConsumptionAnalysis = async () => {
 
   isConsumptionAnalysisStarting.value = true
   isMissingGoalConversation.value = false
-  isGoalCompletionDialogVisible.value = false
+  resetGoalCompletionFlow()
   errorMessage.value = ""
   await router.replace({ name: "chat" })
 
