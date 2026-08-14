@@ -33,6 +33,7 @@ import com.wallo.mission.verification.MockMissionVerificationClient;
 import java.time.Clock;
 import java.time.ZoneId;
 import java.util.Locale;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -43,6 +44,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.context.support.PropertySourcesPlaceholderConfigurer;
 import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
@@ -54,6 +57,7 @@ import org.springframework.context.annotation.Primary;
 
 @Configuration
 @EnableScheduling
+@EnableAsync
 @ComponentScan(
         basePackages = "com.wallo",
         excludeFilters = {
@@ -270,6 +274,23 @@ public class AppConfig {
     public ExecutorService shoppingPriceExecutor(
             @Value("${shopping.price.max-concurrency:3}") int maxConcurrency) {
         return Executors.newFixedThreadPool(Math.max(1, Math.min(3, maxConcurrency)));
+    }
+
+    @Bean(name = "missionGenerationExecutor", destroyMethod = "shutdown")
+    public Executor missionGenerationExecutor(
+            @Value("${mission.generation.async.core-pool-size:2}") int corePoolSize,
+            @Value("${mission.generation.async.max-pool-size:4}") int maxPoolSize,
+            @Value("${mission.generation.async.queue-capacity:20}") int queueCapacity) {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        int normalizedCorePoolSize = Math.max(1, corePoolSize);
+        executor.setCorePoolSize(normalizedCorePoolSize);
+        executor.setMaxPoolSize(Math.max(normalizedCorePoolSize, maxPoolSize));
+        executor.setQueueCapacity(Math.max(1, queueCapacity));
+        executor.setThreadNamePrefix("mission-generation-");
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(30);
+        executor.initialize();
+        return executor;
     }
 
     @Bean

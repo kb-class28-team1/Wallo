@@ -22,11 +22,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.IntSupplier;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 public class MissionGenerationService {
@@ -48,6 +51,7 @@ public class MissionGenerationService {
     private final MissionCycleCalculator cycleCalculator;
     private final Clock clock;
     private final IntSupplier dailyMissionCount;
+    private final Set<Long> generationInProgress = ConcurrentHashMap.newKeySet();
 
     @Autowired
     public MissionGenerationService(MissionMapper missionMapper, MissionAiClient missionAiClient,
@@ -89,7 +93,19 @@ public class MissionGenerationService {
 
     @Transactional
     public MissionGenerationDto.Result generate(Long userId, boolean force) {
-        return generateToday(userId, LocalDate.now(clock));
+        if (userId == null || userId < 1) throw new IllegalArgumentException("userId is required.");
+        if (!generationInProgress.add(userId)) {
+            return waitingResult(userId);
+        }
+        try {
+            return generateTodayInternal(userId, LocalDate.now(clock));
+        } finally {
+            releaseGenerationLockAfterTransaction(userId);
+        }
+    }
+
+    public boolean isGenerationInProgress(Long userId) {
+        return userId != null && generationInProgress.contains(userId);
     }
 
     @Transactional
@@ -112,6 +128,13 @@ public class MissionGenerationService {
 
     @Transactional
     public MissionGenerationDto.Result generateToday(Long userId, LocalDate date) {
+        if (isGenerationInProgress(userId)) {
+            return waitingResult(userId);
+        }
+        return generateTodayInternal(userId, date);
+    }
+
+    private MissionGenerationDto.Result generateTodayInternal(Long userId, LocalDate date) {
         if (userId == null || userId < 1) throw new IllegalArgumentException("userId is required.");
         if (date == null) throw new IllegalArgumentException("date is required.");
         List<DailyMission> assigned = missionMapper.findDailyMissions(userId, date);
@@ -169,6 +192,24 @@ public class MissionGenerationService {
         }
         return new MissionGenerationDto.Result(
                 cycle.getMissionCycleId(), userId, response.missions().size(), "ACTIVE");
+    }
+
+    private MissionGenerationDto.Result waitingResult(Long userId) {
+        return new MissionGenerationDto.Result(
+                null, userId, 0, TodayMissionResponse.WAITING_ANALYSIS_STATUS);
+    }
+
+    private void releaseGenerationLockAfterTransaction(Long userId) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            generationInProgress.remove(userId);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                generationInProgress.remove(userId);
+            }
+        });
     }
 
     private Map<String, Object> parseAnalysis(String json) {

@@ -22,8 +22,13 @@ const isMissionOpen = ref(false)
 const isMissionLoading = ref(false)
 const isMissionDevLoading = ref(false)
 const missionDevResult = ref(null)
+const isMissionPolling = ref(false)
 const isDevelopment = import.meta.env.DEV
 let missionCloseTimer = null
+let missionPollingTimer = null
+let missionPollingAttempts = 0
+const MISSION_POLL_INTERVAL_MS = 2500
+const MAX_MISSION_POLL_ATTEMPTS = 48
 
 // 포인트 숫자에 천 단위 구분 기호를 적용함
 const formattedPointBalance = computed(() => formatNumber(pointBalance.value))
@@ -46,15 +51,25 @@ const totalMissionReward = computed(() =>
 onMounted(() => {
   userStore.fetchUserProfile()
   loadTodayMissions()
-  window.addEventListener("wallo:mission-updated", loadTodayMissions)
+  window.addEventListener("wallo:mission-updated", handleMissionUpdated)
 })
 
 onBeforeUnmount(() => {
-  window.removeEventListener("wallo:mission-updated", loadTodayMissions)
+  window.removeEventListener("wallo:mission-updated", handleMissionUpdated)
   clearTimeout(missionCloseTimer)
+  stopMissionPolling()
 })
 
-const loadTodayMissions = async () => {
+const stopMissionPolling = () => {
+  if (missionPollingTimer) {
+    clearInterval(missionPollingTimer)
+    missionPollingTimer = null
+  }
+  missionPollingAttempts = 0
+  isMissionPolling.value = false
+}
+
+const loadTodayMissions = async (notifyError = true) => {
   isMissionLoading.value = true
   try {
     const response = await getTodayMissions()
@@ -63,9 +78,34 @@ const loadTodayMissions = async () => {
   } catch (error) {
     missionStatus.value = "ERROR"
     missions.value = []
-    alert(error.message || "오늘의 미션을 불러오지 못했습니다.")
+    if (notifyError) {
+      alert(error.message || "오늘의 미션을 불러오지 못했습니다.")
+    }
   } finally {
     isMissionLoading.value = false
+  }
+}
+
+const startMissionPolling = () => {
+  stopMissionPolling()
+  isMissionPolling.value = true
+  missionPollingTimer = setInterval(async () => {
+    missionPollingAttempts += 1
+    await loadTodayMissions(false)
+
+    if (
+      missionStatus.value !== "WAITING_ANALYSIS"
+      || missionPollingAttempts >= MAX_MISSION_POLL_ATTEMPTS
+    ) {
+      stopMissionPolling()
+    }
+  }, MISSION_POLL_INTERVAL_MS)
+}
+
+const handleMissionUpdated = async () => {
+  await loadTodayMissions()
+  if (missionStatus.value === "WAITING_ANALYSIS") {
+    startMissionPolling()
   }
 }
 
@@ -167,10 +207,11 @@ const handleLogout = async () => {
             <button
               type="button"
               class="btn btn-sm btn-outline-primary d-block w-100 mt-3"
+              :disabled="isMissionPolling"
               @click="startConsumptionAnalysis"
             >
               <i class="bi bi-bar-chart-line me-1" aria-hidden="true"></i>
-              소비분석 하러가기
+              {{ isMissionPolling ? "오늘의 미션을 생성하는 중..." : "소비분석 하러가기" }}
             </button>
           </div>
           <div v-else-if="!missions.length" class="mission-empty">
