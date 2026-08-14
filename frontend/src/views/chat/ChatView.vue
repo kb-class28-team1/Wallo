@@ -5,6 +5,7 @@ import { useRoute, useRouter } from "vue-router"
 
 import ChatInput from "@/components/chat/ChatInput.vue"
 import ChatMessage from "@/components/chat/ChatMessage.vue"
+import AppDialog from "@/components/common/AppDialog.vue"
 import GoalInterviewCard from "@/components/chat/GoalInterviewCard.vue"
 import GoalAccountSelector from "@/components/goal/GoalAccountSelector.vue"
 import { useConversationStore } from "@/stores/conversationStore"
@@ -47,6 +48,8 @@ const errorMessage = ref("")
 const messageList = ref(null)
 const editingConversationId = ref(null)
 const editingTitle = ref("")
+const deleteTargetConversation = ref(null)
+const isDeletingConversation = ref(false)
 const isConsumptionAnalysisStarting = ref(false)
 const isGoalSettingEntry = ref(false)
 const isGoalSettingStarting = ref(false)
@@ -143,14 +146,36 @@ const saveConversationTitle = async (conversationId) => {
   if (updated) cancelEditingTitle()
 }
 
-const deleteConversation = async (conversation) => {
-  if (!userId.value) return
-  if (!window.confirm(`'${conversation.title}' 채팅방을 삭제할까요?`)) return
+const openDeleteDialog = (conversation) => {
+  if (isDeletingConversation.value) return
+  deleteTargetConversation.value = conversation
+}
+
+const closeDeleteDialog = () => {
+  if (isDeletingConversation.value) return
+  deleteTargetConversation.value = null
+}
+
+const confirmDeleteConversation = async () => {
+  const conversation = deleteTargetConversation.value
+  if (!userId.value || !conversation || isDeletingConversation.value) return
 
   if (editingConversationId.value === conversation.conversationId) {
     cancelEditingTitle()
   }
-  await conversationStore.removeConversation(conversation.conversationId, userId.value)
+
+  isDeletingConversation.value = true
+  try {
+    const deleted = await conversationStore.removeConversation(
+      conversation.conversationId,
+      userId.value,
+    )
+    if (deleted) {
+      deleteTargetConversation.value = null
+    }
+  } finally {
+    isDeletingConversation.value = false
+  }
 }
 
 const followTypingMessage = () => scrollToBottom("auto")
@@ -479,7 +504,7 @@ onMounted(async () => {
                     type="button"
                     class="conversation-action btn btn-sm btn-link text-danger"
                     aria-label="채팅방 삭제"
-                    @click="deleteConversation(conversation)"
+                    @click="openDeleteDialog(conversation)"
                   >
                     <i class="bi bi-trash"></i>
                   </button>
@@ -490,6 +515,17 @@ onMounted(async () => {
         </section>
       </aside>
     </div>
+
+    <AppDialog
+      :visible="Boolean(deleteTargetConversation)"
+      title="채팅 삭제"
+      :message="`'${deleteTargetConversation?.title ?? ''}' 채팅방을 삭제할까요?`"
+      confirm-text="삭제"
+      cancel-text="취소"
+      :show-cancel="true"
+      @close="closeDeleteDialog"
+      @confirm="confirmDeleteConversation"
+    />
   </main>
 </template>
 

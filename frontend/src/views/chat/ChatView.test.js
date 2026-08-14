@@ -6,6 +6,7 @@ import { nextTick } from "vue"
 import ChatView from "./ChatView.vue"
 import {
   createConversation,
+  deleteConversation,
   getActiveGoalInterview,
   getConversationMessages,
   getConversations,
@@ -121,6 +122,7 @@ describe("ChatView", () => {
     getConversations.mockResolvedValue([
       { conversationId: 11, title: "비상금 목표", updatedAt: "2026-08-12T00:00:00" },
     ])
+    deleteConversation.mockResolvedValue({ success: true })
     getConversationMessages.mockResolvedValue([
       { messageId: 1, role: "ASSISTANT", content: "목표를 확인해 주세요." },
     ])
@@ -170,6 +172,23 @@ describe("ChatView", () => {
     })
 
     expect(useConversationStore().activeConversationId).toBe(12)
+    wrapper.unmount()
+  })
+
+  it("opens a modal before deleting a conversation", async () => {
+    const wrapper = mountChat()
+    await flushPromises()
+
+    await wrapper.find('button[aria-label="채팅방 삭제"]').trigger("click")
+
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(true)
+    expect(wrapper.find('[role="dialog"]').text()).toContain("'비상금 목표' 채팅방을 삭제할까요?")
+
+    await wrapper.find('[data-modal-confirm]').trigger("click")
+    await flushPromises()
+
+    expect(deleteConversation).toHaveBeenCalledWith(11, 7)
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
     wrapper.unmount()
   })
 
