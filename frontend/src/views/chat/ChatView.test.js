@@ -15,6 +15,11 @@ import {
 } from "@/api/goalApi"
 import { useUserStore } from "@/stores/userStore"
 
+vi.mock("vue-router", () => ({
+  useRoute: () => ({ query: {} }),
+  useRouter: () => ({ replace: () => Promise.resolve() }),
+}))
+
 vi.mock("@/api/conversationApi", () => ({
   createConversation: vi.fn(),
   deleteConversation: vi.fn(),

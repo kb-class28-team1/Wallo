@@ -16,6 +16,7 @@ const userStore = useUserStore()
 const router = useRouter()
 const { nickname, profileImageUrl, pointBalance, isLoading } = storeToRefs(userStore)
 const missions = ref([])
+const missionStatus = ref("READY")
 const missionMenu = ref(null)
 const isMissionOpen = ref(false)
 const isMissionLoading = ref(false)
@@ -57,8 +58,10 @@ const loadTodayMissions = async () => {
   isMissionLoading.value = true
   try {
     const response = await getTodayMissions()
+    missionStatus.value = response.status || "READY"
     missions.value = response.missions
   } catch (error) {
+    missionStatus.value = "ERROR"
     missions.value = []
     alert(error.message || "오늘의 미션을 불러오지 못했습니다.")
   } finally {
@@ -70,6 +73,7 @@ const generateNextDay = async () => {
   isMissionDevLoading.value = true
   try {
     const response = await generateNextDayMissions()
+    missionStatus.value = response.status || "READY"
     missions.value = response.missions
     missionDevResult.value = {
       mode: `${response.date} 시뮬레이션`,
@@ -77,12 +81,21 @@ const generateNextDay = async () => {
       titles: response.missions.map((mission) => mission.title),
     }
   } catch (error) {
+    missionStatus.value = "ERROR"
     alert(error.status === 404
       ? "백엔드의 mission.dev-api.enabled 설정을 true로 변경해 주세요."
       : error.message)
   } finally {
     isMissionDevLoading.value = false
   }
+}
+
+const startConsumptionAnalysis = async () => {
+  isMissionOpen.value = false
+  await router.push({
+    name: "chat",
+    query: { action: "consumption-analysis" },
+  })
 }
 
 const toggleMissionMenu = () => {
@@ -149,6 +162,17 @@ const handleLogout = async () => {
           </div>
 
           <div v-if="isMissionLoading" class="mission-loading">미션을 불러오는 중...</div>
+          <div v-else-if="missionStatus === 'WAITING_ANALYSIS'" class="mission-empty">
+            소비 분석이 완료되면 오늘의 미션이 생성됩니다.
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-primary d-block w-100 mt-3"
+              @click="startConsumptionAnalysis"
+            >
+              <i class="bi bi-bar-chart-line me-1" aria-hidden="true"></i>
+              소비분석 하러가기
+            </button>
+          </div>
           <div v-else-if="!missions.length" class="mission-empty">
             오늘 배정된 미션이 없습니다.
           </div>
