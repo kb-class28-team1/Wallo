@@ -40,6 +40,14 @@ public class GoalController {
         );
     }
 
+    /** Dashboard read path: do not block the first render on a CODEF request. */
+    @GetMapping("/goals/summary")
+    public CommonResponse<List<GoalDto.Response>> getGoalSummary() {
+        return CommonResponse.success(
+                goalService.getGoals(currentUserProvider.getCurrentUserId(), false)
+        );
+    }
+
     @GetMapping("/goals/available-accounts")
     public CommonResponse<List<GoalAccountDto.AvailableAccount>> getAvailableAccounts() {
         return CommonResponse.success(

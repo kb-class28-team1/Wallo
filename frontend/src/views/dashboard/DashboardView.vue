@@ -65,7 +65,7 @@ const handleBudgetSettings = async () => {
 };
 
 const handleGoalRetry = () => {
-  goalStore.fetchGoals({ force: true });
+  goalStore.fetchGoals({ force: true, syncAccounts: false });
 };
 
 const refreshGoalData = ({ refreshDashboard = false } = {}) => {
@@ -74,10 +74,18 @@ const refreshGoalData = ({ refreshDashboard = false } = {}) => {
   }
 
   goalRefreshInFlight = (async () => {
-    await goalStore.fetchGoals({ notifyError: false });
+    const goalRequest = goalStore.fetchGoals({
+      notifyError: false,
+      syncAccounts: false,
+    });
     if (refreshDashboard) {
-      await dashboardStore.fetchDashboardSummary();
+      await Promise.all([
+        goalRequest,
+        dashboardStore.fetchDashboardSummary(),
+      ]);
+      return;
     }
+    await goalRequest;
   })().finally(() => {
     goalRefreshInFlight = null;
   });
@@ -88,10 +96,10 @@ const refreshGoalData = ({ refreshDashboard = false } = {}) => {
 const loadDashboard = async () => {
   hadDashboardDataBeforeLoad.value = hasRenderedDashboardData.value;
   isDashboardReady.value = false;
-  // 목표 조회가 선택 계좌 잔액을 먼저 동기화하도록 순서를 보장한다.
+  // 대시보드는 저장된 데이터를 먼저 읽고, CODEF 동기화와 분리해 렌더링한다.
   try {
-    await refreshGoalData();
     await Promise.all([
+      refreshGoalData(),
       dashboardStore.fetchDashboardSummary(),
     ]);
   } finally {

@@ -135,8 +135,19 @@ public class GoalService {
     }
 
     public List<GoalDto.Response> getGoals(long userId) {
+        return getGoals(userId, true);
+    }
+
+    /**
+     * Reads the user's goals with an optional selected-account synchronization.
+     * Dashboard reads can skip the external CODEF round trip and use the latest
+     * balances already persisted by a previous synchronization.
+     */
+    public List<GoalDto.Response> getGoals(long userId, boolean syncSelectedAccounts) {
         validateId(userId, "사용자 ID");
-        goalAccountSyncService.syncSelectedAccounts(userId);
+        if (syncSelectedAccounts) {
+            goalAccountSyncService.syncSelectedAccounts(userId);
+        }
 
         List<FinancialGoal> goals = goalMapper.findGoalsByUserId(userId);
         if (goals == null || goals.isEmpty()) {

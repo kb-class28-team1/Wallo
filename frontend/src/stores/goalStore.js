@@ -22,6 +22,8 @@ export const useGoalStore = defineStore("goal", () => {
   const lastFetchedAt = ref(0);
   const hasFetchedGoals = ref(false);
   let goalsInFlight = null;
+  let inFlightIncludesSync = false;
+  let lastFetchIncludedSync = false;
   const availableAccounts = ref([]);
   const isAccountLoading = ref(false);
   const initialAccountLoading = ref(false);
@@ -125,14 +127,16 @@ export const useGoalStore = defineStore("goal", () => {
     notifyError = true,
     force = false,
     staleTime = GOAL_STALE_TIME,
+    syncAccounts = true,
   } = {}) => {
-    if (goalsInFlight) {
+    if (goalsInFlight && (!syncAccounts || inFlightIncludesSync)) {
       return goalsInFlight
     }
 
     const isFresh = (
       lastFetchedAt.value > 0 &&
-      Date.now() - lastFetchedAt.value < staleTime
+      Date.now() - lastFetchedAt.value < staleTime &&
+      (!syncAccounts || lastFetchIncludedSync)
     )
 
     if (!force && isFresh) {
@@ -146,11 +150,13 @@ export const useGoalStore = defineStore("goal", () => {
     error.value = null;
 
     let request
+    inFlightIncludesSync = syncAccounts
     request = (async () => {
       try {
-        const response = await getGoals();
+        const response = await getGoals({ syncAccounts });
         goals.value = Array.isArray(response?.data) ? response.data : [];
         lastFetchedAt.value = Date.now()
+        lastFetchIncludedSync = syncAccounts
         hasFetchedGoals.value = true
         await fetchGoalRoadmap(goals.value[0]?.goalId, {
           notifyError: false,
@@ -162,6 +168,7 @@ export const useGoalStore = defineStore("goal", () => {
         if (isInitialLoad) {
           goals.value = [];
           lastFetchedAt.value = 0
+          lastFetchIncludedSync = false
           hasFetchedGoals.value = false
         }
         error.value = getApiErrorMessage(
@@ -180,6 +187,7 @@ export const useGoalStore = defineStore("goal", () => {
         isLoading.value = false;
         if (goalsInFlight === request) {
           goalsInFlight = null
+          inFlightIncludesSync = false
         }
       }
     })()
@@ -282,6 +290,7 @@ export const useGoalStore = defineStore("goal", () => {
         availableAccountsLastFetchedAt.value = Date.now();
       }
       lastFetchedAt.value = 0;
+      lastFetchIncludedSync = false;
 
       return selectedAccount;
     } catch (caughtError) {
