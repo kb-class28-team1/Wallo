@@ -22,11 +22,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.IntSupplier;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 public class MissionGenerationService {
@@ -48,6 +51,7 @@ public class MissionGenerationService {
     private final MissionCycleCalculator cycleCalculator;
     private final Clock clock;
     private final IntSupplier dailyMissionCount;
+    private final Set<Long> generationInProgress = ConcurrentHashMap.newKeySet();
 
     @Autowired
     public MissionGenerationService(MissionMapper missionMapper, MissionAiClient missionAiClient,
@@ -75,21 +79,35 @@ public class MissionGenerationService {
     }
 
     /** DB에 저장하지 않고 최신 소비분석 기반 AI 결과를 검증해 반환함. */
-    public MissionGenerationDto.Response preview(Long userId) {
+    public MissionGenerationDto.PreviewResult preview(Long userId) {
         if (userId == null || userId < 1) throw new IllegalArgumentException("userId is required.");
         MissionAnalysisSource source = missionMapper.findLatestAnalysis(userId);
-        if (source == null) throw new IllegalStateException("Consumption analysis is unavailable.");
+        if (source == null) {
+            return MissionGenerationDto.PreviewResult.waitingForAnalysis();
+        }
         MissionGenerationDto.Response response = missionAiClient.generate(
                 new MissionGenerationDto.Request(userId, source.getAnalysisResultId(),
                         summarizeAnalysis(parseAnalysis(source.getCalculatedResultJson())),
                         3, List.of()));
         validate(response, 3);
-        return response;
+        return MissionGenerationDto.PreviewResult.ready(response);
     }
 
     @Transactional
     public MissionGenerationDto.Result generate(Long userId, boolean force) {
-        return generateToday(userId, LocalDate.now(clock));
+        if (userId == null || userId < 1) throw new IllegalArgumentException("userId is required.");
+        if (!generationInProgress.add(userId)) {
+            return waitingResult(userId);
+        }
+        try {
+            return generateTodayInternal(userId, LocalDate.now(clock));
+        } finally {
+            releaseGenerationLockAfterTransaction(userId);
+        }
+    }
+
+    public boolean isGenerationInProgress(Long userId) {
+        return userId != null && generationInProgress.contains(userId);
     }
 
     @Transactional
@@ -101,13 +119,24 @@ public class MissionGenerationService {
         LocalDate latest = missionMapper.findLatestAssignedDate(userId);
         LocalDate baseDate = latest != null && latest.isAfter(today) ? latest : today;
         LocalDate nextDate = baseDate.plusDays(1);
-        generateToday(userId, nextDate);
+        MissionGenerationDto.Result generationResult = generateToday(userId, nextDate);
+        if (generationResult != null
+                && TodayMissionResponse.WAITING_ANALYSIS_STATUS.equals(generationResult.status())) {
+            return TodayMissionResponse.waitingForAnalysis(nextDate);
+        }
         return TodayMissionResponse.of(
                 nextDate, missionMapper.findDailyMissions(userId, nextDate));
     }
 
     @Transactional
     public MissionGenerationDto.Result generateToday(Long userId, LocalDate date) {
+        if (isGenerationInProgress(userId)) {
+            return waitingResult(userId);
+        }
+        return generateTodayInternal(userId, date);
+    }
+
+    private MissionGenerationDto.Result generateTodayInternal(Long userId, LocalDate date) {
         if (userId == null || userId < 1) throw new IllegalArgumentException("userId is required.");
         if (date == null) throw new IllegalArgumentException("date is required.");
         List<DailyMission> assigned = missionMapper.findDailyMissions(userId, date);
@@ -119,7 +148,13 @@ public class MissionGenerationService {
         LocalDate start = cycleCalculator.cycleStart(date);
         MissionCycle cycle = missionMapper.findCycle(userId, start);
         MissionAnalysisSource source = missionMapper.findLatestAnalysis(userId);
-        if (source == null) throw new IllegalStateException("Consumption analysis is unavailable.");
+        if (source == null) {
+            return new MissionGenerationDto.Result(
+                    cycle == null ? null : cycle.getMissionCycleId(),
+                    userId,
+                    0,
+                    TodayMissionResponse.WAITING_ANALYSIS_STATUS);
+        }
         List<String> excludedTitles = cycle == null ? List.of()
                 : missionMapper.findMissionsByCycleId(cycle.getMissionCycleId()).stream()
                         .map(Mission::getTitle).toList();
@@ -159,6 +194,24 @@ public class MissionGenerationService {
         }
         return new MissionGenerationDto.Result(
                 cycle.getMissionCycleId(), userId, response.missions().size(), "ACTIVE");
+    }
+
+    private MissionGenerationDto.Result waitingResult(Long userId) {
+        return new MissionGenerationDto.Result(
+                null, userId, 0, TodayMissionResponse.WAITING_ANALYSIS_STATUS);
+    }
+
+    private void releaseGenerationLockAfterTransaction(Long userId) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            generationInProgress.remove(userId);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                generationInProgress.remove(userId);
+            }
+        });
     }
 
     private Map<String, Object> parseAnalysis(String json) {
