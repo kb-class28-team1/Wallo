@@ -23,6 +23,8 @@ const { isSyncing, syncError } = storeToRefs(assetStore);
 const {
   categorySummary: budgetSummary,
   error: budgetError,
+  initialLoading: budgetInitialLoading,
+  refreshing: budgetRefreshing,
   isLoading: isBudgetLoading,
   isSaving: isBudgetSaving,
 } = storeToRefs(budgetStore);
@@ -46,6 +48,7 @@ const selectedMonth = ref(new Date(now.getFullYear(), now.getMonth(), 1));
 const activeView = ref("calendar");
 const selectedListCategory = ref("ALL");
 const expenseData = ref(createEmptyExpenseData());
+const hasLoadedExpenseData = ref(false);
 const isLoading = ref(false);
 const isLoadingMore = ref(false);
 const error = ref("");
@@ -108,6 +111,23 @@ const selectedListCategoryLabel = computed(() =>
 
 const canEditBudget = computed(() => (
   isCurrentMonth.value && !isBudgetLoading.value && !budgetError.value
+));
+
+const isExpenseInitialLoading = computed(() => (
+  isLoading.value && !hasLoadedExpenseData.value
+));
+const isExpenseRefreshing = computed(() => (
+  isLoading.value && hasLoadedExpenseData.value
+));
+const isBudgetInitialLoading = computed(() => (
+  budgetInitialLoading?.value ?? isBudgetLoading.value
+));
+const isBudgetRefreshing = computed(() => budgetRefreshing?.value ?? false);
+const displayedBudgetError = computed(() => (
+  budgetSummary.value ? "" : budgetError.value
+));
+const isBudgetRefreshError = computed(() => (
+  Boolean(budgetSummary.value && budgetError.value)
 ));
 
 const openBudgetEditor = async () => {
@@ -184,6 +204,7 @@ const normalizeExpenseData = (data) => ({
 
 const fetchExpensePage = async (page, append = false) => {
   const currentRequest = ++requestVersion;
+  const isInitialLoad = !hasLoadedExpenseData.value;
   if (append) {
     isLoadingMore.value = true;
     loadMoreError.value = "";
@@ -213,6 +234,9 @@ const fetchExpensePage = async (page, append = false) => {
       ];
     }
     expenseData.value = nextData;
+    if (!append) {
+      hasLoadedExpenseData.value = true;
+    }
   } catch (caughtError) {
     if (currentRequest !== requestVersion) return;
 
@@ -226,7 +250,10 @@ const fetchExpensePage = async (page, append = false) => {
     if (append) {
       loadMoreError.value = message;
     } else {
-      expenseData.value = createEmptyExpenseData();
+      if (isInitialLoad) {
+        expenseData.value = createEmptyExpenseData();
+        hasLoadedExpenseData.value = false;
+      }
       error.value = message;
     }
     alert(message);
@@ -310,7 +337,6 @@ const loadSelectedMonth = async () => {
   requestVersion += 1;
   isLoadingMore.value = false;
   loadMoreError.value = "";
-  expenseData.value = createEmptyExpenseData();
   await Promise.all([
     fetchExpensePage(0),
     budgetStore.fetchCategoryBudgets(targetMonth.value, { notifyError: false }).catch(() => null),
@@ -482,7 +508,7 @@ onMounted(async () => {
       <button
         type="button"
         class="btn btn-primary expense-sync-button"
-        :disabled="isSyncing || isLoading || isDailyLoading"
+        :disabled="isSyncing || isExpenseInitialLoading || isExpenseRefreshing || isDailyLoading"
         @click="syncCurrentMonth"
       >
         <span
@@ -503,14 +529,26 @@ onMounted(async () => {
       {{ syncStatus.message }}
     </div>
 
-    <div v-if="isLoading" class="page-state card border-0 shadow-sm" aria-live="polite">
+    <div v-if="isExpenseRefreshing" class="small text-secondary mb-3" role="status">
+      <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
+      {{ monthLabel }} 소비 내역을 최신 상태로 갱신하고 있습니다.
+    </div>
+
+    <div v-if="error && hasLoadedExpenseData" class="alert alert-warning expense-error mb-3" role="alert">
+      최신 소비 내역을 갱신하지 못했습니다. 기존 내역을 표시하고 있습니다.
+      <button type="button" class="btn btn-sm btn-outline-warning flex-shrink-0" @click="loadSelectedMonth">
+        다시 시도
+      </button>
+    </div>
+
+    <div v-if="isExpenseInitialLoading" class="page-state card border-0 shadow-sm" aria-live="polite">
       <div class="spinner-border text-primary" role="status">
         <span class="visually-hidden">소비 내역을 불러오는 중</span>
       </div>
       <p class="text-secondary mb-0 mt-3">{{ monthLabel }} 소비 내역을 불러오고 있습니다.</p>
     </div>
 
-    <div v-else-if="error" class="alert alert-danger expense-error" role="alert">
+    <div v-else-if="error && !hasLoadedExpenseData" class="alert alert-danger expense-error" role="alert">
       <div>
         <h2 class="h6 fw-bold mb-1">소비 내역을 불러오지 못했습니다.</h2>
         <p class="mb-0">{{ error }}</p>
@@ -612,12 +650,24 @@ onMounted(async () => {
         </div>
       </article>
 
+      <div v-if="isBudgetRefreshing" class="small text-secondary mb-3" role="status">
+        <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
+        카테고리별 예산을 최신 상태로 갱신하고 있습니다.
+      </div>
+
+      <div v-if="isBudgetRefreshError" class="alert alert-warning mb-3" role="alert">
+        최신 예산 정보를 갱신하지 못했습니다. 기존 예산을 표시하고 있습니다.
+        <button type="button" class="btn btn-sm btn-outline-warning ms-2" @click="loadSelectedMonth">
+          다시 시도
+        </button>
+      </div>
+
       <ExpenseCategoryBreakdown
         :breakdown="expenseData.expenseCategoryBreakdown"
         :total-expense="expenseData.totalExpense"
         :budget-summary="budgetSummary"
-        :budget-loading="isBudgetLoading"
-        :budget-error="budgetError"
+        :budget-loading="isBudgetInitialLoading"
+        :budget-error="displayedBudgetError"
         :can-edit-budget="canEditBudget"
         @edit-budget="openBudgetEditor"
       />

@@ -14,7 +14,8 @@ const dashboardStore = useDashboardStore();
 const goalStore = useGoalStore();
 const router = useRouter();
 const {
-  isLoading,
+  initialLoading,
+  refreshing,
   assets,
   budget,
   expenses,
@@ -22,26 +23,37 @@ const {
 } = storeToRefs(dashboardStore);
 const {
   goals,
-  isLoading: isGoalLoading,
+  initialLoading: isGoalInitialLoading,
+  refreshing: isGoalRefreshing,
   error: goalError,
 } = storeToRefs(goalStore);
 const { assetTrendChartData, expenseChartData } = useDashboardCharts(assets, expenses);
 
 const GOAL_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 const isDashboardReady = ref(false);
+const hadDashboardDataBeforeLoad = ref(false);
 let goalRefreshTimer = null;
 let goalRefreshInFlight = null;
 
-const isDashboardLoading = computed(() => (
-  !isDashboardReady.value || isLoading.value || isGoalLoading.value
-));
-
-const hasDashboardData = computed(() => Boolean(
+const hasRenderedDashboardData = computed(() => Boolean(
   assets.value ||
   budget.value ||
   expenses.value ||
-  goals.value.length > 0 ||
-  isGoalLoading.value ||
+  goals.value.length > 0
+));
+
+const isDashboardInitialLoading = computed(() => (
+  !hadDashboardDataBeforeLoad.value &&
+  (!isDashboardReady.value || initialLoading.value || isGoalInitialLoading.value)
+));
+
+const isDashboardRefreshing = computed(() => (
+  refreshing.value || isGoalRefreshing.value
+));
+
+const hasDashboardData = computed(() => Boolean(
+  hasRenderedDashboardData.value ||
+  isGoalInitialLoading.value ||
   goalError.value,
 ));
 
@@ -53,7 +65,7 @@ const handleBudgetSettings = async () => {
 };
 
 const handleGoalRetry = () => {
-  goalStore.fetchGoals();
+  goalStore.fetchGoals({ force: true });
 };
 
 const refreshGoalData = ({ refreshDashboard = false } = {}) => {
@@ -74,6 +86,7 @@ const refreshGoalData = ({ refreshDashboard = false } = {}) => {
 };
 
 const loadDashboard = async () => {
+  hadDashboardDataBeforeLoad.value = hasRenderedDashboardData.value;
   isDashboardReady.value = false;
   // 목표 조회가 선택 계좌 잔액을 먼저 동기화하도록 순서를 보장한다.
   try {
@@ -112,12 +125,12 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="container-fluid py-4 px-4">
-    <div v-if="isDashboardLoading" class="dashboard-state text-center py-5">
+    <div v-if="isDashboardInitialLoading" class="dashboard-state text-center py-5">
       <div class="spinner-border text-primary" role="status" aria-label="대시보드 데이터 로딩 중"></div>
       <p class="mt-3 mb-0 text-secondary">대시보드 데이터를 불러오는 중입니다.</p>
     </div>
 
-    <div v-else-if="error" class="dashboard-state alert alert-danger mb-0" role="alert">
+    <div v-else-if="error && !hasRenderedDashboardData" class="dashboard-state alert alert-danger mb-0" role="alert">
       {{ error }}
     </div>
 
@@ -128,8 +141,19 @@ onBeforeUnmount(() => {
 
     <div v-else>
       <header class="mb-4">
-        <h1 class="h3 fw-bold mb-1">대시보드</h1>
-        <p class="text-secondary mb-0">자산과 소비 현황을 확인하세요.</p>
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+          <div>
+            <h1 class="h3 fw-bold mb-1">대시보드</h1>
+            <p class="text-secondary mb-0">자산과 소비 현황을 확인하세요.</p>
+          </div>
+          <span v-if="isDashboardRefreshing" class="small text-secondary" role="status">
+            <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
+            최신 정보 갱신 중
+          </span>
+        </div>
+        <div v-if="error" class="alert alert-warning mt-3 mb-0" role="alert">
+          최신 대시보드 정보를 갱신하지 못했습니다. 기존 정보를 표시하고 있습니다.
+        </div>
       </header>
 
       <div class="dashboard-card-grid">
@@ -141,7 +165,7 @@ onBeforeUnmount(() => {
         <ExpenseSummaryCard :expenses="expenses" :chart-data="expenseChartData" />
         <GoalSummaryCard
           :goals="goals"
-          :loading="isGoalLoading"
+          :loading="isGoalInitialLoading"
           :error="goalError"
           @retry="handleGoalRetry"
         />
