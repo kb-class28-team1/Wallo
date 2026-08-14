@@ -269,9 +269,25 @@ onMounted(async () => {
     return
   }
 
-  const conversationId = await conversationStore.fetchConversations(userId.value)
+  const fallbackConversationId = await conversationStore.fetchConversations(userId.value)
+  const requestedConversationId = Number(route.query.conversationId)
+  const hasRequestedConversation = (
+    Number.isInteger(requestedConversationId) &&
+    requestedConversationId > 0 &&
+    conversationStore.conversations.some(
+      (conversation) => conversation.conversationId === requestedConversationId,
+    )
+  )
+  const conversationId = hasRequestedConversation
+    ? requestedConversationId
+    : fallbackConversationId
+
   if (conversationId) {
-    await conversationStore.fetchMessages(userId.value, conversationId)
+    if (conversationStore.activeConversationId === conversationId) {
+      await conversationStore.fetchMessages(userId.value, conversationId)
+    } else {
+      await conversationStore.selectConversation(conversationId, userId.value)
+    }
     await scrollToBottom()
   }
 })

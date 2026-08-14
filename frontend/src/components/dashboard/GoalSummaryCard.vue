@@ -36,6 +36,16 @@ const selectedGoal = computed(() => props.goals[selectedGoalIndex.value] ?? null
 const selectedAccount = computed(() => (
   props.availableAccounts.find((account) => account.selected) ?? null
 ));
+const accountSettingsLink = computed(() => {
+  if (!props.goals.length) {
+    return "/chat?start=goal-setting";
+  }
+
+  const conversationId = selectedGoal.value?.conversationId;
+  return conversationId
+    ? `/chat?conversationId=${encodeURIComponent(conversationId)}`
+    : "/chat";
+});
 
 watch(
   () => props.goals.length,
@@ -96,7 +106,7 @@ const formatGoalDate = (date) => {
         </div>
 
         <RouterLink
-          :to="goals.length > 0 ? '/chat' : '/chat?start=goal-setting'"
+          :to="accountSettingsLink"
           class="btn dashboard-action-button flex-shrink-0 ms-auto"
         >
           {{ goals.length > 0 ? "계좌 설정" : "목표 설정하기" }}

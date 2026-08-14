@@ -152,6 +152,27 @@ describe("ChatView", () => {
     expect(getGoalByConversationId).toHaveBeenCalledWith(11)
   })
 
+  it("opens the requested goal conversation from the dashboard", async () => {
+    route.query = { conversationId: "12" }
+    getConversations.mockResolvedValue([
+      { conversationId: 11, title: "최근 채팅", updatedAt: "2026-08-12T00:00:00" },
+      { conversationId: 12, title: "비상금 목표", updatedAt: "2026-08-11T00:00:00" },
+    ])
+    getGoalByConversationId.mockResolvedValue({
+      data: { ...goal, conversationId: 12 },
+    })
+
+    const wrapper = mountChat()
+    await flushPromises()
+
+    await vi.waitFor(() => {
+      expect(getConversationMessages).toHaveBeenCalledWith(12, 7)
+    })
+
+    expect(useConversationStore().activeConversationId).toBe(12)
+    wrapper.unmount()
+  })
+
   it("does not show the welcome message during automatic consumption analysis", () => {
     route.query = { action: "consumption-analysis" }
 
