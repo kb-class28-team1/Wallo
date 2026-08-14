@@ -21,6 +21,8 @@ const GOAL_SETTING_START_QUERY = "goal-setting"
 const GOAL_SETTING_TITLE = "목표 설정"
 const GOAL_CHAT_DELETE_BLOCK_MESSAGE =
   "목표 설정이 완료된 채팅은 계좌 변경에 필요하므로 삭제할 수 없습니다."
+const GOAL_COMPLETION_DIALOG_MESSAGE =
+  "목표 설정 및 로드맵이 완성되었습니다!\nAI 컨설팅 페이지에서 나의 목표와 로드맵을 확인해보세요."
 
 const conversationStore = useConversationStore()
 const goalStore = useGoalStore()
@@ -56,6 +58,8 @@ const isConsumptionAnalysisStarting = ref(false)
 const isGoalSettingEntry = ref(false)
 const isGoalSettingStarting = ref(false)
 const isMissingGoalConversation = ref(false)
+const isGoalCompletionChecking = ref(false)
+const isGoalCompletionDialogVisible = ref(false)
 const userId = computed(() => user.value?.id ?? null)
 const isGoalDeleteBlocked = computed(
   () => deleteTargetConversation.value?.hasGoal === true,
@@ -121,6 +125,7 @@ const selectConversation = async (conversationId) => {
   isGoalSettingEntry.value = false
   isGoalSettingStarting.value = false
   isMissingGoalConversation.value = false
+  isGoalCompletionDialogVisible.value = false
   errorMessage.value = ""
   await conversationStore.selectConversation(conversationId, userId.value)
   await scrollToBottom()
@@ -135,6 +140,7 @@ const startNewConversation = async () => {
   isGoalSettingEntry.value = false
   isGoalSettingStarting.value = false
   isMissingGoalConversation.value = false
+  isGoalCompletionDialogVisible.value = false
   const conversation = await conversationStore.startNewConversation(userId.value)
 
   if (conversation) errorMessage.value = ""
@@ -232,8 +238,9 @@ async function sendMessage(message) {
   errorMessage.value = ""
   const sendPromise = conversationStore.sendMessage(userId.value, message)
   await scrollToBottom()
-  await sendPromise
+  const sent = await sendPromise
   await scrollToBottom()
+  return sent
 }
 
 const handleAccountSelect = async (accountId) => {
@@ -252,11 +259,50 @@ const handleAccountSelect = async (accountId) => {
 }
 
 const confirmGoal = async () => {
-  await sendMessage("이대로 확정할게")
+  isGoalCompletionDialogVisible.value = false
+  const sent = await sendMessage("이대로 확정할게")
+  if (!sent || activeGoalInterview.value?.action !== "CONFIRM") return
+
+  const goalId = confirmedGoal.value?.goalId
+  if (!goalId) {
+    errorMessage.value = "목표 설정 결과를 확인하지 못했습니다."
+    return
+  }
+
+  isGoalCompletionChecking.value = true
+  try {
+    const roadmap = await goalStore.fetchGoalRoadmap(goalId, {
+      notifyError: false,
+      force: true,
+    })
+    if (roadmap?.generationStatus === "COMPLETED") {
+      isGoalCompletionDialogVisible.value = true
+      return
+    }
+
+    errorMessage.value = roadmap?.generationStatus === "FAILED"
+      ? "목표 설정은 완료되었지만 로드맵 생성에 실패했습니다."
+      : "목표 설정 결과를 확인하지 못했습니다."
+  } finally {
+    isGoalCompletionChecking.value = false
+  }
 }
 
 const cancelGoal = async () => {
   await sendMessage("그만할래")
+}
+
+const closeGoalCompletionDialog = () => {
+  isGoalCompletionDialogVisible.value = false
+}
+
+const openAiConsulting = async () => {
+  isGoalCompletionDialogVisible.value = false
+  try {
+    await router.push({ name: "ai-consulting" })
+  } catch (error) {
+    errorMessage.value = error.message || "AI 컨설팅 페이지로 이동하지 못했습니다."
+  }
 }
 
 const startGoalSettingConversation = async () => {
@@ -265,6 +311,7 @@ const startGoalSettingConversation = async () => {
   isGoalSettingEntry.value = true
   isGoalSettingStarting.value = true
   isMissingGoalConversation.value = false
+  isGoalCompletionDialogVisible.value = false
   errorMessage.value = ""
 
   try {
@@ -287,6 +334,7 @@ const startConsumptionAnalysis = async () => {
 
   isConsumptionAnalysisStarting.value = true
   isMissingGoalConversation.value = false
+  isGoalCompletionDialogVisible.value = false
   errorMessage.value = ""
   await router.replace({ name: "chat" })
 
@@ -415,7 +463,7 @@ onMounted(async () => {
             <GoalInterviewCard
               v-if="activeGoalInterview"
               :interview="activeGoalInterview"
-              :loading="isChatLoading"
+              :loading="isChatLoading || isGoalCompletionChecking"
               @confirm="confirmGoal"
               @cancel="cancelGoal"
             />
@@ -445,6 +493,14 @@ onMounted(async () => {
             <div v-if="isChatLoading" class="loading-message" aria-label="AI 답변 생성 중">
               AI 답변을 기다리는 중...
             </div>
+
+            <div
+              v-if="isGoalCompletionChecking"
+              class="loading-message"
+              aria-label="목표 설정 결과 확인 중"
+            >
+              목표 설정 결과를 확인하는 중...
+            </div>
           </div>
 
           <div v-if="errorMessage" class="alert alert-danger mx-3 mb-2" role="alert">
@@ -463,6 +519,7 @@ onMounted(async () => {
               isConsumptionAnalysisStarting ||
               isGoalSettingStarting ||
               isMissingGoalConversation ||
+              isGoalCompletionChecking ||
               isChatLoading ||
               isMessageLoading ||
               !userId
@@ -590,6 +647,16 @@ onMounted(async () => {
       :show-cancel="!isGoalDeleteBlocked"
       @close="closeDeleteDialog"
       @confirm="handleDeleteDialogConfirm"
+    />
+
+    <AppDialog
+      :visible="isGoalCompletionDialogVisible"
+      title="목표 설정 완료"
+      :message="GOAL_COMPLETION_DIALOG_MESSAGE"
+      confirm-text="확인하기"
+      :show-cancel="false"
+      @close="closeGoalCompletionDialog"
+      @confirm="openAiConsulting"
     />
   </main>
 </template>

@@ -15,13 +15,14 @@ import {
 import {
   getAvailableGoalAccounts,
   getGoalByConversationId,
+  getGoalRoadmap,
   getGoals,
   selectGoalAccount,
 } from "@/api/goalApi"
 import { useConversationStore } from "@/stores/conversationStore"
 import { useUserStore } from "@/stores/userStore"
 
-const { route, replaceMock } = vi.hoisted(() => {
+const { route, replaceMock, pushMock } = vi.hoisted(() => {
   const routeState = { query: {} }
 
   return {
@@ -30,12 +31,13 @@ const { route, replaceMock } = vi.hoisted(() => {
       routeState.query = {}
       return Promise.resolve()
     }),
+    pushMock: vi.fn(() => Promise.resolve()),
   }
 })
 
 vi.mock("vue-router", () => ({
   useRoute: () => route,
-  useRouter: () => ({ replace: replaceMock }),
+  useRouter: () => ({ replace: replaceMock, push: pushMock }),
 }))
 
 vi.mock("@/api/conversationApi", () => ({
@@ -137,6 +139,7 @@ describe("ChatView", () => {
     ])
     getActiveGoalInterview.mockResolvedValue({ active: false, draft: null })
     getGoalByConversationId.mockResolvedValue({ data: goal })
+    getGoalRoadmap.mockResolvedValue({ data: null })
     getGoals.mockResolvedValue({ data: [] })
     getAvailableGoalAccounts.mockResolvedValue({ data: initialAccounts })
     selectGoalAccount.mockResolvedValue({
@@ -221,6 +224,141 @@ describe("ChatView", () => {
 
     expect(deleteConversation).toHaveBeenCalledWith(11, 7)
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it("shows a completion modal and opens AI consulting after the roadmap is completed", async () => {
+    getActiveGoalInterview.mockResolvedValue({
+      active: true,
+      draft: {
+        state: "CONFIRMATION",
+        title: "비상금 목표",
+        goalType: "EMERGENCY_FUND",
+        targetAmount: 10000000,
+        targetDate: "2027-12-31",
+        currentAmount: 2500000,
+        missingFields: [],
+      },
+      feasibility: {
+        status: "CALCULATED",
+        requiredMonthlyAmount: 500000,
+      },
+    })
+    getGoalByConversationId.mockResolvedValue({ data: goal })
+    getGoalRoadmap.mockResolvedValue({
+      data: {
+        goalId: 31,
+        generationStatus: "COMPLETED",
+        roadmap: { steps: [] },
+      },
+    })
+    sendConversationMessage.mockResolvedValue({
+      userMessage: {
+        messageId: 2,
+        role: "USER",
+        content: "이대로 확정할게",
+      },
+      assistantMessage: {
+        messageId: 3,
+        role: "ASSISTANT",
+        content: "목표 설정 및 로드맵이 완성되었습니다!",
+      },
+      goalInterview: {
+        action: "CONFIRM",
+        active: false,
+        draft: {
+          state: "COMPLETED",
+          title: "비상금 목표",
+          goalType: "EMERGENCY_FUND",
+          targetAmount: 10000000,
+          targetDate: "2027-12-31",
+          currentAmount: 2500000,
+          confirmed: true,
+          missingFields: [],
+        },
+      },
+    })
+
+    const wrapper = mountChat()
+    await flushPromises()
+
+    await wrapper.find(".goal-interview-card .btn-primary").trigger("click")
+    await flushPromises()
+
+    expect(wrapper.find('[role="dialog"]').text()).toContain(
+      "목표 설정 및 로드맵이 완성되었습니다!",
+    )
+    expect(wrapper.find('[data-modal-confirm]').text()).toBe("확인하기")
+    expect(pushMock).not.toHaveBeenCalled()
+
+    await wrapper.find('[data-modal-confirm]').trigger("click")
+    await flushPromises()
+
+    expect(pushMock).toHaveBeenCalledWith({ name: "ai-consulting" })
+    wrapper.unmount()
+  })
+
+  it("does not show the completion modal when roadmap generation fails", async () => {
+    getActiveGoalInterview.mockResolvedValue({
+      active: true,
+      draft: {
+        state: "CONFIRMATION",
+        title: "비상금 목표",
+        goalType: "EMERGENCY_FUND",
+        targetAmount: 10000000,
+        targetDate: "2027-12-31",
+        currentAmount: 2500000,
+        missingFields: [],
+      },
+      feasibility: {
+        status: "CALCULATED",
+        requiredMonthlyAmount: 500000,
+      },
+    })
+    getGoalByConversationId.mockResolvedValue({ data: goal })
+    getGoalRoadmap.mockResolvedValue({
+      data: {
+        goalId: 31,
+        generationStatus: "FAILED",
+        failureReason: "AI 오류",
+      },
+    })
+    sendConversationMessage.mockResolvedValue({
+      userMessage: {
+        messageId: 2,
+        role: "USER",
+        content: "이대로 확정할게",
+      },
+      assistantMessage: {
+        messageId: 3,
+        role: "ASSISTANT",
+        content: "목표 설정은 완료되었지만 로드맵 생성에 실패했습니다.",
+      },
+      goalInterview: {
+        action: "CONFIRM",
+        active: false,
+        draft: {
+          state: "COMPLETED",
+          title: "비상금 목표",
+          goalType: "EMERGENCY_FUND",
+          targetAmount: 10000000,
+          targetDate: "2027-12-31",
+          currentAmount: 2500000,
+          confirmed: true,
+          missingFields: [],
+        },
+      },
+    })
+
+    const wrapper = mountChat()
+    await flushPromises()
+
+    await wrapper.find(".goal-interview-card .btn-primary").trigger("click")
+    await flushPromises()
+
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain("목표 설정은 완료되었지만 로드맵 생성에 실패했습니다.")
+    expect(pushMock).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 

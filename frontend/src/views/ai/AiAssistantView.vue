@@ -158,7 +158,7 @@ const startAiChat = async () => {
   await router.push({ name: "chat" })
 }
 
-onMounted(loadGoalPage)
+onMounted(() => loadGoalPage({ force: true }))
 </script>
 
 <template>
