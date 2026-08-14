@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import DashboardView from "./DashboardView.vue"
 import { getAssets, getBudgets, getExpenses } from "@/api/assetApi"
 import { getAvailableGoalAccounts, getGoalRoadmap, getGoals } from "@/api/goalApi"
+import { useGoalStore } from "@/stores/goalStore"
+import { useUserStore } from "@/stores/userStore"
 
 vi.mock("@/api/goalApi", () => ({
   getAvailableGoalAccounts: vi.fn(),
@@ -84,6 +86,21 @@ describe("DashboardView", () => {
     expect(getAvailableGoalAccounts).toHaveBeenCalledWith()
     expect(wrapper.find(".goal-progress-amount").text()).toContain("1,400,000")
     expect(wrapper.find(".goal-progress-rate").text()).toContain("14%")
+
+    wrapper.unmount()
+  })
+
+  it("loads dashboard goals in the current authenticated user's cache scope", async () => {
+    const userStore = useUserStore()
+    const goalStore = useGoalStore()
+    userStore.user = { id: 42, nickname: "Tester" }
+
+    const wrapper = mountDashboard()
+
+    await flushPromises()
+    await vi.waitFor(() => expect(wrapper.find(".goal-summary-card").exists()).toBe(true))
+
+    expect(goalStore.lastFetchedUserId).toBe("42")
 
     wrapper.unmount()
   })

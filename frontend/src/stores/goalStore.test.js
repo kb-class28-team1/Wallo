@@ -118,6 +118,37 @@ describe("goalStore", () => {
     expect(store.lastFetchedUserId).toBe("8");
   });
 
+  it("does not let a previous user's in-flight response overwrite the current user", async () => {
+    let resolvePreviousUserRequest;
+    getGoals
+      .mockReturnValueOnce(new Promise((resolve) => {
+        resolvePreviousUserRequest = resolve;
+      }))
+      .mockResolvedValueOnce({ success: true, data: [] });
+
+    const store = useGoalStore();
+    const previousUserRequest = store.fetchGoals({
+      userId: 7,
+      notifyError: false,
+      syncAccounts: false,
+    });
+    const currentUserRequest = store.fetchGoals({
+      userId: 8,
+      notifyError: false,
+      syncAccounts: false,
+    });
+
+    await currentUserRequest;
+    resolvePreviousUserRequest({
+      success: true,
+      data: [{ goalId: 1, title: "User A goal" }],
+    });
+    await previousUserRequest;
+
+    expect(store.goals).toEqual([]);
+    expect(store.lastFetchedUserId).toBe("8");
+  });
+
   it("stores the AI roadmap returned for a confirmed goal", async () => {
     const roadmap = {
       goalId: 31,
