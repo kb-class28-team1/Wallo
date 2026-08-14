@@ -121,6 +121,11 @@ describe("ExpenseHistoryView manual synchronization", () => {
     expect(store.syncAssets).toHaveBeenCalledOnce();
     expect(getExpenses).toHaveBeenCalledTimes(2);
     expect(getExpenses.mock.calls[1][0]).toMatchObject({ page: 0, size: 20 });
+    expect(budgetStore.fetchCategoryBudgets).toHaveBeenCalledTimes(2);
+    expect(budgetStore.fetchCategoryBudgets).toHaveBeenLastCalledWith(
+      "2026-08",
+      { notifyError: false },
+    );
     expect(wrapper.text()).toContain("동기화가 완료되었습니다");
     expect(wrapper.text()).toContain("신규 3건, 수정 42건");
   });
