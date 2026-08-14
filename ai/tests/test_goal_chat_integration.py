@@ -1,7 +1,7 @@
 import json
 from datetime import date
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from app.agents.goal.models import (
     GoalDraft,
@@ -67,6 +67,33 @@ def test_financial_goal_tool_starts_structured_goal_interview():
     assert response.goal_interview.draft.goal_type == GoalType.TRAVEL
     assert response.answer == "유럽 여행 자금을 언제까지 마련하고 싶으세요?"
     assert client.chat.completions.create.call_count == 2
+
+
+def test_explicit_goal_setting_mode_starts_goal_interview_without_financial_router():
+    client = Mock()
+    goal_result = SimpleNamespace(
+        next_question="어떤 목표를 세우고 싶으신가요?",
+        draft=complete_draft(InterviewState.DISCOVERY),
+        feasibility=None,
+    )
+
+    with (
+        patch("app.chat.service.FinancialAgent") as financial_agent,
+        patch("app.chat.service.GoalAgent") as goal_agent,
+    ):
+        goal_agent.return_value.run.return_value = goal_result
+        response = ChatService(client).chat(
+            ChatRequest(
+                message="목표를 설정하고 싶어요",
+                chatMode="GOAL_SETTING",
+            )
+        )
+
+    financial_agent.assert_not_called()
+    goal_agent.return_value.run.assert_called_once()
+    assert response.goal_interview is not None
+    assert response.goal_interview.active is True
+    assert response.answer == "어떤 목표를 세우고 싶으신가요?"
 
 
 def test_natural_emergency_goal_reaches_review_even_when_model_extraction_fails():
