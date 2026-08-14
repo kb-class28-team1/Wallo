@@ -22,6 +22,12 @@ import {
   EXPENSE_CATEGORY_META,
   FEED_CATEGORY_CODES,
 } from "@/features/financial/financialCategories"
+import {
+  getCachedResource,
+  getResource,
+  hasInFlightResource,
+  invalidateResource,
+} from "@/utils/resourceCache"
 
 const route = useRoute()
 const router = useRouter()
@@ -34,7 +40,10 @@ const challengeName = ref("챌린지")
 const inviteCode = ref("")
 const mySavingTotal = ref(0)
 const activeTab = ref(String(route.query.scope || "ALL").toUpperCase() === "ME" ? "mine" : "all")
-const isLoading = ref(true)
+const initialLoading = ref(true)
+const refreshing = ref(false)
+const hasLoadedPage = ref(false)
+const isLoading = computed(() => initialLoading.value || refreshing.value)
 const errorMessage = ref("")
 const modalOpen = ref(false)
 const isAnalyzing = ref(false)
@@ -66,6 +75,19 @@ let shouldReconnectChat = true
 let likeBurstSequence = 0
 const likeBurstTimers = new Set()
 let dialogResolver = null
+
+const FEED_STALE_TIME = 30 * 1000
+const MESSAGE_STALE_TIME = 15 * 1000
+const getFeedCacheKey = (id, tab) => `challenge:feeds:current:${id}:${tab}`
+const getMessagesCacheKey = (id) => `challenge:messages:current:${id}`
+const invalidateFeedCaches = (id = challengeId.value) => {
+  invalidateResource(getFeedCacheKey(id, "all"))
+  invalidateResource(getFeedCacheKey(id, "mine"))
+}
+const invalidatePageCaches = (id = challengeId.value) => {
+  invalidateFeedCaches(id)
+  invalidateResource(getMessagesCacheKey(id))
+}
 
 const form = reactive({
   file: null,
@@ -150,12 +172,41 @@ const scrollToFocusedFeed = async () => {
   })
 }
 
-const loadFeeds = async () => {
-  const data = await getFeeds(challengeId.value, activeTab.value === "mine")
-  feeds.value = data.feeds
-  challengeName.value = data.challengeName
-  inviteCode.value = data.inviteCode || ""
-  mySavingTotal.value = data.mySavingTotal
+const applyFeeds = (data) => {
+  feeds.value = Array.isArray(data?.feeds) ? data.feeds : []
+  challengeName.value = data?.challengeName || "챌린지"
+  inviteCode.value = data?.inviteCode || ""
+  mySavingTotal.value = data?.mySavingTotal || 0
+  return data
+}
+
+const loadFeeds = async ({ force = false } = {}) => {
+  const requestedChallengeId = challengeId.value
+  const requestedTab = activeTab.value
+  const cacheKey = getFeedCacheKey(requestedChallengeId, requestedTab)
+  const cached =
+    !force && !hasInFlightResource(cacheKey)
+      ? getCachedResource(cacheKey, { staleTime: FEED_STALE_TIME })
+      : undefined
+
+  if (cached !== undefined) {
+    return applyFeeds(cached)
+  }
+
+  const data = await getResource(
+    cacheKey,
+    () => getFeeds(requestedChallengeId, requestedTab === "mine"),
+    {
+      force,
+      staleTime: FEED_STALE_TIME,
+    },
+  )
+
+  if (requestedChallengeId !== challengeId.value || requestedTab !== activeTab.value) {
+    return data
+  }
+
+  return applyFeeds(data)
 }
 const isNearMessagesBottom = () => {
   const element = messagesElement.value
@@ -167,12 +218,35 @@ const scrollMessagesToBottom = async () => {
   const element = messagesElement.value
   if (element) element.scrollTop = element.scrollHeight
 }
-const loadMessages = async ({ forceScroll = false } = {}) => {
+const applyMessages = (data) => {
+  messages.value = Array.isArray(data?.messages) ? data.messages : []
+  challengeName.value = data?.challengeName || challengeName.value
+  return data
+}
+const loadMessages = async ({ forceScroll = false, force = false } = {}) => {
   const shouldScroll = forceScroll || isNearMessagesBottom()
-  const data = await getRoomMessages(challengeId.value)
-  messages.value = data.messages
-  challengeName.value = data.challengeName
+  const requestedChallengeId = challengeId.value
+  const cacheKey = getMessagesCacheKey(requestedChallengeId)
+  const cached =
+    !force && !hasInFlightResource(cacheKey)
+      ? getCachedResource(cacheKey, { staleTime: MESSAGE_STALE_TIME })
+      : undefined
+
+  const data =
+    cached !== undefined
+      ? cached
+      : await getResource(cacheKey, () => getRoomMessages(requestedChallengeId), {
+          force,
+          staleTime: MESSAGE_STALE_TIME,
+        })
+
+  if (requestedChallengeId !== challengeId.value) {
+    return data
+  }
+
+  applyMessages(data)
   if (shouldScroll) await scrollMessagesToBottom()
+  return data
 }
 
 const chatWebSocketUrl = () => {
@@ -201,6 +275,7 @@ const handleChatSocketMessage = async (event) => {
   const shouldScroll =
     isNearMessagesBottom() || Number(incomingMessage.userId) === Number(userStore.user?.id)
   messages.value = [...messages.value, incomingMessage]
+  invalidateResource(getMessagesCacheKey(challengeId.value))
   if (shouldScroll) await scrollMessagesToBottom()
 }
 
@@ -249,23 +324,31 @@ const disconnectChatSocket = () => {
     chatSocket = null
   }
 }
-const loadPage = async () => {
-  isLoading.value = true
+const loadPage = async ({ force = false, forceScroll = false } = {}) => {
+  const isInitialLoad = !hasLoadedPage.value
+  initialLoading.value = isInitialLoad
+  refreshing.value = !isInitialLoad
   errorMessage.value = ""
   try {
-    await Promise.all([loadFeeds(), loadMessages()])
+    await Promise.all([loadFeeds({ force }), loadMessages({ force, forceScroll })])
+    hasLoadedPage.value = true
   } catch (error) {
     errorMessage.value = error.message
   } finally {
-    isLoading.value = false
+    initialLoading.value = false
+    refreshing.value = false
   }
 }
 const changeTab = async (tab) => {
   activeTab.value = tab
+  refreshing.value = true
+  errorMessage.value = ""
   try {
     await loadFeeds()
   } catch (error) {
     errorMessage.value = error.message
+  } finally {
+    refreshing.value = false
   }
 }
 const copyInviteCode = async () => {
@@ -292,6 +375,7 @@ const leaveCurrentChallenge = async () => {
   isLeavingChallenge.value = true
   try {
     await leaveChallengeRequest(challengeId.value)
+    invalidatePageCaches()
     disconnectChatSocket()
     await router.replace({ name: "current-challenge" })
   } catch (error) {
@@ -306,10 +390,12 @@ const openModal = async () => {
   isMissionLoading.value = true
   try {
     const response = await getTodayMissions()
-    todayMissions.value = response.missions.filter((mission) =>
-      ["MEDIA_AI", "HYBRID"].includes(mission.verificationType)
-      && !mission.completed
-      && mission.status !== "VERIFYING")
+    todayMissions.value = response.missions.filter(
+      (mission) =>
+        ["MEDIA_AI", "HYBRID"].includes(mission.verificationType) &&
+        !mission.completed &&
+        mission.status !== "VERIFYING",
+    )
   } catch (error) {
     todayMissions.value = []
     await openDialog({ message: error.message })
@@ -343,6 +429,7 @@ const addLike = async (feed) => {
   try {
     const result = await addFeedLike(challengeId.value, feed.id)
     feed.likeCount = result.likeCount
+    invalidateFeedCaches()
     const id = ++likeBurstSequence
     likeBursts.value.push({
       id,
@@ -372,7 +459,8 @@ const removeFeed = async (feed) => {
   deletingFeedId.value = feed.id
   try {
     await deleteFeed(challengeId.value, feed.id)
-    await Promise.all([loadFeeds(), loadMessages({ forceScroll: true })])
+    invalidatePageCaches()
+    await loadPage({ force: true, forceScroll: true })
   } catch (error) {
     openDialog({ message: error.message })
   } finally {
@@ -555,13 +643,15 @@ const uploadFeed = async () => {
       }
     }
     closeModal()
-    await Promise.all([loadFeeds(), loadMessages({ forceScroll: true })])
+    invalidatePageCaches()
+    await loadPage({ force: true, forceScroll: true })
     if (verificationResult) {
-      const resultMessage = verificationResult.decision === "PASS"
-        ? `미션을 달성했습니다! +${verificationResult.rewardedPoint}P`
-        : verificationResult.decision === "FAIL"
-          ? "미션 달성 근거가 부족해 인증에 실패했습니다."
-          : "AI 판단이 어려워 검토 중으로 처리했습니다."
+      const resultMessage =
+        verificationResult.decision === "PASS"
+          ? `미션을 달성했습니다! +${verificationResult.rewardedPoint}P`
+          : verificationResult.decision === "FAIL"
+            ? "미션 달성 근거가 부족해 인증에 실패했습니다."
+            : "AI 판단이 어려워 검토 중으로 처리했습니다."
       await openDialog({ title: "미션 인증 결과", message: resultMessage })
     } else if (verificationError) {
       await openDialog({
@@ -641,6 +731,7 @@ const sendMessage = async () => {
         referenceFeedId: mentionedFeed.value?.id || null,
       }),
     )
+    invalidateResource(getMessagesCacheKey(challengeId.value))
     chatInput.value = ""
     mentionedFeed.value = null
     await nextTick()
@@ -671,13 +762,26 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="feed-page">
-    <div v-if="isLoading" class="page-state">
+    <div v-if="refreshing" class="small text-secondary mb-3" role="status">
+      최신 피드와 채팅을 확인하는 중...
+    </div>
+    <div
+      v-if="errorMessage && hasLoadedPage"
+      class="alert alert-warning d-flex align-items-center justify-content-between gap-2"
+      role="alert"
+    >
+      <span>{{ errorMessage }}</span>
+      <button class="btn btn-sm btn-outline-warning" @click="loadPage({ force: true })">
+        다시 시도
+      </button>
+    </div>
+    <div v-if="initialLoading" class="page-state">
       <div class="spinner-border text-primary"></div>
       <p>챌린지 피드를 불러오고 있어요.</p>
     </div>
-    <div v-else-if="errorMessage" class="page-state">
+    <div v-else-if="errorMessage && !hasLoadedPage" class="page-state">
       <strong>{{ errorMessage }}</strong>
-      <button class="btn btn-primary" @click="loadPage">다시 시도</button>
+      <button class="btn btn-primary" @click="loadPage({ force: true })">다시 시도</button>
     </div>
     <template v-else>
       <header class="feed-header">
@@ -734,11 +838,7 @@ onBeforeUnmount(() => {
               <AuthenticatedImage :src="feed.profileImageUrl" alt="" />
               <div>
                 <strong>{{ feed.nickname }}</strong
-                ><span class="d-none">
-                  >{{ spendingLabel(feed.spendingType) }} ·
-
-                >
-                </span>
+                ><span class="d-none"> >{{ spendingLabel(feed.spendingType) }} · > </span>
                 <small>{{ categoryLabel(feed.category, feed.customCategory) }}</small>
               </div>
               <span class="saving-badge">+ {{ formatWon(feed.savingAmount) }}</span>
@@ -763,7 +863,10 @@ onBeforeUnmount(() => {
                 @click.stop="toggleFeedMute(feed)"
               >
                 <i
-                  :class="['bi', isFeedMuted(feed.id) ? 'bi-volume-mute-fill' : 'bi-volume-up-fill']"
+                  :class="[
+                    'bi',
+                    isFeedMuted(feed.id) ? 'bi-volume-mute-fill' : 'bi-volume-up-fill',
+                  ]"
                   aria-hidden="true"
                 ></i>
               </button>
