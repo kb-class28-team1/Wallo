@@ -4,7 +4,10 @@ import { storeToRefs } from "pinia"
 import { useRouter } from "vue-router"
 import { useMyFeedStore } from "@/stores/myFeedStore"
 import { formatNumber, formatWon } from "@/commonUtils/formatters"
-import { EXPENSE_CATEGORY_META, FEED_CATEGORY_CODES } from "@/features/financial/financialCategories"
+import {
+  EXPENSE_CATEGORY_META,
+  FEED_CATEGORY_CODES,
+} from "@/features/financial/financialCategories"
 
 const router = useRouter()
 const myFeedStore = useMyFeedStore()
@@ -16,7 +19,9 @@ const {
   page,
   size,
   totalPages,
-  isLoading,
+  initialLoading,
+  refreshing,
+  isFeedLoading,
   errorMessage,
 } = storeToRefs(myFeedStore)
 
@@ -120,7 +125,7 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
         type="button"
         class="btn page-back-button"
         aria-label="내 챌린지로 이동"
-        @click="router.push({ name: &quot;my-challenge&quot; })"
+        @click="router.push({ name: 'my-challenge' })"
       >
         <i class="bi bi-chevron-left" aria-hidden="true"></i>
       </button>
@@ -137,7 +142,12 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
         <div class="filter-group d-flex gap-2">
           <label>
             <span>정렬</span>
-            <select v-model="sort" class="form-select" @change="handleSortChange">
+            <select
+              v-model="sort"
+              class="form-select"
+              :disabled="isFeedLoading"
+              @change="handleSortChange"
+            >
               <option v-for="option in sortOptions" :key="option.value" :value="option.value">
                 {{ option.label }}
               </option>
@@ -146,12 +156,13 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
 
           <label>
             <span>카테고리</span>
-            <select v-model="category" class="form-select" @change="handleCategoryChange">
-              <option
-                v-for="option in categoryOptions"
-                :key="option.value"
-                :value="option.value"
-              >
+            <select
+              v-model="category"
+              class="form-select"
+              :disabled="isFeedLoading"
+              @change="handleCategoryChange"
+            >
+              <option v-for="option in categoryOptions" :key="option.value" :value="option.value">
                 {{ option.label }}
               </option>
             </select>
@@ -172,7 +183,26 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
       </div>
     </article>
 
-    <div v-if="isLoading && feeds.length === 0" class="page-state-card">
+    <div v-if="refreshing" class="feed-refresh-status text-secondary" role="status">
+      최신 내 게시물 정보를 확인하는 중...
+    </div>
+
+    <div
+      v-if="errorMessage && feeds.length > 0"
+      class="alert alert-warning d-flex align-items-center justify-content-between gap-2 mt-3"
+      role="alert"
+    >
+      <span>{{ errorMessage }}</span>
+      <button
+        type="button"
+        class="btn btn-sm btn-outline-warning"
+        @click="myFeedStore.refreshMyFeedPage"
+      >
+        다시 시도
+      </button>
+    </div>
+
+    <div v-if="initialLoading && feeds.length === 0" class="page-state-card">
       <div class="spinner-border text-primary" role="status">
         <span class="visually-hidden">로딩 중</span>
       </div>
@@ -181,7 +211,7 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
 
     <div v-else-if="errorMessage && feeds.length === 0" class="page-state-card error-state">
       <span>{{ errorMessage }}</span>
-      <button type="button" class="btn retry-button" @click="myFeedStore.initializeMyFeedPage">
+      <button type="button" class="btn retry-button" @click="myFeedStore.refreshMyFeedPage">
         다시 시도
       </button>
     </div>
@@ -247,7 +277,7 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
         <button
           type="button"
           class="btn page-button"
-          :disabled="!hasPreviousPage || isLoading"
+          :disabled="!hasPreviousPage || isFeedLoading"
           @click="movePage(page - 1)"
         >
           이전
@@ -256,7 +286,7 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
         <button
           type="button"
           class="btn page-button"
-          :disabled="!hasNextPage || isLoading"
+          :disabled="!hasNextPage || isFeedLoading"
           @click="movePage(page + 1)"
         >
           다음
@@ -267,39 +297,42 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
 </template>
 
 <style scoped>
- .page-back-button {
-   display: inline-flex;
-   flex: 0 0 38px;
-   width: 38px;
-   height: 38px;
-   align-items: center;
-   justify-content: center;
-   padding: 0;
-   border: 0;
-   border-radius: 12px;
-   background: #f1efff;
-   color: #6b64e8;
-   text-decoration: none;
-   transform: translateX(-8px);
-   transition: background-color 160ms ease, color 160ms ease, transform 160ms ease;
- }
+.page-back-button {
+  display: inline-flex;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: #f1efff;
+  color: #6b64e8;
+  text-decoration: none;
+  transform: translateX(-8px);
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
 
- .page-back-button:hover,
- .page-back-button:focus-visible {
-   background: #e8e5ff;
-   color: #574fd2;
-   transform: translateX(-8px) translateY(-1px);
- }
+.page-back-button:hover,
+.page-back-button:focus-visible {
+  background: #e8e5ff;
+  color: #574fd2;
+  transform: translateX(-8px) translateY(-1px);
+}
 
- .page-back-button:focus-visible {
-   outline: 3px solid rgb(107 100 232 / 22%);
-   outline-offset: 2px;
- }
+.page-back-button:focus-visible {
+  outline: 3px solid rgb(107 100 232 / 22%);
+  outline-offset: 2px;
+}
 
- .page-back-button i {
-   font-size: 16px;
-   line-height: 1;
- }
+.page-back-button i {
+  font-size: 16px;
+  line-height: 1;
+}
 
 .my-feed-page {
   width: 100%;
@@ -413,7 +446,9 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
   align-items: center;
   padding: 20px;
   cursor: pointer;
-  transition: transform 160ms ease, box-shadow 160ms ease;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
 }
 
 .feed-card:hover,
@@ -527,6 +562,14 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
 
 .page-state-card.error-state {
   color: #d45b72;
+}
+
+.feed-refresh-status {
+  margin-top: 16px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #f8f8ff;
+  font-size: 13px;
 }
 
 .empty-icon {

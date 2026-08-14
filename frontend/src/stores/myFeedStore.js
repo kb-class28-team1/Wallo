@@ -38,6 +38,8 @@ export const useMyFeedStore = defineStore("myFeed", () => {
   const hasLoadedSummary = ref(false)
   const errorMessage = ref("")
   const isLoading = computed(() => isFeedLoading.value || isSummaryLoading.value)
+  const initialLoading = computed(() => initialFeedLoading.value || initialSummaryLoading.value)
+  const refreshing = computed(() => refreshingFeed.value || refreshingSummary.value)
 
   const applyFeeds = (response) => {
     feeds.value = Array.isArray(response?.content) ? response.content : []
@@ -170,6 +172,7 @@ export const useMyFeedStore = defineStore("myFeed", () => {
   const initializeMyFeedPage = async ({ force = false } = {}) => {
     await Promise.all([fetchMyFeeds({ force }), fetchMyFeedSummary({ force })])
   }
+  const refreshMyFeedPage = () => initializeMyFeedPage({ force: true })
 
   // 정렬 조건이 바뀌면 첫 페이지부터 다시 조회함.
   const changeSort = async (nextSort) => {
@@ -206,6 +209,8 @@ export const useMyFeedStore = defineStore("myFeed", () => {
     totalPages,
     hasNext,
     isLoading,
+    initialLoading,
+    refreshing,
     isFeedLoading,
     isSummaryLoading,
     initialFeedLoading,
@@ -218,6 +223,7 @@ export const useMyFeedStore = defineStore("myFeed", () => {
     fetchMyFeeds,
     fetchMyFeedSummary,
     initializeMyFeedPage,
+    refreshMyFeedPage,
     changeSort,
     changeCategory,
     changePage,
