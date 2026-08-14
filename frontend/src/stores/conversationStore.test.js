@@ -92,6 +92,29 @@ describe("conversationStore", () => {
     expect(getActiveGoalInterview).toHaveBeenCalledTimes(2)
   })
 
+  it("clears conversation and message state when the session is reset", async () => {
+    const store = useConversationStore()
+
+    await store.fetchConversations(7)
+    await store.selectConversation(11, 7)
+
+    store.reset()
+
+    expect(store.conversations).toEqual([])
+    expect(store.activeConversationId).toBeNull()
+    expect(store.messages).toEqual([])
+    expect(store.activeGoalInterview).toBeNull()
+    expect(store.confirmedGoal).toBeNull()
+    expect(store.isLoading).toBe(false)
+    expect(store.isMessageLoading).toBe(false)
+    expect(store.isSending).toBe(false)
+
+    await store.fetchConversations(8)
+
+    expect(getConversations).toHaveBeenCalledTimes(2)
+    expect(getConversations).toHaveBeenLastCalledWith(8)
+  })
+
   it("passes a custom title when starting a goal-setting conversation", async () => {
     createConversation.mockResolvedValue({
       conversationId: 12,

@@ -14,6 +14,8 @@ import {
   hasInFlightResource,
   invalidateResource,
 } from "@/utils/resourceCache"
+import { useConversationStore } from "@/stores/conversationStore"
+import { useGoalStore } from "@/stores/goalStore"
 
 const DEFAULT_PROFILE_IMAGE = "/images/profiles/default-profile.svg"
 const PROFILE_CACHE_KEY = "user:profile:current"
@@ -35,7 +37,16 @@ export const useUserStore = defineStore("user", () => {
 
   const invalidateProfileCache = () => invalidateResource(PROFILE_CACHE_KEY)
 
+  const resetSessionStores = () => {
+    useGoalStore().reset()
+    useConversationStore().reset()
+  }
+
   const setUser = (authenticatedUser) => {
+    if (user.value?.id !== authenticatedUser?.id) {
+      resetSessionStores()
+    }
+
     user.value = authenticatedUser
     hasCheckedAuth.value = true
     hasLoadedProfile.value = Boolean(authenticatedUser?.id)
@@ -56,6 +67,7 @@ export const useUserStore = defineStore("user", () => {
 
   const clearAuth = () => {
     invalidateProfileCache()
+    resetSessionStores()
     user.value = null
     hasCheckedAuth.value = true
     hasLoadedProfile.value = false

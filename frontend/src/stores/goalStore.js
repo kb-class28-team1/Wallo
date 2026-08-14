@@ -40,6 +40,7 @@ export const useGoalStore = defineStore("goal", () => {
   const roadmapRequests = new Map()
   const roadmapError = ref(null)
   const isRoadmapProgressSaving = ref(false)
+  let sessionVersion = 0
 
   const fetchGoalRoadmap = (goalId, {
     notifyError = true,
@@ -53,6 +54,7 @@ export const useGoalStore = defineStore("goal", () => {
       return null
     }
 
+    const requestVersion = sessionVersion
     const requestKey = String(goalId)
     const inFlight = roadmapRequests.get(requestKey)
     if (inFlight) {
@@ -77,11 +79,19 @@ export const useGoalStore = defineStore("goal", () => {
     request = (async () => {
       try {
         const response = await getGoalRoadmap(goalId)
+        if (requestVersion !== sessionVersion) {
+          return null
+        }
+
         roadmap.value = response?.data ?? null
         roadmapGoalId.value = goalId
         roadmapLastFetchedAt.value = Date.now()
         return roadmap.value
       } catch (caughtError) {
+        if (requestVersion !== sessionVersion) {
+          return null
+        }
+
         if (isInitialLoad) {
           roadmap.value = null
           roadmapGoalId.value = null
@@ -91,7 +101,9 @@ export const useGoalStore = defineStore("goal", () => {
         if (notifyError) alert(roadmapError.value)
         return null
       } finally {
-        isRoadmapLoading.value = false
+        if (requestVersion === sessionVersion) {
+          isRoadmapLoading.value = false
+        }
         if (roadmapRequests.get(requestKey) === request) {
           roadmapRequests.delete(requestKey)
         }
@@ -103,15 +115,24 @@ export const useGoalStore = defineStore("goal", () => {
   }
 
   const saveRoadmapStep = async (goalId, stepNumber, completed) => {
+    const requestVersion = sessionVersion
     isRoadmapProgressSaving.value = true
     roadmapError.value = null
     try {
       const response = await updateGoalRoadmapStep(goalId, stepNumber, completed)
+      if (requestVersion !== sessionVersion) {
+        return null
+      }
+
       roadmap.value = response?.data ?? null
       roadmapGoalId.value = goalId
       roadmapLastFetchedAt.value = Date.now()
       return roadmap.value
     } catch (caughtError) {
+      if (requestVersion !== sessionVersion) {
+        return null
+      }
+
       roadmapError.value = getApiErrorMessage(
         caughtError,
         "로드맵 진행 상태를 저장하지 못했습니다.",
@@ -119,7 +140,9 @@ export const useGoalStore = defineStore("goal", () => {
       alert(roadmapError.value)
       return null
     } finally {
-      isRoadmapProgressSaving.value = false
+      if (requestVersion === sessionVersion) {
+        isRoadmapProgressSaving.value = false
+      }
     }
   }
 
@@ -133,6 +156,7 @@ export const useGoalStore = defineStore("goal", () => {
       return goalsInFlight
     }
 
+    const requestVersion = sessionVersion
     const isFresh = (
       lastFetchedAt.value > 0 &&
       Date.now() - lastFetchedAt.value < staleTime &&
@@ -154,6 +178,10 @@ export const useGoalStore = defineStore("goal", () => {
     request = (async () => {
       try {
         const response = await getGoals({ syncAccounts });
+        if (requestVersion !== sessionVersion) {
+          return []
+        }
+
         goals.value = Array.isArray(response?.data) ? response.data : [];
         lastFetchedAt.value = Date.now()
         lastFetchIncludedSync = syncAccounts
@@ -163,8 +191,16 @@ export const useGoalStore = defineStore("goal", () => {
           force,
         })
 
+        if (requestVersion !== sessionVersion) {
+          return []
+        }
+
         return goals.value;
       } catch (caughtError) {
+        if (requestVersion !== sessionVersion) {
+          return []
+        }
+
         if (isInitialLoad) {
           goals.value = [];
           lastFetchedAt.value = 0
@@ -182,12 +218,14 @@ export const useGoalStore = defineStore("goal", () => {
 
         return [];
       } finally {
-        initialLoading.value = false
-        refreshing.value = false
-        isLoading.value = false;
-        if (goalsInFlight === request) {
-          goalsInFlight = null
-          inFlightIncludesSync = false
+        if (requestVersion === sessionVersion) {
+          initialLoading.value = false
+          refreshing.value = false
+          isLoading.value = false;
+          if (goalsInFlight === request) {
+            goalsInFlight = null
+            inFlightIncludesSync = false
+          }
         }
       }
     })()
@@ -212,6 +250,7 @@ export const useGoalStore = defineStore("goal", () => {
       return availableAccountsInFlight
     }
 
+    const requestVersion = sessionVersion
     const isFresh = (
       availableAccountsLastFetchedAt.value > 0 &&
       Date.now() - availableAccountsLastFetchedAt.value < staleTime
@@ -231,6 +270,10 @@ export const useGoalStore = defineStore("goal", () => {
     request = (async () => {
       try {
         const response = await getAvailableGoalAccounts();
+        if (requestVersion !== sessionVersion) {
+          return []
+        }
+
         availableAccounts.value = Array.isArray(response?.data)
           ? response.data
           : [];
@@ -239,6 +282,10 @@ export const useGoalStore = defineStore("goal", () => {
 
         return availableAccounts.value;
       } catch (caughtError) {
+        if (requestVersion !== sessionVersion) {
+          return []
+        }
+
         if (isInitialLoad) {
           availableAccounts.value = [];
           availableAccountsLastFetchedAt.value = 0
@@ -255,11 +302,13 @@ export const useGoalStore = defineStore("goal", () => {
 
         return [];
       } finally {
-        initialAccountLoading.value = false
-        refreshingAccounts.value = false
-        isAccountLoading.value = false;
-        if (availableAccountsInFlight === request) {
-          availableAccountsInFlight = null
+        if (requestVersion === sessionVersion) {
+          initialAccountLoading.value = false
+          refreshingAccounts.value = false
+          isAccountLoading.value = false;
+          if (availableAccountsInFlight === request) {
+            availableAccountsInFlight = null
+          }
         }
       }
     })()
@@ -269,11 +318,16 @@ export const useGoalStore = defineStore("goal", () => {
   };
 
   const saveGoalAccount = async (goalId, accountId) => {
+    const requestVersion = sessionVersion
     isAccountSaving.value = true;
     accountError.value = null;
 
     try {
       const response = await selectGoalAccountRequest(goalId, accountId);
+      if (requestVersion !== sessionVersion) {
+        return null
+      }
+
       const selectedAccount = response?.data ?? null;
 
       const locallyUpdatedAccounts = availableAccounts.value.map((account) => ({
@@ -287,6 +341,10 @@ export const useGoalStore = defineStore("goal", () => {
         notifyError: false,
         force: true,
       });
+      if (requestVersion !== sessionVersion) {
+        return null
+      }
+
       if (refreshedAccounts.length > 0) {
         availableAccounts.value = refreshedAccounts.map((account) => ({
           ...account,
@@ -301,6 +359,10 @@ export const useGoalStore = defineStore("goal", () => {
 
       return selectedAccount;
     } catch (caughtError) {
+      if (requestVersion !== sessionVersion) {
+        return null
+      }
+
       accountError.value = getApiErrorMessage(
         caughtError,
         "목표 계좌를 저장하는 중 오류가 발생했습니다.",
@@ -308,9 +370,44 @@ export const useGoalStore = defineStore("goal", () => {
       alert(accountError.value);
       throw caughtError;
     } finally {
-      isAccountSaving.value = false;
+      if (requestVersion === sessionVersion) {
+        isAccountSaving.value = false;
+      }
     }
   };
+
+  const reset = () => {
+    sessionVersion += 1
+
+    goals.value = []
+    isLoading.value = false
+    initialLoading.value = false
+    refreshing.value = false
+    error.value = null
+    lastFetchedAt.value = 0
+    hasFetchedGoals.value = false
+    goalsInFlight = null
+    inFlightIncludesSync = false
+    lastFetchIncludedSync = false
+
+    availableAccounts.value = []
+    isAccountLoading.value = false
+    initialAccountLoading.value = false
+    refreshingAccounts.value = false
+    availableAccountsLastFetchedAt.value = 0
+    hasFetchedAccounts.value = false
+    availableAccountsInFlight = null
+    isAccountSaving.value = false
+    accountError.value = null
+
+    roadmap.value = null
+    isRoadmapLoading.value = false
+    roadmapGoalId.value = null
+    roadmapLastFetchedAt.value = 0
+    roadmapRequests.clear()
+    roadmapError.value = null
+    isRoadmapProgressSaving.value = false
+  }
 
   return {
     goals,
@@ -320,6 +417,7 @@ export const useGoalStore = defineStore("goal", () => {
     lastFetchedAt,
     error,
     fetchGoals,
+    reset,
     availableAccounts,
     isAccountLoading,
     initialAccountLoading,

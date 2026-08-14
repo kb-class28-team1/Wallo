@@ -114,6 +114,26 @@ describe("goalStore", () => {
     expect(alert).not.toHaveBeenCalled();
   });
 
+  it("clears goal, account, and roadmap state when the session is reset", () => {
+    const store = useGoalStore();
+    store.goals = [{ goalId: 1, title: "Old goal" }];
+    store.availableAccounts = [{ accountId: 101, selected: true }];
+    store.roadmap = { goalId: 1, generationStatus: "COMPLETED" };
+    store.lastFetchedAt = Date.now();
+    store.availableAccountsLastFetchedAt = Date.now();
+
+    store.reset();
+
+    expect(store.goals).toEqual([]);
+    expect(store.availableAccounts).toEqual([]);
+    expect(store.roadmap).toBeNull();
+    expect(store.lastFetchedAt).toBe(0);
+    expect(store.availableAccountsLastFetchedAt).toBe(0);
+    expect(store.error).toBeNull();
+    expect(store.accountError).toBeNull();
+    expect(store.roadmapError).toBeNull();
+  });
+
   it("exposes the error, clears stale goals, and notifies the user", async () => {
     const store = useGoalStore();
     store.goals = [{ goalId: 1, title: "Old goal" }];
