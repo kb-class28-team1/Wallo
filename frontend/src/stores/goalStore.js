@@ -196,6 +196,13 @@ export const useGoalStore = defineStore("goal", () => {
     return request
   };
 
+  const invalidateAvailableAccounts = () => {
+    availableAccounts.value = [];
+    availableAccountsLastFetchedAt.value = 0;
+    hasFetchedAccounts.value = false;
+    accountError.value = null;
+  };
+
   const fetchAvailableAccounts = ({
     notifyError = true,
     force = false,
@@ -326,6 +333,7 @@ export const useGoalStore = defineStore("goal", () => {
     isRoadmapProgressSaving,
     fetchGoalRoadmap,
     saveRoadmapStep,
+    invalidateAvailableAccounts,
     fetchAvailableAccounts,
     saveGoalAccount,
   };

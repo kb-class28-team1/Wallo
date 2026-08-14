@@ -74,7 +74,7 @@ watch(
   () => confirmedGoal.value?.goalId,
   async (goalId) => {
     if (!goalId) {
-      availableAccounts.value = []
+      goalStore.invalidateAvailableAccounts()
       return
     }
 

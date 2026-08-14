@@ -140,6 +140,26 @@ describe("goalStore", () => {
     expect(store.isAccountLoading).toBe(false);
   });
 
+  it("invalidates the account cache before the next account load", async () => {
+    const accounts = [{ accountId: 101, accountType: "입출금" }];
+    getAvailableGoalAccounts
+      .mockResolvedValueOnce({ success: true, data: accounts })
+      .mockResolvedValueOnce({ success: true, data: accounts });
+
+    const store = useGoalStore();
+    await store.fetchAvailableAccounts({ notifyError: false });
+
+    store.invalidateAvailableAccounts();
+
+    expect(store.availableAccounts).toEqual([]);
+    expect(store.availableAccountsLastFetchedAt).toBe(0);
+
+    await store.fetchAvailableAccounts({ notifyError: false });
+
+    expect(getAvailableGoalAccounts).toHaveBeenCalledTimes(2);
+    expect(store.availableAccounts).toEqual(accounts);
+  });
+
   it("updates the selected account after saving", async () => {
     const store = useGoalStore();
     store.availableAccounts = [

@@ -12,6 +12,7 @@ import {
   sendConversationMessage,
 } from "@/api/conversationApi"
 import { getAvailableGoalAccounts, getGoalByConversationId, selectGoalAccount } from "@/api/goalApi"
+import { useConversationStore } from "@/stores/conversationStore"
 import { useUserStore } from "@/stores/userStore"
 
 const { route, replaceMock } = vi.hoisted(() => {
@@ -271,5 +272,26 @@ describe("ChatView", () => {
     expect(getAvailableGoalAccounts).toHaveBeenCalledTimes(2)
     expect(wrapper.findAll('input[type="radio"]')[1].element.checked).toBe(true)
     expect(wrapper.text()).toContain("1,400,000")
+  })
+
+  it("refetches available accounts after leaving and returning to a goal conversation", async () => {
+    const wrapper = mountChat()
+    await flushPromises()
+
+    await vi.waitFor(() => {
+      expect(getAvailableGoalAccounts).toHaveBeenCalledTimes(1)
+    })
+
+    const conversationStore = useConversationStore()
+    conversationStore.confirmedGoal = null
+    await nextTick()
+    conversationStore.confirmedGoal = goal
+    await flushPromises()
+
+    await vi.waitFor(() => {
+      expect(getAvailableGoalAccounts).toHaveBeenCalledTimes(2)
+    })
+
+    wrapper.unmount()
   })
 })
