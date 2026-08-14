@@ -19,6 +19,8 @@ const WELCOME_MESSAGE = {
 }
 const GOAL_SETTING_START_QUERY = "goal-setting"
 const GOAL_SETTING_TITLE = "목표 설정"
+const GOAL_CHAT_DELETE_BLOCK_MESSAGE =
+  "목표 설정이 완료된 채팅은 계좌 변경에 필요하므로 삭제할 수 없습니다."
 
 const conversationStore = useConversationStore()
 const goalStore = useGoalStore()
@@ -53,7 +55,22 @@ const isDeletingConversation = ref(false)
 const isConsumptionAnalysisStarting = ref(false)
 const isGoalSettingEntry = ref(false)
 const isGoalSettingStarting = ref(false)
+const isMissingGoalConversation = ref(false)
 const userId = computed(() => user.value?.id ?? null)
+const isGoalDeleteBlocked = computed(
+  () => deleteTargetConversation.value?.hasGoal === true,
+)
+const deleteDialogTitle = computed(() =>
+  isGoalDeleteBlocked.value ? "삭제할 수 없는 채팅" : "채팅 삭제",
+)
+const deleteDialogMessage = computed(() =>
+  isGoalDeleteBlocked.value
+    ? GOAL_CHAT_DELETE_BLOCK_MESSAGE
+    : `'${deleteTargetConversation.value?.title ?? ""}' 채팅방을 삭제할까요?`,
+)
+const deleteDialogConfirmText = computed(() =>
+  isGoalDeleteBlocked.value ? "확인" : "삭제",
+)
 const displayMessages = computed(() => {
   const consumptionAnalysisStarting = isConsumptionAnalysisStarting.value
   const goalSettingStarting = isGoalSettingStarting.value
@@ -68,6 +85,7 @@ const displayMessages = computed(() => {
   ) {
     return []
   }
+  if (isMissingGoalConversation.value) return []
   if (messages.value.length) return messages.value
   if (isGoalSettingEntry.value) return []
   return [{ ...WELCOME_MESSAGE }]
@@ -102,6 +120,7 @@ const selectConversation = async (conversationId) => {
 
   isGoalSettingEntry.value = false
   isGoalSettingStarting.value = false
+  isMissingGoalConversation.value = false
   errorMessage.value = ""
   await conversationStore.selectConversation(conversationId, userId.value)
   await scrollToBottom()
@@ -115,6 +134,7 @@ const startNewConversation = async () => {
 
   isGoalSettingEntry.value = false
   isGoalSettingStarting.value = false
+  isMissingGoalConversation.value = false
   const conversation = await conversationStore.startNewConversation(userId.value)
 
   if (conversation) errorMessage.value = ""
@@ -146,9 +166,22 @@ const saveConversationTitle = async (conversationId) => {
   if (updated) cancelEditingTitle()
 }
 
-const openDeleteDialog = (conversation) => {
+const openDeleteDialog = async (conversation) => {
   if (isDeletingConversation.value) return
-  deleteTargetConversation.value = conversation
+
+  const goals = await goalStore.fetchGoals({
+    notifyError: false,
+    force: true,
+    syncAccounts: false,
+  })
+  const hasGoal = Boolean(goalStore.error) || (Array.isArray(goals) && goals.some(
+    (goal) => Number(goal.conversationId) === Number(conversation.conversationId),
+  ))
+
+  deleteTargetConversation.value = {
+    ...conversation,
+    hasGoal,
+  }
 }
 
 const closeDeleteDialog = () => {
@@ -178,6 +211,15 @@ const confirmDeleteConversation = async () => {
   }
 }
 
+const handleDeleteDialogConfirm = () => {
+  if (isGoalDeleteBlocked.value) {
+    closeDeleteDialog()
+    return
+  }
+
+  void confirmDeleteConversation()
+}
+
 const followTypingMessage = () => scrollToBottom("auto")
 const completeTypingMessage = (messageId) => {
   conversationStore.completeMessageAnimation(messageId)
@@ -186,6 +228,7 @@ const completeTypingMessage = (messageId) => {
 async function sendMessage(message) {
   if (isChatLoading.value || isGoalSettingStarting.value || !userId.value) return
 
+  isMissingGoalConversation.value = false
   errorMessage.value = ""
   const sendPromise = conversationStore.sendMessage(userId.value, message)
   await scrollToBottom()
@@ -221,6 +264,7 @@ const startGoalSettingConversation = async () => {
 
   isGoalSettingEntry.value = true
   isGoalSettingStarting.value = true
+  isMissingGoalConversation.value = false
   errorMessage.value = ""
 
   try {
@@ -242,6 +286,7 @@ const startConsumptionAnalysis = async () => {
   if (isConsumptionAnalysisStarting.value || !userId.value) return
 
   isConsumptionAnalysisStarting.value = true
+  isMissingGoalConversation.value = false
   errorMessage.value = ""
   await router.replace({ name: "chat" })
 
@@ -294,15 +339,27 @@ onMounted(async () => {
     return
   }
 
-  const fallbackConversationId = await conversationStore.fetchConversations(userId.value)
+  const hasConversationQuery = route.query.conversationId !== undefined
+  const fallbackConversationId = await conversationStore.fetchConversations(userId.value, {
+    force: hasConversationQuery,
+  })
   const requestedConversationId = Number(route.query.conversationId)
   const hasRequestedConversation = (
     Number.isInteger(requestedConversationId) &&
     requestedConversationId > 0 &&
     conversationStore.conversations.some(
-      (conversation) => conversation.conversationId === requestedConversationId,
+      (conversation) => Number(conversation.conversationId) === requestedConversationId,
     )
   )
+
+  if (hasConversationQuery && !hasRequestedConversation) {
+    activeConversationId.value = null
+    await conversationStore.fetchMessages(userId.value, null)
+    isMissingGoalConversation.value = true
+    errorMessage.value = "목표 설정 채팅을 찾을 수 없습니다."
+    return
+  }
+
   const conversationId = hasRequestedConversation
     ? requestedConversationId
     : fallbackConversationId
@@ -392,12 +449,20 @@ onMounted(async () => {
 
           <div v-if="errorMessage" class="alert alert-danger mx-3 mb-2" role="alert">
             {{ errorMessage }}
+            <RouterLink
+              v-if="isMissingGoalConversation"
+              to="/dashboard"
+              class="btn btn-sm btn-outline-danger d-block mt-2"
+            >
+              대시보드로 이동
+            </RouterLink>
           </div>
 
           <ChatInput
             :disabled="
               isConsumptionAnalysisStarting ||
               isGoalSettingStarting ||
+              isMissingGoalConversation ||
               isChatLoading ||
               isMessageLoading ||
               !userId
@@ -518,13 +583,13 @@ onMounted(async () => {
 
     <AppDialog
       :visible="Boolean(deleteTargetConversation)"
-      title="채팅 삭제"
-      :message="`'${deleteTargetConversation?.title ?? ''}' 채팅방을 삭제할까요?`"
-      confirm-text="삭제"
+      :title="deleteDialogTitle"
+      :message="deleteDialogMessage"
+      :confirm-text="deleteDialogConfirmText"
       cancel-text="취소"
-      :show-cancel="true"
+      :show-cancel="!isGoalDeleteBlocked"
       @close="closeDeleteDialog"
-      @confirm="confirmDeleteConversation"
+      @confirm="handleDeleteDialogConfirm"
     />
   </main>
 </template>

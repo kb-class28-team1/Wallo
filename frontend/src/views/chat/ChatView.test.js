@@ -12,7 +12,12 @@ import {
   getConversations,
   sendConversationMessage,
 } from "@/api/conversationApi"
-import { getAvailableGoalAccounts, getGoalByConversationId, selectGoalAccount } from "@/api/goalApi"
+import {
+  getAvailableGoalAccounts,
+  getGoalByConversationId,
+  getGoals,
+  selectGoalAccount,
+} from "@/api/goalApi"
 import { useConversationStore } from "@/stores/conversationStore"
 import { useUserStore } from "@/stores/userStore"
 
@@ -107,6 +112,10 @@ const mountChat = () =>
           props: ["disabled"],
           template: '<div class="stub-input" :data-disabled="String(disabled)" />',
         },
+        RouterLink: {
+          props: ["to"],
+          template: '<a :href="to"><slot /></a>',
+        },
       },
     },
   })
@@ -128,6 +137,7 @@ describe("ChatView", () => {
     ])
     getActiveGoalInterview.mockResolvedValue({ active: false, draft: null })
     getGoalByConversationId.mockResolvedValue({ data: goal })
+    getGoals.mockResolvedValue({ data: [] })
     getAvailableGoalAccounts.mockResolvedValue({ data: initialAccounts })
     selectGoalAccount.mockResolvedValue({
       data: { accountId: 102, selected: true },
@@ -175,11 +185,33 @@ describe("ChatView", () => {
     wrapper.unmount()
   })
 
-  it("opens a modal before deleting a conversation", async () => {
+  it("blocks deleting a conversation linked to a confirmed goal", async () => {
+    getGoals.mockResolvedValue({ data: [{ ...goal, conversationId: 11 }] })
     const wrapper = mountChat()
     await flushPromises()
 
     await wrapper.find('button[aria-label="채팅방 삭제"]').trigger("click")
+    await flushPromises()
+
+    expect(wrapper.find('[role="dialog"]').text()).toContain(
+      "목표 설정이 완료된 채팅은 계좌 변경에 필요하므로 삭제할 수 없습니다.",
+    )
+    expect(wrapper.find('[data-modal-confirm]').text()).toBe("확인")
+
+    await wrapper.find('[data-modal-confirm]').trigger("click")
+    await flushPromises()
+
+    expect(deleteConversation).not.toHaveBeenCalled()
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it("opens a modal before deleting an unlinked conversation", async () => {
+    const wrapper = mountChat()
+    await flushPromises()
+
+    await wrapper.find('button[aria-label="채팅방 삭제"]').trigger("click")
+    await flushPromises()
 
     expect(wrapper.find('[role="dialog"]').exists()).toBe(true)
     expect(wrapper.find('[role="dialog"]').text()).toContain("'비상금 목표' 채팅방을 삭제할까요?")
@@ -189,6 +221,18 @@ describe("ChatView", () => {
 
     expect(deleteConversation).toHaveBeenCalledWith(11, 7)
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it("shows a dashboard link instead of falling back when the requested goal chat is deleted", async () => {
+    route.query = { conversationId: "999" }
+    const wrapper = mountChat()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain("목표 설정 채팅을 찾을 수 없습니다.")
+    expect(wrapper.find('a[href="/dashboard"]').text()).toBe("대시보드로 이동")
+    expect(useConversationStore().activeConversationId).toBe(null)
+    expect(getConversationMessages).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 
