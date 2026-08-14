@@ -20,6 +20,10 @@ import { useGoalStore } from "@/stores/goalStore"
 const DEFAULT_PROFILE_IMAGE = "/images/profiles/default-profile.svg"
 const PROFILE_CACHE_KEY = "user:profile:current"
 const PROFILE_STALE_TIME = 60 * 1000
+const normalizeUserId = (authenticatedUser) => {
+  const userId = authenticatedUser?.id
+  return userId === null || userId === undefined ? null : String(userId)
+}
 
 export const useUserStore = defineStore("user", () => {
   const user = ref(null)
@@ -43,7 +47,7 @@ export const useUserStore = defineStore("user", () => {
   }
 
   const setUser = (authenticatedUser) => {
-    if (user.value?.id !== authenticatedUser?.id) {
+    if (normalizeUserId(user.value) !== normalizeUserId(authenticatedUser)) {
       resetSessionStores()
     }
 
