@@ -32,6 +32,8 @@ public class ConversationMessageService {
     private static final String USER_ROLE = "USER";
     private static final String ASSISTANT_ROLE = "ASSISTANT";
     private static final String CONSUMPTION_ANALYSIS_TITLE = "소비 분석";
+    private static final String GOAL_SETTING_MODE = "GOAL_SETTING";
+    private static final String GOAL_SETTING_TITLE = "목표 설정";
 
     private final ConversationService conversationService;
     private final ChatMessagePersistenceService persistenceService;
@@ -170,6 +172,8 @@ public class ConversationMessageService {
         boolean isFirstMessage = persistenceService.hasNoMessages(conversationId);
 
         String content = request.getMessage().trim();
+        boolean goalSettingRequest = isGoalSettingRequest(content, request.getChatMode());
+        String chatMode = goalSettingRequest ? GOAL_SETTING_MODE : request.getChatMode();
         Conversation memory = conversationService.getConversationMemory(
                 conversationId, currentUserId);
         List<ChatMessage> storedMessages = persistenceService.getMessages(conversationId);
@@ -199,10 +203,11 @@ public class ConversationMessageService {
         ChatResponse aiResponse = chatService.chat(
                 new ChatRequest(
                         content,
-                        isFirstMessage && !consumptionAnalysisRequest,
+                        isFirstMessage && !consumptionAnalysisRequest && !goalSettingRequest,
                         summary,
                         history
                 )
+                        .withChatMode(chatMode)
                         .withGoalDraft(goalDraft)
                         .withGoalAlreadyExists(goalAlreadyExists)
                         .withPreviousConsumptionPeriod(previousConsumptionPeriod),
@@ -249,6 +254,8 @@ public class ConversationMessageService {
             String title;
             if (consumptionAnalysisRequest) {
                 title = CONSUMPTION_ANALYSIS_TITLE;
+            } else if (goalSettingRequest) {
+                title = GOAL_SETTING_TITLE;
             } else {
                 title = aiResponse.title() == null
                         || aiResponse.title().isBlank()
@@ -276,6 +283,17 @@ public class ConversationMessageService {
         String normalized = message.toLowerCase(Locale.ROOT).replaceAll("\\s+", "");
         return normalized.contains("소비분석")
                 || (normalized.contains("소비") && normalized.contains("분석"));
+    }
+
+    private boolean isGoalSettingRequest(String message, String chatMode) {
+        if (GOAL_SETTING_MODE.equalsIgnoreCase(chatMode)) {
+            return true;
+        }
+
+        String normalized = message.toLowerCase(Locale.ROOT)
+                .replaceAll("\\s+", "")
+                .replaceAll("[.!?~]+", "");
+        return "목표를설정하고싶어요".equals(normalized);
     }
 
     private String refreshSummary(
