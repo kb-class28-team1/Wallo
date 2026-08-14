@@ -9,15 +9,24 @@ import {
   useInventoryItem as useInventoryItemApi,
 } from "@/api/pointShopApi"
 import { useUserStore } from "@/stores/userStore"
+import {
+  clearResourceCache,
+  getCachedResource,
+  getResource,
+  hasInFlightResource,
+} from "@/utils/resourceCache"
 
 const userStore = useUserStore()
 const router = useRouter()
 const activeProbabilityBox = ref(null)
 const shopPointBalance = ref(null)
-const isLoading = ref(false)
+const initialLoading = ref(true)
+const refreshing = ref(false)
+const hasLoadedPointShop = ref(false)
 const isOpeningBox = ref(false)
 const errorMessage = ref("")
 const BULK_OPEN_COUNT = 10
+const POINT_SHOP_STALE_TIME = 60 * 1000
 const pointWCoin = "/images/profiles/point-w-coin.svg"
 const rewardModal = ref({
   open: false,
@@ -64,13 +73,11 @@ const inventoryDetailModal = ref({
   item: null,
 })
 
-const formattedPoint = computed(() =>
-  `${Number(shopPointBalance.value ?? userStore.pointBalance ?? 0).toLocaleString("ko-KR")}P`,
+const formattedPoint = computed(
+  () => `${Number(shopPointBalance.value ?? userStore.pointBalance ?? 0).toLocaleString("ko-KR")}P`,
 )
 
-const currentPoint = computed(() =>
-  Number(shopPointBalance.value ?? userStore.pointBalance ?? 0),
-)
+const currentPoint = computed(() => Number(shopPointBalance.value ?? userStore.pointBalance ?? 0))
 
 const bulkOpenPrice = (box) => Number(box.price || 0) * BULK_OPEN_COUNT
 
@@ -122,49 +129,87 @@ const handleUseInventoryItem = async () => {
     if (router.currentRoute.value.name !== "point-shop") {
       await router.push({ name: "point-shop" })
     }
-    await loadPointShop()
+    await refreshPointData()
   } catch (error) {
     alert(error.message || "기프티콘을 사용 처리하지 못했습니다.")
   }
 }
 
-const loadPointShop = async () => {
-  isLoading.value = true
+const pointShopCacheKey = () => `point-shop:${userStore.user?.id ?? "current"}`
+
+const applyPointShop = (pointShop) => {
+  shopPointBalance.value = pointShop?.pointBalance ?? 0
+  userStore.updatePointBalance(shopPointBalance.value)
+  if (Array.isArray(pointShop?.boxes) && pointShop.boxes.length) {
+    const box = pointShop.boxes[0]
+    randomBoxes.value = [
+      {
+        ...randomBoxes.value[0],
+        id: box.boxId,
+        name: box.boxName,
+        price: box.price,
+      },
+    ]
+  }
+
+  inventoryItems.value = Array.isArray(pointShop?.inventory)
+    ? pointShop.inventory.map((item) => ({
+        id: item.inventoryId,
+        icon: getInventoryIcon(item.itemName),
+        name: item.itemName,
+        acquiredAt: formatAcquiredAt(item.acquiredAt),
+        description: getInventoryDescription(item.itemName),
+        used: item.status === "USED",
+      }))
+    : []
+  hasLoadedPointShop.value = true
+  return pointShop
+}
+
+const loadPointShop = async ({ force = false } = {}) => {
+  const key = pointShopCacheKey()
+  const cachedPointShop =
+    !force && !hasInFlightResource(key)
+      ? getCachedResource(key, { staleTime: POINT_SHOP_STALE_TIME })
+      : undefined
+
+  if (cachedPointShop !== undefined) {
+    errorMessage.value = ""
+    initialLoading.value = false
+    refreshing.value = false
+    return applyPointShop(cachedPointShop)
+  }
+
+  const isInitialLoad = !hasLoadedPointShop.value
+  initialLoading.value = isInitialLoad
+  refreshing.value = !isInitialLoad
   errorMessage.value = ""
 
   try {
-    const response = await getPointShop()
-    const pointShop = response?.data || response
-
-    shopPointBalance.value = pointShop?.pointBalance ?? 0
-    userStore.updatePointBalance(shopPointBalance.value)
-    if (Array.isArray(pointShop?.boxes) && pointShop.boxes.length) {
-      const box = pointShop.boxes[0]
-      randomBoxes.value = [
-        {
-          ...randomBoxes.value[0],
-          id: box.boxId,
-          name: box.boxName,
-          price: box.price,
-        },
-      ]
-    }
-
-    inventoryItems.value = Array.isArray(pointShop?.inventory)
-      ? pointShop.inventory.map((item) => ({
-          id: item.inventoryId,
-          icon: getInventoryIcon(item.itemName),
-          name: item.itemName,
-          acquiredAt: formatAcquiredAt(item.acquiredAt),
-          description: getInventoryDescription(item.itemName),
-          used: item.status === "USED",
-        }))
-      : []
+    const pointShop = await getResource(
+      key,
+      async () => {
+        const response = await getPointShop()
+        return response?.data || response || {}
+      },
+      {
+        force,
+        staleTime: POINT_SHOP_STALE_TIME,
+      },
+    )
+    return applyPointShop(pointShop)
   } catch (error) {
     errorMessage.value = error.message || "포인트 샵 정보를 불러오지 못했습니다."
+    return null
   } finally {
-    isLoading.value = false
+    initialLoading.value = false
+    refreshing.value = false
   }
+}
+
+const refreshPointData = async () => {
+  clearResourceCache()
+  await loadPointShop({ force: true })
 }
 
 const showProbability = (boxId) => {
@@ -237,8 +282,7 @@ const getBulkRewardEffectClass = (rewardPoint, rewards) => {
   ]
 
   return effectClasses.reduce(
-    (best, current) =>
-      rewardEffectRank[current] > rewardEffectRank[best] ? current : best,
+    (best, current) => (rewardEffectRank[current] > rewardEffectRank[best] ? current : best),
     "reward-effect-none",
   )
 }
@@ -251,9 +295,7 @@ const buildFallbackDrawResults = ({ rewards, pointRewardCount, loseCount, reward
     grade: reward.grade,
     rewardPoint: 0,
   }))
-  const pointValue = pointRewardCount
-    ? Math.round(Number(rewardPoint || 0) / pointRewardCount)
-    : 0
+  const pointValue = pointRewardCount ? Math.round(Number(rewardPoint || 0) / pointRewardCount) : 0
   const pointResults = Array.from({ length: pointRewardCount }, (_, index) => ({
     result: "POINT",
     inventoryId: null,
@@ -358,9 +400,10 @@ const showBulkBoxResult = (result) => {
     icon: itemRewardCount || rewardPoint ? "🎉" : "📦",
     kicker: "랜덤 박스 일괄 개봉 결과",
     title: `${openedCount}개 개봉 완료!`,
-    message: itemRewardCount || rewardPoint
-      ? "이번 개봉에서 획득한 보상이에요."
-      : "이번에는 당첨된 보상이 없어요.",
+    message:
+      itemRewardCount || rewardPoint
+        ? "이번 개봉에서 획득한 보상이에요."
+        : "이번에는 당첨된 보상이 없어요.",
     itemName: "",
     rewardPoint,
     openedCount,
@@ -387,7 +430,7 @@ const handleOpenBox = async (box) => {
     shopPointBalance.value = result?.remainingPoint ?? shopPointBalance.value
     userStore.updatePointBalance(shopPointBalance.value)
     showSingleBoxResult(result)
-    await loadPointShop()
+    await refreshPointData()
   } catch (error) {
     showBoxErrorModal(error.message || "랜덤박스를 열지 못했습니다.")
   } finally {
@@ -408,7 +451,7 @@ const removeUsedItem = async (itemId) => {
 
   try {
     await deleteUsedInventoryItem(itemId)
-    await loadPointShop()
+    await refreshPointData()
   } catch (error) {
     alert(error.message || "아이템을 삭제하지 못했습니다.")
   }
@@ -431,7 +474,7 @@ const handleOpenBoxes = async (box) => {
     userStore.updatePointBalance(shopPointBalance.value)
 
     showBulkBoxResult(result)
-    await loadPointShop()
+    await refreshPointData()
   } catch (error) {
     showBoxErrorModal(error.message || "랜덤박스 10개를 열지 못했습니다.")
   } finally {
@@ -440,7 +483,9 @@ const handleOpenBoxes = async (box) => {
 }
 
 // 페이지에 들어오면 로그인 사용자의 포인트와 보관함을 조회함
-onMounted(loadPointShop)
+onMounted(() => {
+  void loadPointShop()
+})
 </script>
 
 <template>
@@ -470,13 +515,17 @@ onMounted(loadPointShop)
       </RouterLink>
     </article>
 
-    <div v-if="isLoading" class="loading-message" role="status">
+    <div v-if="initialLoading" class="loading-message" role="status">
       포인트샵 정보를 불러오는 중임...
+    </div>
+
+    <div v-if="refreshing" class="loading-message" role="status">
+      최신 포인트샵 정보를 확인하는 중...
     </div>
 
     <div v-if="errorMessage" class="error-message" role="alert">
       <span>{{ errorMessage }}</span>
-      <button type="button" class="btn retry-button" @click="loadPointShop">
+      <button type="button" class="btn retry-button" @click="loadPointShop({ force: true })">
         다시 시도
       </button>
     </div>
@@ -544,7 +593,10 @@ onMounted(loadPointShop)
 
     <div class="section-title inventory-title">
       <h2>🎒 내 보관함</h2>
-      <span>사용 가능한 {{ inventoryItems.filter((item) => !item.used).length }}개 · 전체 {{ inventoryItems.length }}개</span>
+      <span
+        >사용 가능한 {{ inventoryItems.filter((item) => !item.used).length }}개 · 전체
+        {{ inventoryItems.length }}개</span
+      >
     </div>
 
     <article v-if="inventoryItems.length" class="inventory-card">
@@ -643,7 +695,13 @@ onMounted(loadPointShop)
         :class="{ 'bulk-backdrop': rewardModal.kind === 'bulk' }"
         role="dialog"
         aria-modal="true"
-        :aria-labelledby="rewardModal.kind === 'bulk' ? 'bulk-result-title' : ['point', 'win', 'lose'].includes(rewardModal.kind) ? 'single-result-title' : 'reward-modal-title'"
+        :aria-labelledby="
+          rewardModal.kind === 'bulk'
+            ? 'bulk-result-title'
+            : ['point', 'win', 'lose'].includes(rewardModal.kind)
+              ? 'single-result-title'
+              : 'reward-modal-title'
+        "
         tabindex="-1"
         @click.self="closeRewardModal"
         @keydown.esc="closeRewardModal"
@@ -662,151 +720,178 @@ onMounted(loadPointShop)
               { 'single-modal-card': ['point', 'win', 'lose'].includes(rewardModal.kind) },
             ]"
           >
-          <button
-            type="button"
-            class="reward-modal-close"
-            aria-label="결과 창 닫기"
-            @click="closeRewardModal"
-          >
-            <i class="bi bi-x-lg" aria-hidden="true"></i>
-          </button>
+            <button
+              type="button"
+              class="reward-modal-close"
+              aria-label="결과 창 닫기"
+              @click="closeRewardModal"
+            >
+              <i class="bi bi-x-lg" aria-hidden="true"></i>
+            </button>
 
-          <template v-if="['error', 'neutral'].includes(rewardModal.kind)">
-            <div class="reward-modal-icon" aria-hidden="true">{{ rewardModal.icon }}</div>
-            <span v-if="rewardModal.kind === 'error'" class="reward-modal-kicker">{{ rewardModal.kicker }}</span>
-            <h2 id="reward-modal-title">{{ rewardModal.title }}</h2>
-            <p v-if="rewardModal.kind === 'error'" class="reward-modal-message">{{ rewardModal.message }}</p>
-          </template>
+            <template v-if="['error', 'neutral'].includes(rewardModal.kind)">
+              <div class="reward-modal-icon" aria-hidden="true">{{ rewardModal.icon }}</div>
+              <span v-if="rewardModal.kind === 'error'" class="reward-modal-kicker">{{
+                rewardModal.kicker
+              }}</span>
+              <h2 id="reward-modal-title">{{ rewardModal.title }}</h2>
+              <p v-if="rewardModal.kind === 'error'" class="reward-modal-message">
+                {{ rewardModal.message }}
+              </p>
+            </template>
 
-          <template v-else-if="['point', 'win', 'lose'].includes(rewardModal.kind)">
-            <div class="bulk-draw-panel single-draw-panel">
-              <div class="bulk-draw-grid single-draw-grid">
-                <div
-                  class="bulk-draw-card single-draw-card"
-                  :class="[
-                    `draw-${rewardModal.kind === 'point' ? 'point' : rewardModal.kind === 'win' ? 'win' : 'lose'}`,
-                    getRewardEffectClass({
-                      rewardPoint: rewardModal.rewardPoint,
-                      itemName: rewardModal.itemName,
-                    }),
-                  ]"
-                >
-                  <button
-                    type="button"
-                    class="bulk-draw-close"
-                    aria-label="결과 창 닫기"
-                    @click="closeRewardModal"
+            <template v-else-if="['point', 'win', 'lose'].includes(rewardModal.kind)">
+              <div class="bulk-draw-panel single-draw-panel">
+                <div class="bulk-draw-grid single-draw-grid">
+                  <div
+                    class="bulk-draw-card single-draw-card"
+                    :class="[
+                      `draw-${rewardModal.kind === 'point' ? 'point' : rewardModal.kind === 'win' ? 'win' : 'lose'}`,
+                      getRewardEffectClass({
+                        rewardPoint: rewardModal.rewardPoint,
+                        itemName: rewardModal.itemName,
+                      }),
+                    ]"
                   >
-                    <i class="bi bi-x-lg" aria-hidden="true"></i>
-                  </button>
-                  <img
-                    v-if="rewardModal.kind === 'point'"
-                    :src="pointWCoin"
-                    class="bulk-draw-result-icon bulk-draw-point-icon"
-                    alt=""
-                    aria-hidden="true"
-                  />
-                  <span v-else-if="rewardModal.kind === 'win'" class="bulk-draw-result-icon" aria-hidden="true">
-                    {{ rewardModal.kind === 'win' ? '🎉' : '😢' }}
-                  </span>
-                  <strong
-                    v-if="rewardModal.kind === 'win'"
-                    id="single-result-title"
-                    class="bulk-draw-title"
-                  >상품에 당첨됐어요!</strong>
-                  <strong
-                    v-else-if="rewardModal.kind === 'point'"
-                    id="single-result-title"
-                    class="bulk-draw-title"
-                  >
-                    {{ Number(rewardModal.rewardPoint || 0).toLocaleString("ko-KR") }}P 당첨!
-                  </strong>
-                  <strong v-else id="single-result-title" class="bulk-draw-title">다음 기회에..</strong>
-                  <div class="bulk-draw-prize-card">
+                    <button
+                      type="button"
+                      class="bulk-draw-close"
+                      aria-label="결과 창 닫기"
+                      @click="closeRewardModal"
+                    >
+                      <i class="bi bi-x-lg" aria-hidden="true"></i>
+                    </button>
                     <img
                       v-if="rewardModal.kind === 'point'"
                       :src="pointWCoin"
-                      class="bulk-draw-prize-icon"
+                      class="bulk-draw-result-icon bulk-draw-point-icon"
                       alt=""
                       aria-hidden="true"
                     />
-                    <span v-else-if="rewardModal.kind === 'win'" class="bulk-draw-prize-icon" aria-hidden="true">
-                      🎁
+                    <span
+                      v-else-if="rewardModal.kind === 'win'"
+                      class="bulk-draw-result-icon"
+                      aria-hidden="true"
+                    >
+                      {{ rewardModal.kind === "win" ? "🎉" : "😢" }}
                     </span>
-                    <strong v-if="rewardModal.kind === 'win'">{{ rewardModal.itemName }}</strong>
-                    <strong v-else-if="rewardModal.kind === 'point'">
-                      {{ Number(rewardModal.rewardPoint || 0).toLocaleString("ko-KR") }}P
+                    <strong
+                      v-if="rewardModal.kind === 'win'"
+                      id="single-result-title"
+                      class="bulk-draw-title"
+                      >상품에 당첨됐어요!</strong
+                    >
+                    <strong
+                      v-else-if="rewardModal.kind === 'point'"
+                      id="single-result-title"
+                      class="bulk-draw-title"
+                    >
+                      {{ Number(rewardModal.rewardPoint || 0).toLocaleString("ko-KR") }}P 당첨!
                     </strong>
-                    <strong v-else>꽝</strong>
+                    <strong v-else id="single-result-title" class="bulk-draw-title"
+                      >다음 기회에..</strong
+                    >
+                    <div class="bulk-draw-prize-card">
+                      <img
+                        v-if="rewardModal.kind === 'point'"
+                        :src="pointWCoin"
+                        class="bulk-draw-prize-icon"
+                        alt=""
+                        aria-hidden="true"
+                      />
+                      <span
+                        v-else-if="rewardModal.kind === 'win'"
+                        class="bulk-draw-prize-icon"
+                        aria-hidden="true"
+                      >
+                        🎁
+                      </span>
+                      <strong v-if="rewardModal.kind === 'win'">{{ rewardModal.itemName }}</strong>
+                      <strong v-else-if="rewardModal.kind === 'point'">
+                        {{ Number(rewardModal.rewardPoint || 0).toLocaleString("ko-KR") }}P
+                      </strong>
+                      <strong v-else>꽝</strong>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </template>
+            </template>
 
-          <template v-if="rewardModal.kind === 'bulk'">
-            <div class="bulk-result-heading" aria-hidden="true">
-              <h2 id="bulk-result-title">{{ rewardModal.title }}</h2>
-            </div>
-            <div class="bulk-draw-panel">
-              <div class="bulk-draw-grid">
-              <div
-                v-for="(draw, index) in rewardModal.drawResults"
-                :key="`${index}-${draw.inventoryId || draw.result}`"
-                class="bulk-draw-card"
-                :class="[
-                  `draw-${String(draw.result).toLowerCase()}`,
-                  getRewardEffectClass({ rewardPoint: draw.rewardPoint, itemName: draw.itemName }),
-                ]"
-              >
-                <button
-                  type="button"
-                  class="bulk-draw-close"
-                  :aria-label="`${index + 1}번 결과 닫기`"
-                  @click="closeRewardModal"
-                >
-                  <i class="bi bi-x-lg" aria-hidden="true"></i>
-                </button>
-                <img
-                  v-if="draw.result === 'POINT'"
-                  :src="pointWCoin"
-                  class="bulk-draw-result-icon bulk-draw-point-icon"
-                  alt=""
-                  aria-hidden="true"
-                />
-                <span v-else-if="draw.result === 'WIN'" class="bulk-draw-result-icon" aria-hidden="true">
-                  {{ draw.result === 'WIN' ? '🎉' : '😢' }}
-                </span>
-                <strong v-if="draw.result === 'WIN'" class="bulk-draw-title">상품에 당첨됐어요!</strong>
-                <strong v-else-if="draw.result === 'POINT'" class="bulk-draw-title">
-                  {{ Number(draw.rewardPoint || 0).toLocaleString("ko-KR") }}P 당첨!
-                </strong>
-                <strong v-else class="bulk-draw-title">다음 기회에..</strong>
-                <div class="bulk-draw-prize-card">
-                  <img
-                    v-if="draw.result === 'POINT'"
-                    :src="pointWCoin"
-                    class="bulk-draw-prize-icon"
-                    alt=""
-                    aria-hidden="true"
-                  />
-                  <span v-else-if="draw.result === 'WIN'" class="bulk-draw-prize-icon" aria-hidden="true">
-                    🎁
-                  </span>
-                  <strong v-if="draw.result === 'WIN'">{{ draw.itemName }}</strong>
-                  <strong v-else-if="draw.result === 'POINT'">
-                    {{ Number(draw.rewardPoint || 0).toLocaleString("ko-KR") }}P
-                  </strong>
-                  <strong v-else>꽝</strong>
+            <template v-if="rewardModal.kind === 'bulk'">
+              <div class="bulk-result-heading" aria-hidden="true">
+                <h2 id="bulk-result-title">{{ rewardModal.title }}</h2>
+              </div>
+              <div class="bulk-draw-panel">
+                <div class="bulk-draw-grid">
+                  <div
+                    v-for="(draw, index) in rewardModal.drawResults"
+                    :key="`${index}-${draw.inventoryId || draw.result}`"
+                    class="bulk-draw-card"
+                    :class="[
+                      `draw-${String(draw.result).toLowerCase()}`,
+                      getRewardEffectClass({
+                        rewardPoint: draw.rewardPoint,
+                        itemName: draw.itemName,
+                      }),
+                    ]"
+                  >
+                    <button
+                      type="button"
+                      class="bulk-draw-close"
+                      :aria-label="`${index + 1}번 결과 닫기`"
+                      @click="closeRewardModal"
+                    >
+                      <i class="bi bi-x-lg" aria-hidden="true"></i>
+                    </button>
+                    <img
+                      v-if="draw.result === 'POINT'"
+                      :src="pointWCoin"
+                      class="bulk-draw-result-icon bulk-draw-point-icon"
+                      alt=""
+                      aria-hidden="true"
+                    />
+                    <span
+                      v-else-if="draw.result === 'WIN'"
+                      class="bulk-draw-result-icon"
+                      aria-hidden="true"
+                    >
+                      {{ draw.result === "WIN" ? "🎉" : "😢" }}
+                    </span>
+                    <strong v-if="draw.result === 'WIN'" class="bulk-draw-title"
+                      >상품에 당첨됐어요!</strong
+                    >
+                    <strong v-else-if="draw.result === 'POINT'" class="bulk-draw-title">
+                      {{ Number(draw.rewardPoint || 0).toLocaleString("ko-KR") }}P 당첨!
+                    </strong>
+                    <strong v-else class="bulk-draw-title">다음 기회에..</strong>
+                    <div class="bulk-draw-prize-card">
+                      <img
+                        v-if="draw.result === 'POINT'"
+                        :src="pointWCoin"
+                        class="bulk-draw-prize-icon"
+                        alt=""
+                        aria-hidden="true"
+                      />
+                      <span
+                        v-else-if="draw.result === 'WIN'"
+                        class="bulk-draw-prize-icon"
+                        aria-hidden="true"
+                      >
+                        🎁
+                      </span>
+                      <strong v-if="draw.result === 'WIN'">{{ draw.itemName }}</strong>
+                      <strong v-else-if="draw.result === 'POINT'">
+                        {{ Number(draw.rewardPoint || 0).toLocaleString("ko-KR") }}P
+                      </strong>
+                      <strong v-else>꽝</strong>
+                    </div>
+                  </div>
                 </div>
               </div>
-              </div>
-            </div>
-            <button type="button" class="bulk-result-confirm" @click="closeRewardModal">
-              확인
-            </button>
-          </template>
-
+              <button type="button" class="bulk-result-confirm" @click="closeRewardModal">
+                확인
+              </button>
+            </template>
           </article>
           <button
             v-if="rewardModal.kind !== 'bulk'"
@@ -823,39 +908,42 @@ onMounted(loadPointShop)
 </template>
 
 <style scoped>
- .page-back-button {
-   display: inline-flex;
-   flex: 0 0 38px;
-   width: 38px;
-   height: 38px;
-   align-items: center;
-   justify-content: center;
-   padding: 0;
-   border: 0;
-   border-radius: 12px;
-   background: #f1efff;
-   color: #6b64e8;
-   text-decoration: none;
-   transform: translateX(-8px);
-   transition: background-color 160ms ease, color 160ms ease, transform 160ms ease;
- }
+.page-back-button {
+  display: inline-flex;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: #f1efff;
+  color: #6b64e8;
+  text-decoration: none;
+  transform: translateX(-8px);
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
 
- .page-back-button:hover,
- .page-back-button:focus-visible {
-   background: #e8e5ff;
-   color: #574fd2;
-   transform: translateX(-8px) translateY(-1px);
- }
+.page-back-button:hover,
+.page-back-button:focus-visible {
+  background: #e8e5ff;
+  color: #574fd2;
+  transform: translateX(-8px) translateY(-1px);
+}
 
- .page-back-button:focus-visible {
-   outline: 3px solid rgb(107 100 232 / 22%);
-   outline-offset: 2px;
- }
+.page-back-button:focus-visible {
+  outline: 3px solid rgb(107 100 232 / 22%);
+  outline-offset: 2px;
+}
 
- .page-back-button i {
-   font-size: 16px;
-   line-height: 1;
- }
+.page-back-button i {
+  font-size: 16px;
+  line-height: 1;
+}
 
 .point-shop-page {
   width: 100%;
@@ -930,7 +1018,9 @@ onMounted(loadPointShop)
   font-weight: 700;
   text-decoration: none;
   transform: translateY(-50%);
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
 }
 
 .point-history-button:hover,
@@ -1592,7 +1682,9 @@ onMounted(loadPointShop)
 .reward-modal-enter-active .reward-modal-card,
 .reward-modal-leave-active .reward-modal-card {
   will-change: transform, opacity;
-  transition: transform 160ms cubic-bezier(0.22, 0.8, 0.24, 1), opacity 120ms ease-out;
+  transition:
+    transform 160ms cubic-bezier(0.22, 0.8, 0.24, 1),
+    opacity 120ms ease-out;
 }
 
 .reward-modal-enter-from,

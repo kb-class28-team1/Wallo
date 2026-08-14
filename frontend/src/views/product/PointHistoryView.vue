@@ -1,14 +1,19 @@
 <script setup>
 import { computed, onMounted, ref, watch } from "vue"
 import { getPointHistory } from "@/api/pointHistoryApi"
+import { getCachedResource, getResource, hasInFlightResource } from "@/utils/resourceCache"
+import { useUserStore } from "@/stores/userStore"
 
+const userStore = useUserStore()
 const activeType = ref("ALL")
 const activePeriod = ref("ALL")
 const sort = ref("LATEST")
 const keyword = ref("")
 const page = ref(0)
 const size = ref(20)
-const isLoading = ref(false)
+const initialLoading = ref(true)
+const refreshing = ref(false)
+const hasLoadedHistory = ref(false)
 const errorMessage = ref("")
 const summary = ref({
   totalEarned: 0,
@@ -40,33 +45,75 @@ const formattedSummary = computed(() => ({
 
 const extractPayload = (response) => response?.data?.data || response?.data || response
 
-const loadHistory = async () => {
-  isLoading.value = true
+const pointHistoryCacheKey = () =>
+  [
+    "point-history",
+    userStore.user?.id ?? "current",
+    activeType.value,
+    activePeriod.value,
+    sort.value,
+    keyword.value.trim(),
+    page.value,
+    size.value,
+  ].join(":")
+
+const applyHistory = (payload) => {
+  summary.value = {
+    ...summary.value,
+    ...(payload?.summary || {}),
+  }
+  items.value = Array.isArray(payload?.items) ? payload.items : []
+  totalPages.value = Number(payload?.totalPages || 0)
+  hasLoadedHistory.value = true
+  return payload
+}
+
+const loadHistory = async ({ force = false } = {}) => {
+  const key = pointHistoryCacheKey()
+  const cachedHistory =
+    !force && !hasInFlightResource(key)
+      ? getCachedResource(key, { staleTime: 60 * 1000 })
+      : undefined
+
+  if (cachedHistory !== undefined) {
+    errorMessage.value = ""
+    initialLoading.value = false
+    refreshing.value = false
+    return applyHistory(cachedHistory)
+  }
+
+  const isInitialLoad = !hasLoadedHistory.value
+  initialLoading.value = isInitialLoad
+  refreshing.value = !isInitialLoad
   errorMessage.value = ""
 
   try {
-    const response = await getPointHistory({
-      type: activeType.value,
-      period: activePeriod.value,
-      sort: sort.value,
-      keyword: keyword.value.trim() || undefined,
-      page: page.value,
-      size: size.value,
-    })
-    const payload = extractPayload(response)
-
-    summary.value = {
-      ...summary.value,
-      ...(payload?.summary || {}),
-    }
-    items.value = Array.isArray(payload?.items) ? payload.items : []
-    totalPages.value = Number(payload?.totalPages || 0)
+    const payload = await getResource(
+      key,
+      async () => {
+        const response = await getPointHistory({
+          type: activeType.value,
+          period: activePeriod.value,
+          sort: sort.value,
+          keyword: keyword.value.trim() || undefined,
+          page: page.value,
+          size: size.value,
+        })
+        return extractPayload(response)
+      },
+      { force, staleTime: 60 * 1000 },
+    )
+    return applyHistory(payload)
   } catch (error) {
     errorMessage.value = error.message || "포인트 내역을 불러오지 못했습니다."
-    items.value = []
+    if (isInitialLoad) {
+      items.value = []
+    }
     alert(errorMessage.value)
+    return null
   } finally {
-    isLoading.value = false
+    initialLoading.value = false
+    refreshing.value = false
   }
 }
 
@@ -111,11 +158,7 @@ onMounted(loadHistory)
 <template>
   <section class="point-history-page">
     <header class="page-heading d-flex align-items-start gap-3 mb-4">
-      <RouterLink
-        to="/point-shop"
-        class="page-back-button"
-        aria-label="포인트 샵으로 이동"
-      >
+      <RouterLink to="/point-shop" class="page-back-button" aria-label="포인트 샵으로 이동">
         <i class="bi bi-chevron-left" aria-hidden="true"></i>
       </RouterLink>
       <div>
@@ -198,16 +241,31 @@ onMounted(loadHistory)
       </form>
     </section>
 
-    <div v-if="isLoading" class="state-message" role="status">
+    <div v-if="initialLoading" class="state-message" role="status">
       포인트 내역을 불러오는 중입니다...
     </div>
 
-    <div v-else-if="errorMessage" class="state-message error-state" role="alert">
+    <div
+      v-else-if="errorMessage && !hasLoadedHistory"
+      class="state-message error-state"
+      role="alert"
+    >
       <span>{{ errorMessage }}</span>
-      <button type="button" class="btn retry-button" @click="loadHistory">다시 시도</button>
+      <button type="button" class="btn retry-button" @click="loadHistory({ force: true })">
+        다시 시도
+      </button>
     </div>
 
     <section v-else class="history-list-section">
+      <div v-if="refreshing" class="state-message" role="status">
+        최신 포인트 내역을 확인하는 중입니다...
+      </div>
+      <div v-if="errorMessage" class="state-message error-state" role="alert">
+        <span>{{ errorMessage }}</span>
+        <button type="button" class="btn retry-button" @click="loadHistory({ force: true })">
+          다시 시도
+        </button>
+      </div>
       <div v-if="items.length" class="history-list">
         <article v-for="item in items" :key="item.id" class="history-item">
           <div class="history-icon" :class="item.type === 'EARN' ? 'earn-icon' : 'use-icon'">
@@ -238,7 +296,12 @@ onMounted(loadHistory)
       </div>
 
       <nav v-if="totalPages > 1" class="pagination-wrap" aria-label="포인트 내역 페이지">
-        <button type="button" class="page-button" :disabled="page === 0" @click="movePage(page - 1)">
+        <button
+          type="button"
+          class="page-button"
+          :disabled="page === 0"
+          @click="movePage(page - 1)"
+        >
           <i class="bi bi-chevron-left" aria-hidden="true"></i>
         </button>
         <span>{{ page + 1 }} / {{ totalPages }}</span>
@@ -256,39 +319,42 @@ onMounted(loadHistory)
 </template>
 
 <style scoped>
- .page-back-button {
-   display: inline-flex;
-   flex: 0 0 38px;
-   width: 38px;
-   height: 38px;
-   align-items: center;
-   justify-content: center;
-   padding: 0;
-   border: 0;
-   border-radius: 12px;
-   background: #f1efff;
-   color: #6b64e8;
-   text-decoration: none;
-   transform: translateX(-8px);
-   transition: background-color 160ms ease, color 160ms ease, transform 160ms ease;
- }
+.page-back-button {
+  display: inline-flex;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: #f1efff;
+  color: #6b64e8;
+  text-decoration: none;
+  transform: translateX(-8px);
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
 
- .page-back-button:hover,
- .page-back-button:focus-visible {
-   background: #e8e5ff;
-   color: #574fd2;
-   transform: translateX(-8px) translateY(-1px);
- }
+.page-back-button:hover,
+.page-back-button:focus-visible {
+  background: #e8e5ff;
+  color: #574fd2;
+  transform: translateX(-8px) translateY(-1px);
+}
 
- .page-back-button:focus-visible {
-   outline: 3px solid rgb(107 100 232 / 22%);
-   outline-offset: 2px;
- }
+.page-back-button:focus-visible {
+  outline: 3px solid rgb(107 100 232 / 22%);
+  outline-offset: 2px;
+}
 
- .page-back-button i {
-   font-size: 16px;
-   line-height: 1;
- }
+.page-back-button i {
+  font-size: 16px;
+  line-height: 1;
+}
 
 .point-history-page {
   width: 100%;
