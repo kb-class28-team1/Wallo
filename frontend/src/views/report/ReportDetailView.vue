@@ -4,15 +4,22 @@ import { RouterLink, useRoute } from "vue-router"
 import { getReportDetail } from "@/api/reportApi"
 import ReportSection from "@/components/report/ReportSection.vue"
 import TermInfoPanel from "@/components/report/TermInfoPanel.vue"
+import { getCachedResource, getResource, hasInFlightResource } from "@/utils/resourceCache"
 import { markReportAsRead } from "@/utils/report/reportReadState"
 import { buildTermSegments } from "@/utils/report/termHighlight"
 
 const route = useRoute()
 const newsId = computed(() => route.params.newsId)
 
+const REPORT_DETAIL_STALE_TIME = 5 * 60 * 1000
+const cacheScope = {}
+const detailCacheKey = (id) => `reports:detail:${id}`
 const report = ref(null)
-const isLoading = ref(true)
+const initialLoading = ref(true)
+const refreshing = ref(false)
 const errorMessage = ref("")
+const loadedNewsId = ref(null)
+let loadSequence = 0
 
 // 밑줄 강조 대상 5개 섹션. 순서대로 처리해야 "상세 페이지 전체 기준 첫 등장 1회" 규칙이
 // 위에서 아래로 읽는 사용자 시선과 일치한다(먼저 나오는 섹션에서 강조되고, 같은 용어가 나중
@@ -66,7 +73,10 @@ const updateTermPopoverPosition = () => {
     left = reportCardRect.left - TERM_CARD_GAP - TERM_CARD_WIDTH
   }
 
-  left = Math.max(VIEWPORT_PADDING, Math.min(left, window.innerWidth - TERM_CARD_WIDTH - VIEWPORT_PADDING))
+  left = Math.max(
+    VIEWPORT_PADDING,
+    Math.min(left, window.innerWidth - TERM_CARD_WIDTH - VIEWPORT_PADDING),
+  )
   top = Math.max(
     VIEWPORT_PADDING,
     Math.min(top, window.innerHeight - cardHeight - VIEWPORT_PADDING),
@@ -125,23 +135,77 @@ const formattedDate = computed(() => {
   })
 })
 
-const loadDetail = async () => {
-  isLoading.value = true
+const loadDetail = async ({ force = false } = {}) => {
+  const requestedNewsId = newsId.value
+  const requestId = ++loadSequence
   errorMessage.value = ""
   closeMobileTermCard()
 
+  if (!requestedNewsId) {
+    report.value = null
+    loadedNewsId.value = null
+    initialLoading.value = false
+    refreshing.value = false
+    return null
+  }
+
+  const key = detailCacheKey(requestedNewsId)
+  const cachedReport =
+    !force && !hasInFlightResource(key, { scope: cacheScope })
+      ? getCachedResource(key, {
+          scope: cacheScope,
+          staleTime: REPORT_DETAIL_STALE_TIME,
+        })
+      : undefined
+
+  if (cachedReport !== undefined) {
+    report.value = cachedReport
+    loadedNewsId.value = requestedNewsId
+    initialLoading.value = false
+    refreshing.value = false
+    markReportAsRead(requestedNewsId)
+    return cachedReport
+  }
+
+  const hasExistingReport = loadedNewsId.value === requestedNewsId && Boolean(report.value)
+  initialLoading.value = !hasExistingReport
+  refreshing.value = hasExistingReport
+  if (!hasExistingReport) report.value = null
+
   try {
-    report.value = await getReportDetail(newsId.value)
-    markReportAsRead(newsId.value)
+    const nextReport = await getResource(key, () => getReportDetail(requestedNewsId), {
+      scope: cacheScope,
+      force,
+      staleTime: REPORT_DETAIL_STALE_TIME,
+    })
+
+    if (requestId !== loadSequence || newsId.value !== requestedNewsId) {
+      return nextReport
+    }
+
+    report.value = nextReport
+    loadedNewsId.value = requestedNewsId
+    markReportAsRead(requestedNewsId)
+    return nextReport
   } catch (error) {
-    errorMessage.value = error.message
+    if (requestId === loadSequence && newsId.value === requestedNewsId) {
+      errorMessage.value = error.message
+      if (!hasExistingReport) {
+        report.value = null
+        loadedNewsId.value = null
+      }
+    }
+    return null
   } finally {
-    isLoading.value = false
+    if (requestId === loadSequence) {
+      initialLoading.value = false
+      refreshing.value = false
+    }
   }
 }
 
 onMounted(() => {
-  loadDetail()
+  void loadDetail()
   window.addEventListener("resize", handleViewportChange)
   window.addEventListener("scroll", handleViewportChange, true)
   window.addEventListener("keydown", handleEscape)
@@ -155,7 +219,7 @@ onBeforeUnmount(() => {
 
 // 같은 라우트 컴포넌트를 재사용하며 newsId만 바뀌는 경우(다른 리포트로 이동)에도 다시 불러옴
 watch(newsId, () => {
-  loadDetail()
+  void loadDetail()
 })
 </script>
 
@@ -166,22 +230,46 @@ watch(newsId, () => {
       목록으로
     </RouterLink>
 
-    <div v-if="isLoading" class="text-center py-5">
+    <div v-if="initialLoading" class="text-center py-5">
       <div class="spinner-border text-primary" role="status">
         <span class="visually-hidden">불러오는 중...</span>
       </div>
     </div>
 
     <div
-      v-else-if="errorMessage"
+      v-else-if="errorMessage && !report"
       class="alert alert-danger d-flex flex-wrap justify-content-between align-items-center gap-2"
       role="alert"
     >
       <span>{{ errorMessage }}</span>
-      <button type="button" class="btn btn-sm btn-outline-danger" @click="loadDetail">다시 시도</button>
+      <button
+        type="button"
+        class="btn btn-sm btn-outline-danger"
+        @click="loadDetail({ force: true })"
+      >
+        다시 시도
+      </button>
     </div>
 
     <div v-else-if="report" class="row g-4">
+      <div v-if="refreshing" class="col-12 small text-secondary" role="status">
+        최신 리포트를 확인하는 중...
+      </div>
+      <div v-if="errorMessage" class="col-12">
+        <div
+          class="alert alert-warning d-flex flex-wrap justify-content-between align-items-center gap-2 mb-0"
+          role="alert"
+        >
+          <span>{{ errorMessage }}</span>
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-warning"
+            @click="loadDetail({ force: true })"
+          >
+            다시 시도
+          </button>
+        </div>
+      </div>
       <div class="col-12 col-lg-8">
         <div ref="reportCard" class="report-detail-card card border-0 shadow-sm">
           <div class="card-body p-4 p-md-5">
@@ -246,7 +334,10 @@ watch(newsId, () => {
             </template>
 
             <div v-else class="text-center py-5 not-ready-panel">
-              <i class="bi bi-hourglass-split fs-1 text-secondary d-block mb-3" aria-hidden="true"></i>
+              <i
+                class="bi bi-hourglass-split fs-1 text-secondary d-block mb-3"
+                aria-hidden="true"
+              ></i>
               <p class="text-secondary mb-0">아직 리포트가 준비되지 않았습니다.</p>
             </div>
           </div>
