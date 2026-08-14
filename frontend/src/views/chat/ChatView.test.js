@@ -15,6 +15,13 @@ import {
 } from "@/api/goalApi"
 import { useUserStore } from "@/stores/userStore"
 
+const route = vi.hoisted(() => ({ query: {} }))
+
+vi.mock("vue-router", () => ({
+  useRoute: () => route,
+  useRouter: () => ({ replace: () => Promise.resolve() }),
+}))
+
 vi.mock("@/api/conversationApi", () => ({
   createConversation: vi.fn(),
   deleteConversation: vi.fn(),
@@ -94,6 +101,7 @@ const mountChat = () => mount(ChatView, {
 describe("ChatView", () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    route.query = {}
     vi.stubGlobal("alert", vi.fn())
     vi.clearAllMocks()
 
@@ -130,6 +138,18 @@ describe("ChatView", () => {
     expect(wrapper.text()).not.toContain("이대로 확정")
     expect(wrapper.text()).toContain("Wallo Bank")
     expect(getGoalByConversationId).toHaveBeenCalledWith(11)
+  })
+
+  it("does not show the welcome message during automatic consumption analysis", () => {
+    route.query = { action: "consumption-analysis" }
+
+    const wrapper = mountChat()
+
+    expect(wrapper.text()).not.toContain(
+      "안녕하세요. 저는 Wallo 금융 컨설턴트입니다. 무엇을 도와드릴까요?",
+    )
+
+    wrapper.unmount()
   })
 
   it("saves the account selected below the confirmed goal card", async () => {

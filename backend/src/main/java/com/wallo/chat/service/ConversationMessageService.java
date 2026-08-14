@@ -17,22 +17,21 @@ import com.wallo.goal.dto.GoalInterviewDto;
 import com.wallo.goal.service.GoalFeasibilityCalculator;
 import com.wallo.goal.service.GoalPersistenceService;
 import com.wallo.mission.service.MissionGenerationService;
+import com.wallo.mission.service.MissionGenerationWorker;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @Service
 public class ConversationMessageService {
-    private static final Logger log = LoggerFactory.getLogger(ConversationMessageService.class);
-
     private static final int MAX_CONTEXT_MESSAGES = 20;
     private static final String USER_ROLE = "USER";
     private static final String ASSISTANT_ROLE = "ASSISTANT";
+    private static final String CONSUMPTION_ANALYSIS_TITLE = "소비 분석";
 
     private final ConversationService conversationService;
     private final ChatMessagePersistenceService persistenceService;
@@ -42,7 +41,7 @@ public class ConversationMessageService {
     private final ConsumptionAnalysisViewAssembler consumptionAnalysisViewAssembler;
     private final AssetAnalysisResultService assetAnalysisResultService;
     private final AssetAnalysisViewAssembler assetAnalysisViewAssembler;
-    private final MissionGenerationService missionGenerationService;
+    private final MissionGenerationWorker missionGenerationWorker;
 
     @Autowired
     public ConversationMessageService(
@@ -54,7 +53,7 @@ public class ConversationMessageService {
             ConsumptionAnalysisViewAssembler consumptionAnalysisViewAssembler,
             AssetAnalysisResultService assetAnalysisResultService,
             AssetAnalysisViewAssembler assetAnalysisViewAssembler,
-            MissionGenerationService missionGenerationService
+            MissionGenerationWorker missionGenerationWorker
     ) {
         this.conversationService = conversationService;
         this.persistenceService = persistenceService;
@@ -64,7 +63,7 @@ public class ConversationMessageService {
         this.consumptionAnalysisViewAssembler = consumptionAnalysisViewAssembler;
         this.assetAnalysisResultService = assetAnalysisResultService;
         this.assetAnalysisViewAssembler = assetAnalysisViewAssembler;
-        this.missionGenerationService = missionGenerationService;
+        this.missionGenerationWorker = missionGenerationWorker;
     }
 
     ConversationMessageService(
@@ -93,7 +92,10 @@ public class ConversationMessageService {
     ) {
         this(conversationService, persistenceService, chatService, goalPersistenceService,
                 consumptionAnalysisResultService, consumptionAnalysisViewAssembler,
-                null, null, missionGenerationService);
+                null, null,
+                missionGenerationService == null
+                        ? null
+                        : new MissionGenerationWorker(missionGenerationService));
     }
 
     ConversationMessageService(
@@ -193,8 +195,14 @@ public class ConversationMessageService {
                 USER_ROLE,
                 content
         );
+        boolean consumptionAnalysisRequest = isConsumptionAnalysisRequest(content);
         ChatResponse aiResponse = chatService.chat(
-                new ChatRequest(content, isFirstMessage, summary, history)
+                new ChatRequest(
+                        content,
+                        isFirstMessage && !consumptionAnalysisRequest,
+                        summary,
+                        history
+                )
                         .withGoalDraft(goalDraft)
                         .withGoalAlreadyExists(goalAlreadyExists)
                         .withPreviousConsumptionPeriod(previousConsumptionPeriod),
@@ -221,13 +229,8 @@ public class ConversationMessageService {
                     aiResponse.consumptionAnalysis(),
                     aiResponse.answer()
             );
-            if (firstAnalysis && missionGenerationService != null) {
-                try {
-                    missionGenerationService.generate(currentUserId, false);
-                } catch (RuntimeException exception) {
-                    log.error("initial daily mission generation failed userId={}",
-                            currentUserId, exception);
-                }
+            if (firstAnalysis && missionGenerationWorker != null) {
+                missionGenerationWorker.generate(currentUserId);
             }
         }
         AssetAnalysisView assetAnalysis = assetAnalysisViewAssembler == null
@@ -243,10 +246,15 @@ public class ConversationMessageService {
             );
         }
         if (isFirstMessage) {
-            String title = aiResponse.title() == null
-                    || aiResponse.title().isBlank()
-                    ? content
-                    : aiResponse.title();
+            String title;
+            if (consumptionAnalysisRequest) {
+                title = CONSUMPTION_ANALYSIS_TITLE;
+            } else {
+                title = aiResponse.title() == null
+                        || aiResponse.title().isBlank()
+                        ? content
+                        : aiResponse.title();
+            }
             conversationService.updateAfterUserMessage(conversationId, title);
         } else {
             conversationService.touch(conversationId);
@@ -262,6 +270,12 @@ public class ConversationMessageService {
                 consumptionAnalysis,
                 assetAnalysis
         );
+    }
+
+    private boolean isConsumptionAnalysisRequest(String message) {
+        String normalized = message.toLowerCase(Locale.ROOT).replaceAll("\\s+", "");
+        return normalized.contains("소비분석")
+                || (normalized.contains("소비") && normalized.contains("분석"));
     }
 
     private String refreshSummary(

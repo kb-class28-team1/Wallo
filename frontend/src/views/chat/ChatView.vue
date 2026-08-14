@@ -1,6 +1,7 @@
 <script setup>
 import { computed, nextTick, onMounted, ref, watch } from "vue"
 import { storeToRefs } from "pinia"
+import { useRoute, useRouter } from "vue-router"
 
 import ChatInput from "@/components/chat/ChatInput.vue"
 import ChatMessage from "@/components/chat/ChatMessage.vue"
@@ -19,6 +20,8 @@ const WELCOME_MESSAGE = {
 const conversationStore = useConversationStore()
 const goalStore = useGoalStore()
 const userStore = useUserStore()
+const route = useRoute()
+const router = useRouter()
 const {
   conversations,
   activeConversation,
@@ -42,10 +45,18 @@ const errorMessage = ref("")
 const messageList = ref(null)
 const editingConversationId = ref(null)
 const editingTitle = ref("")
+const isConsumptionAnalysisStarting = ref(false)
 const userId = computed(() => user.value?.id ?? null)
-const displayMessages = computed(() =>
-  messages.value.length ? messages.value : [{ ...WELCOME_MESSAGE }],
-)
+const displayMessages = computed(() => {
+  if (messages.value.length) return messages.value
+  if (
+    route.query.action === "consumption-analysis"
+    || isConsumptionAnalysisStarting.value
+  ) {
+    return []
+  }
+  return [{ ...WELCOME_MESSAGE }]
+})
 
 watch(
   () => confirmedGoal.value?.goalId,
@@ -170,6 +181,33 @@ const cancelGoal = async () => {
   await sendMessage("그만할래")
 }
 
+const startConsumptionAnalysis = async () => {
+  if (isConsumptionAnalysisStarting.value || !userId.value) return
+
+  isConsumptionAnalysisStarting.value = true
+  errorMessage.value = ""
+  await router.replace({ name: "chat" })
+
+  try {
+    const started = await conversationStore.startConsumptionAnalysis(userId.value)
+    if (!started) {
+      errorMessage.value = "소비분석 채팅을 시작하지 못했습니다."
+    }
+  } finally {
+    isConsumptionAnalysisStarting.value = false
+    await scrollToBottom()
+  }
+}
+
+watch(
+  () => route.query.action,
+  (action) => {
+    if (action === "consumption-analysis") {
+      void startConsumptionAnalysis()
+    }
+  },
+)
+
 onMounted(async () => {
   if (!userId.value) {
     await userStore.restoreSession()
@@ -177,6 +215,11 @@ onMounted(async () => {
 
   if (!userId.value) {
     errorMessage.value = "로그인 사용자 정보를 확인할 수 없습니다."
+    return
+  }
+
+  if (route.query.action === "consumption-analysis") {
+    await startConsumptionAnalysis()
     return
   }
 
@@ -229,6 +272,14 @@ onMounted(async () => {
             />
 
             <div
+              v-if="isConsumptionAnalysisStarting && !isChatLoading"
+              class="loading-message"
+              aria-label="소비분석 채팅 준비 중"
+            >
+              소비분석 채팅을 준비하는 중...
+            </div>
+
+            <div
               v-if="isChatLoading"
               class="loading-message"
               aria-label="AI 답변 생성 중"
@@ -242,7 +293,7 @@ onMounted(async () => {
           </div>
 
           <ChatInput
-            :disabled="isChatLoading || isMessageLoading || !userId"
+            :disabled="isConsumptionAnalysisStarting || isChatLoading || isMessageLoading || !userId"
             @send="sendMessage"
           />
         </div>

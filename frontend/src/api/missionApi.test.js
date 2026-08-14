@@ -33,6 +33,23 @@ describe("missionApi", () => {
     expect(result.missions[0]).toMatchObject({ id: 3, icon: "🍚" })
   })
 
+  it("preserves WAITING_ANALYSIS responses with an empty mission list", async () => {
+    httpClient.get.mockResolvedValue({
+      data: {
+        date: "2026-08-17",
+        status: "WAITING_ANALYSIS",
+        missions: [],
+      },
+    })
+
+    const result = await getTodayMissions()
+
+    expect(result).toMatchObject({
+      status: "WAITING_ANALYSIS",
+      missions: [],
+    })
+  })
+
   it("generates and normalizes next-day missions for development", async () => {
     httpClient.post.mockResolvedValue({
       data: {

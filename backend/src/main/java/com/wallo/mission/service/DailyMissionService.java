@@ -3,6 +3,7 @@ package com.wallo.mission.service;
 import com.wallo.mission.domain.DailyMission;
 import com.wallo.mission.domain.Mission;
 import com.wallo.mission.domain.MissionCycle;
+import com.wallo.mission.dto.MissionGenerationDto;
 import com.wallo.mission.dto.TodayMissionResponse;
 import com.wallo.mission.mapper.MissionMapper;
 import java.security.SecureRandom;
@@ -67,7 +68,11 @@ public class DailyMissionService {
         }
 
         if (generationService != null) {
-            generationService.generateToday(userId, date);
+            MissionGenerationDto.Result generationResult = generationService.generateToday(userId, date);
+            if (generationResult != null
+                    && TodayMissionResponse.WAITING_ANALYSIS_STATUS.equals(generationResult.status())) {
+                return TodayMissionResponse.waitingForAnalysis(date);
+            }
             return TodayMissionResponse.of(
                     date, missionMapper.findDailyMissions(userId, date));
         }

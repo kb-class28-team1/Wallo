@@ -21,6 +21,12 @@ const normalizeMission = (mission) => ({
   completed: mission.completed || mission.status === "COMPLETED",
 })
 
+const normalizeMissionResponse = (body) => ({
+  ...body,
+  status: typeof body.status === "string" ? body.status : "READY",
+  missions: Array.isArray(body.missions) ? body.missions.map(normalizeMission) : [],
+})
+
 const toApiError = (error, fallbackMessage) => {
   const apiError = new Error(getApiErrorMessage(error, fallbackMessage))
   apiError.status = error.response?.status
@@ -32,10 +38,7 @@ export const getTodayMissions = async () => {
   try {
     const response = await httpClient.get("/api/missions/today")
     const body = response.data || {}
-    return {
-      ...body,
-      missions: Array.isArray(body.missions) ? body.missions.map(normalizeMission) : [],
-    }
+    return normalizeMissionResponse(body)
   } catch (error) {
     throw toApiError(error, "오늘의 미션을 불러오지 못했습니다.")
   }
@@ -45,10 +48,7 @@ export const generateNextDayMissions = async () => {
   try {
     const response = await httpClient.post("/api/dev/missions/next-day")
     const body = response.data || {}
-    return {
-      ...body,
-      missions: Array.isArray(body.missions) ? body.missions.map(normalizeMission) : [],
-    }
+    return normalizeMissionResponse(body)
   } catch (error) {
     throw toApiError(error, "다음날 미션 생성에 실패했습니다.")
   }
