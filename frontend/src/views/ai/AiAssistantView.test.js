@@ -46,7 +46,10 @@ describe("AiAssistantView", () => {
 
     await wrapper.find(".goal-button").trigger("click")
 
-    expect(push).toHaveBeenCalledWith({ name: "chat" })
+    expect(push).toHaveBeenCalledWith({
+      name: "chat",
+      query: { start: "goal-setting" },
+    })
   })
 
   it("shows the saved goal, progress, roadmap, and action guide", async () => {
