@@ -316,6 +316,19 @@ export const useConversationStore = defineStore("conversation", () => {
     }
   }
 
+  const startConsumptionAnalysis = async (userId) => {
+    if (isLoading.value || isSending.value) {
+      return false
+    }
+
+    const conversation = await startNewConversation(userId)
+    if (!conversation) {
+      return false
+    }
+
+    return sendMessage(userId, "내 소비를 분석해줘")
+  }
+
   return {
     conversations,
     activeConversation,
@@ -335,5 +348,6 @@ export const useConversationStore = defineStore("conversation", () => {
     renameConversation,
     removeConversation,
     sendMessage,
+    startConsumptionAnalysis,
   }
 })
