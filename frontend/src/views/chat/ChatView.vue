@@ -47,9 +47,16 @@ const editingConversationId = ref(null)
 const editingTitle = ref("")
 const isConsumptionAnalysisStarting = ref(false)
 const userId = computed(() => user.value?.id ?? null)
-const displayMessages = computed(() =>
-  messages.value.length ? messages.value : [{ ...WELCOME_MESSAGE }],
-)
+const displayMessages = computed(() => {
+  if (messages.value.length) return messages.value
+  if (
+    route.query.action === "consumption-analysis"
+    || isConsumptionAnalysisStarting.value
+  ) {
+    return []
+  }
+  return [{ ...WELCOME_MESSAGE }]
+})
 
 watch(
   () => confirmedGoal.value?.goalId,

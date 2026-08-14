@@ -20,6 +20,7 @@ import com.wallo.mission.service.MissionGenerationService;
 import com.wallo.mission.service.MissionGenerationWorker;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -30,6 +31,7 @@ public class ConversationMessageService {
     private static final int MAX_CONTEXT_MESSAGES = 20;
     private static final String USER_ROLE = "USER";
     private static final String ASSISTANT_ROLE = "ASSISTANT";
+    private static final String CONSUMPTION_ANALYSIS_TITLE = "소비 분석";
 
     private final ConversationService conversationService;
     private final ChatMessagePersistenceService persistenceService;
@@ -193,8 +195,14 @@ public class ConversationMessageService {
                 USER_ROLE,
                 content
         );
+        boolean consumptionAnalysisRequest = isConsumptionAnalysisRequest(content);
         ChatResponse aiResponse = chatService.chat(
-                new ChatRequest(content, isFirstMessage, summary, history)
+                new ChatRequest(
+                        content,
+                        isFirstMessage && !consumptionAnalysisRequest,
+                        summary,
+                        history
+                )
                         .withGoalDraft(goalDraft)
                         .withGoalAlreadyExists(goalAlreadyExists)
                         .withPreviousConsumptionPeriod(previousConsumptionPeriod),
@@ -238,10 +246,15 @@ public class ConversationMessageService {
             );
         }
         if (isFirstMessage) {
-            String title = aiResponse.title() == null
-                    || aiResponse.title().isBlank()
-                    ? content
-                    : aiResponse.title();
+            String title;
+            if (consumptionAnalysisRequest) {
+                title = CONSUMPTION_ANALYSIS_TITLE;
+            } else {
+                title = aiResponse.title() == null
+                        || aiResponse.title().isBlank()
+                        ? content
+                        : aiResponse.title();
+            }
             conversationService.updateAfterUserMessage(conversationId, title);
         } else {
             conversationService.touch(conversationId);
@@ -257,6 +270,12 @@ public class ConversationMessageService {
                 consumptionAnalysis,
                 assetAnalysis
         );
+    }
+
+    private boolean isConsumptionAnalysisRequest(String message) {
+        String normalized = message.toLowerCase(Locale.ROOT).replaceAll("\\s+", "");
+        return normalized.contains("소비분석")
+                || (normalized.contains("소비") && normalized.contains("분석"));
     }
 
     private String refreshSummary(
