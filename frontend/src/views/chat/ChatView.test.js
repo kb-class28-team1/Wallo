@@ -1,6 +1,7 @@
 import { flushPromises, mount } from "@vue/test-utils"
 import { createPinia, setActivePinia } from "pinia"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { nextTick } from "vue"
 
 import ChatView from "./ChatView.vue"
 import {
@@ -10,17 +11,20 @@ import {
   getConversations,
   sendConversationMessage,
 } from "@/api/conversationApi"
-import {
-  getAvailableGoalAccounts,
-  getGoalByConversationId,
-  selectGoalAccount,
-} from "@/api/goalApi"
+import { getAvailableGoalAccounts, getGoalByConversationId, selectGoalAccount } from "@/api/goalApi"
 import { useUserStore } from "@/stores/userStore"
 
-const { route, replaceMock } = vi.hoisted(() => ({
-  route: { query: {} },
-  replaceMock: vi.fn(() => Promise.resolve()),
-}))
+const { route, replaceMock } = vi.hoisted(() => {
+  const routeState = { query: {} }
+
+  return {
+    route: routeState,
+    replaceMock: vi.fn(() => {
+      routeState.query = {}
+      return Promise.resolve()
+    }),
+  }
+})
 
 vi.mock("vue-router", () => ({
   useRoute: () => route,
@@ -89,19 +93,21 @@ const savedAccounts = initialAccounts.map((account) => ({
   selected: account.accountId === 102,
 }))
 
-const mountChat = () => mount(ChatView, {
-  global: {
-    stubs: {
-      ChatMessage: {
-        props: ["message"],
-        template: '<div class="stub-message">{{ message.content }}</div>',
-      },
-      ChatInput: {
-        template: '<div class="stub-input" />',
+const mountChat = () =>
+  mount(ChatView, {
+    global: {
+      stubs: {
+        ChatMessage: {
+          props: ["message"],
+          template: '<div class="stub-message">{{ message.content }}</div>',
+        },
+        ChatInput: {
+          props: ["disabled"],
+          template: '<div class="stub-input" :data-disabled="String(disabled)" />',
+        },
       },
     },
-  },
-})
+  })
 
 describe("ChatView", () => {
   beforeEach(() => {
@@ -195,15 +201,15 @@ describe("ChatView", () => {
     })
 
     const wrapper = mountChat()
+    expect(wrapper.text()).not.toContain(
+      "안녕하세요. 저는 Wallo 금융 컨설턴트입니다. 무엇을 도와드릴까요?",
+    )
     await flushPromises()
 
     await vi.waitFor(() => {
-      expect(sendConversationMessage).toHaveBeenCalledWith(
-        12,
-        7,
-        "목표를 설정하고 싶어요",
-      )
+      expect(sendConversationMessage).toHaveBeenCalledWith(12, 7, "목표를 설정하고 싶어요")
     })
+    await nextTick()
 
     expect(createConversation).toHaveBeenCalledWith(7, "목표 설정")
     expect(replaceMock).toHaveBeenCalledWith({ name: "chat" })
@@ -211,6 +217,32 @@ describe("ChatView", () => {
     expect(wrapper.text()).toContain("어떤 상황이나 계획을 위해 돈을 마련하고 싶으세요?")
     expect(wrapper.find(".goal-interview-card").exists()).toBe(true)
     expect(wrapper.text()).not.toContain("안녕하세요. 저는 Wallo 금융 컨설턴트입니다.")
+  })
+
+  it("disables input and shows an error while goal-setting startup fails", async () => {
+    route.query = { start: "goal-setting" }
+    let rejectConversation
+    createConversation.mockReturnValue(
+      new Promise((_, reject) => {
+        rejectConversation = reject
+      }),
+    )
+
+    const wrapper = mountChat()
+
+    await vi.waitFor(() => {
+      expect(wrapper.find(".stub-input").attributes("data-disabled")).toBe("true")
+    })
+    expect(wrapper.text()).not.toContain(
+      "안녕하세요. 저는 Wallo 금융 컨설턴트입니다. 무엇을 도와드릴까요?",
+    )
+
+    rejectConversation(new Error("채팅방 생성 실패"))
+    await flushPromises()
+
+    expect(wrapper.text()).toContain("목표 설정 채팅을 시작하지 못했습니다.")
+    expect(wrapper.find(".stub-input").attributes("data-disabled")).toBe("false")
+    wrapper.unmount()
   })
 
   it("saves the account selected below the confirmed goal card", async () => {

@@ -23,6 +23,8 @@ import { normalizeAssetAnalysis } from "@/types/assetAnalysis"
 const CONVERSATION_STALE_TIME = 60 * 1000
 const MESSAGE_STALE_TIME = 30 * 1000
 const GOAL_STALE_TIME = 60 * 1000
+const GOAL_SETTING_TITLE = "목표 설정"
+const GOAL_SETTING_TRIGGER_MESSAGE = "목표를 설정하고 싶어요"
 
 const toViewMessage = (
   message,
@@ -502,6 +504,19 @@ export const useConversationStore = defineStore("conversation", () => {
     return sendMessage(userId, "내 소비를 분석해줘")
   }
 
+  const startGoalSettingConversation = async (userId) => {
+    if (isLoading.value || isSending.value) {
+      return false
+    }
+
+    const conversation = await startNewConversation(userId, GOAL_SETTING_TITLE)
+    if (!conversation) {
+      return false
+    }
+
+    return sendMessage(userId, GOAL_SETTING_TRIGGER_MESSAGE)
+  }
+
   return {
     conversations,
     activeConversation,
@@ -526,5 +541,6 @@ export const useConversationStore = defineStore("conversation", () => {
     removeConversation,
     sendMessage,
     startConsumptionAnalysis,
+    startGoalSettingConversation,
   }
 })

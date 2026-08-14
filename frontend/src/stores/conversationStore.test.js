@@ -5,6 +5,7 @@ import {
   getActiveGoalInterview,
   getConversationMessages,
   getConversations,
+  sendConversationMessage,
 } from "@/api/conversationApi"
 import { useConversationStore } from "./conversationStore"
 
@@ -22,9 +23,7 @@ vi.mock("@/api/goalApi", () => ({
   getGoalByConversationId: vi.fn(),
 }))
 
-const conversations = [
-  { conversationId: 11, title: "첫 상담" },
-]
+const conversations = [{ conversationId: 11, title: "첫 상담" }]
 
 const messages = [
   {
@@ -107,5 +106,32 @@ describe("conversationStore", () => {
       conversationId: 12,
       title: "목표 설정",
     })
+  })
+
+  it("starts a goal-setting conversation and sends the trigger message", async () => {
+    createConversation.mockResolvedValue({
+      conversationId: 12,
+      title: "목표 설정",
+    })
+    sendConversationMessage.mockResolvedValue({
+      userMessage: {
+        messageId: 201,
+        role: "USER",
+        content: "목표를 설정하고 싶어요",
+      },
+      assistantMessage: {
+        messageId: 202,
+        role: "ASSISTANT",
+        content: "어떤 목표를 세우고 싶으세요?",
+      },
+    })
+
+    const store = useConversationStore()
+    const started = await store.startGoalSettingConversation(7)
+
+    expect(started).toBe(true)
+    expect(createConversation).toHaveBeenCalledWith(7, "목표 설정")
+    expect(sendConversationMessage).toHaveBeenCalledWith(12, 7, "목표를 설정하고 싶어요")
+    expect(store.isSending).toBe(false)
   })
 })

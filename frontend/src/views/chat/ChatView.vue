@@ -18,7 +18,6 @@ const WELCOME_MESSAGE = {
 }
 const GOAL_SETTING_START_QUERY = "goal-setting"
 const GOAL_SETTING_TITLE = "목표 설정"
-const GOAL_SETTING_TRIGGER_MESSAGE = "목표를 설정하고 싶어요"
 
 const conversationStore = useConversationStore()
 const goalStore = useGoalStore()
@@ -53,16 +52,21 @@ const isGoalSettingEntry = ref(false)
 const isGoalSettingStarting = ref(false)
 const userId = computed(() => user.value?.id ?? null)
 const displayMessages = computed(() => {
+  const consumptionAnalysisStarting = isConsumptionAnalysisStarting.value
+  const goalSettingStarting = isGoalSettingStarting.value
+
   if (isMessageInitialLoading.value && !messages.value.length) return []
-  if (isGoalSettingStarting.value) return []
-  if (messages.value.length) return messages.value
+  if (consumptionAnalysisStarting || goalSettingStarting) {
+    return []
+  }
   if (
     route.query.action === "consumption-analysis" ||
-    isConsumptionAnalysisStarting.value ||
-    isGoalSettingEntry.value
+    route.query.start === GOAL_SETTING_START_QUERY
   ) {
     return []
   }
+  if (messages.value.length) return messages.value
+  if (isGoalSettingEntry.value) return []
   return [{ ...WELCOME_MESSAGE }]
 })
 
@@ -155,7 +159,7 @@ const completeTypingMessage = (messageId) => {
 }
 
 async function sendMessage(message) {
-  if (isChatLoading.value || !userId.value) return
+  if (isChatLoading.value || isGoalSettingStarting.value || !userId.value) return
 
   errorMessage.value = ""
   const sendPromise = conversationStore.sendMessage(userId.value, message)
@@ -188,25 +192,25 @@ const cancelGoal = async () => {
 }
 
 const startGoalSettingConversation = async () => {
-  if (isGoalSettingStarting.value || isGoalSettingEntry.value) return
+  if (isGoalSettingStarting.value || !userId.value) return
 
   isGoalSettingEntry.value = true
   isGoalSettingStarting.value = true
   errorMessage.value = ""
 
-  const conversation = await conversationStore.startNewConversation(
-    userId.value,
-    GOAL_SETTING_TITLE,
-  )
+  try {
+    await router.replace({ name: "chat" })
 
-  if (!conversation) {
+    const started = await conversationStore.startGoalSettingConversation(userId.value)
+    if (!started) {
+      errorMessage.value = "목표 설정 채팅을 시작하지 못했습니다."
+    }
+  } catch (error) {
+    errorMessage.value = error.message || "목표 설정 채팅을 시작하지 못했습니다."
+  } finally {
     isGoalSettingStarting.value = false
-    return
+    await scrollToBottom()
   }
-
-  await router.replace({ name: "chat" })
-  isGoalSettingStarting.value = false
-  await sendMessage(GOAL_SETTING_TRIGGER_MESSAGE)
 }
 
 const startConsumptionAnalysis = async () => {
@@ -232,6 +236,15 @@ watch(
   (action) => {
     if (action === "consumption-analysis") {
       void startConsumptionAnalysis()
+    }
+  },
+)
+
+watch(
+  () => route.query.start,
+  (start) => {
+    if (start === GOAL_SETTING_START_QUERY) {
+      void startGoalSettingConversation()
     }
   },
 )
@@ -320,11 +333,15 @@ onMounted(async () => {
             />
 
             <div
-              v-if="isConsumptionAnalysisStarting && !isChatLoading"
+              v-if="(isConsumptionAnalysisStarting || isGoalSettingStarting) && !isChatLoading"
               class="loading-message"
-              aria-label="소비분석 채팅 준비 중"
+              aria-label="자동 채팅 준비 중"
             >
-              소비분석 채팅을 준비하는 중...
+              {{
+                isGoalSettingStarting
+                  ? "목표 설정 채팅을 준비하는 중..."
+                  : "소비분석 채팅을 준비하는 중..."
+              }}
             </div>
 
             <div v-if="isChatLoading" class="loading-message" aria-label="AI 답변 생성 중">
@@ -338,7 +355,11 @@ onMounted(async () => {
 
           <ChatInput
             :disabled="
-              isConsumptionAnalysisStarting || isChatLoading || isMessageLoading || !userId
+              isConsumptionAnalysisStarting ||
+              isGoalSettingStarting ||
+              isChatLoading ||
+              isMessageLoading ||
+              !userId
             "
             @send="sendMessage"
           />
