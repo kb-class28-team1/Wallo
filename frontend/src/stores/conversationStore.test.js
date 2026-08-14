@@ -131,7 +131,12 @@ describe("conversationStore", () => {
 
     expect(started).toBe(true)
     expect(createConversation).toHaveBeenCalledWith(7, "목표 설정")
-    expect(sendConversationMessage).toHaveBeenCalledWith(12, 7, "목표를 설정하고 싶어요")
+    expect(sendConversationMessage).toHaveBeenCalledWith(
+      12,
+      7,
+      "목표를 설정하고 싶어요",
+      "GOAL_SETTING",
+    )
     expect(store.isSending).toBe(false)
   })
 })

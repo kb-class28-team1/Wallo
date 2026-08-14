@@ -51,11 +51,17 @@ export const sendConversationMessage = async (
   conversationId,
   userId,
   message,
+  chatMode = null,
 ) => {
   try {
+    const payload = {
+      userId,
+      message,
+      ...(chatMode ? { chatMode } : {}),
+    }
     const response = await httpClient.post(
       `/api/conversations/${conversationId}/messages`,
-      { userId, message },
+      payload,
     )
     return response.data
   } catch (error) {

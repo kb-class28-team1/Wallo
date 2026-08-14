@@ -25,6 +25,7 @@ const MESSAGE_STALE_TIME = 30 * 1000
 const GOAL_STALE_TIME = 60 * 1000
 const GOAL_SETTING_TITLE = "목표 설정"
 const GOAL_SETTING_TRIGGER_MESSAGE = "목표를 설정하고 싶어요"
+const GOAL_SETTING_MODE = "GOAL_SETTING"
 
 const toViewMessage = (
   message,
@@ -407,7 +408,7 @@ export const useConversationStore = defineStore("conversation", () => {
     }
   }
 
-  const sendMessage = async (userId, content) => {
+  const sendMessage = async (userId, content, chatMode = null) => {
     if (isSending.value) {
       return false
     }
@@ -431,7 +432,7 @@ export const useConversationStore = defineStore("conversation", () => {
         createdAt: new Date().toISOString(),
       })
 
-      const response = await sendConversationMessage(conversationId, userId, content)
+      const response = await sendConversationMessage(conversationId, userId, content, chatMode)
 
       if (response.consumptionAnalysis) {
         window.dispatchEvent(new CustomEvent("wallo:mission-updated"))
@@ -514,7 +515,7 @@ export const useConversationStore = defineStore("conversation", () => {
       return false
     }
 
-    return sendMessage(userId, GOAL_SETTING_TRIGGER_MESSAGE)
+    return sendMessage(userId, GOAL_SETTING_TRIGGER_MESSAGE, GOAL_SETTING_MODE)
   }
 
   return {

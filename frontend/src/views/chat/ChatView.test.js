@@ -207,7 +207,12 @@ describe("ChatView", () => {
     await flushPromises()
 
     await vi.waitFor(() => {
-      expect(sendConversationMessage).toHaveBeenCalledWith(12, 7, "목표를 설정하고 싶어요")
+      expect(sendConversationMessage).toHaveBeenCalledWith(
+        12,
+        7,
+        "목표를 설정하고 싶어요",
+        "GOAL_SETTING",
+      )
     })
     await nextTick()
 
