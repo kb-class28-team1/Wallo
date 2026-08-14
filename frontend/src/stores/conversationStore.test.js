@@ -1,6 +1,7 @@
 import { createPinia, setActivePinia } from "pinia"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
+  createConversation,
   getActiveGoalInterview,
   getConversationMessages,
   getConversations,
@@ -90,5 +91,21 @@ describe("conversationStore", () => {
 
     expect(getConversationMessages).toHaveBeenCalledTimes(2)
     expect(getActiveGoalInterview).toHaveBeenCalledTimes(2)
+  })
+
+  it("passes a custom title when starting a goal-setting conversation", async () => {
+    createConversation.mockResolvedValue({
+      conversationId: 12,
+      title: "목표 설정",
+    })
+
+    const store = useConversationStore()
+    const conversation = await store.startNewConversation(7, "목표 설정")
+
+    expect(createConversation).toHaveBeenCalledWith(7, "목표 설정")
+    expect(conversation).toMatchObject({
+      conversationId: 12,
+      title: "목표 설정",
+    })
   })
 })

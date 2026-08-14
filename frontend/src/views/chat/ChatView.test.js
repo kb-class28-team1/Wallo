@@ -4,9 +4,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import ChatView from "./ChatView.vue"
 import {
+  createConversation,
   getActiveGoalInterview,
   getConversationMessages,
   getConversations,
+  sendConversationMessage,
 } from "@/api/conversationApi"
 import {
   getAvailableGoalAccounts,
@@ -15,11 +17,14 @@ import {
 } from "@/api/goalApi"
 import { useUserStore } from "@/stores/userStore"
 
-const route = vi.hoisted(() => ({ query: {} }))
+const { route, replaceMock } = vi.hoisted(() => ({
+  route: { query: {} },
+  replaceMock: vi.fn(() => Promise.resolve()),
+}))
 
 vi.mock("vue-router", () => ({
   useRoute: () => route,
-  useRouter: () => ({ replace: () => Promise.resolve() }),
+  useRouter: () => ({ replace: replaceMock }),
 }))
 
 vi.mock("@/api/conversationApi", () => ({
@@ -150,6 +155,62 @@ describe("ChatView", () => {
     )
 
     wrapper.unmount()
+  })
+
+  it("starts a named goal-setting conversation from the dashboard entry", async () => {
+    route.query = { start: "goal-setting" }
+    createConversation.mockResolvedValue({
+      conversationId: 12,
+      title: "목표 설정",
+      updatedAt: "2026-08-14T00:00:00",
+    })
+    getConversations.mockResolvedValue([
+      { conversationId: 12, title: "목표 설정", updatedAt: "2026-08-14T00:00:00" },
+    ])
+    sendConversationMessage.mockResolvedValue({
+      userMessage: {
+        messageId: 2,
+        role: "USER",
+        content: "목표를 설정하고 싶어요",
+      },
+      assistantMessage: {
+        messageId: 3,
+        role: "ASSISTANT",
+        content: "어떤 상황이나 계획을 위해 돈을 마련하고 싶으세요?",
+      },
+      goalInterview: {
+        action: "CONTINUE",
+        active: true,
+        draft: {
+          state: "DISCOVERY",
+          title: null,
+          goalType: null,
+          targetAmount: null,
+          targetDate: null,
+          currentAmount: null,
+          missingFields: ["goalType"],
+        },
+        feasibility: null,
+      },
+    })
+
+    const wrapper = mountChat()
+    await flushPromises()
+
+    await vi.waitFor(() => {
+      expect(sendConversationMessage).toHaveBeenCalledWith(
+        12,
+        7,
+        "목표를 설정하고 싶어요",
+      )
+    })
+
+    expect(createConversation).toHaveBeenCalledWith(7, "목표 설정")
+    expect(replaceMock).toHaveBeenCalledWith({ name: "chat" })
+    expect(wrapper.find("#chat-title").text()).toBe("목표 설정")
+    expect(wrapper.text()).toContain("어떤 상황이나 계획을 위해 돈을 마련하고 싶으세요?")
+    expect(wrapper.find(".goal-interview-card").exists()).toBe(true)
+    expect(wrapper.text()).not.toContain("안녕하세요. 저는 Wallo 금융 컨설턴트입니다.")
   })
 
   it("saves the account selected below the confirmed goal card", async () => {

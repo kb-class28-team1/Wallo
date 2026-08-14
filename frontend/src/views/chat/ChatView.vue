@@ -16,6 +16,9 @@ const WELCOME_MESSAGE = {
   role: "assistant",
   content: "안녕하세요. 저는 Wallo 금융 컨설턴트입니다. 무엇을 도와드릴까요?",
 }
+const GOAL_SETTING_START_QUERY = "goal-setting"
+const GOAL_SETTING_TITLE = "목표 설정"
+const GOAL_SETTING_TRIGGER_MESSAGE = "목표를 설정하고 싶어요"
 
 const conversationStore = useConversationStore()
 const goalStore = useGoalStore()
@@ -46,11 +49,18 @@ const messageList = ref(null)
 const editingConversationId = ref(null)
 const editingTitle = ref("")
 const isConsumptionAnalysisStarting = ref(false)
+const isGoalSettingEntry = ref(false)
+const isGoalSettingStarting = ref(false)
 const userId = computed(() => user.value?.id ?? null)
 const displayMessages = computed(() => {
   if (isMessageInitialLoading.value && !messages.value.length) return []
+  if (isGoalSettingStarting.value) return []
   if (messages.value.length) return messages.value
-  if (route.query.action === "consumption-analysis" || isConsumptionAnalysisStarting.value) {
+  if (
+    route.query.action === "consumption-analysis" ||
+    isConsumptionAnalysisStarting.value ||
+    isGoalSettingEntry.value
+  ) {
     return []
   }
   return [{ ...WELCOME_MESSAGE }]
@@ -83,6 +93,8 @@ const formatUpdatedAt = (updatedAt) => {
 const selectConversation = async (conversationId) => {
   if (!userId.value) return
 
+  isGoalSettingEntry.value = false
+  isGoalSettingStarting.value = false
   errorMessage.value = ""
   await conversationStore.selectConversation(conversationId, userId.value)
   await scrollToBottom()
@@ -94,6 +106,8 @@ const startNewConversation = async () => {
     return
   }
 
+  isGoalSettingEntry.value = false
+  isGoalSettingStarting.value = false
   const conversation = await conversationStore.startNewConversation(userId.value)
 
   if (conversation) errorMessage.value = ""
@@ -173,6 +187,28 @@ const cancelGoal = async () => {
   await sendMessage("그만할래")
 }
 
+const startGoalSettingConversation = async () => {
+  if (isGoalSettingStarting.value || isGoalSettingEntry.value) return
+
+  isGoalSettingEntry.value = true
+  isGoalSettingStarting.value = true
+  errorMessage.value = ""
+
+  const conversation = await conversationStore.startNewConversation(
+    userId.value,
+    GOAL_SETTING_TITLE,
+  )
+
+  if (!conversation) {
+    isGoalSettingStarting.value = false
+    return
+  }
+
+  await router.replace({ name: "chat" })
+  isGoalSettingStarting.value = false
+  await sendMessage(GOAL_SETTING_TRIGGER_MESSAGE)
+}
+
 const startConsumptionAnalysis = async () => {
   if (isConsumptionAnalysisStarting.value || !userId.value) return
 
@@ -215,6 +251,11 @@ onMounted(async () => {
     return
   }
 
+  if (route.query.start === GOAL_SETTING_START_QUERY) {
+    await startGoalSettingConversation()
+    return
+  }
+
   const conversationId = await conversationStore.fetchConversations(userId.value)
   if (conversationId) {
     await conversationStore.fetchMessages(userId.value, conversationId)
@@ -230,7 +271,7 @@ onMounted(async () => {
         <div class="chat-panel card border-0 shadow-sm">
           <header class="card-header border-bottom bg-white px-4 py-3">
             <h1 id="chat-title" class="mb-1 fs-5 fw-bold">
-              {{ activeConversation?.title || "새 채팅" }}
+              {{ isGoalSettingEntry ? GOAL_SETTING_TITLE : activeConversation?.title || "새 채팅" }}
             </h1>
             <p class="mb-0 small text-secondary">Wallo AI 금융 컨설턴트</p>
           </header>

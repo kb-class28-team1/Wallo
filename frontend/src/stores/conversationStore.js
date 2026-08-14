@@ -316,14 +316,14 @@ export const useConversationStore = defineStore("conversation", () => {
     }
   }
 
-  const startNewConversation = async (userId) => {
+  const startNewConversation = async (userId, title = "새 채팅") => {
     const hadExistingData = hasLoadedConversations.value
     isLoading.value = true
     initialLoading.value = !hadExistingData
     refreshing.value = hadExistingData
 
     try {
-      const conversation = await createConversation(userId)
+      const conversation = await createConversation(userId, title)
       conversations.value.unshift(conversation)
       hasLoadedConversations.value = true
       activeConversationId.value = conversation.conversationId
