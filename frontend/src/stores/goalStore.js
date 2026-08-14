@@ -9,38 +9,95 @@ import {
 } from "@/api/goalApi";
 import { getApiErrorMessage } from "@/commonUtils/apiError";
 
+const GOAL_STALE_TIME = 5 * 60 * 1000;
+const ROADMAP_STALE_TIME = 5 * 60 * 1000;
+const AVAILABLE_ACCOUNTS_STALE_TIME = 60 * 1000;
+
 export const useGoalStore = defineStore("goal", () => {
   const goals = ref([]);
   const isLoading = ref(false);
+  const initialLoading = ref(false);
+  const refreshing = ref(false);
   const error = ref(null);
+  const lastFetchedAt = ref(0);
+  const hasFetchedGoals = ref(false);
+  let goalsInFlight = null;
   const availableAccounts = ref([]);
   const isAccountLoading = ref(false);
+  const initialAccountLoading = ref(false);
+  const refreshingAccounts = ref(false);
+  const availableAccountsLastFetchedAt = ref(0);
+  const hasFetchedAccounts = ref(false);
+  let availableAccountsInFlight = null;
   const isAccountSaving = ref(false);
   const accountError = ref(null);
   const roadmap = ref(null)
   const isRoadmapLoading = ref(false)
+  const roadmapGoalId = ref(null)
+  const roadmapLastFetchedAt = ref(0)
+  const roadmapRequests = new Map()
   const roadmapError = ref(null)
   const isRoadmapProgressSaving = ref(false)
 
-  const fetchGoalRoadmap = async (goalId, { notifyError = true } = {}) => {
+  const fetchGoalRoadmap = (goalId, {
+    notifyError = true,
+    force = false,
+    staleTime = ROADMAP_STALE_TIME,
+  } = {}) => {
     if (!goalId) {
       roadmap.value = null
+      roadmapGoalId.value = null
+      roadmapLastFetchedAt.value = 0
       return null
     }
+
+    const requestKey = String(goalId)
+    const inFlight = roadmapRequests.get(requestKey)
+    if (inFlight) {
+      return inFlight
+    }
+
+    const isFresh = (
+      roadmapGoalId.value === goalId &&
+      roadmapLastFetchedAt.value > 0 &&
+      Date.now() - roadmapLastFetchedAt.value < staleTime
+    )
+
+    if (!force && isFresh) {
+      return Promise.resolve(roadmap.value)
+    }
+
+    const isInitialLoad = roadmap.value === null || roadmapGoalId.value !== goalId
     isRoadmapLoading.value = true
     roadmapError.value = null
-    try {
-      const response = await getGoalRoadmap(goalId)
-      roadmap.value = response?.data ?? null
-      return roadmap.value
-    } catch (caughtError) {
-      roadmap.value = null
-      roadmapError.value = getApiErrorMessage(caughtError, "목표 로드맵을 불러오지 못했습니다.")
-      if (notifyError) alert(roadmapError.value)
-      return null
-    } finally {
-      isRoadmapLoading.value = false
-    }
+
+    let request
+    request = (async () => {
+      try {
+        const response = await getGoalRoadmap(goalId)
+        roadmap.value = response?.data ?? null
+        roadmapGoalId.value = goalId
+        roadmapLastFetchedAt.value = Date.now()
+        return roadmap.value
+      } catch (caughtError) {
+        if (isInitialLoad) {
+          roadmap.value = null
+          roadmapGoalId.value = null
+          roadmapLastFetchedAt.value = 0
+        }
+        roadmapError.value = getApiErrorMessage(caughtError, "목표 로드맵을 불러오지 못했습니다.")
+        if (notifyError) alert(roadmapError.value)
+        return null
+      } finally {
+        isRoadmapLoading.value = false
+        if (roadmapRequests.get(requestKey) === request) {
+          roadmapRequests.delete(requestKey)
+        }
+      }
+    })()
+
+    roadmapRequests.set(requestKey, request)
+    return request
   }
 
   const saveRoadmapStep = async (goalId, stepNumber, completed) => {
@@ -49,6 +106,8 @@ export const useGoalStore = defineStore("goal", () => {
     try {
       const response = await updateGoalRoadmapStep(goalId, stepNumber, completed)
       roadmap.value = response?.data ?? null
+      roadmapGoalId.value = goalId
+      roadmapLastFetchedAt.value = Date.now()
       return roadmap.value
     } catch (caughtError) {
       roadmapError.value = getApiErrorMessage(
@@ -62,59 +121,136 @@ export const useGoalStore = defineStore("goal", () => {
     }
   }
 
-  const fetchGoals = async ({ notifyError = true } = {}) => {
-    isLoading.value = true;
+  const fetchGoals = ({
+    notifyError = true,
+    force = false,
+    staleTime = GOAL_STALE_TIME,
+  } = {}) => {
+    if (goalsInFlight) {
+      return goalsInFlight
+    }
+
+    const isFresh = (
+      lastFetchedAt.value > 0 &&
+      Date.now() - lastFetchedAt.value < staleTime
+    )
+
+    if (!force && isFresh) {
+      return Promise.resolve(goals.value)
+    }
+
+    const isInitialLoad = !hasFetchedGoals.value
+    initialLoading.value = isInitialLoad
+    refreshing.value = !isInitialLoad
+    isLoading.value = true
     error.value = null;
 
-    try {
-      const response = await getGoals();
-      goals.value = Array.isArray(response?.data) ? response.data : [];
-      await fetchGoalRoadmap(goals.value[0]?.goalId, { notifyError: false })
+    let request
+    request = (async () => {
+      try {
+        const response = await getGoals();
+        goals.value = Array.isArray(response?.data) ? response.data : [];
+        lastFetchedAt.value = Date.now()
+        hasFetchedGoals.value = true
+        await fetchGoalRoadmap(goals.value[0]?.goalId, {
+          notifyError: false,
+          force,
+        })
 
-      return goals.value;
-    } catch (caughtError) {
-      goals.value = [];
-      error.value = getApiErrorMessage(
-        caughtError,
-        "확정된 목표를 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
-      );
+        return goals.value;
+      } catch (caughtError) {
+        if (isInitialLoad) {
+          goals.value = [];
+          lastFetchedAt.value = 0
+          hasFetchedGoals.value = false
+        }
+        error.value = getApiErrorMessage(
+          caughtError,
+          "확정된 목표를 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
+        );
 
-      if (notifyError) {
-        alert(error.value);
+        if (notifyError) {
+          alert(error.value);
+        }
+
+        return [];
+      } finally {
+        initialLoading.value = false
+        refreshing.value = false
+        isLoading.value = false;
+        if (goalsInFlight === request) {
+          goalsInFlight = null
+        }
       }
+    })()
 
-      return [];
-    } finally {
-      isLoading.value = false;
-    }
+    goalsInFlight = request
+    return request
   };
 
-  const fetchAvailableAccounts = async ({ notifyError = true } = {}) => {
+  const fetchAvailableAccounts = ({
+    notifyError = true,
+    force = false,
+    staleTime = AVAILABLE_ACCOUNTS_STALE_TIME,
+  } = {}) => {
+    if (availableAccountsInFlight) {
+      return availableAccountsInFlight
+    }
+
+    const isFresh = (
+      availableAccountsLastFetchedAt.value > 0 &&
+      Date.now() - availableAccountsLastFetchedAt.value < staleTime
+    )
+
+    if (!force && isFresh) {
+      return Promise.resolve(availableAccounts.value)
+    }
+
+    const isInitialLoad = !hasFetchedAccounts.value
+    initialAccountLoading.value = isInitialLoad
+    refreshingAccounts.value = !isInitialLoad
     isAccountLoading.value = true;
     accountError.value = null;
 
-    try {
-      const response = await getAvailableGoalAccounts();
-      availableAccounts.value = Array.isArray(response?.data)
-        ? response.data
-        : [];
+    let request
+    request = (async () => {
+      try {
+        const response = await getAvailableGoalAccounts();
+        availableAccounts.value = Array.isArray(response?.data)
+          ? response.data
+          : [];
+        availableAccountsLastFetchedAt.value = Date.now()
+        hasFetchedAccounts.value = true
 
-      return availableAccounts.value;
-    } catch (caughtError) {
-      availableAccounts.value = [];
-      accountError.value = getApiErrorMessage(
-        caughtError,
-        "목표에 사용할 수 있는 계좌를 불러오는 중 오류가 발생했습니다.",
-      );
+        return availableAccounts.value;
+      } catch (caughtError) {
+        if (isInitialLoad) {
+          availableAccounts.value = [];
+          availableAccountsLastFetchedAt.value = 0
+          hasFetchedAccounts.value = false
+        }
+        accountError.value = getApiErrorMessage(
+          caughtError,
+          "목표에 사용할 수 있는 계좌를 불러오는 중 오류가 발생했습니다.",
+        );
 
-      if (notifyError) {
-        alert(accountError.value);
+        if (notifyError) {
+          alert(accountError.value);
+        }
+
+        return [];
+      } finally {
+        initialAccountLoading.value = false
+        refreshingAccounts.value = false
+        isAccountLoading.value = false;
+        if (availableAccountsInFlight === request) {
+          availableAccountsInFlight = null
+        }
       }
+    })()
 
-      return [];
-    } finally {
-      isAccountLoading.value = false;
-    }
+    availableAccountsInFlight = request
+    return request
   };
 
   const saveGoalAccount = async (goalId, accountId) => {
@@ -125,10 +261,27 @@ export const useGoalStore = defineStore("goal", () => {
       const response = await selectGoalAccountRequest(goalId, accountId);
       const selectedAccount = response?.data ?? null;
 
-      availableAccounts.value = availableAccounts.value.map((account) => ({
+      const locallyUpdatedAccounts = availableAccounts.value.map((account) => ({
         ...account,
         selected: account.accountId === selectedAccount?.accountId,
       }));
+      availableAccounts.value = locallyUpdatedAccounts;
+      availableAccountsLastFetchedAt.value = 0;
+
+      const refreshedAccounts = await fetchAvailableAccounts({
+        notifyError: false,
+        force: true,
+      });
+      if (refreshedAccounts.length > 0) {
+        availableAccounts.value = refreshedAccounts.map((account) => ({
+          ...account,
+          selected: account.accountId === selectedAccount?.accountId,
+        }));
+      } else {
+        availableAccounts.value = locallyUpdatedAccounts;
+        availableAccountsLastFetchedAt.value = Date.now();
+      }
+      lastFetchedAt.value = 0;
 
       return selectedAccount;
     } catch (caughtError) {
@@ -146,10 +299,16 @@ export const useGoalStore = defineStore("goal", () => {
   return {
     goals,
     isLoading,
+    initialLoading,
+    refreshing,
+    lastFetchedAt,
     error,
     fetchGoals,
     availableAccounts,
     isAccountLoading,
+    initialAccountLoading,
+    refreshingAccounts,
+    availableAccountsLastFetchedAt,
     isAccountSaving,
     accountError,
     roadmap,
