@@ -101,7 +101,11 @@ public class MissionGenerationService {
         LocalDate latest = missionMapper.findLatestAssignedDate(userId);
         LocalDate baseDate = latest != null && latest.isAfter(today) ? latest : today;
         LocalDate nextDate = baseDate.plusDays(1);
-        generateToday(userId, nextDate);
+        MissionGenerationDto.Result generationResult = generateToday(userId, nextDate);
+        if (generationResult != null
+                && TodayMissionResponse.WAITING_ANALYSIS_STATUS.equals(generationResult.status())) {
+            return TodayMissionResponse.waitingForAnalysis(nextDate);
+        }
         return TodayMissionResponse.of(
                 nextDate, missionMapper.findDailyMissions(userId, nextDate));
     }
@@ -119,7 +123,13 @@ public class MissionGenerationService {
         LocalDate start = cycleCalculator.cycleStart(date);
         MissionCycle cycle = missionMapper.findCycle(userId, start);
         MissionAnalysisSource source = missionMapper.findLatestAnalysis(userId);
-        if (source == null) throw new IllegalStateException("Consumption analysis is unavailable.");
+        if (source == null) {
+            return new MissionGenerationDto.Result(
+                    cycle == null ? null : cycle.getMissionCycleId(),
+                    userId,
+                    0,
+                    TodayMissionResponse.WAITING_ANALYSIS_STATUS);
+        }
         List<String> excludedTitles = cycle == null ? List.of()
                 : missionMapper.findMissionsByCycleId(cycle.getMissionCycleId()).stream()
                         .map(Mission::getTitle).toList();
