@@ -16,6 +16,7 @@ from app.agents.goal.prompts import (
     EXTRACTION_SYSTEM_PROMPT,
     build_extraction_user_prompt,
 )
+from app.core.ai_timing import log_groq_completion_timing, start_timer
 from app.core.config import get_groq_model
 
 logger = logging.getLogger("wallo_ai")
@@ -81,6 +82,8 @@ class GoalExtractor:
         reference_date: date,
     ) -> GoalExtraction:
         last_error: Exception | None = None
+        completion = None
+        started_at = start_timer()
         try:
             completion = self.client.chat.completions.create(
                 model=self.model,
@@ -120,6 +123,14 @@ class GoalExtractor:
         except (AttributeError, IndexError, TypeError, ValueError, ValidationError) as error:
             last_error = error
             logger.warning("goal tool extraction failed; using fallback: %s", error)
+        finally:
+            log_groq_completion_timing(
+                operation="goal.extract",
+                model=self.model,
+                started_at=started_at,
+                completion=completion,
+                requested_completion_tokens=900,
+            )
 
         fallback = extract_explicit_goal_facts(user_message, reference_date)
         if fallback.model_dump(exclude_none=True, exclude={"assumptions"}):
