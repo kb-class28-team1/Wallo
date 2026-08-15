@@ -1,4 +1,5 @@
 import json
+import logging
 from types import SimpleNamespace
 
 import pytest
@@ -13,8 +14,9 @@ from app.category.schemas import (
 
 
 class FakeChatCompletions:
-    def __init__(self, content):
+    def __init__(self, content, usage=None):
         self.content = content
+        self.usage = usage
         self.call_count = 0
         self.calls = []
 
@@ -22,18 +24,20 @@ class FakeChatCompletions:
         self.call_count += 1
         self.calls.append(kwargs)
         return SimpleNamespace(
+            usage=self.usage,
             choices=[
                 SimpleNamespace(
                     message=SimpleNamespace(content=self.content),
+                    finish_reason="stop",
                 )
             ]
         )
 
 
 class FakeGroqClient:
-    def __init__(self, content):
+    def __init__(self, content, usage=None):
         self.chat = SimpleNamespace(
-            completions=FakeChatCompletions(content),
+            completions=FakeChatCompletions(content, usage=usage),
         )
 
 
@@ -91,6 +95,53 @@ def test_classify_batch_calls_llm_once_for_all_items():
     assert client.chat.completions.calls[0]["messages"][1]["content"].count(
         "unknown"
     ) == 2
+
+
+def test_classify_batch_logs_actual_token_usage(caplog):
+    client = FakeGroqClient(
+        CategoryClassificationBatch(
+            results=[
+                CategoryClassification(category="LIVING", confidence=0.86),
+                CategoryClassification(category="FOOD", confidence=0.91),
+            ]
+        ).model_dump_json(),
+        usage=SimpleNamespace(
+            prompt_tokens=120,
+            completion_tokens=30,
+            total_tokens=150,
+        ),
+    )
+    agent = CategoryAgent(client, model="test-model")
+
+    with caplog.at_level(logging.INFO, logger="wallo_ai"):
+        agent.classify_batch(
+            CategoryClassificationBatchRequest(
+                items=[
+                    CategoryClassificationRequest(
+                        merchantName="unknown one",
+                        merchantSector=None,
+                        amount=12000,
+                    ),
+                    CategoryClassificationRequest(
+                        merchantName="unknown two",
+                        merchantSector="restaurant",
+                        amount=18000,
+                    ),
+                ]
+            )
+        )
+
+    timing_logs = [
+        record.getMessage()
+        for record in caplog.records
+        if "operation=category.classify_batch" in record.getMessage()
+    ]
+    assert len(timing_logs) == 1
+    assert "promptTokens=120" in timing_logs[0]
+    assert "completionTokens=30" in timing_logs[0]
+    assert "totalTokens=150" in timing_logs[0]
+    assert "requestedCompletionTokens=512" in timing_logs[0]
+    assert "success=True" in timing_logs[0]
 
 
 def test_classify_batch_wraps_top_level_array_response():

@@ -17,6 +17,13 @@ from app.category.schemas import (
     CategoryClassificationResponse,
 )
 from app.core.config import get_groq_model
+from app.core.ai_timing import (
+    get_groq_retry_count,
+    log_groq_completion_timing,
+    reset_groq_retry_tracking,
+    start_timer,
+    was_groq_rate_limited,
+)
 
 
 logger = logging.getLogger("uvicorn.error")
@@ -39,48 +46,84 @@ class CategoryAgent:
         self,
         request: CategoryClassificationRequest,
     ) -> CategoryClassificationResponse:
+        started_at = start_timer()
+        completion = None
+        success = False
+        reset_groq_retry_tracking(self.client)
         transaction = json.dumps(
             self._transaction_payload(request),
             ensure_ascii=False,
         )
-        response = self._call_groq(
-            messages=[
-                {"role": "system", "content": build_single_system_prompt()},
-                {"role": "user", "content": build_single_user_prompt(transaction)},
-            ],
-            max_completion_tokens=self.SINGLE_MAX_COMPLETION_TOKENS,
-        )
-        return self._parse_response(response, CategoryClassificationResponse)
+        try:
+            completion = self._call_groq(
+                messages=[
+                    {"role": "system", "content": build_single_system_prompt()},
+                    {"role": "user", "content": build_single_user_prompt(transaction)},
+                ],
+                max_completion_tokens=self.SINGLE_MAX_COMPLETION_TOKENS,
+            )
+            result = self._parse_response(completion, CategoryClassificationResponse)
+            success = True
+            return result
+        finally:
+            log_groq_completion_timing(
+                operation="category.classify",
+                model=self.model,
+                started_at=started_at,
+                completion=completion,
+                requested_completion_tokens=self.SINGLE_MAX_COMPLETION_TOKENS,
+                retry_count=get_groq_retry_count(self.client),
+                rate_limited=was_groq_rate_limited(self.client),
+                success=success,
+            )
 
     def classify_batch(
         self,
         request: CategoryClassificationBatchRequest,
     ) -> CategoryClassificationBatchResponse:
+        started_at = start_timer()
+        completion = None
+        success = False
+        requested_completion_tokens = (
+            self.SINGLE_MAX_COMPLETION_TOKENS * len(request.items)
+        )
+        reset_groq_retry_tracking(self.client)
         transactions = json.dumps(
             [self._transaction_payload(item) for item in request.items],
             ensure_ascii=False,
         )
-        response = self._call_groq(
-            messages=[
-                {"role": "system", "content": build_batch_system_prompt()},
-                {"role": "user", "content": build_batch_user_prompt(transactions)},
-            ],
-            max_completion_tokens=(
-                self.SINGLE_MAX_COMPLETION_TOKENS * len(request.items)
-            ),
-        )
-        parsed = self._parse_response(
-            response,
-            CategoryClassificationBatchResponse,
-            wrap_batch_array=True,
-        )
+        try:
+            completion = self._call_groq(
+                messages=[
+                    {"role": "system", "content": build_batch_system_prompt()},
+                    {"role": "user", "content": build_batch_user_prompt(transactions)},
+                ],
+                max_completion_tokens=requested_completion_tokens,
+            )
+            parsed = self._parse_response(
+                completion,
+                CategoryClassificationBatchResponse,
+                wrap_batch_array=True,
+            )
 
-        if len(parsed.results) != len(request.items):
-            error = ValueError("Groq category batch response has an invalid result count")
-            logger.error("Groq category classification response validation failed: %s", error)
-            raise InvalidCategoryResponseError from error
+            if len(parsed.results) != len(request.items):
+                error = ValueError("Groq category batch response has an invalid result count")
+                logger.error("Groq category classification response validation failed: %s", error)
+                raise InvalidCategoryResponseError from error
 
-        return parsed
+            success = True
+            return parsed
+        finally:
+            log_groq_completion_timing(
+                operation="category.classify_batch",
+                model=self.model,
+                started_at=started_at,
+                completion=completion,
+                requested_completion_tokens=requested_completion_tokens,
+                retry_count=get_groq_retry_count(self.client),
+                rate_limited=was_groq_rate_limited(self.client),
+                success=success,
+            )
 
     def _call_groq(
         self,
