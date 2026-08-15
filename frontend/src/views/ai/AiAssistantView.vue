@@ -14,7 +14,8 @@ const router = useRouter()
 const goalStore = useGoalStore()
 const {
   goals,
-  isLoading,
+  initialLoading,
+  refreshing,
   error,
   roadmap,
   isRoadmapLoading,
@@ -51,8 +52,8 @@ const remainingMonths = computed(() => {
   const targetDate = parseGoalDate(currentGoal.value?.targetDate)
   if (!targetDate) return 0
   const today = new Date()
-  const months = (targetDate.getFullYear() - today.getFullYear()) * 12
-    + targetDate.getMonth() - today.getMonth()
+  const months =
+    (targetDate.getFullYear() - today.getFullYear()) * 12 + targetDate.getMonth() - today.getMonth()
   return Math.max(0, months)
 })
 
@@ -69,8 +70,9 @@ const goalRoadmapSteps = computed(() => {
     description: step.description,
     actionItems: step.actionItems ?? [],
     completed: completedSteps.has(step.stepNumber ?? index + 1),
-    active: !completedSteps.has(step.stepNumber ?? index + 1)
-      && (step.stepNumber ?? index + 1) === currentStepNumber,
+    active:
+      !completedSteps.has(step.stepNumber ?? index + 1) &&
+      (step.stepNumber ?? index + 1) === currentStepNumber,
   }))
 })
 
@@ -137,9 +139,11 @@ const benefits = [
   },
 ]
 
-const loadGoalPage = async () => {
+const loadGoalPage = async ({ force = false } = {}) => {
+  error.value = null
   await goalStore.fetchGoals({
     notifyError: false,
+    force,
   })
 }
 
@@ -159,17 +163,40 @@ onMounted(loadGoalPage)
       </p>
     </header>
 
-    <div v-if="isLoading" class="state-card card border-0 shadow-sm" role="status">
+    <div v-if="refreshing" class="small text-secondary mb-3" role="status">
+      최신 목표 정보를 확인하는 중입니다.
+    </div>
+
+    <div
+      v-if="error && goals.length"
+      class="alert alert-warning d-flex flex-wrap justify-content-between align-items-center gap-2"
+      role="alert"
+    >
+      <span>{{ error }}</span>
+      <button
+        type="button"
+        class="btn btn-sm btn-outline-warning"
+        @click="loadGoalPage({ force: true })"
+      >
+        다시 시도
+      </button>
+    </div>
+
+    <div v-if="initialLoading" class="state-card card border-0 shadow-sm" role="status">
       <div class="card-body d-flex align-items-center justify-content-center gap-2">
         <span class="spinner-border spinner-border-sm text-primary" aria-hidden="true"></span>
         목표 정보를 불러오는 중입니다.
       </div>
     </div>
 
-    <div v-else-if="error" class="state-card card border-0 shadow-sm">
+    <div v-else-if="error && !goals.length" class="state-card card border-0 shadow-sm">
       <div class="card-body text-center">
         <p class="mb-3 text-danger">{{ error }}</p>
-        <button type="button" class="btn btn-outline-primary" @click="loadGoalPage">
+        <button
+          type="button"
+          class="btn btn-outline-primary"
+          @click="loadGoalPage({ force: true })"
+        >
           다시 시도
         </button>
       </div>
@@ -238,7 +265,9 @@ onMounted(loadGoalPage)
               :class="{ active: index === 0 }"
             >
               <span class="step-number">{{ step.number }}</span>
-              <span class="step-icon"><i class="bi" :class="step.icon" aria-hidden="true"></i></span>
+              <span class="step-icon"
+                ><i class="bi" :class="step.icon" aria-hidden="true"></i
+              ></span>
               <span class="step-copy">
                 <strong>{{ step.title }}</strong>
                 <small>{{ step.description }}</small>
@@ -333,7 +362,6 @@ onMounted(loadGoalPage)
                   </div>
                 </div>
               </div>
-
             </div>
           </article>
         </div>
@@ -359,7 +387,11 @@ onMounted(loadGoalPage)
             <h2 class="section-title h5 fw-bold">목표 달성을 위한 로드맵</h2>
             <div class="d-flex align-items-center gap-2">
               <span class="small text-secondary">AI가 생성한 맞춤 계획</span>
-              <div v-if="goalRoadmapSteps.length > 1" class="roadmap-navigation" aria-label="로드맵 이동">
+              <div
+                v-if="goalRoadmapSteps.length > 1"
+                class="roadmap-navigation"
+                aria-label="로드맵 이동"
+              >
                 <button
                   type="button"
                   class="btn roadmap-navigation-button"
@@ -387,7 +419,10 @@ onMounted(loadGoalPage)
           <div v-else-if="roadmapError" class="alert alert-danger mt-4 mb-0">
             {{ roadmapError }}
           </div>
-          <div v-else-if="roadmap?.generationStatus === 'FAILED'" class="alert alert-warning mt-4 mb-0">
+          <div
+            v-else-if="roadmap?.generationStatus === 'FAILED'"
+            class="alert alert-warning mt-4 mb-0"
+          >
             AI 로드맵 생성에 실패했습니다. 목표는 정상적으로 저장되어 있습니다.
           </div>
           <ol
@@ -406,7 +441,9 @@ onMounted(loadGoalPage)
                 <i v-if="step.completed" class="bi bi-check-lg" aria-hidden="true"></i>
                 <template v-else>{{ step.number }}</template>
               </span>
-              <span class="step-icon"><i class="bi" :class="step.icon" aria-hidden="true"></i></span>
+              <span class="step-icon"
+                ><i class="bi" :class="step.icon" aria-hidden="true"></i
+              ></span>
               <span class="step-copy">
                 <small class="step-date">{{ step.date }}</small>
                 <strong>{{ step.title }}</strong>
@@ -421,7 +458,10 @@ onMounted(loadGoalPage)
                   :disabled="isRoadmapProgressSaving"
                   @click="toggleRoadmapStep(step)"
                 >
-                  <i class="bi me-1" :class="step.completed ? 'bi-arrow-counterclockwise' : 'bi-check-circle'"></i>
+                  <i
+                    class="bi me-1"
+                    :class="step.completed ? 'bi-arrow-counterclockwise' : 'bi-check-circle'"
+                  ></i>
                   {{ step.completed ? "완료 취소" : "이 단계까지 완료" }}
                 </button>
               </span>
@@ -447,7 +487,10 @@ onMounted(loadGoalPage)
                 <span class="action-icon"><i class="bi bi-arrow-repeat"></i></span>
                 <div>
                   <h3 class="h6 fw-bold mb-2">자동 저축 설정</h3>
-                  <p class="mb-0 text-secondary">급여일에 {{ formatWon(currentGoal.requiredMonthlyAmount) }}이 자동으로 이체되도록 설정해보세요.</p>
+                  <p class="mb-0 text-secondary">
+                    급여일에 {{ formatWon(currentGoal.requiredMonthlyAmount) }}이 자동으로
+                    이체되도록 설정해보세요.
+                  </p>
                 </div>
               </div>
             </div>
@@ -456,7 +499,9 @@ onMounted(loadGoalPage)
                 <span class="action-icon"><i class="bi bi-calendar-check"></i></span>
                 <div>
                   <h3 class="h6 fw-bold mb-2">월말 진행 점검</h3>
-                  <p class="mb-0 text-secondary">월말에 목표 계좌 잔액과 계획 대비 달성률을 확인해보세요.</p>
+                  <p class="mb-0 text-secondary">
+                    월말에 목표 계좌 잔액과 계획 대비 달성률을 확인해보세요.
+                  </p>
                 </div>
               </div>
             </div>
@@ -465,7 +510,9 @@ onMounted(loadGoalPage)
                 <span class="action-icon"><i class="bi bi-shield-check"></i></span>
                 <div>
                   <h3 class="h6 fw-bold mb-2">계획 유지하기</h3>
-                  <p class="mb-0 text-secondary">부족한 달은 다음 달 납입액을 조정해 목표 일정이 밀리지 않게 관리해요.</p>
+                  <p class="mb-0 text-secondary">
+                    부족한 달은 다음 달 납입액을 조정해 목표 일정이 밀리지 않게 관리해요.
+                  </p>
                 </div>
               </div>
             </div>

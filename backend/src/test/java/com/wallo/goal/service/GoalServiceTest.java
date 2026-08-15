@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.doAnswer;
@@ -46,6 +47,18 @@ class GoalServiceTest {
         InOrder inOrder = inOrder(goalAccountSyncService, goalMapper);
         inOrder.verify(goalAccountSyncService).syncSelectedAccounts(7L);
         inOrder.verify(goalMapper).findGoalsByUserId(7L);
+    }
+
+    @Test
+    void readsGoalsWithoutSynchronizingSelectedAccounts() {
+        when(goalMapper.findGoalsByUserId(7L)).thenReturn(List.of(goal()));
+
+        List<GoalDto.Response> response = goalService.getGoals(7L, false);
+
+        assertEquals(1, response.size());
+        assertEquals(31L, response.get(0).getGoalId());
+        verify(goalAccountSyncService, never()).syncSelectedAccounts(7L);
+        verify(goalMapper).findGoalsByUserId(7L);
     }
 
     @Test

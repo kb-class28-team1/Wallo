@@ -92,3 +92,26 @@ describe("ExpenseCategoryBreakdown budget section", () => {
     expect(readOnlyWrapper.find("button").exists()).toBe(false);
   });
 });
+
+describe("ExpenseCategoryBreakdown category chart", () => {
+  it("shows every category in two vertical columns when there are more than six", () => {
+    const wrapper = mount(ExpenseCategoryBreakdown, {
+      ...globalOptions,
+      props: {
+        breakdown: [
+          { category: "FOOD", amount: 100_000 },
+          { category: "CAFE", amount: 90_000 },
+          { category: "TRANSPORT", amount: 80_000 },
+          { category: "SHOPPING", amount: 70_000 },
+          { category: "DELIVERY", amount: 60_000 },
+          { category: "HOUSING", amount: 50_000 },
+          { category: "LIVING", amount: 40_000 },
+        ],
+        totalExpense: 490_000,
+      },
+    });
+
+    expect(wrapper.findAll(".category-list li")).toHaveLength(7);
+    expect(wrapper.find(".category-list").classes()).toContain("category-list-two-columns");
+  });
+});

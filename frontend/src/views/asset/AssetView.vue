@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { storeToRefs } from "pinia";
 import AssetOverviewCard from "@/components/asset/AssetOverviewCard.vue";
 import ConsumptionReportCard from "@/components/asset/ConsumptionReportCard.vue";
@@ -10,6 +10,8 @@ const assetStore = useAssetStore();
 const {
   assets,
   error,
+  initialLoading: assetInitialLoading,
+  refreshing: assetRefreshing,
   isAssetLoading,
   isSyncing,
   syncError,
@@ -17,9 +19,14 @@ const {
 const reportRefreshKey = ref(0);
 const syncStatus = ref(null);
 
-const loadAssets = async () => {
+const isInitialLoading = computed(() => (
+  assetInitialLoading?.value ?? Boolean(isAssetLoading?.value && !assets.value)
+));
+const isRefreshing = computed(() => assetRefreshing?.value ?? false);
+
+const loadAssets = async ({ force = false } = {}) => {
   try {
-    await assetStore.fetchAssets();
+    await assetStore.fetchAssets({ force });
   } catch {
     // 오류 메시지와 401 이동은 Pinia 및 Axios 인터셉터에서 처리합니다.
   }
@@ -69,7 +76,7 @@ onMounted(loadAssets);
       <button
         type="button"
         class="btn btn-primary asset-sync-button"
-        :disabled="isSyncing || isAssetLoading"
+        :disabled="isSyncing || isInitialLoading || isRefreshing"
         @click="syncAssets"
       >
         <span
@@ -90,20 +97,25 @@ onMounted(loadAssets);
       {{ syncStatus.message }}
     </div>
 
+    <div v-if="isRefreshing" class="small text-secondary mb-3" role="status">
+      <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
+      자산 정보를 최신 상태로 갱신하고 있습니다.
+    </div>
+
     <section class="asset-overview-section" aria-label="자산 현황">
-      <div v-if="isAssetLoading" class="asset-state" aria-live="polite">
+      <div v-if="isInitialLoading" class="asset-state" aria-live="polite">
         <div class="spinner-border text-primary" role="status">
           <span class="visually-hidden">자산 정보를 불러오는 중</span>
         </div>
         <p class="text-secondary mb-0 mt-3">자산 정보를 불러오고 있습니다.</p>
       </div>
 
-      <div v-else-if="error" class="alert alert-danger asset-error" role="alert">
+      <div v-else-if="error && !assets" class="alert alert-danger asset-error" role="alert">
         <div>
           <h2 class="h6 fw-bold mb-1">자산 정보를 불러오지 못했습니다.</h2>
           <p class="mb-0">{{ error }}</p>
         </div>
-        <button type="button" class="btn btn-outline-danger flex-shrink-0" @click="loadAssets">
+        <button type="button" class="btn btn-outline-danger flex-shrink-0" @click="loadAssets({ force: true })">
           다시 시도
         </button>
       </div>
@@ -122,13 +134,26 @@ onMounted(loadAssets);
       </div>
     </section>
 
+    <div v-if="error && assets" class="alert alert-warning mt-3" role="alert">
+      최신 자산 정보를 갱신하지 못했습니다. 기존 정보를 표시하고 있습니다.
+      <button type="button" class="btn btn-sm btn-outline-warning ms-2" @click="loadAssets({ force: true })">
+        다시 시도
+      </button>
+    </div>
+
     <section class="row g-4 mt-0 asset-report-grid" aria-label="자산 리포트">
       <div class="col-12 col-lg-6">
-        <ConsumptionReportCard :key="`consumption-report-${reportRefreshKey}`" />
+        <ConsumptionReportCard
+          :key="`consumption-report-${reportRefreshKey}`"
+          :force-refresh="reportRefreshKey > 0"
+        />
       </div>
 
       <div class="col-12 col-lg-6">
-        <TaxDeductionTrackerCard :key="`tax-deduction-${reportRefreshKey}`" />
+        <TaxDeductionTrackerCard
+          :key="`tax-deduction-${reportRefreshKey}`"
+          :force-refresh="reportRefreshKey > 0"
+        />
       </div>
     </section>
   </section>

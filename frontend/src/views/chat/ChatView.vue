@@ -1,6 +1,7 @@
 <script setup>
 import { computed, nextTick, onMounted, ref, watch } from "vue"
 import { storeToRefs } from "pinia"
+import { useRoute, useRouter } from "vue-router"
 
 import ChatInput from "@/components/chat/ChatInput.vue"
 import ChatMessage from "@/components/chat/ChatMessage.vue"
@@ -19,6 +20,8 @@ const WELCOME_MESSAGE = {
 const conversationStore = useConversationStore()
 const goalStore = useGoalStore()
 const userStore = useUserStore()
+const route = useRoute()
+const router = useRouter()
 const {
   conversations,
   activeConversation,
@@ -29,23 +32,29 @@ const {
   isLoading: isConversationLoading,
   isMessageLoading,
   isSending: isChatLoading,
+  initialLoading: isConversationInitialLoading,
+  refreshing: isConversationRefreshing,
+  initialMessageLoading: isMessageInitialLoading,
+  refreshingMessages: isMessageRefreshing,
 } = storeToRefs(conversationStore)
-const {
-  availableAccounts,
-  isAccountLoading,
-  isAccountSaving,
-  accountError,
-} = storeToRefs(goalStore)
+const { availableAccounts, isAccountLoading, isAccountSaving, accountError } =
+  storeToRefs(goalStore)
 const { user } = storeToRefs(userStore)
 
 const errorMessage = ref("")
 const messageList = ref(null)
 const editingConversationId = ref(null)
 const editingTitle = ref("")
+const isConsumptionAnalysisStarting = ref(false)
 const userId = computed(() => user.value?.id ?? null)
-const displayMessages = computed(() =>
-  messages.value.length ? messages.value : [{ ...WELCOME_MESSAGE }],
-)
+const displayMessages = computed(() => {
+  if (isMessageInitialLoading.value && !messages.value.length) return []
+  if (messages.value.length) return messages.value
+  if (route.query.action === "consumption-analysis" || isConsumptionAnalysisStarting.value) {
+    return []
+  }
+  return [{ ...WELCOME_MESSAGE }]
+})
 
 watch(
   () => confirmedGoal.value?.goalId,
@@ -85,8 +94,7 @@ const startNewConversation = async () => {
     return
   }
 
-  const conversation =
-    await conversationStore.startNewConversation(userId.value)
+  const conversation = await conversationStore.startNewConversation(userId.value)
 
   if (conversation) errorMessage.value = ""
 }
@@ -113,11 +121,7 @@ const saveConversationTitle = async (conversationId) => {
   const title = editingTitle.value.trim()
   if (!userId.value || !title) return
 
-  const updated = await conversationStore.renameConversation(
-    conversationId,
-    userId.value,
-    title,
-  )
+  const updated = await conversationStore.renameConversation(conversationId, userId.value, title)
   if (updated) cancelEditingTitle()
 }
 
@@ -128,10 +132,7 @@ const deleteConversation = async (conversation) => {
   if (editingConversationId.value === conversation.conversationId) {
     cancelEditingTitle()
   }
-  await conversationStore.removeConversation(
-    conversation.conversationId,
-    userId.value,
-  )
+  await conversationStore.removeConversation(conversation.conversationId, userId.value)
 }
 
 const followTypingMessage = () => scrollToBottom("auto")
@@ -155,7 +156,9 @@ const handleAccountSelect = async (accountId) => {
 
   try {
     await goalStore.saveGoalAccount(goalId, accountId)
-    await conversationStore.fetchConfirmedGoal(activeConversationId.value)
+    await conversationStore.fetchConfirmedGoal(activeConversationId.value, {
+      force: true,
+    })
     await goalStore.fetchAvailableAccounts({ notifyError: false })
   } catch {
     // goalStore가 API 오류와 사용자 알림을 처리한다.
@@ -170,6 +173,33 @@ const cancelGoal = async () => {
   await sendMessage("그만할래")
 }
 
+const startConsumptionAnalysis = async () => {
+  if (isConsumptionAnalysisStarting.value || !userId.value) return
+
+  isConsumptionAnalysisStarting.value = true
+  errorMessage.value = ""
+  await router.replace({ name: "chat" })
+
+  try {
+    const started = await conversationStore.startConsumptionAnalysis(userId.value)
+    if (!started) {
+      errorMessage.value = "소비분석 채팅을 시작하지 못했습니다."
+    }
+  } finally {
+    isConsumptionAnalysisStarting.value = false
+    await scrollToBottom()
+  }
+}
+
+watch(
+  () => route.query.action,
+  (action) => {
+    if (action === "consumption-analysis") {
+      void startConsumptionAnalysis()
+    }
+  },
+)
+
 onMounted(async () => {
   if (!userId.value) {
     await userStore.restoreSession()
@@ -180,8 +210,12 @@ onMounted(async () => {
     return
   }
 
-  const conversationId =
-    await conversationStore.fetchConversations(userId.value)
+  if (route.query.action === "consumption-analysis") {
+    await startConsumptionAnalysis()
+    return
+  }
+
+  const conversationId = await conversationStore.fetchConversations(userId.value)
   if (conversationId) {
     await conversationStore.fetchMessages(userId.value, conversationId)
     await scrollToBottom()
@@ -202,6 +236,22 @@ onMounted(async () => {
           </header>
 
           <div ref="messageList" class="message-list card-body" aria-live="polite">
+            <div
+              v-if="isMessageInitialLoading"
+              class="loading-message"
+              aria-label="대화 내용 불러오는 중"
+            >
+              대화 내용을 불러오는 중...
+            </div>
+
+            <div
+              v-else-if="isMessageRefreshing"
+              class="small text-secondary mb-3 text-center"
+              role="status"
+            >
+              최신 대화를 확인하는 중...
+            </div>
+
             <ChatMessage
               v-for="message in displayMessages"
               :key="message.id"
@@ -229,10 +279,14 @@ onMounted(async () => {
             />
 
             <div
-              v-if="isChatLoading"
+              v-if="isConsumptionAnalysisStarting && !isChatLoading"
               class="loading-message"
-              aria-label="AI 답변 생성 중"
+              aria-label="소비분석 채팅 준비 중"
             >
+              소비분석 채팅을 준비하는 중...
+            </div>
+
+            <div v-if="isChatLoading" class="loading-message" aria-label="AI 답변 생성 중">
               AI 답변을 기다리는 중...
             </div>
           </div>
@@ -242,7 +296,9 @@ onMounted(async () => {
           </div>
 
           <ChatInput
-            :disabled="isChatLoading || isMessageLoading || !userId"
+            :disabled="
+              isConsumptionAnalysisStarting || isChatLoading || isMessageLoading || !userId
+            "
             @send="sendMessage"
           />
         </div>
@@ -261,15 +317,18 @@ onMounted(async () => {
               새 채팅
             </button>
 
-            <div
-              class="d-flex align-items-center justify-content-between px-1 pb-2 pt-4"
-            >
+            <div class="d-flex align-items-center justify-content-between px-1 pb-2 pt-4">
               <h2 class="mb-0 fs-6 fw-bold">채팅 목록</h2>
-              <span class="badge text-bg-light">{{ conversations.length }}</span>
+              <span class="d-flex align-items-center gap-2">
+                <span v-if="isConversationRefreshing" class="small text-secondary" role="status">
+                  갱신 중
+                </span>
+                <span class="badge text-bg-light">{{ conversations.length }}</span>
+              </span>
             </div>
 
             <div
-              v-if="isConversationLoading && !conversations.length"
+              v-if="isConversationInitialLoading && !conversations.length"
               class="py-4 text-center text-secondary"
             >
               <span class="spinner-border spinner-border-sm me-2"></span>
@@ -290,8 +349,7 @@ onMounted(async () => {
                 :key="conversation.conversationId"
                 class="conversation-item list-group-item rounded-3 border-0"
                 :class="{
-                  active:
-                    conversation.conversationId === activeConversationId,
+                  active: conversation.conversationId === activeConversationId,
                 }"
               >
                 <form
@@ -353,7 +411,6 @@ onMounted(async () => {
           </div>
         </section>
       </aside>
-
     </div>
   </main>
 </template>

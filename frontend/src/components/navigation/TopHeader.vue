@@ -6,6 +6,7 @@ import {
   generateNextDayMissions,
   getTodayMissions,
 } from "@/api/missionApi"
+import AuthenticatedImage from "@/components/common/AuthenticatedImage.vue"
 import { useUserStore } from "@/stores/userStore"
 import { formatNumber } from "@/commonUtils/formatters"
 
@@ -15,14 +16,19 @@ const userStore = useUserStore()
 const router = useRouter()
 const { nickname, profileImageUrl, pointBalance, isLoading } = storeToRefs(userStore)
 const missions = ref([])
-const missionStatus = ref("NO_MISSION")
+const missionStatus = ref("READY")
 const missionMenu = ref(null)
 const isMissionOpen = ref(false)
 const isMissionLoading = ref(false)
 const isMissionDevLoading = ref(false)
 const missionDevResult = ref(null)
+const isMissionPolling = ref(false)
 const isDevelopment = import.meta.env.DEV
 let missionCloseTimer = null
+let missionPollingTimer = null
+let missionPollingAttempts = 0
+const MISSION_POLL_INTERVAL_MS = 2500
+const MAX_MISSION_POLL_ATTEMPTS = 48
 
 // 포인트 숫자에 천 단위 구분 기호를 적용함
 const formattedPointBalance = computed(() => formatNumber(pointBalance.value))
@@ -45,26 +51,61 @@ const totalMissionReward = computed(() =>
 onMounted(() => {
   userStore.fetchUserProfile()
   loadTodayMissions()
-  window.addEventListener("wallo:mission-updated", loadTodayMissions)
+  window.addEventListener("wallo:mission-updated", handleMissionUpdated)
 })
 
 onBeforeUnmount(() => {
-  window.removeEventListener("wallo:mission-updated", loadTodayMissions)
+  window.removeEventListener("wallo:mission-updated", handleMissionUpdated)
   clearTimeout(missionCloseTimer)
+  stopMissionPolling()
 })
 
-const loadTodayMissions = async () => {
+const stopMissionPolling = () => {
+  if (missionPollingTimer) {
+    clearInterval(missionPollingTimer)
+    missionPollingTimer = null
+  }
+  missionPollingAttempts = 0
+  isMissionPolling.value = false
+}
+
+const loadTodayMissions = async (notifyError = true) => {
   isMissionLoading.value = true
   try {
     const response = await getTodayMissions()
+    missionStatus.value = response.status || "READY"
     missions.value = response.missions
-    missionStatus.value = response.status || (response.missions.length ? "ASSIGNED" : "NO_MISSION")
   } catch (error) {
+    missionStatus.value = "ERROR"
     missions.value = []
-    missionStatus.value = "LOAD_FAILED"
-    alert(error.message || "오늘의 미션을 불러오지 못했습니다.")
+    if (notifyError) {
+      alert(error.message || "오늘의 미션을 불러오지 못했습니다.")
+    }
   } finally {
     isMissionLoading.value = false
+  }
+}
+
+const startMissionPolling = () => {
+  stopMissionPolling()
+  isMissionPolling.value = true
+  missionPollingTimer = setInterval(async () => {
+    missionPollingAttempts += 1
+    await loadTodayMissions(false)
+
+    if (
+      missionStatus.value !== "WAITING_ANALYSIS"
+      || missionPollingAttempts >= MAX_MISSION_POLL_ATTEMPTS
+    ) {
+      stopMissionPolling()
+    }
+  }, MISSION_POLL_INTERVAL_MS)
+}
+
+const handleMissionUpdated = async () => {
+  await loadTodayMissions()
+  if (missionStatus.value === "WAITING_ANALYSIS") {
+    startMissionPolling()
   }
 }
 
@@ -72,6 +113,7 @@ const generateNextDay = async () => {
   isMissionDevLoading.value = true
   try {
     const response = await generateNextDayMissions()
+    missionStatus.value = response.status || "READY"
     missions.value = response.missions
     missionDevResult.value = {
       mode: `${response.date} 시뮬레이션`,
@@ -79,12 +121,21 @@ const generateNextDay = async () => {
       titles: response.missions.map((mission) => mission.title),
     }
   } catch (error) {
+    missionStatus.value = "ERROR"
     alert(error.status === 404
       ? "백엔드의 mission.dev-api.enabled 설정을 true로 변경해 주세요."
       : error.message)
   } finally {
     isMissionDevLoading.value = false
   }
+}
+
+const startConsumptionAnalysis = async () => {
+  isMissionOpen.value = false
+  await router.push({
+    name: "chat",
+    query: { action: "consumption-analysis" },
+  })
 }
 
 const toggleMissionMenu = () => {
@@ -151,11 +202,20 @@ const handleLogout = async () => {
           </div>
 
           <div v-if="isMissionLoading" class="mission-loading">미션을 불러오는 중...</div>
+          <div v-else-if="missionStatus === 'WAITING_ANALYSIS'" class="mission-empty">
+            소비 분석이 완료되면 오늘의 미션이 생성됩니다.
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-primary d-block w-100 mt-3"
+              :disabled="isMissionPolling"
+              @click="startConsumptionAnalysis"
+            >
+              <i class="bi bi-bar-chart-line me-1" aria-hidden="true"></i>
+              {{ isMissionPolling ? "오늘의 미션을 생성하는 중..." : "소비분석 하러가기" }}
+            </button>
+          </div>
           <div v-else-if="!missions.length" class="mission-empty">
-            <template v-if="missionStatus === 'ANALYSIS_REQUIRED'">
-              소비 분석을 완료하면 맞춤형 오늘의 미션이 생성됩니다.
-            </template>
-            <template v-else>오늘 배정된 미션이 없습니다.</template>
+            오늘 배정된 미션이 없습니다.
           </div>
           <div v-else class="mission-list">
             <div
@@ -214,11 +274,10 @@ const handleLogout = async () => {
         class="profile-link d-flex align-items-center"
         aria-label="설정 페이지로 이동"
       >
-        <img
+        <AuthenticatedImage
           :src="profileImageUrl"
           class="profile-image rounded-circle"
           alt="사용자 프로필"
-          @error="userStore.useDefaultProfileImage"
         />
 
         <span class="user-name">

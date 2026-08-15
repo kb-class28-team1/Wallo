@@ -4,6 +4,7 @@ import {
   getCategoryBudgets,
   putCategoryBudgets,
   syncAssets,
+  updateExpenseCategory,
   updateAnnualSalary,
 } from "./assetApi";
 
@@ -122,5 +123,39 @@ describe("assetApi annual salary fallback", () => {
     await expect(putCategoryBudgets(request)).resolves.toEqual(response);
 
     expect(httpClient.put).toHaveBeenCalledWith("/api/budgets/categories", request);
+  });
+
+  it("updates a transaction category", async () => {
+    const response = { success: true, data: null };
+    httpClient.patch.mockResolvedValue({ data: response });
+
+    await expect(updateExpenseCategory(9, "FOOD")).resolves.toEqual(response);
+
+    expect(httpClient.patch).toHaveBeenCalledWith(
+      "/api/assets/expense/9/category",
+      { category: "FOOD" },
+    );
+  });
+
+  it("preserves the backend error code for category update failures", async () => {
+    const response = {
+      status: 400,
+      data: {
+        error: {
+          code: "DASHBOARD_001",
+          message: "invalid category",
+        },
+      },
+    };
+    const error = new Error("request failed");
+    error.response = response;
+    httpClient.patch.mockRejectedValue(error);
+
+    await expect(updateExpenseCategory(9, "UNKNOWN")).rejects.toMatchObject({
+      message: "invalid category",
+      code: "DASHBOARD_001",
+      status: 400,
+      response,
+    });
   });
 });

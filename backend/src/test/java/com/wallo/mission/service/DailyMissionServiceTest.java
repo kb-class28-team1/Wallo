@@ -12,6 +12,7 @@ import static org.mockito.Mockito.when;
 import com.wallo.mission.domain.DailyMission;
 import com.wallo.mission.domain.Mission;
 import com.wallo.mission.domain.MissionCycle;
+import com.wallo.mission.dto.MissionGenerationDto;
 import com.wallo.mission.dto.TodayMissionResponse;
 import com.wallo.mission.mapper.MissionMapper;
 import java.security.SecureRandom;
@@ -27,6 +28,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import static org.mockito.Mockito.mock;
 
 class DailyMissionServiceTest {
     @Mock private MissionMapper mapper;
@@ -84,21 +86,22 @@ class DailyMissionServiceTest {
     }
 
     @Test
-    void returnsAnalysisRequiredWhenInitialUserHasNoConsumptionAnalysis() {
-        MissionGenerationService generationService = org.mockito.Mockito.mock(
-                MissionGenerationService.class);
-        Clock clock = Clock.fixed(Instant.parse("2026-08-16T15:00:00Z"),
-                ZoneId.of("Asia/Seoul"));
-        service = new DailyMissionService(mapper, new MissionCycleCalculator(), clock,
+    void returnsEmptyMissionsWhileConsumptionAnalysisIsWaiting() {
+        MissionGenerationService generationService = mock(MissionGenerationService.class);
+        DailyMissionService waitingService = new DailyMissionService(
+                mapper, new MissionCycleCalculator(),
+                Clock.fixed(Instant.parse("2026-08-16T15:00:00Z"), ZoneId.of("Asia/Seoul")),
                 new SecureRandom(new byte[]{1, 2, 3}), generationService);
         when(mapper.findDailyMissions(7L, today)).thenReturn(List.of());
-        when(generationService.hasConsumptionAnalysis(7L)).thenReturn(false);
+        when(generationService.generateToday(7L, today)).thenReturn(
+                new MissionGenerationDto.Result(
+                        null, 7L, 0, TodayMissionResponse.WAITING_ANALYSIS_STATUS));
 
-        TodayMissionResponse response = service.getOrAssignToday(7L);
+        TodayMissionResponse response = waitingService.getOrAssignToday(7L);
 
-        assertEquals(TodayMissionResponse.ANALYSIS_REQUIRED, response.status());
+        assertEquals(TodayMissionResponse.WAITING_ANALYSIS_STATUS, response.status());
         assertTrue(response.missions().isEmpty());
-        verify(generationService, never()).generateToday(any(), any());
+        verify(mapper, never()).insertDailyMission(any());
     }
 
     @Test
@@ -145,3 +148,4 @@ class DailyMissionServiceTest {
         return result;
     }
 }
+

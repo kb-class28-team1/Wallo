@@ -125,7 +125,7 @@
     </insert>
     <insert id="insertFeedShareMessage">
         INSERT INTO MESSAGE (challenge_id, user_id, message_type, reference_feed_id, content)
-        VALUES (#{challengeId}, #{userId}, 'FEED_SHARE', #{feedId}, '새 절약 피드를 공유했어요.')
+        VALUES (#{challengeId}, #{userId}, 'FEED_SHARE', #{feedId}, NULL)
     </insert>
     <update id="incrementLikeCount">
         UPDATE FEED SET like_count = like_count + 1

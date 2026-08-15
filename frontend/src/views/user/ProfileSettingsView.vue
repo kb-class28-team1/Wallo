@@ -2,13 +2,16 @@
 import { computed, onMounted, ref } from "vue"
 import { storeToRefs } from "pinia"
 import { getApiErrorMessage } from "@/commonUtils/apiError"
+import AuthenticatedImage from "@/components/common/AuthenticatedImage.vue"
 import { useUserStore } from "@/stores/userStore"
 
 const userStore = useUserStore()
 const { user, profileImageUrl } = storeToRefs(userStore)
-const isProfileLoading = ref(false)
+const isProfileLoading = ref(!user.value?.id)
+const isProfileRefreshing = ref(false)
+const hasLoadedProfile = ref(Boolean(user.value?.id))
 const profileError = ref("")
-const nicknameInput = ref("")
+const nicknameInput = ref(user.value?.nickname || "")
 const nicknameError = ref("")
 const nicknameSavedMessage = ref("")
 const isNicknameSaving = ref(false)
@@ -21,20 +24,22 @@ const isProfileImageSaving = ref(false)
 const MAX_PROFILE_IMAGE_SIZE = 5 * 1024 * 1024
 const ALLOWED_PROFILE_IMAGE_TYPES = ["image/jpeg", "image/png"]
 
-const isNicknameDirty = computed(
-  () => nicknameInput.value.trim() !== (user.value?.nickname || ""),
-)
-const displayProfileImageUrl = computed(
-  () => previewImageUrl.value || profileImageUrl.value,
-)
+const isNicknameDirty = computed(() => nicknameInput.value.trim() !== (user.value?.nickname || ""))
+const displayProfileImageUrl = computed(() => previewImageUrl.value || profileImageUrl.value)
 
-const loadProfile = async () => {
-  isProfileLoading.value = true
+const loadProfile = async ({ force = false } = {}) => {
+  const isInitialLoad = !hasLoadedProfile.value
+  const shouldSyncNickname = !isNicknameDirty.value
+  isProfileLoading.value = isInitialLoad
+  isProfileRefreshing.value = !isInitialLoad
   profileError.value = ""
 
   try {
-    const profile = await userStore.fetchProfile()
-    nicknameInput.value = profile?.nickname || ""
+    const profile = await userStore.fetchProfile({ force })
+    if (shouldSyncNickname) {
+      nicknameInput.value = profile?.nickname || ""
+    }
+    hasLoadedProfile.value = true
   } catch (error) {
     if (error.status === 401) {
       // 401은 Axios 전역 인터셉터가 인증 상태 초기화와 로그인 이동을 담당한다.
@@ -47,6 +52,7 @@ const loadProfile = async () => {
     )
   } finally {
     isProfileLoading.value = false
+    isProfileRefreshing.value = false
   }
 }
 
@@ -162,6 +168,25 @@ onMounted(loadProfile)
 
 <template>
   <section class="settings-panel card border-0 shadow-sm" aria-labelledby="profile-settings-title">
+    <div v-if="isProfileRefreshing" class="profile-refresh-status text-secondary" role="status">
+      최신 프로필 정보를 확인하는 중...
+    </div>
+
+    <div
+      v-if="profileError && user"
+      class="alert alert-warning d-flex align-items-center justify-content-between gap-2 mb-3"
+      role="alert"
+    >
+      <span>{{ profileError }}</span>
+      <button
+        type="button"
+        class="btn btn-sm btn-outline-warning"
+        @click="loadProfile({ force: true })"
+      >
+        다시 시도
+      </button>
+    </div>
+
     <div v-if="isProfileLoading" class="profile-state text-center" aria-live="polite">
       <div class="spinner-border text-primary" role="status">
         <span class="visually-hidden">프로필 정보를 불러오는 중</span>
@@ -169,11 +194,11 @@ onMounted(loadProfile)
       <p class="text-secondary mb-0 mt-3">프로필 정보를 불러오고 있습니다.</p>
     </div>
 
-    <div v-else-if="profileError" class="profile-state text-center">
+    <div v-else-if="profileError && !user" class="profile-state text-center">
       <i class="bi bi-exclamation-circle text-danger fs-2" aria-hidden="true"></i>
       <p class="fw-semibold mb-1 mt-3">프로필 정보를 불러오지 못했습니다.</p>
       <p class="small text-secondary mb-3">{{ profileError }}</p>
-      <button type="button" class="btn btn-outline-danger" @click="loadProfile">
+      <button type="button" class="btn btn-outline-danger" @click="loadProfile({ force: true })">
         다시 시도
       </button>
     </div>
@@ -181,12 +206,13 @@ onMounted(loadProfile)
     <div v-else class="card-body p-4 p-md-5">
       <h2 id="profile-settings-title" class="h5 fw-bold mb-4">프로필 편집</h2>
 
-      <div class="profile-image-section d-flex flex-column flex-sm-row align-items-sm-center gap-3 mb-4">
-        <img
+      <div
+        class="profile-image-section d-flex flex-column flex-sm-row align-items-sm-center gap-3 mb-4"
+      >
+        <AuthenticatedImage
           :src="displayProfileImageUrl"
           alt="프로필 이미지"
           class="profile-image rounded-circle"
-          @error="userStore.useDefaultProfileImage"
         />
         <div>
           <p class="fw-semibold mb-1">프로필 사진</p>
@@ -250,7 +276,9 @@ onMounted(loadProfile)
               :disabled="isNicknameSaving"
               @input="clearNicknameMessages"
             />
-            <div class="form-text">챌린지와 피드에 표시되는 이름입니다. 50자 이하로 입력해 주세요.</div>
+            <div class="form-text">
+              챌린지와 피드에 표시되는 이름입니다. 50자 이하로 입력해 주세요.
+            </div>
           </div>
 
           <div class="col-12 col-md-6">
@@ -281,7 +309,11 @@ onMounted(loadProfile)
         <div v-if="nicknameError" class="alert alert-danger py-2 mt-3 mb-0" role="alert">
           {{ nicknameError }}
         </div>
-        <div v-else-if="nicknameSavedMessage" class="alert alert-success py-2 mt-3 mb-0" role="status">
+        <div
+          v-else-if="nicknameSavedMessage"
+          class="alert alert-success py-2 mt-3 mb-0"
+          role="status"
+        >
           {{ nicknameSavedMessage }}
         </div>
 
@@ -326,6 +358,13 @@ onMounted(loadProfile)
   align-items: center;
   justify-content: center;
   padding: 32px;
+}
+
+.profile-refresh-status {
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: #f8f8ff;
+  font-size: 13px;
 }
 
 .profile-image-section {

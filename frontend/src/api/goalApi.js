@@ -8,13 +8,20 @@ const normalizeRequestError = (error, fallbackMessage) => {
   return normalizedError;
 };
 
-export const getGoals = async () => {
+export const getGoals = async ({ syncAccounts = true } = {}) => {
   try {
-    const response = await httpClient.get("/api/goals");
+    const response = await httpClient.get(
+      syncAccounts ? "/api/goals" : "/api/goals/summary",
+    );
 
     return response.data;
   } catch (error) {
-    throw normalizeRequestError(error, "확정된 목표를 불러오지 못했습니다.");
+    throw normalizeRequestError(
+      error,
+      syncAccounts
+        ? "확정된 목표를 불러오지 못했습니다."
+        : "대시보드 목표 정보를 불러오지 못했습니다.",
+    );
   }
 };
 

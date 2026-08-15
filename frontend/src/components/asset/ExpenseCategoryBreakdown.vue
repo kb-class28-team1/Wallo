@@ -68,30 +68,10 @@ const categories = computed(() => {
     .filter((item) => item.amount > 0)
     .sort((first, second) => second.amount - first.amount);
 
-  if (normalizedCategories.length <= 6) {
-    return normalizedCategories;
-  }
-
-  const topCategories = normalizedCategories
-    .filter((item) => item.category !== "ETC")
-    .slice(0, 5);
-  const topCategoryCodes = new Set(topCategories.map((item) => item.category));
-  const etcAmount = normalizedCategories
-    .filter((item) => !topCategoryCodes.has(item.category))
-    .reduce((sum, item) => sum + item.amount, 0);
-
-  if (etcAmount > 0) {
-    topCategories.push({
-      category: "ETC",
-      label: EXPENSE_CATEGORY_META.ETC.label,
-      amount: etcAmount,
-      color: EXPENSE_CATEGORY_META.ETC.color,
-      icon: EXPENSE_CATEGORY_META.ETC.icon,
-    });
-  }
-
-  return topCategories;
+  return normalizedCategories;
 });
+
+const hasTwoCategoryColumns = computed(() => categories.value.length > 6);
 
 const hoveredCategory = computed(() =>
   hoveredIndex.value === null ? null : categories.value[hoveredIndex.value] ?? null,
@@ -181,8 +161,12 @@ const progressWidth = (rate) => {
     <div class="card-body category-card-body">
       <h2 class="h5 fw-bold mb-0">카테고리별 소비 내역</h2>
 
-      <div v-if="categories.length" class="row align-items-center g-4 mt-2">
-        <div class="col-md-5 col-lg-4">
+      <div
+        v-if="categories.length"
+        class="row align-items-center g-4 mt-2"
+        :class="{ 'category-layout-two-columns': hasTwoCategoryColumns }"
+      >
+        <div :class="hasTwoCategoryColumns ? 'col-12 col-lg-4' : 'col-md-5 col-lg-4'">
           <div class="category-chart" @mouseleave="clearHoveredCategory">
             <Doughnut ref="chartRef" :data="chartData" :options="chartOptions" />
             <div class="category-chart-center">
@@ -198,8 +182,11 @@ const progressWidth = (rate) => {
           </div>
         </div>
 
-        <div class="col-md-7 col-lg-8">
-          <ul class="category-list list-unstyled mb-0">
+        <div :class="hasTwoCategoryColumns ? 'col-12 col-lg-8' : 'col-md-7 col-lg-8'">
+          <ul
+            class="category-list list-unstyled mb-0"
+            :class="{ 'category-list-two-columns': hasTwoCategoryColumns }"
+          >
             <li
               v-for="(category, index) in categories"
               :key="category.category"
@@ -401,6 +388,19 @@ const progressWidth = (rate) => {
   gap: 8px;
 }
 
+.category-list-two-columns {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 16px;
+}
+
+.category-list-two-columns li {
+  min-width: 0;
+}
+
+.category-list-two-columns .category-value {
+  gap: 12px;
+}
+
 .category-list li {
   display: flex;
   align-items: center;
@@ -525,6 +525,10 @@ const progressWidth = (rate) => {
 @media (max-width: 575.98px) {
   .category-card-body {
     padding: 26px 20px;
+  }
+
+  .category-list-two-columns {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 </style>

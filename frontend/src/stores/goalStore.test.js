@@ -44,6 +44,35 @@ describe("goalStore", () => {
     expect(getGoalRoadmap).toHaveBeenCalledWith(1);
   });
 
+  it("uses the read-only goal path when account synchronization is disabled", async () => {
+    const goals = [{ goalId: 1, title: "Emergency fund", status: "ACTIVE" }];
+    getGoals.mockResolvedValue({ success: true, data: goals });
+
+    const store = useGoalStore();
+
+    await expect(store.fetchGoals({
+      notifyError: false,
+      syncAccounts: false,
+    })).resolves.toEqual(goals);
+
+    expect(getGoals).toHaveBeenCalledWith({ syncAccounts: false });
+  });
+
+  it("does not reuse a dashboard-only cache for a sync-required request", async () => {
+    getGoals
+      .mockResolvedValueOnce({ success: true, data: [] })
+      .mockResolvedValueOnce({ success: true, data: [] });
+
+    const store = useGoalStore();
+
+    await store.fetchGoals({ notifyError: false, syncAccounts: false });
+    await store.fetchGoals({ notifyError: false });
+
+    expect(getGoals).toHaveBeenCalledTimes(2);
+    expect(getGoals).toHaveBeenNthCalledWith(1, { syncAccounts: false });
+    expect(getGoals).toHaveBeenNthCalledWith(2, { syncAccounts: true });
+  });
+
   it("stores the AI roadmap returned for a confirmed goal", async () => {
     const roadmap = {
       goalId: 31,

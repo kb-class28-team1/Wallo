@@ -9,8 +9,25 @@ import {
 } from "@/features/asset/consumptionReportImages.js";
 
 const reportStore = useReportStore();
-const { insight, isInsightLoading, insightError } = storeToRefs(reportStore);
+const props = defineProps({
+  forceRefresh: {
+    type: Boolean,
+    default: false,
+  },
+});
+const {
+  insight,
+  initialInsightLoading,
+  refreshingInsight,
+  isInsightLoading,
+  insightError,
+} = storeToRefs(reportStore);
 const reportImageLoadFailed = ref(false);
+
+const isInitialLoading = computed(() => (
+  initialInsightLoading?.value ?? Boolean(isInsightLoading?.value && !insight.value)
+));
+const isRefreshing = computed(() => refreshingInsight?.value ?? false);
 
 const isFallbackInsight = computed(
   () => insight.value?.generationMode === "FALLBACK",
@@ -66,9 +83,9 @@ const reportDescription = computed(() => {
   };
 });
 
-const loadInsight = async () => {
+const loadInsight = async ({ force = false } = {}) => {
   try {
-    await reportStore.fetchInsight();
+    await reportStore.fetchInsight({ force });
   } catch {
     // 사용자 안내와 인증 만료 이동은 Pinia 및 Axios 인터셉터에서 처리합니다.
   }
@@ -76,13 +93,13 @@ const loadInsight = async () => {
 
 const retryInsight = async () => {
   try {
-    await reportStore.fetchInsight();
+    await reportStore.fetchInsight({ force: true });
   } catch {
     // 재시도 오류는 Pinia에서 상태와 사용자 안내를 갱신합니다.
   }
 };
 
-onMounted(loadInsight);
+onMounted(() => loadInsight({ force: props.forceRefresh }));
 </script>
 
 <template>
@@ -91,7 +108,7 @@ onMounted(loadInsight);
       <h2 class="h5 fw-bold mb-0">소비 리포트</h2>
 
       <div
-        v-if="isInsightLoading"
+        v-if="isInitialLoading"
         class="report-state text-center"
         aria-live="polite"
       >
@@ -101,7 +118,7 @@ onMounted(loadInsight);
         <p class="text-secondary mb-0 mt-3">소비 내역을 분석하고 있습니다.</p>
       </div>
 
-      <div v-else-if="insightError" class="report-state">
+      <div v-else-if="insightError && !insight" class="report-state">
         <img
           :src="CONSUMPTION_REPORT_FALLBACK_IMAGE"
           alt="소비 리포트를 불러오지 못함"
@@ -121,6 +138,18 @@ onMounted(loadInsight);
         class="report-content"
         :class="{ 'has-report-image': reportImage }"
       >
+        <div v-if="isRefreshing" class="small text-secondary mb-3" role="status">
+          <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
+          소비 리포트를 최신 상태로 갱신하고 있습니다.
+        </div>
+
+        <div v-if="insightError" class="alert alert-warning small" role="alert">
+          최신 리포트를 갱신하지 못했습니다. 기존 리포트를 표시하고 있습니다.
+          <button type="button" class="btn btn-sm btn-outline-warning ms-2" @click="retryInsight">
+            다시 시도
+          </button>
+        </div>
+
         <img
           v-if="reportImage"
           :src="reportImage"

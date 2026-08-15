@@ -3,6 +3,8 @@ import { defineStore } from "pinia";
 import { getCategoryBudgets, putCategoryBudgets } from "@/api/assetApi";
 import { getApiErrorMessage } from "@/commonUtils/apiError";
 
+const CATEGORY_BUDGET_STALE_TIME = 60 * 1000;
+
 const normalizeCategorySummary = (data) => ({
   targetMonth: data?.targetMonth ?? "",
   totalAmount: Number(data?.totalAmount) || 0,
@@ -28,45 +30,97 @@ const normalizeCategorySummary = (data) => ({
 
 export const useBudgetStore = defineStore("budget", () => {
   const categorySummary = ref(null);
-  const isLoading = ref(false);
+  const initialLoading = ref(false);
+  const refreshing = ref(false);
+  const isLoading = computed(() => initialLoading.value || refreshing.value);
   const isSaving = ref(false);
   const error = ref(null);
+  const lastFetchedAt = ref(0);
+  const lastFetchedMonth = ref(null);
+  const inFlightByMonth = new Map();
   let requestSequence = 0;
 
   const hasBudget = computed(() => Number(categorySummary.value?.totalAmount ?? 0) > 0);
 
-  const fetchCategoryBudgets = async (targetMonth, { notifyError = true } = {}) => {
+  const fetchCategoryBudgets = (
+    targetMonth,
+    {
+      notifyError = true,
+      force = false,
+      staleTime = CATEGORY_BUDGET_STALE_TIME,
+    } = {},
+  ) => {
+    const requestMonth = targetMonth ?? new Date().toISOString().slice(0, 7);
+    const inFlight = inFlightByMonth.get(requestMonth);
+
+    if (inFlight) {
+      return inFlight;
+    }
+
+    const isFresh = (
+      lastFetchedMonth.value === requestMonth &&
+      lastFetchedAt.value > 0 &&
+      Date.now() - lastFetchedAt.value < staleTime
+    );
+
+    if (!force && isFresh) {
+      return Promise.resolve(categorySummary.value);
+    }
+
     const currentRequest = ++requestSequence;
-    isLoading.value = true;
+    const isInitialLoad = lastFetchedAt.value === 0 && categorySummary.value === null;
+    initialLoading.value = isInitialLoad;
+    refreshing.value = !isInitialLoad;
     error.value = null;
 
-    try {
-      const response = await getCategoryBudgets(targetMonth);
-      if (currentRequest !== requestSequence) return categorySummary.value;
+    let request;
+    request = (async () => {
+      try {
+        const response = await getCategoryBudgets(requestMonth);
+        if (currentRequest !== requestSequence) return categorySummary.value;
 
-      if (!response?.success || !response?.data) {
-        throw new Error(response?.error?.message || "카테고리별 예산 응답이 올바르지 않습니다.");
+        if (!response?.success || !response?.data) {
+          throw new Error(response?.error?.message || "카테고리별 예산 응답이 올바르지 않습니다.");
+        }
+
+        categorySummary.value = normalizeCategorySummary(response.data);
+        lastFetchedMonth.value = requestMonth;
+        lastFetchedAt.value = Date.now();
+        return categorySummary.value;
+      } catch (caughtError) {
+        if (currentRequest !== requestSequence) return categorySummary.value;
+
+        const message = getApiErrorMessage(
+          caughtError,
+          "카테고리별 예산 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.",
+        );
+        if (isInitialLoad) {
+          categorySummary.value = null;
+          lastFetchedMonth.value = null;
+          lastFetchedAt.value = 0;
+        }
+        error.value = message;
+        if (notifyError) alert(message);
+        throw caughtError;
+      } finally {
+        if (currentRequest === requestSequence) {
+          initialLoading.value = false;
+          refreshing.value = false;
+        }
+        if (inFlightByMonth.get(requestMonth) === request) {
+          inFlightByMonth.delete(requestMonth);
+        }
       }
+    })();
 
-      categorySummary.value = normalizeCategorySummary(response.data);
-      return categorySummary.value;
-    } catch (caughtError) {
-      if (currentRequest !== requestSequence) return categorySummary.value;
-
-      const message = getApiErrorMessage(
-        caughtError,
-        "카테고리별 예산 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.",
-      );
-      categorySummary.value = null;
-      error.value = message;
-      if (notifyError) alert(message);
-      throw caughtError;
-    } finally {
-      if (currentRequest === requestSequence) isLoading.value = false;
-    }
+    inFlightByMonth.set(requestMonth, request);
+    return request;
   };
 
-  const saveCategoryBudgets = async (request, { notifyError = true } = {}) => {
+  const saveCategoryBudgets = async (
+    request,
+    { notifyError = true, forceRefresh = true } = {},
+  ) => {
     isSaving.value = true;
     error.value = null;
 
@@ -77,6 +131,25 @@ export const useBudgetStore = defineStore("budget", () => {
       }
 
       categorySummary.value = normalizeCategorySummary(response.data);
+      const savedTargetMonth = request.targetMonth
+        ?? categorySummary.value.targetMonth
+        ?? null;
+      lastFetchedMonth.value = savedTargetMonth;
+      lastFetchedAt.value = 0;
+
+      if (forceRefresh) {
+        try {
+          await fetchCategoryBudgets(savedTargetMonth, {
+            notifyError: false,
+            force: true,
+          });
+        } catch {
+          // 저장 응답은 유지하고, 다음 조회에서 다시 최신 데이터를 요청합니다.
+        }
+      } else {
+        lastFetchedAt.value = Date.now();
+      }
+
       return categorySummary.value;
     } catch (caughtError) {
       const message = getApiErrorMessage(
@@ -95,6 +168,9 @@ export const useBudgetStore = defineStore("budget", () => {
     categorySummary,
     hasBudget,
     isLoading,
+    initialLoading,
+    refreshing,
+    lastFetchedAt,
     isSaving,
     error,
     fetchCategoryBudgets,

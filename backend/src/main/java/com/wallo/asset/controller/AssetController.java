@@ -9,7 +9,10 @@ import com.wallo.asset.service.AssetSyncOrchestrator;
 import com.wallo.asset.service.ExpenseService;
 import com.wallo.common.response.CommonResponse;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -44,18 +47,33 @@ public class AssetController {
             @RequestParam("startDate") String startDate,
             @RequestParam("endDate") String endDate,
             @RequestParam("page") int page,
-            @RequestParam("size") int size
+            @RequestParam("size") int size,
+            @RequestParam(value = "category", required = false) String category
     ) {
         ExpenseDto.SearchCondition condition = new ExpenseDto.SearchCondition(
                 startDate,
                 endDate,
                 page,
                 size,
+                category,
                 0
         );
 
         return CommonResponse.success(expenseService.getExpenseSummary(
                 currentUserProvider.getCurrentUserId(), condition));
+    }
+
+    @PatchMapping("/expense/{transactionId}/category")
+    public CommonResponse<Void> updateExpenseCategory(
+            @PathVariable long transactionId,
+            @RequestBody(required = false) ExpenseDto.CategoryUpdateRequest request
+    ) {
+        expenseService.updateTransactionCategory(
+                currentUserProvider.getCurrentUserId(),
+                transactionId,
+                request
+        );
+        return CommonResponse.success(null);
     }
 
     @PostMapping("/sync")

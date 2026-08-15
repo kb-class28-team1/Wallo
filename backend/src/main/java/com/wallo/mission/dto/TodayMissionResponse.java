@@ -5,23 +5,22 @@ import java.time.LocalDate;
 import java.util.List;
 
 public record TodayMissionResponse(LocalDate date, String status, List<Item> missions) {
-    public static final String ASSIGNED = "ASSIGNED";
-    public static final String NO_MISSION = "NO_MISSION";
-    public static final String ANALYSIS_REQUIRED = "ANALYSIS_REQUIRED";
+    public static final String READY_STATUS = "READY";
+    public static final String WAITING_ANALYSIS_STATUS = "WAITING_ANALYSIS";
 
     public TodayMissionResponse(LocalDate date, List<Item> missions) {
-        this(date, missions == null || missions.isEmpty() ? NO_MISSION : ASSIGNED,
-                missions == null ? List.of() : missions);
+        this(date, READY_STATUS, missions);
     }
 
     public static TodayMissionResponse of(LocalDate date, List<DailyMission> missions) {
-        List<Item> items = missions == null
-                ? List.of() : missions.stream().map(Item::from).toList();
-        return new TodayMissionResponse(date, items);
+        return new TodayMissionResponse(
+                date,
+                READY_STATUS,
+                missions == null ? List.of() : missions.stream().map(Item::from).toList());
     }
 
-    public static TodayMissionResponse analysisRequired(LocalDate date) {
-        return new TodayMissionResponse(date, ANALYSIS_REQUIRED, List.of());
+    public static TodayMissionResponse waitingForAnalysis(LocalDate date) {
+        return new TodayMissionResponse(date, WAITING_ANALYSIS_STATUS, List.of());
     }
 
     public record Item(

@@ -1,118 +1,115 @@
 <script setup>
-import { computed, onBeforeUnmount, ref } from "vue";
-import { useRouter } from "vue-router";
-import { connectAllAssets } from "@/api/assetApi";
-import { getLocalInstitutionLogo } from "@/features/asset/institutionLogos";
-import { useReportStore } from "@/stores/assetReportStore";
-import { useUserStore } from "@/stores/userStore";
-import { getApiErrorMessage } from "@/commonUtils/apiError";
+import { computed, onBeforeUnmount, ref } from "vue"
+import { useRouter } from "vue-router"
+import { connectAllAssets } from "@/api/assetApi"
+import { invalidateConnectionsCache } from "@/api/connectionApi"
+import { getLocalInstitutionLogo } from "@/features/asset/institutionLogos"
+import { useReportStore } from "@/stores/assetReportStore"
+import { useUserStore } from "@/stores/userStore"
+import { useAssetStore } from "@/stores/assetStore"
+import { getApiErrorMessage } from "@/commonUtils/apiError"
 
-const router = useRouter();
-const reportStore = useReportStore();
-const userStore = useUserStore();
+const router = useRouter()
+const reportStore = useReportStore()
+const userStore = useUserStore()
+const assetStore = useAssetStore()
 
-const name = ref("");
-const phoneNumber = ref("");
-const consentAgreed = ref(false);
-const isLoading = ref(false);
-const isSuccessModalVisible = ref(false);
-const progress = ref(0);
-const loadingMessage = ref("");
-const successMessage = ref("");
-const connectedGroups = ref([]);
-const timers = [];
+const name = ref("")
+const phoneNumber = ref("")
+const consentAgreed = ref(false)
+const isLoading = ref(false)
+const isSuccessModalVisible = ref(false)
+const progress = ref(0)
+const loadingMessage = ref("")
+const successMessage = ref("")
+const connectedGroups = ref([])
+const timers = []
 
 const INSTITUTION_TYPE_LABELS = {
   BANK: "은행",
   CARD: "카드",
   STOCK: "증권",
-};
+}
 
-const isFormValid = computed(() => Boolean(
-  name.value.trim() && phoneNumber.value.trim() && consentAgreed.value,
-));
-const isFormDisabled = computed(() => isLoading.value);
-const connectionResultTitle = computed(() => (
-  connectedGroups.value.some((group) => group.status !== "SUCCESS")
-    ? "연결 결과"
-    : "연결 완료"
-));
+const isFormValid = computed(() =>
+  Boolean(name.value.trim() && phoneNumber.value.trim() && consentAgreed.value),
+)
+const isFormDisabled = computed(() => isLoading.value)
+const connectionResultTitle = computed(() =>
+  connectedGroups.value.some((group) => group.status !== "SUCCESS") ? "연결 결과" : "연결 완료",
+)
 
 const clearTimers = () => {
-  timers.forEach((timerId) => clearTimeout(timerId));
-  timers.length = 0;
-};
+  timers.forEach((timerId) => clearTimeout(timerId))
+  timers.length = 0
+}
 
-const wait = (delay) => new Promise((resolve) => {
-  const timerId = setTimeout(resolve, delay);
-  timers.push(timerId);
-});
+const wait = (delay) =>
+  new Promise((resolve) => {
+    const timerId = setTimeout(resolve, delay)
+    timers.push(timerId)
+  })
 
 const resetProgressState = () => {
-  clearTimers();
-  progress.value = 0;
-  loadingMessage.value = "";
-};
+  clearTimers()
+  progress.value = 0
+  loadingMessage.value = ""
+}
 
-const getInstitutionName = (result) => (
+const getInstitutionName = (result) =>
   result.institutionName || result.name || result.provider || "알 수 없는 기관"
-);
 
 const getLogoText = (institutionName) => {
   if (!institutionName) {
-    return "자산";
+    return "자산"
   }
 
-  return institutionName.replace(/\s/g, "").slice(0, 2);
-};
+  return institutionName.replace(/\s/g, "").slice(0, 2)
+}
 
 const isSuccessResult = (result) => {
   if (typeof result.connected === "boolean") {
-    return result.connected;
+    return result.connected
   }
 
   if (typeof result.success === "boolean") {
-    return result.success;
+    return result.success
   }
 
-  return String(result.status || "").toUpperCase() === "SUCCESS";
-};
+  return String(result.status || "").toUpperCase() === "SUCCESS"
+}
 
 const handleLogoError = (event) => {
-  const fallbackSrc = event.target.dataset.fallbackSrc;
-  const currentSrc = event.target.getAttribute("src");
+  const fallbackSrc = event.target.dataset.fallbackSrc
+  const currentSrc = event.target.getAttribute("src")
 
   if (fallbackSrc && currentSrc !== fallbackSrc) {
-    event.target.src = fallbackSrc;
-    return;
+    event.target.src = fallbackSrc
+    return
   }
 
-  event.target.classList.add("d-none");
-  event.target.nextElementSibling?.classList.remove("d-none");
-};
+  event.target.classList.add("d-none")
+  event.target.nextElementSibling?.classList.remove("d-none")
+}
 
-const getLogoFallbackClass = (logoUrl) => (logoUrl ? "d-none" : "");
+const getLogoFallbackClass = (logoUrl) => (logoUrl ? "d-none" : "")
 
-const getFailedInstitutions = (results = []) => (
-  results.filter((result) => !isSuccessResult(result))
-);
+const getFailedInstitutions = (results = []) => results.filter((result) => !isSuccessResult(result))
 
-const getInstitutionTypeLabel = (institutionType) => (
-  INSTITUTION_TYPE_LABELS[String(institutionType || "").toUpperCase()]
-  || institutionType
-  || "기타"
-);
+const getInstitutionTypeLabel = (institutionType) =>
+  INSTITUTION_TYPE_LABELS[String(institutionType || "").toUpperCase()] || institutionType || "기타"
 
 const groupConnectionResults = (results = []) => {
-  const groups = new Map();
+  const groups = new Map()
 
   results.forEach((result, index) => {
-    const institutionName = getInstitutionName(result);
-    const groupCode = result.financialGroupCode
-      || `INSTITUTION_${result.institutionId || `${institutionName}_${index}`}`;
+    const institutionName = getInstitutionName(result)
+    const groupCode =
+      result.financialGroupCode ||
+      `INSTITUTION_${result.institutionId || `${institutionName}_${index}`}`
 
     if (!groups.has(groupCode)) {
-      const groupName = result.financialGroupName || institutionName;
+      const groupName = result.financialGroupName || institutionName
       groups.set(groupCode, {
         id: groupCode,
         name: groupName,
@@ -120,138 +117,134 @@ const groupConnectionResults = (results = []) => {
         logoUrl: "",
         localLogoUrl: getLocalInstitutionLogo(groupCode, groupName),
         members: [],
-      });
+      })
     }
 
-    const group = groups.get(groupCode);
+    const group = groups.get(groupCode)
     if (!group.logoUrl && result.logoUrl) {
-      group.logoUrl = result.logoUrl;
+      group.logoUrl = result.logoUrl
     }
     group.members.push({
       name: institutionName,
       typeLabel: getInstitutionTypeLabel(result.institutionType),
       isSuccess: isSuccessResult(result),
-    });
-  });
+    })
+  })
 
   return Array.from(groups.values()).map((group) => {
-    const successCount = group.members.filter((member) => member.isSuccess).length;
-    const status = successCount === group.members.length
-      ? "SUCCESS"
-      : successCount > 0
-        ? "PARTIAL"
-        : "FAILED";
+    const successCount = group.members.filter((member) => member.isSuccess).length
+    const status =
+      successCount === group.members.length ? "SUCCESS" : successCount > 0 ? "PARTIAL" : "FAILED"
     const failedNames = group.members
       .filter((member) => !member.isSuccess)
-      .map((member) => member.name);
+      .map((member) => member.name)
 
     return {
       ...group,
       typeLabels: [...new Set(group.members.map((member) => member.typeLabel))],
       status,
-      message: status === "SUCCESS"
-        ? "연동 완료"
-        : status === "PARTIAL"
-          ? "일부 연동 실패"
-          : "연동 실패",
+      message:
+        status === "SUCCESS" ? "연동 완료" : status === "PARTIAL" ? "일부 연동 실패" : "연동 실패",
       failedMessage: failedNames.length > 0 ? `${failedNames.join(", ")} 실패` : "",
-    };
-  });
-};
+    }
+  })
+}
 
-const getResultTextClass = (status) => ({
-  SUCCESS: "text-success",
-  PARTIAL: "text-warning",
-  FAILED: "text-danger",
-}[status] || "text-secondary");
+const getResultTextClass = (status) =>
+  ({
+    SUCCESS: "text-success",
+    PARTIAL: "text-warning",
+    FAILED: "text-danger",
+  })[status] || "text-secondary"
 
 const notifyConnectionResult = (results = []) => {
-  const failedInstitutions = getFailedInstitutions(results);
+  const failedInstitutions = getFailedInstitutions(results)
 
   if (failedInstitutions.length > 0) {
-    const failedNames = failedInstitutions.map(getInstitutionName).join(", ");
-    console.warn("일부 기관 연동 실패:", failedInstitutions);
-    alert(`일부 기관 연동에 실패했습니다. 실패 기관: ${failedNames}`);
+    const failedNames = failedInstitutions.map(getInstitutionName).join(", ")
+    console.warn("일부 기관 연동 실패:", failedInstitutions)
+    alert(`일부 기관 연동에 실패했습니다. 실패 기관: ${failedNames}`)
   }
 
-  connectedGroups.value = groupConnectionResults(results);
-  successMessage.value = results.length === 0
-    ? "연동된 금융기관이 없습니다."
-    : failedInstitutions.length === 0
-      ? `총 ${connectedGroups.value.length}개 금융그룹의 자산 연결이 완료되었습니다!`
-      : `총 ${connectedGroups.value.length}개 금융그룹의 연동 결과를 확인해 주세요.`;
-  isSuccessModalVisible.value = true;
-};
+  connectedGroups.value = groupConnectionResults(results)
+  successMessage.value =
+    results.length === 0
+      ? "연동된 금융기관이 없습니다."
+      : failedInstitutions.length === 0
+        ? `총 ${connectedGroups.value.length}개 금융그룹의 자산 연결이 완료되었습니다!`
+        : `총 ${connectedGroups.value.length}개 금융그룹의 연동 결과를 확인해 주세요.`
+  isSuccessModalVisible.value = true
+}
 
 const handleConnectionError = async (error) => {
-  const status = error.response?.status;
+  const status = error.response?.status
   if (status === 400) {
-    alert(getApiErrorMessage(error, "개인신용정보 수집·이용 동의가 필요합니다."));
-    return;
+    alert(getApiErrorMessage(error, "개인신용정보 수집·이용 동의가 필요합니다."))
+    return
   }
 
   if (status === 401) {
-    alert("로그인 세션이 만료되었습니다. 다시 로그인해 주세요.");
-    await router.push("/login");
-    return;
+    alert("로그인 세션이 만료되었습니다. 다시 로그인해 주세요.")
+    await router.push("/login")
+    return
   }
 
-  alert(getApiErrorMessage(error, "일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."));
-};
+  alert(getApiErrorMessage(error, "일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."))
+}
 
 const handleSubmit = async () => {
   if (!isFormValid.value || isLoading.value) {
-    return;
+    return
   }
 
-  isLoading.value = true;
-  isSuccessModalVisible.value = false;
-  successMessage.value = "";
-  connectedGroups.value = [];
-  progress.value = 30;
-  loadingMessage.value = "금융 기관 보안 연결 중...";
+  isLoading.value = true
+  isSuccessModalVisible.value = false
+  successMessage.value = ""
+  connectedGroups.value = []
+  progress.value = 30
+  loadingMessage.value = "금융 기관 보안 연결 중..."
 
   try {
-    await wait(500);
-    progress.value = 70;
-    loadingMessage.value = "계좌 및 카드 데이터를 안전하게 수집하는 중...";
+    await wait(500)
+    progress.value = 70
+    loadingMessage.value = "계좌 및 카드 데이터를 안전하게 수집하는 중..."
 
-    await wait(700);
-    const response = await connectAllAssets(consentAgreed.value);
+    await wait(700)
+    const response = await connectAllAssets(consentAgreed.value)
 
-    progress.value = 100;
-    loadingMessage.value = "연동 결과를 정리하는 중...";
+    progress.value = 100
+    loadingMessage.value = "연동 결과를 정리하는 중..."
 
-    const connectionData = response?.data ?? response ?? {};
-    reportStore.setAnnualSalaryLookupStatus(
-      connectionData.annualSalaryLookupStatus,
-    );
-    const results = connectionData.results || [];
+    const connectionData = response?.data ?? response ?? {}
+    reportStore.setAnnualSalaryLookupStatus(connectionData.annualSalaryLookupStatus)
+    const results = connectionData.results || []
+    invalidateConnectionsCache()
+    assetStore.invalidateAssetsCache?.()
 
-    await wait(300);
-    notifyConnectionResult(results);
+    await wait(300)
+    notifyConnectionResult(results)
   } catch (error) {
-    await handleConnectionError(error);
+    await handleConnectionError(error)
   } finally {
-    isLoading.value = false;
-    resetProgressState();
+    isLoading.value = false
+    resetProgressState()
   }
-};
+}
 
 const moveToDashboard = async () => {
-  isSuccessModalVisible.value = false;
+  isSuccessModalVisible.value = false
   try {
-    await userStore.restoreSession(true);
-    await router.replace("/dashboard");
+    await userStore.restoreSession(true)
+    await router.replace("/dashboard")
   } catch (error) {
-    alert(error.message || "사용자 연동 상태를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.");
-    isSuccessModalVisible.value = true;
+    alert(error.message || "사용자 연동 상태를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.")
+    isSuccessModalVisible.value = true
   }
-};
+}
 
 onBeforeUnmount(() => {
-  clearTimers();
-});
+  clearTimers()
+})
 </script>
 
 <template>
@@ -275,7 +268,8 @@ onBeforeUnmount(() => {
             <strong>안전하게 보호합니다</strong>
           </div>
           <p class="mb-0">
-            고객님의 금융 정보는 금융보안원의 전송 가이드라인에 따라 암호화되어 안전하게 전송 및 보관됩니다.
+            고객님의 금융 정보는 금융보안원의 전송 가이드라인에 따라 암호화되어 안전하게 전송 및
+            보관됩니다.
           </p>
         </div>
       </div>
@@ -300,7 +294,8 @@ onBeforeUnmount(() => {
               <span>
                 <strong>[필수] 통합 자산 정보 수집·이용 동의</strong>
                 <small>
-                  모든 은행, 카드, 증권 정보를 한 번에 불러오는 것에 동의하며, 마이데이터 서비스 제공을 위해 동의합니다.
+                  모든 은행, 카드, 증권 정보를 한 번에 불러오는 것에 동의하며, 마이데이터 서비스
+                  제공을 위해 동의합니다.
                 </small>
               </span>
             </label>
@@ -406,11 +401,7 @@ onBeforeUnmount(() => {
           <div class="modal-body">
             <p class="modal-message mb-3">{{ successMessage }}</p>
             <div class="asset-summary-list">
-              <article
-                v-for="group in connectedGroups"
-                :key="group.id"
-                class="asset-summary-item"
-              >
+              <article v-for="group in connectedGroups" :key="group.id" class="asset-summary-item">
                 <div class="asset-summary-left">
                   <div class="asset-logo">
                     <img
