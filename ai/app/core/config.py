@@ -9,6 +9,9 @@ load_dotenv()
 DEFAULT_GROQ_MODEL = "openai/gpt-oss-20b"
 DEFAULT_GROQ_MAX_RETRIES = 1
 MAX_ALLOWED_GROQ_RETRIES = 1
+DEFAULT_GROQ_MAX_RETRY_DELAY_SECONDS = 5.0
+MIN_ALLOWED_GROQ_MAX_RETRY_DELAY_SECONDS = 1.0
+MAX_ALLOWED_GROQ_MAX_RETRY_DELAY_SECONDS = 10.0
 DEFAULT_GROQ_TIMEOUT_SECONDS = 30.0
 MIN_ALLOWED_GROQ_TIMEOUT_SECONDS = 1.0
 MAX_ALLOWED_GROQ_TIMEOUT_SECONDS = 60.0
@@ -33,6 +36,29 @@ def get_groq_max_retries() -> int:
     if not 0 <= max_retries <= MAX_ALLOWED_GROQ_RETRIES:
         raise RuntimeError("GROQ_MAX_RETRIES는 0 또는 1이어야 합니다.")
     return max_retries
+
+
+def get_groq_max_retry_delay_seconds() -> float:
+    raw_delay = os.getenv(
+        "GROQ_MAX_RETRY_DELAY_SECONDS",
+        str(DEFAULT_GROQ_MAX_RETRY_DELAY_SECONDS),
+    )
+    try:
+        delay_seconds = float(raw_delay)
+    except ValueError as error:
+        raise RuntimeError(
+            "GROQ_MAX_RETRY_DELAY_SECONDS는 숫자여야 합니다."
+        ) from error
+
+    if not math.isfinite(delay_seconds) or not (
+        MIN_ALLOWED_GROQ_MAX_RETRY_DELAY_SECONDS
+        <= delay_seconds
+        <= MAX_ALLOWED_GROQ_MAX_RETRY_DELAY_SECONDS
+    ):
+        raise RuntimeError(
+            "GROQ_MAX_RETRY_DELAY_SECONDS는 1 이상 10 이하의 숫자여야 합니다."
+        )
+    return delay_seconds
 
 
 def get_groq_timeout_seconds() -> float:
