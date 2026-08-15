@@ -13,7 +13,7 @@ const userStore = useUserStore()
 const isRewarding = ref(false)
 
 // Pinia의 반응형 상태를 유지한 채 화면에서 사용할 값으로 분리함
-const { startDate, endDate, rankings, myRanking, isLoading, errorMessage } =
+const { startDate, endDate, rankings, myRanking, initialLoading, refreshing, errorMessage } =
   storeToRefs(challengeStore)
 
 // 상위 카드가 시안처럼 2위, 1위, 3위 순서로 배치되도록 DB 조회 결과를 정렬함
@@ -62,7 +62,7 @@ const grantRewardsForTest = async () => {
     )
     // 지급 후 세션의 사용자 포인트를 강제로 다시 조회해 상단바를 갱신함.
     await userStore.restoreSession(true)
-    await challengeStore.fetchWeeklyRanking()
+    await challengeStore.fetchWeeklyRanking({ force: true })
   } catch (error) {
     alert(error.message || "주간 랭킹 보상을 지급하지 못했습니다.")
   } finally {
@@ -96,10 +96,38 @@ onMounted(() => {
       </p>
     </header>
 
-    <div v-if="isLoading" class="ranking-state-card">주간 랭킹을 불러오는 중임...</div>
+    <div v-if="refreshing" class="small text-secondary mb-3" role="status">
+      최신 주간 랭킹을 확인하는 중...
+    </div>
 
-    <div v-else-if="errorMessage" class="ranking-state-card error-state">
-      {{ errorMessage }}
+    <div
+      v-if="errorMessage && rankings.length > 0"
+      class="alert alert-warning d-flex align-items-center justify-content-between gap-2"
+      role="alert"
+    >
+      <span>{{ errorMessage }}</span>
+      <button
+        type="button"
+        class="btn btn-sm btn-outline-warning"
+        @click="challengeStore.fetchWeeklyRanking({ force: true })"
+      >
+        다시 시도
+      </button>
+    </div>
+
+    <div v-if="initialLoading" class="ranking-state-card">주간 랭킹을 불러오는 중임...</div>
+
+    <div v-else-if="errorMessage && rankings.length === 0" class="ranking-state-card error-state">
+      <div class="text-center">
+        <p class="mb-2">{{ errorMessage }}</p>
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-danger"
+          @click="challengeStore.fetchWeeklyRanking({ force: true })"
+        >
+          다시 시도
+        </button>
+      </div>
     </div>
 
     <div v-else-if="rankings.length === 0" class="ranking-state-card">
@@ -108,10 +136,7 @@ onMounted(() => {
 
     <div v-else class="ranking-layout">
       <div class="ranking-main">
-        <div
-          class="podium-grid mb-3"
-          :class="`podium-count-${topRankings.length}`"
-        >
+        <div class="podium-grid mb-3" :class="`podium-count-${topRankings.length}`">
           <article
             v-for="ranking in topRankings"
             :key="ranking.rank"
@@ -311,7 +336,18 @@ onMounted(() => {
   border: 3px solid #3a3638;
   border-radius: 5px 3px 8px 4px;
   box-shadow: 3px 3px 0 rgb(58 54 56 / 15%);
-  clip-path: polygon(0 13%, 18% 3%, 38% 10%, 58% 0, 80% 8%, 100% 3%, 99% 93%, 65% 100%, 38% 95%, 1% 89%);
+  clip-path: polygon(
+    0 13%,
+    18% 3%,
+    38% 10%,
+    58% 0,
+    80% 8%,
+    100% 3%,
+    99% 93%,
+    65% 100%,
+    38% 95%,
+    1% 89%
+  );
   transform: rotate(-0.8deg) skewX(-0.7deg);
 }
 
@@ -338,29 +374,83 @@ onMounted(() => {
   border-radius: 6px 4px 5px 3px;
   background: #b5906b;
   box-shadow: 3px 4px 0 rgb(58 54 56 / 15%);
-  clip-path: polygon(1% 3%, 21% 1%, 44% 3%, 67% 0%, 99% 2%, 98% 31%, 100% 64%, 97% 99%, 76% 97%, 52% 100%, 26% 98%, 3% 100%, 1% 70%, 0% 38%);
-  filter: drop-shadow(1px 0 #3a3638) drop-shadow(-1px 0 #3a3638) drop-shadow(0 1px #3a3638) drop-shadow(0 -1px #3a3638);
+  clip-path: polygon(
+    1% 3%,
+    21% 1%,
+    44% 3%,
+    67% 0%,
+    99% 2%,
+    98% 31%,
+    100% 64%,
+    97% 99%,
+    76% 97%,
+    52% 100%,
+    26% 98%,
+    3% 100%,
+    1% 70%,
+    0% 38%
+  );
+  filter: drop-shadow(1px 0 #3a3638) drop-shadow(-1px 0 #3a3638) drop-shadow(0 1px #3a3638)
+    drop-shadow(0 -1px #3a3638);
   transform: rotate(-1deg) skewX(-0.8deg);
 }
 
 .podium-card.rank-1 {
   min-height: 220px;
   background: #c19b67;
-  clip-path: polygon(0% 2%, 23% 0%, 48% 2%, 74% 0%, 100% 3%, 98% 36%, 100% 97%, 77% 99%, 52% 97%, 29% 100%, 2% 97%, 1% 64%);
+  clip-path: polygon(
+    0% 2%,
+    23% 0%,
+    48% 2%,
+    74% 0%,
+    100% 3%,
+    98% 36%,
+    100% 97%,
+    77% 99%,
+    52% 97%,
+    29% 100%,
+    2% 97%,
+    1% 64%
+  );
   transform: rotate(0.45deg) skewX(0.55deg);
 }
 
 .podium-card.rank-2 {
   min-height: 195px;
   background: #b99a78;
-  clip-path: polygon(2% 0%, 31% 2%, 58% 0%, 100% 4%, 98% 34%, 100% 96%, 67% 99%, 42% 97%, 17% 100%, 1% 96%, 3% 59%);
+  clip-path: polygon(
+    2% 0%,
+    31% 2%,
+    58% 0%,
+    100% 4%,
+    98% 34%,
+    100% 96%,
+    67% 99%,
+    42% 97%,
+    17% 100%,
+    1% 96%,
+    3% 59%
+  );
   transform: rotate(-1.25deg) skewX(-0.85deg);
 }
 
 .podium-card.rank-3 {
   min-height: 174px;
   background: #ae8c6b;
-  clip-path: polygon(1% 4%, 25% 0%, 53% 3%, 78% 1%, 100% 4%, 99% 61%, 97% 98%, 74% 96%, 48% 100%, 22% 97%, 0% 100%, 2% 48%);
+  clip-path: polygon(
+    1% 4%,
+    25% 0%,
+    53% 3%,
+    78% 1%,
+    100% 4%,
+    99% 61%,
+    97% 98%,
+    74% 96%,
+    48% 100%,
+    22% 97%,
+    0% 100%,
+    2% 48%
+  );
   transform: rotate(1.05deg) skewX(0.7deg);
 }
 

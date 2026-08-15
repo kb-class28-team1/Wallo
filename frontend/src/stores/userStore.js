@@ -1,10 +1,6 @@
 import { computed, ref } from "vue"
 import { defineStore } from "pinia"
-import {
-  login as loginRequest,
-  logout as logoutRequest,
-  refreshAccessToken,
-} from "@/api/authApi"
+import { login as loginRequest, logout as logoutRequest, refreshAccessToken } from "@/api/authApi"
 import {
   changePassword as changePasswordRequest,
   getProfile as getProfileRequest,
@@ -12,25 +8,37 @@ import {
   updateNickname as updateNicknameRequest,
   updateProfileImage as updateProfileImageRequest,
 } from "@/api/userApi"
+import {
+  getCachedResource,
+  getResource,
+  hasInFlightResource,
+  invalidateResource,
+} from "@/utils/resourceCache"
 
 const DEFAULT_PROFILE_IMAGE = "/images/profiles/default-profile.svg"
+const PROFILE_CACHE_KEY = "user:profile:current"
+const PROFILE_STALE_TIME = 60 * 1000
 
 export const useUserStore = defineStore("user", () => {
   const user = ref(null)
   const isLoading = ref(false)
   const hasCheckedAuth = ref(false)
+  const initialProfileLoading = ref(false)
+  const refreshingProfile = ref(false)
+  const hasLoadedProfile = ref(false)
   let profileRequest = null
 
   const isAuthenticated = computed(() => Boolean(user.value?.id))
   const nickname = computed(() => user.value?.nickname || "")
-  const profileImageUrl = computed(
-    () => user.value?.profileImageUrl || DEFAULT_PROFILE_IMAGE,
-  )
+  const profileImageUrl = computed(() => user.value?.profileImageUrl || DEFAULT_PROFILE_IMAGE)
   const pointBalance = computed(() => Number(user.value?.point) || 0)
+
+  const invalidateProfileCache = () => invalidateResource(PROFILE_CACHE_KEY)
 
   const setUser = (authenticatedUser) => {
     user.value = authenticatedUser
     hasCheckedAuth.value = true
+    hasLoadedProfile.value = Boolean(authenticatedUser?.id)
   }
 
   // 포인트를 사용하거나 보상받은 직후 공용 상단바도 같은 잔액을 표시하도록 갱신함.
@@ -39,6 +47,7 @@ export const useUserStore = defineStore("user", () => {
       return
     }
 
+    invalidateProfileCache()
     user.value = {
       ...user.value,
       point: Number(point) || 0,
@@ -46,14 +55,17 @@ export const useUserStore = defineStore("user", () => {
   }
 
   const clearAuth = () => {
+    invalidateProfileCache()
     user.value = null
     hasCheckedAuth.value = true
+    hasLoadedProfile.value = false
   }
 
   const login = async (credentials) => {
     isLoading.value = true
     try {
       const authResponse = await loginRequest(credentials)
+      invalidateProfileCache()
       setUser(authResponse.user)
       return authResponse.user
     } finally {
@@ -69,6 +81,7 @@ export const useUserStore = defineStore("user", () => {
     isLoading.value = true
     try {
       const tokenResponse = await refreshAccessToken()
+      invalidateProfileCache()
       setUser(tokenResponse.user)
       return true
     } catch (error) {
@@ -92,37 +105,63 @@ export const useUserStore = defineStore("user", () => {
     }
   }
 
-  const fetchProfile = () => {
+  const applyProfile = (profile) => {
+    if (user.value) {
+      user.value = {
+        ...user.value,
+        ...profile,
+      }
+    } else {
+      setUser({
+        ...profile,
+        point: 0,
+        connectionCompleted: false,
+      })
+    }
+
+    hasLoadedProfile.value = true
+    return profile
+  }
+
+  const fetchProfile = async ({ force = false } = {}) => {
+    const cached =
+      !force && !hasInFlightResource(PROFILE_CACHE_KEY)
+        ? getCachedResource(PROFILE_CACHE_KEY, { staleTime: PROFILE_STALE_TIME })
+        : undefined
+
+    if (cached !== undefined) {
+      initialProfileLoading.value = false
+      refreshingProfile.value = false
+      return applyProfile(cached)
+    }
+
     if (profileRequest) {
       return profileRequest
     }
 
-    profileRequest = (async () => {
-      isLoading.value = true
-      try {
-        const profile = await getProfileRequest()
+    const isInitialLoad = !hasLoadedProfile.value
+    initialProfileLoading.value = isInitialLoad
+    refreshingProfile.value = !isInitialLoad
+    isLoading.value = true
 
-        if (user.value) {
-          user.value = {
-            ...user.value,
-            ...profile,
-          }
-        } else {
-          setUser({
-            ...profile,
-            point: 0,
-            connectionCompleted: false,
-          })
-        }
+    const request = getProfileRequest()
+    const currentRequest = getResource(PROFILE_CACHE_KEY, () => request, {
+      force,
+      staleTime: PROFILE_STALE_TIME,
+    })
+    profileRequest = currentRequest
 
-        return profile
-      } finally {
-        isLoading.value = false
+    try {
+      const profile = await profileRequest
+      return applyProfile(profile)
+    } finally {
+      if (profileRequest === currentRequest) {
         profileRequest = null
       }
-    })()
-
-    return profileRequest
+      initialProfileLoading.value = false
+      refreshingProfile.value = false
+      isLoading.value = false
+    }
   }
 
   const updateNickname = async (nickname) => {
@@ -137,6 +176,7 @@ export const useUserStore = defineStore("user", () => {
           nickname: updatedNickname,
         }
       }
+      invalidateProfileCache()
 
       return updatedNickname
     } finally {
@@ -165,6 +205,7 @@ export const useUserStore = defineStore("user", () => {
           profileImageUrl: updatedImageUrl,
         }
       }
+      invalidateProfileCache()
 
       return updatedImageUrl
     } finally {
@@ -184,6 +225,7 @@ export const useUserStore = defineStore("user", () => {
           profileImageUrl: updatedImageUrl,
         }
       }
+      invalidateProfileCache()
 
       return updatedImageUrl
     } finally {
@@ -216,6 +258,9 @@ export const useUserStore = defineStore("user", () => {
     profileImageUrl,
     pointBalance,
     isLoading,
+    initialProfileLoading,
+    refreshingProfile,
+    hasLoadedProfile,
     hasCheckedAuth,
     isAuthenticated,
     login,

@@ -1,0 +1,94 @@
+import { createPinia, setActivePinia } from "pinia"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import {
+  getActiveGoalInterview,
+  getConversationMessages,
+  getConversations,
+} from "@/api/conversationApi"
+import { useConversationStore } from "./conversationStore"
+
+vi.mock("@/api/conversationApi", () => ({
+  createConversation: vi.fn(),
+  deleteConversation: vi.fn(),
+  getActiveGoalInterview: vi.fn(),
+  getConversationMessages: vi.fn(),
+  getConversations: vi.fn(),
+  sendConversationMessage: vi.fn(),
+  updateConversationTitle: vi.fn(),
+}))
+
+vi.mock("@/api/goalApi", () => ({
+  getGoalByConversationId: vi.fn(),
+}))
+
+const conversations = [
+  { conversationId: 11, title: "첫 상담" },
+]
+
+const messages = [
+  {
+    messageId: 101,
+    role: "USER",
+    content: "비상금을 만들고 싶어요.",
+    createdAt: "2026-08-14T09:00:00",
+  },
+]
+
+describe("conversationStore", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    getConversations.mockResolvedValue(conversations)
+    getConversationMessages.mockResolvedValue(messages)
+    getActiveGoalInterview.mockResolvedValue({
+      active: true,
+      draft: { title: "비상금 마련" },
+      feasibility: null,
+    })
+    vi.stubGlobal("alert", vi.fn())
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.clearAllMocks()
+  })
+
+  it("caches conversations and restores messages with a separate loading state", async () => {
+    const store = useConversationStore()
+
+    await store.fetchConversations(7)
+    await store.fetchConversations(7)
+
+    expect(getConversations).toHaveBeenCalledOnce()
+    expect(store.conversations).toEqual(conversations)
+    expect(store.activeConversationId).toBe(11)
+    expect(store.initialLoading).toBe(false)
+    expect(store.refreshing).toBe(false)
+
+    await store.selectConversation(11, 7)
+    await store.fetchMessages(7, 11)
+
+    expect(getConversationMessages).toHaveBeenCalledOnce()
+    expect(getActiveGoalInterview).toHaveBeenCalledOnce()
+    expect(store.messages[0]).toMatchObject({
+      id: 101,
+      role: "user",
+      content: "비상금을 만들고 싶어요.",
+    })
+    expect(store.activeGoalInterview).toMatchObject({
+      action: "CONTINUE",
+      active: true,
+    })
+    expect(store.initialMessageLoading).toBe(false)
+    expect(store.refreshingMessages).toBe(false)
+  })
+
+  it("forces a new message snapshot when the conversation is refreshed", async () => {
+    const store = useConversationStore()
+
+    await store.fetchMessages(7, 11)
+    await store.fetchMessages(7, 11, { force: true })
+
+    expect(getConversationMessages).toHaveBeenCalledTimes(2)
+    expect(getActiveGoalInterview).toHaveBeenCalledTimes(2)
+  })
+})

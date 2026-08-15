@@ -14,15 +14,21 @@ import {
 import { getMyChallengeDashboard } from "@/api/challengeApi"
 import { formatNumber, formatWon } from "@/commonUtils/formatters"
 import AuthenticatedImage from "@/components/common/AuthenticatedImage.vue"
+import { getCachedResource, getResource, hasInFlightResource } from "@/utils/resourceCache"
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler)
 
 const DEFAULT_PROFILE_IMAGE = "/images/profiles/default-profile.svg"
+const MY_DASHBOARD_STALE_TIME = 60 * 1000
+const getDashboardCacheKey = (period) => `challenge:my-dashboard:current:${period}`
 
 const dashboard = ref(null)
-const isLoading = ref(true)
+const initialLoading = ref(true)
+const refreshing = ref(false)
+const hasLoadedDashboard = ref(false)
 const errorMessage = ref("")
 const selectedPeriod = ref("6M")
+let dashboardRequestId = 0
 const periodOptions = [
   { value: "1W", label: "1주" },
   { value: "2W", label: "2주" },
@@ -177,17 +183,61 @@ const handleFeedImageError = (event) => {
   event.target.classList.add("d-none")
 }
 
-const loadDashboard = async () => {
-  isLoading.value = true
+const applyDashboard = (response) => {
+  dashboard.value = response || null
+  hasLoadedDashboard.value = true
+  return response
+}
+
+const loadDashboard = async ({ force = false } = {}) => {
+  const requestedPeriod = selectedPeriod.value
+  const cacheKey = getDashboardCacheKey(requestedPeriod)
+  const requestId = ++dashboardRequestId
+  const cached =
+    !force && !hasInFlightResource(cacheKey)
+      ? getCachedResource(cacheKey, { staleTime: MY_DASHBOARD_STALE_TIME })
+      : undefined
+
+  if (cached !== undefined) {
+    errorMessage.value = ""
+    initialLoading.value = false
+    refreshing.value = false
+    return applyDashboard(cached)
+  }
+
+  const isInitialLoad = !hasLoadedDashboard.value
+  initialLoading.value = isInitialLoad
+  refreshing.value = !isInitialLoad
   errorMessage.value = ""
 
   try {
-    dashboard.value = await getMyChallengeDashboard(selectedPeriod.value)
+    const response = await getResource(cacheKey, () => getMyChallengeDashboard(requestedPeriod), {
+      force,
+      staleTime: MY_DASHBOARD_STALE_TIME,
+    })
+
+    if (requestId !== dashboardRequestId) {
+      return response
+    }
+
+    return applyDashboard(response)
   } catch (error) {
+    if (requestId !== dashboardRequestId) {
+      return null
+    }
+
+    if (isInitialLoad) {
+      dashboard.value = null
+      hasLoadedDashboard.value = false
+    }
     errorMessage.value = error.message
     window.alert(error.message)
+    return null
   } finally {
-    isLoading.value = false
+    if (requestId === dashboardRequestId) {
+      initialLoading.value = false
+      refreshing.value = false
+    }
   }
 }
 
@@ -201,21 +251,39 @@ onMounted(loadDashboard)
       <h1 class="mb-0">내 챌린지</h1>
     </header>
 
-    <div v-if="isLoading" class="dashboard-state-card">내 챌린지 정보를 불러오는 중임...</div>
+    <div v-if="refreshing" class="small text-secondary mb-3" role="status">
+      최신 내 챌린지 정보를 확인하는 중...
+    </div>
 
-    <div v-else-if="errorMessage" class="dashboard-state-card error-state">
+    <div
+      v-if="errorMessage && dashboard"
+      class="alert alert-warning d-flex align-items-center justify-content-between gap-2"
+      role="alert"
+    >
+      <span>{{ errorMessage }}</span>
+      <button
+        type="button"
+        class="btn btn-sm btn-outline-warning"
+        @click="loadDashboard({ force: true })"
+      >
+        다시 시도
+      </button>
+    </div>
+
+    <div v-if="initialLoading" class="dashboard-state-card">내 챌린지 정보를 불러오는 중임...</div>
+
+    <div v-else-if="errorMessage && !dashboard" class="dashboard-state-card error-state">
       <p class="mb-3">{{ errorMessage }}</p>
-      <button type="button" class="btn retry-button" @click="loadDashboard">다시 시도</button>
+      <button type="button" class="btn retry-button" @click="loadDashboard({ force: true })">
+        다시 시도
+      </button>
     </div>
 
     <div v-else-if="dashboard" class="dashboard-grid">
       <article class="dashboard-card profile-card">
         <div class="profile-header">
           <div class="profile-avatar">
-            <AuthenticatedImage
-              :src="profileImage"
-              :alt="`${dashboard.nickname} 프로필 이미지`"
-            />
+            <AuthenticatedImage :src="profileImage" :alt="`${dashboard.nickname} 프로필 이미지`" />
           </div>
           <div>
             <strong class="profile-name">{{ dashboard.nickname }}</strong>
@@ -242,7 +310,7 @@ onMounted(loadDashboard)
           </div>
         </dl>
 
-        <RouterLink :to="{ name: &quot;user-profile&quot; }" class="btn profile-edit-button">
+        <RouterLink :to="{ name: 'user-profile' }" class="btn profile-edit-button">
           프로필 편집
         </RouterLink>
       </article>
@@ -258,7 +326,7 @@ onMounted(loadDashboard)
           <div v-for="stat in summaryStats" :key="stat.label" class="summary-stat">
             <span>{{ stat.label }}</span>
             <strong>{{ stat.value }}</strong>
-            <small :class="stat.label === &quot;이번 달 절약&quot; ? savingChangeClass : null">
+            <small :class="stat.label === '이번 달 절약' ? savingChangeClass : null">
               {{ stat.subText }}
             </small>
           </div>
@@ -281,7 +349,7 @@ onMounted(loadDashboard)
             v-model="selectedPeriod"
             class="form-select period-select"
             aria-label="절약 금액 조회 기간"
-            @change="loadDashboard"
+            @change="loadDashboard()"
           >
             <option v-for="option in periodOptions" :key="option.value" :value="option.value">
               {{ option.label }}

@@ -30,12 +30,11 @@ public class CodefMockServiceTest {
 
         assertSuccess(response);
         CodefDto.AssetData data = objectMapper.convertValue(response.getData(), CodefDto.AssetData.class);
-        assertEquals(2, data.getAccounts().size());
-        assertEquals(1, data.getLoans().size());
-        assertEquals(1, data.getTransactions().size());
-        assertEquals(5, data.getAssetSnapshots().size());
-        assertEquals("2026-08", data.getAssetSnapshots().get(4).getSnapshotMonth());
-        assertEquals("40100000", data.getAssetSnapshots().get(4).getTotalAssets());
+        assertEquals(1, data.getAccounts().size());
+        assertEquals("987654-01-321098", data.getAccounts().get(0).getResAccount());
+        assertEquals(0, data.getLoans().size());
+        assertEquals(0, data.getTransactions().size());
+        assertEquals(0, data.getAssetSnapshots().size());
     }
 
     @Test
@@ -151,7 +150,7 @@ public class CodefMockServiceTest {
     @Test
     public void bankTransactionsAreFilteredByInclusiveDateRange() {
         CodefDto.Response response = service.getBankTransactions(
-                bankRequest("20260726", "20260728")
+                bankRequest("20260805", "20260806")
         );
 
         assertSuccess(response);
@@ -159,10 +158,17 @@ public class CodefMockServiceTest {
                 response.getData(),
                 new TypeReference<List<CodefDto.BankTransaction>>() { }
         );
-        assertEquals(2, transactions.size());
-        assertEquals("BANK-202607-0002", transactions.get(0).getResTrNo());
-        assertEquals("체크가맹_배달의민족", transactions.get(0).getResAccountDesc());
-        assertEquals("김철수", transactions.get(1).getResAccountDesc());
+        assertEquals(5, transactions.size());
+        assertEquals("BANK-202608-0001", transactions.get(0).getResTrNo());
+        assertEquals("월급", transactions.get(0).getResAccountDesc());
+        assertEquals("BANK-202608-0002", transactions.get(1).getResTrNo());
+        assertEquals("적금 자동이체", transactions.get(1).getResAccountDesc());
+        assertEquals("BANK-202608-0003", transactions.get(2).getResTrNo());
+        assertEquals("김밥천국", transactions.get(2).getResAccountDesc());
+        assertEquals("BANK-202608-0004", transactions.get(3).getResTrNo());
+        assertEquals("스타벅스", transactions.get(3).getResAccountDesc());
+        assertEquals("BANK-202608-0005", transactions.get(4).getResTrNo());
+        assertEquals("지하철 교통카드", transactions.get(4).getResAccountDesc());
     }
 
     @Test
@@ -331,8 +337,8 @@ public class CodefMockServiceTest {
                 response.getData(),
                 CodefDto.IncomeProofData.class
         );
-        assertEquals(3, data.getResPaymentDetailsStatusList().size());
-        assertEquals("50000000", data.getResPaymentDetailsStatusList().get(0).getResPaidTotalAmt());
+        assertEquals(1, data.getResPaymentDetailsStatusList().size());
+        assertEquals("32400000", data.getResPaymentDetailsStatusList().get(0).getResPaidTotalAmt());
     }
 
     @Test
@@ -364,7 +370,7 @@ public class CodefMockServiceTest {
                 "1",
                 "mock_id",
                 "mock_password",
-                "123456-01-789012",
+                "987654-01-321098",
                 startDate,
                 endDate
         );

@@ -8,8 +8,16 @@ import {
 import { formatNumber, formatWon } from "@/commonUtils/formatters";
 
 const reportStore = useReportStore();
+const props = defineProps({
+  forceRefresh: {
+    type: Boolean,
+    default: false,
+  },
+});
 const {
   taxSettlement,
+  initialTaxSettlementLoading,
+  refreshingTaxSettlement,
   isTaxSettlementLoading,
   taxSettlementError,
   annualSalaryLookupStatus,
@@ -19,6 +27,11 @@ const {
   storeToRefs(reportStore);
 const annualSalaryInput = ref("");
 const manualSalaryError = ref("");
+
+const isInitialLoading = computed(() => (
+  initialTaxSettlementLoading?.value ?? Boolean(isTaxSettlementLoading?.value && !taxSettlement.value)
+));
+const isRefreshing = computed(() => refreshingTaxSettlement?.value ?? false);
 
 const annualSalary = computed(() =>
   Number(taxSettlement.value?.annualSalary ?? 0),
@@ -31,6 +44,10 @@ const formattedAnnualSalary = computed(() =>
 const isAnnualSalaryUnavailable = computed(
   () => annualSalaryLookupStatus.value === ANNUAL_SALARY_LOOKUP_STATUS.UNAVAILABLE,
 );
+
+const hasTaxSettlementContent = computed(() => (
+  Boolean(taxSettlement.value) && !isAnnualSalaryUnavailable.value
+));
 
 const isTaxSettlementError = computed(
   () =>
@@ -74,16 +91,17 @@ const achievementMessage = computed(() => {
   return `카드 사용액이 연봉 25% 기준의 ${achievementRate.value}%에 도달했어요.`;
 });
 
-const loadTaxSettlement = async () => {
+const loadTaxSettlement = async ({ force = false } = {}) => {
   if (
-    annualSalaryLookupStatus.value === ANNUAL_SALARY_LOOKUP_STATUS.UNAVAILABLE ||
-    annualSalaryLookupStatus.value === ANNUAL_SALARY_LOOKUP_STATUS.ERROR
+    !force &&
+    (annualSalaryLookupStatus.value === ANNUAL_SALARY_LOOKUP_STATUS.UNAVAILABLE ||
+      annualSalaryLookupStatus.value === ANNUAL_SALARY_LOOKUP_STATUS.ERROR)
   ) {
     return;
   }
 
   try {
-    await reportStore.fetchTaxSettlement();
+    await reportStore.fetchTaxSettlement(undefined, { force });
   } catch {
     // 조회 오류와 재시도 상태는 Pinia에서 관리합니다.
   }
@@ -116,13 +134,13 @@ const submitManualSalary = async () => {
 
 const retryTaxSettlement = async () => {
   try {
-    await reportStore.fetchTaxSettlement();
+    await reportStore.fetchTaxSettlement(undefined, { force: true });
   } catch {
     // 재시도 결과는 Pinia 상태를 통해 카드에 표시합니다.
   }
 };
 
-onMounted(loadTaxSettlement);
+onMounted(() => loadTaxSettlement({ force: props.forceRefresh }));
 </script>
 
 <template>
@@ -131,7 +149,7 @@ onMounted(loadTaxSettlement);
       <h2 class="h5 fw-bold mb-0">소득공제 달성률</h2>
 
       <div
-        v-if="isTaxSettlementLoading"
+        v-if="isInitialLoading"
         class="tax-deduction-state text-center"
         aria-live="polite"
       >
@@ -139,6 +157,51 @@ onMounted(loadTaxSettlement);
           <span class="visually-hidden">소득공제 달성률을 불러오는 중</span>
         </div>
         <p class="text-secondary mb-0 mt-3">카드 사용 내역을 계산하고 있습니다.</p>
+      </div>
+
+      <div
+        v-else-if="hasTaxSettlementContent"
+        class="tax-deduction-content"
+      >
+        <div v-if="isRefreshing" class="small text-secondary mb-3" role="status">
+          <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
+          소득공제 정보를 최신 상태로 갱신하고 있습니다.
+        </div>
+
+        <div v-if="isTaxSettlementError" class="alert alert-warning small" role="alert">
+          최신 소득공제 정보를 갱신하지 못했습니다. 기존 정보를 표시하고 있습니다.
+          <button type="button" class="btn btn-sm btn-outline-warning ms-2" @click="retryTaxSettlement">
+            다시 시도
+          </button>
+        </div>
+
+        <div class="annual-salary-summary mb-4">
+          <span class="tax-deduction-label">자동 조회된 세전 연봉</span>
+          <strong class="annual-salary-value">{{ formattedAnnualSalary }}</strong>
+        </div>
+
+        <div class="d-flex align-items-end justify-content-between gap-3 mb-3">
+          <span class="tax-deduction-label">연봉 25% 달성률</span>
+          <strong class="tax-deduction-rate">{{ achievementRate }}%</strong>
+        </div>
+
+        <div
+          class="progress tax-deduction-progress"
+          role="progressbar"
+          aria-label="연봉 25% 달성률"
+          :aria-valuenow="progressRate"
+          aria-valuemin="0"
+          aria-valuemax="100"
+        >
+          <div
+            class="progress-bar"
+            :style="{ width: `${progressRate}%` }"
+          ></div>
+        </div>
+
+        <p class="tax-deduction-message mb-0">
+          {{ achievementMessage }}
+        </p>
       </div>
 
       <div
@@ -201,39 +264,6 @@ onMounted(loadTaxSettlement);
         >
           다시 시도
         </button>
-      </div>
-
-      <div
-        v-else-if="annualSalaryLookupStatus === ANNUAL_SALARY_LOOKUP_STATUS.AVAILABLE && taxSettlement"
-        class="tax-deduction-content"
-      >
-        <div class="annual-salary-summary mb-4">
-          <span class="tax-deduction-label">자동 조회된 세전 연봉</span>
-          <strong class="annual-salary-value">{{ formattedAnnualSalary }}</strong>
-        </div>
-
-        <div class="d-flex align-items-end justify-content-between gap-3 mb-3">
-          <span class="tax-deduction-label">연봉 25% 달성률</span>
-          <strong class="tax-deduction-rate">{{ achievementRate }}%</strong>
-        </div>
-
-        <div
-          class="progress tax-deduction-progress"
-          role="progressbar"
-          aria-label="연봉 25% 달성률"
-          :aria-valuenow="progressRate"
-          aria-valuemin="0"
-          aria-valuemax="100"
-        >
-          <div
-            class="progress-bar"
-            :style="{ width: `${progressRate}%` }"
-          ></div>
-        </div>
-
-        <p class="tax-deduction-message mb-0">
-          {{ achievementMessage }}
-        </p>
       </div>
 
       <div v-else class="tax-deduction-state text-center">

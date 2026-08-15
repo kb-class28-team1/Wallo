@@ -79,6 +79,7 @@ describe("DashboardView", () => {
     await flushPromises()
     await vi.waitFor(() => expect(wrapper.find(".goal-summary-card").exists()).toBe(true))
 
+    expect(getGoals).toHaveBeenCalledWith({ syncAccounts: false })
     expect(wrapper.find(".goal-progress-amount").text()).toContain("1,400,000")
     expect(wrapper.find(".goal-progress-rate").text()).toContain("14%")
 

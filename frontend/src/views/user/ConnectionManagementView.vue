@@ -8,7 +8,9 @@ import { useAssetStore } from "@/stores/assetStore"
 
 const assetStore = useAssetStore()
 const connections = ref([])
-const isLoading = ref(false)
+const initialLoading = ref(true)
+const refreshing = ref(false)
+const hasLoadedConnections = ref(false)
 const errorMessage = ref("")
 const successMessage = ref("")
 const disconnectingId = ref(null)
@@ -78,8 +80,9 @@ const connectionGroups = computed(() => {
   const groupedConnections = new Map()
 
   connections.value.forEach((asset) => {
-    const groupKey = asset.connectionId
-      ?? `institution-${asset.institutionId ?? "unknown"}-${asset.institutionName ?? "unknown"}`
+    const groupKey =
+      asset.connectionId ??
+      `institution-${asset.institutionId ?? "unknown"}-${asset.institutionName ?? "unknown"}`
     const existingGroup = groupedConnections.get(groupKey)
 
     if (existingGroup) {
@@ -132,29 +135,23 @@ const categorizedConnections = computed(() => {
   return groupedConnections
 })
 
-const visibleConnections = computed(() => (
-  categorizedConnections.value[activeCategory.value] || []
-))
+const visibleConnections = computed(() => categorizedConnections.value[activeCategory.value] || [])
 
-const activeCategoryLabel = computed(() => (
-  connectionCategories.find(({ key }) => key === activeCategory.value)?.label || "계좌"
-))
-
-const activeCategoryEmptyMessage = computed(() => (
-  connectionCategories.find(({ key }) => key === activeCategory.value)?.emptyMessage
-    || "연결된 계좌가 없습니다."
-))
-
-const getCategoryCount = (categoryKey) => (
-  categorizedConnections.value[categoryKey]?.length || 0
+const activeCategoryLabel = computed(
+  () => connectionCategories.find(({ key }) => key === activeCategory.value)?.label || "계좌",
 )
 
-const activeCategoryAssetCount = computed(() => (
-  visibleConnections.value.reduce(
-    (total, group) => total + group.visibleAssets.length,
-    0,
-  )
-))
+const activeCategoryEmptyMessage = computed(
+  () =>
+    connectionCategories.find(({ key }) => key === activeCategory.value)?.emptyMessage ||
+    "연결된 계좌가 없습니다.",
+)
+
+const getCategoryCount = (categoryKey) => categorizedConnections.value[categoryKey]?.length || 0
+
+const activeCategoryAssetCount = computed(() =>
+  visibleConnections.value.reduce((total, group) => total + group.visibleAssets.length, 0),
+)
 
 const formatAmount = (amount, currency = "KRW") => {
   const normalizedCurrency = currency || "KRW"
@@ -166,9 +163,7 @@ const formatAmount = (amount, currency = "KRW") => {
     EUR: "유로",
   }[normalizedCurrency]
 
-  return currencyUnit
-    ? `${amountText}${currencyUnit}`
-    : `${amountText} ${normalizedCurrency}`
+  return currencyUnit ? `${amountText}${currencyUnit}` : `${amountText} ${normalizedCurrency}`
 }
 
 const formatLastSync = (lastSyncAt) => {
@@ -196,11 +191,13 @@ const getAssetTypeLabel = (connection) => {
       : "신용카드"
   }
 
-  return {
-    BANK: "입출금",
-    STOCK: "투자계좌",
-    LOAN: "대출",
-  }[connection.assetType] || "계좌"
+  return (
+    {
+      BANK: "입출금",
+      STOCK: "투자계좌",
+      LOAN: "대출",
+    }[connection.assetType] || "계좌"
+  )
 }
 
 const getLogoText = (connection) => {
@@ -208,22 +205,20 @@ const getLogoText = (connection) => {
   return name.replace(/\s/g, "").slice(0, 2)
 }
 
-const getConnectionLogoUrl = (connection) => (
-  connection.logoUrl
-  || getLocalInstitutionLogo(
+const getConnectionLogoUrl = (connection) =>
+  connection.logoUrl ||
+  getLocalInstitutionLogo(
     connection.financialGroupCode,
     connection.financialGroupName || connection.institutionName,
   )
-)
 
-const getConnectionFallbackLogoUrl = (connection) => (
+const getConnectionFallbackLogoUrl = (connection) =>
   connection.logoUrl
     ? getLocalInstitutionLogo(
-      connection.financialGroupCode,
-      connection.financialGroupName || connection.institutionName,
-    )
+        connection.financialGroupCode,
+        connection.financialGroupName || connection.institutionName,
+      )
     : ""
-)
 
 const getLogoFallbackClass = (logoUrl) => (logoUrl ? "d-none" : "")
 
@@ -240,21 +235,25 @@ const handleLogoError = (event) => {
   event.target.nextElementSibling?.classList.remove("d-none")
 }
 
-const loadConnections = async () => {
-  isLoading.value = true
+const loadConnections = async ({ force = false } = {}) => {
+  const isInitialLoad = !hasLoadedConnections.value
+  initialLoading.value = isInitialLoad
+  refreshing.value = !isInitialLoad
   errorMessage.value = ""
 
   try {
-    const response = await getConnections()
-    connections.value = response?.connections || []
+    const response = await getConnections({ force })
+    connections.value = Array.isArray(response?.connections) ? response.connections : []
+    hasLoadedConnections.value = true
   } catch (error) {
-    connections.value = []
-    errorMessage.value = getApiErrorMessage(
-      error,
-      "연결된 자산 정보를 불러오지 못했습니다.",
-    )
+    if (isInitialLoad) {
+      connections.value = []
+      hasLoadedConnections.value = false
+    }
+    errorMessage.value = getApiErrorMessage(error, "연결된 자산 정보를 불러오지 못했습니다.")
   } finally {
-    isLoading.value = false
+    initialLoading.value = false
+    refreshing.value = false
   }
 }
 
@@ -272,12 +271,11 @@ const restoreModalFocus = () => {
 
   nextTick(() => {
     const fallbackElement = categoryTabRefs.value[activeCategory.value]
-    const isFocusableTarget = (element) => (
-      element
-      && element !== document.body
-      && element.isConnected
-      && typeof element.focus === "function"
-    )
+    const isFocusableTarget = (element) =>
+      element &&
+      element !== document.body &&
+      element.isConnected &&
+      typeof element.focus === "function"
     const focusTarget = isFocusableTarget(elementToFocus)
       ? elementToFocus
       : isFocusableTarget(fallbackElement)
@@ -308,9 +306,11 @@ const handleModalKeydown = (event) => {
     return
   }
 
-  const focusableElements = [...disconnectModalRef.value.querySelectorAll(
-    "button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])",
-  )]
+  const focusableElements = [
+    ...disconnectModalRef.value.querySelectorAll(
+      "button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])",
+    ),
+  ]
 
   if (focusableElements.length === 0) {
     event.preventDefault()
@@ -343,6 +343,7 @@ const handleDisconnect = async () => {
 
   try {
     await disconnectConnection(connection.connectionId)
+    assetStore.invalidateAssetsCache?.()
     connections.value = connections.value.filter(
       (item) => item.connectionId !== connection.connectionId,
     )
@@ -360,10 +361,7 @@ const handleDisconnect = async () => {
 
     successMessage.value = `${institutionName} 연결이 해제되었습니다.`
   } catch (error) {
-    disconnectModalError.value = getApiErrorMessage(
-      error,
-      "자산 연결을 해제하지 못했습니다.",
-    )
+    disconnectModalError.value = getApiErrorMessage(error, "자산 연결을 해제하지 못했습니다.")
   } finally {
     disconnectingId.value = null
   }
@@ -373,8 +371,15 @@ onMounted(loadConnections)
 </script>
 
 <template>
-  <section class="settings-panel card border-0 shadow-sm" aria-labelledby="connection-settings-title">
-    <div v-if="isLoading" class="connection-state text-center" aria-live="polite">
+  <section
+    class="settings-panel card border-0 shadow-sm"
+    aria-labelledby="connection-settings-title"
+  >
+    <div v-if="refreshing" class="connection-refresh-status text-secondary" role="status">
+      최신 연결 정보를 확인하는 중...
+    </div>
+
+    <div v-if="initialLoading" class="connection-state text-center" aria-live="polite">
       <div class="spinner-border text-primary" role="status">
         <span class="visually-hidden">연결 정보를 불러오는 중</span>
       </div>
@@ -387,7 +392,11 @@ onMounted(loadConnections)
       <div v-if="errorMessage" class="alert alert-danger py-2" role="alert">
         <div class="d-flex align-items-center justify-content-between gap-3">
           <span>{{ errorMessage }}</span>
-          <button type="button" class="btn btn-sm btn-outline-danger" @click="loadConnections">
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-danger"
+            @click="loadConnections({ force: true })"
+          >
             다시 시도
           </button>
         </div>
@@ -418,9 +427,12 @@ onMounted(loadConnections)
         </button>
       </div>
 
-      <div class="connection-section-heading d-flex align-items-center justify-content-between gap-3">
+      <div
+        class="connection-section-heading d-flex align-items-center justify-content-between gap-3"
+      >
         <span class="small text-secondary">
-          {{ activeCategoryLabel }} 연결 기관 {{ visibleConnections.length }}곳 · 자산 {{ activeCategoryAssetCount }}개
+          {{ activeCategoryLabel }} 연결 기관 {{ visibleConnections.length }}곳 · 자산
+          {{ activeCategoryAssetCount }}개
         </span>
       </div>
 
@@ -570,14 +582,16 @@ onMounted(loadConnections)
             >
               <div class="min-width-0">
                 <small class="d-block text-body text-truncate">
-                  {{ asset.assetName || "연결 자산" }} · {{ asset.displayNumber || "번호 정보 없음" }}
+                  {{ asset.assetName || "연결 자산" }} ·
+                  {{ asset.displayNumber || "번호 정보 없음" }}
                 </small>
               </div>
             </li>
           </ul>
 
           <p class="small text-secondary mt-3 mb-0">
-            거래 내역과 과거 자산 기록은 유지됩니다. 현재 자산에서는 제외되며, 이번 달 자산 총액과 스냅샷은 해제 후 금액으로 갱신됩니다.
+            거래 내역과 과거 자산 기록은 유지됩니다. 현재 자산에서는 제외되며, 이번 달 자산 총액과
+            스냅샷은 해제 후 금액으로 갱신됩니다.
           </p>
 
           <div v-if="disconnectModalError" class="alert alert-danger py-2 mt-3 mb-0" role="alert">
@@ -629,6 +643,14 @@ onMounted(loadConnections)
   padding: 32px;
 }
 
+.connection-refresh-status {
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #f8f8ff;
+  font-size: 13px;
+}
+
 .connection-section-heading {
   padding: 0 0 12px;
   border-bottom: 1px solid #eef0f5;
@@ -652,7 +674,9 @@ onMounted(loadConnections)
   color: #7f8ba0;
   font-size: 14px;
   font-weight: 600;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
 }
 
 .connection-category-tab:hover,

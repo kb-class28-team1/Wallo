@@ -71,7 +71,10 @@ describe("ConnectionManagementView", () => {
   beforeEach(() => {
     getConnections.mockResolvedValue({ connections: connectedAssets })
     disconnectConnection.mockResolvedValue({})
-    assetStore = { fetchAssets: vi.fn().mockResolvedValue({}) }
+    assetStore = {
+      fetchAssets: vi.fn().mockResolvedValue({}),
+      invalidateAssetsCache: vi.fn(),
+    }
     useAssetStore.mockReturnValue(assetStore)
   })
 
@@ -136,6 +139,7 @@ describe("ConnectionManagementView", () => {
     await flushPromises()
 
     expect(disconnectConnection).toHaveBeenCalledWith(10)
+    expect(assetStore.invalidateAssetsCache).toHaveBeenCalledOnce()
     expect(assetStore.fetchAssets).toHaveBeenCalledWith({ notifyError: false })
     expect(document.body.querySelector('[role="dialog"]')).toBeNull()
     expect(document.activeElement).toBe(wrapper.find('[role="tab"]').element)

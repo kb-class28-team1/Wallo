@@ -1,4 +1,4 @@
-import { ref } from "vue";
+import { nextTick, ref } from "vue";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import AssetView from "./AssetView.vue";
@@ -11,6 +11,8 @@ vi.mock("@/stores/assetStore", () => ({
 const createStore = () => ({
   assets: ref({ totalAssets: 1_000_000 }),
   error: ref(null),
+  initialLoading: ref(false),
+  refreshing: ref(false),
   isAssetLoading: ref(false),
   isSyncing: ref(false),
   syncError: ref(null),
@@ -112,5 +114,14 @@ describe("AssetView manual synchronization", () => {
 
     expect(wrapper.text()).toContain("CODEF unavailable");
     expect(store.fetchAssets).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the current asset card visible during a background refresh", async () => {
+    store.refreshing.value = true;
+    await nextTick();
+
+    expect(wrapper.find('[data-testid="asset-overview-card"]').exists()).toBe(true);
+    expect(wrapper.text()).toContain("자산 정보를 최신 상태로 갱신하고 있습니다.");
+    expect(wrapper.get(".asset-sync-button").element.disabled).toBe(true);
   });
 });
