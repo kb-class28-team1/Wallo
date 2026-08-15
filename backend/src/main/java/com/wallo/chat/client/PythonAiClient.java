@@ -16,9 +16,11 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import java.net.URI;
+import java.util.logging.Logger;
 
 @Component
 public class PythonAiClient {
+    private static final Logger LOGGER = Logger.getLogger(PythonAiClient.class.getName());
     private static final String DEFAULT_AI_SERVER_URL = "http://127.0.0.1:8000";
 
     private final RestTemplate restTemplate;
@@ -51,6 +53,7 @@ public class PythonAiClient {
     }
 
     public SummarizeConversationResponse summarize(SummarizeConversationRequest request) {
+        long startedAt = System.nanoTime();
         try {
             ResponseEntity<SummarizeConversationResponse> response = restTemplate.postForEntity(
                     summarizeUri, request, SummarizeConversationResponse.class);
@@ -71,10 +74,16 @@ public class PythonAiClient {
             throw new AiServerException("AI 서버에 연결할 수 없습니다.", exception);
         } catch (RestClientException exception) {
             throw new AiServerException("AI 서버의 대화 요약 응답 처리에 실패했습니다.", exception);
+        } finally {
+            LOGGER.info(String.format(
+                    "[WALLO_TIMING] ai.summarize elapsedMs=%d",
+                    elapsedMillis(startedAt)
+            ));
         }
     }
 
     public ChatResponse chat(ChatRequest chatRequest) {
+        long startedAt = System.nanoTime();
         try {
             ResponseEntity<ChatResponse> response = restTemplate.postForEntity(
                     chatUri,
@@ -101,7 +110,16 @@ public class PythonAiClient {
             throw new AiServerException("AI 서버에 연결할 수 없습니다.", exception);
         } catch (RestClientException exception) {
             throw new AiServerException("AI 서버 응답 처리에 실패했습니다.", exception);
+        } finally {
+            LOGGER.info(String.format(
+                    "[WALLO_TIMING] ai.chat elapsedMs=%d",
+                    elapsedMillis(startedAt)
+            ));
         }
+    }
+
+    private long elapsedMillis(long startedAt) {
+        return (System.nanoTime() - startedAt) / 1_000_000;
     }
 
     private static String removeTrailingSlash(String value) {

@@ -23,6 +23,15 @@ const GOAL_CHAT_DELETE_BLOCK_MESSAGE =
   "목표 설정이 완료된 채팅은 계좌 변경에 필요하므로 삭제할 수 없습니다."
 const GOAL_COMPLETION_DIALOG_MESSAGE =
   "목표 설정 및 로드맵이 완성되었습니다!\nAI 컨설팅 페이지에서 나의 목표와 로드맵을 확인해보세요."
+const TIMING_LOG_PREFIX = "[WALLO_TIMING]"
+
+const timingNow = () => (
+  typeof performance !== "undefined" ? performance.now() : Date.now()
+)
+
+const logTiming = (event, details = {}) => {
+  console.info(`${TIMING_LOG_PREFIX} ${event}`, details)
+}
 
 const conversationStore = useConversationStore()
 const goalStore = useGoalStore()
@@ -266,9 +275,18 @@ const handleAccountSelect = async (accountId) => {
   const goalId = confirmedGoal.value?.goalId
   if (!goalId) return
 
+  const startedAt = timingNow()
+  logTiming("goal.account.start", { goalId })
   try {
     const selectedAccount = await goalStore.saveGoalAccount(goalId, accountId)
-    if (!selectedAccount) return
+    if (!selectedAccount) {
+      logTiming("goal.account.end", {
+        goalId,
+        status: "not_saved",
+        elapsedMs: Math.round(timingNow() - startedAt),
+      })
+      return
+    }
 
     await conversationStore.fetchConfirmedGoal(activeConversationId.value, {
       force: true,
@@ -276,19 +294,41 @@ const handleAccountSelect = async (accountId) => {
     await goalStore.fetchAvailableAccounts({ notifyError: false })
     isGoalAccountConfigured.value = true
     showGoalCompletionDialogIfReady()
+    logTiming("goal.account.end", {
+      goalId,
+      status: "completed",
+      elapsedMs: Math.round(timingNow() - startedAt),
+    })
   } catch {
+    logTiming("goal.account.end", {
+      goalId,
+      status: "failed",
+      elapsedMs: Math.round(timingNow() - startedAt),
+    })
     // goalStore가 API 오류와 사용자 알림을 처리한다.
   }
 }
 
 const confirmGoal = async () => {
+  const startedAt = timingNow()
+  logTiming("goal.confirm.start")
   resetGoalCompletionFlow()
   const sent = await sendMessage("이대로 확정할게")
-  if (!sent || activeGoalInterview.value?.action !== "CONFIRM") return
+  if (!sent || activeGoalInterview.value?.action !== "CONFIRM") {
+    logTiming("goal.confirm.end", {
+      status: sent ? "not_confirmed" : "message_failed",
+      elapsedMs: Math.round(timingNow() - startedAt),
+    })
+    return
+  }
 
   const goalId = confirmedGoal.value?.goalId
   if (!goalId) {
     errorMessage.value = "목표 설정 결과를 확인하지 못했습니다."
+    logTiming("goal.confirm.end", {
+      status: "goal_not_found",
+      elapsedMs: Math.round(timingNow() - startedAt),
+    })
     return
   }
 
@@ -301,6 +341,11 @@ const confirmGoal = async () => {
     if (roadmap?.generationStatus === "COMPLETED") {
       isGoalRoadmapReady.value = true
       showGoalCompletionDialogIfReady()
+      logTiming("goal.confirm.end", {
+        goalId,
+        status: "roadmap_ready",
+        elapsedMs: Math.round(timingNow() - startedAt),
+      })
       return
     }
 
@@ -308,6 +353,11 @@ const confirmGoal = async () => {
     errorMessage.value = roadmap?.generationStatus === "FAILED"
       ? "목표 설정은 완료되었지만 로드맵 생성에 실패했습니다."
       : "목표 설정 결과를 확인하지 못했습니다."
+    logTiming("goal.confirm.end", {
+      goalId,
+      status: roadmap?.generationStatus === "FAILED" ? "roadmap_failed" : "roadmap_not_ready",
+      elapsedMs: Math.round(timingNow() - startedAt),
+    })
   } finally {
     isGoalCompletionChecking.value = false
   }
