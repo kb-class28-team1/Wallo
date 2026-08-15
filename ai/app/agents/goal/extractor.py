@@ -16,7 +16,13 @@ from app.agents.goal.prompts import (
     EXTRACTION_SYSTEM_PROMPT,
     build_extraction_user_prompt,
 )
-from app.core.ai_timing import log_groq_completion_timing, start_timer
+from app.core.ai_timing import (
+    get_groq_retry_count,
+    log_groq_completion_timing,
+    reset_groq_retry_tracking,
+    start_timer,
+    was_groq_rate_limited,
+)
 from app.core.config import get_groq_model
 
 logger = logging.getLogger("wallo_ai")
@@ -97,46 +103,68 @@ class GoalExtractor:
     ) -> GoalExtraction:
         last_error: Exception | None = None
         completion = None
+        extraction: GoalExtraction | None = None
+        fallback_used = False
+        fallback_reason: str | None = None
+        response_success = False
+        reset_groq_retry_tracking(self.client)
         started_at = start_timer()
         try:
-            completion = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": EXTRACTION_SYSTEM_PROMPT},
-                    {
-                        "role": "user",
-                        "content": build_extraction_user_prompt(
-                            user_message,
-                            draft,
-                            reference_date,
-                        ),
+            try:
+                completion = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": EXTRACTION_SYSTEM_PROMPT},
+                        {
+                            "role": "user",
+                            "content": build_extraction_user_prompt(
+                                user_message,
+                                draft,
+                                reference_date,
+                            ),
+                        },
+                    ],
+                    tools=[self.TOOL_SCHEMA],
+                    tool_choice={
+                        "type": "function",
+                        "function": {"name": self.TOOL_NAME},
                     },
-                ],
-                tools=[self.TOOL_SCHEMA],
-                tool_choice={
-                    "type": "function",
-                    "function": {"name": self.TOOL_NAME},
-                },
-                temperature=0,
-                reasoning_effort="low",
-                include_reasoning=False,
-                max_completion_tokens=900,
-            )
-            tool_calls = completion.choices[0].message.tool_calls
-            if not tool_calls:
-                raise ValueError("목표 추출 도구 호출이 없습니다.")
-            return GoalExtraction.model_validate_json(
-                tool_calls[0].function.arguments
-            )
-        except RateLimitError as error:
-            last_error = error
-            logger.warning("goal extraction rate limit reached; using fallback")
-        except BadRequestError as error:
-            last_error = error
-            logger.warning("goal tool extraction rejected; using fallback: %s", error)
-        except (AttributeError, IndexError, TypeError, ValueError, ValidationError) as error:
-            last_error = error
-            logger.warning("goal tool extraction failed; using fallback: %s", error)
+                    temperature=0,
+                    reasoning_effort="low",
+                    include_reasoning=False,
+                    max_completion_tokens=900,
+                )
+                tool_calls = completion.choices[0].message.tool_calls
+                if not tool_calls:
+                    raise ValueError("목표 추출 도구 호출이 없습니다.")
+                extraction = GoalExtraction.model_validate_json(
+                    tool_calls[0].function.arguments
+                )
+                response_success = True
+            except RateLimitError as error:
+                last_error = error
+                fallback_reason = "rate_limit"
+                logger.warning("goal extraction rate limit reached; using fallback")
+            except BadRequestError as error:
+                last_error = error
+                fallback_reason = "bad_request"
+                logger.warning("goal tool extraction rejected; using fallback: %s", error)
+            except (AttributeError, IndexError, TypeError, ValueError, ValidationError) as error:
+                last_error = error
+                fallback_reason = type(error).__name__
+                logger.warning("goal tool extraction failed; using fallback: %s", error)
+
+            if extraction is None:
+                fallback = extract_explicit_goal_facts(user_message, reference_date)
+                if fallback.model_dump(exclude_none=True, exclude={"assumptions"}):
+                    logger.warning("using deterministic goal extraction fallback")
+                    fallback_used = True
+                    extraction = fallback
+                else:
+                    raise GoalExtractionError(
+                        "목표 정보를 구조화하지 못했습니다."
+                    ) from last_error
+            return extraction
         finally:
             log_groq_completion_timing(
                 operation="goal.extract",
@@ -144,13 +172,12 @@ class GoalExtractor:
                 started_at=started_at,
                 completion=completion,
                 requested_completion_tokens=900,
+                retry_count=get_groq_retry_count(self.client),
+                rate_limited=was_groq_rate_limited(self.client),
+                fallback_used=fallback_used,
+                fallback_reason=fallback_reason,
+                success=response_success or fallback_used,
             )
-
-        fallback = extract_explicit_goal_facts(user_message, reference_date)
-        if fallback.model_dump(exclude_none=True, exclude={"assumptions"}):
-            logger.warning("using deterministic goal extraction fallback")
-            return fallback
-        raise GoalExtractionError("목표 정보를 구조화하지 못했습니다.") from last_error
 
 
 AMOUNT_PATTERN = re.compile(
