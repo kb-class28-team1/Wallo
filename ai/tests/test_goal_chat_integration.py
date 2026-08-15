@@ -206,6 +206,23 @@ def test_ui_confirmation_phrase_is_confirmed_without_another_llm_call():
     assert client.chat.completions.create.call_count == 1
 
 
+def test_completed_goal_does_not_start_another_ai_call():
+    client = Mock()
+    completed_draft = complete_draft(InterviewState.COMPLETED).model_copy(
+        update={"confirmed": True},
+    )
+
+    response = ChatService(client).chat(
+        ChatRequest(message="확정해줘", goal_draft=completed_draft),
+    )
+
+    assert response.goal_interview is None
+    assert response.answer == (
+        "이미 확정된 목표입니다. 대시보드에서 목표와 로드맵을 확인해 주세요."
+    )
+    client.chat.completions.create.assert_not_called()
+
+
 def test_confirmation_generates_and_saves_goal_roadmap():
     client = Mock()
     roadmap_arguments = {

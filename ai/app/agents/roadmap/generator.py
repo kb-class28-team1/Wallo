@@ -36,10 +36,17 @@ TOOL_SCHEMA = {
     },
 }
 
+ROADMAP_MAX_COMPLETION_TOKENS = 1600
 
-def generate_goal_roadmap(client: Groq, goal: RoadmapGoal, model: str | None = None) -> GoalRoadmap:
+
+def generate_goal_roadmap(
+    client: Groq,
+    goal: RoadmapGoal,
+    model: str | None = None,
+) -> GoalRoadmap:
     resolved_model = model or get_groq_model()
-    requested_completion_tokens = 4000
+    requested_completion_tokens = ROADMAP_MAX_COMPLETION_TOKENS
+    goal_payload = goal.model_dump_json(by_alias=True, exclude_none=True)
     completion = None
     started_at = start_timer()
     try:
@@ -50,7 +57,7 @@ def generate_goal_roadmap(client: Groq, goal: RoadmapGoal, model: str | None = N
                 {
                     "role": "user",
                     "content": "다음 확정 목표의 로드맵을 생성하세요.\n"
-                    + goal.model_dump_json(by_alias=True),
+                    + goal_payload,
                 },
             ],
             tools=[TOOL_SCHEMA],
