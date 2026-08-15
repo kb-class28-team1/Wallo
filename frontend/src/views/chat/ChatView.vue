@@ -53,6 +53,8 @@ const {
   isLoading: isConversationLoading,
   isMessageLoading,
   isSending: isChatLoading,
+  lastError: conversationError,
+  lastErrorStatus: conversationErrorStatus,
   initialLoading: isConversationInitialLoading,
   refreshing: isConversationRefreshing,
   initialMessageLoading: isMessageInitialLoading,
@@ -175,7 +177,11 @@ const startNewConversation = async () => {
   resetGoalCompletionFlow()
   const conversation = await conversationStore.startNewConversation(userId.value)
 
-  if (conversation) errorMessage.value = ""
+  if (conversation) {
+    errorMessage.value = ""
+  } else if (conversationError.value) {
+    errorMessage.value = conversationError.value
+  }
 }
 
 async function scrollToBottom(behavior = "smooth") {
@@ -278,6 +284,9 @@ async function sendMessage(message, requestId = null) {
   await scrollToBottom()
   const sent = await sendPromise
   await scrollToBottom()
+  if (!sent && conversationError.value) {
+    errorMessage.value = conversationError.value
+  }
   return sent
 }
 
@@ -410,7 +419,9 @@ const startGoalSettingConversation = async () => {
 
     const started = await conversationStore.startGoalSettingConversation(userId.value)
     if (!started) {
-      errorMessage.value = "목표 설정 채팅을 시작하지 못했습니다."
+      errorMessage.value = conversationErrorStatus.value === 429
+        ? conversationError.value
+        : "목표 설정 채팅을 시작하지 못했습니다."
     }
   } catch (error) {
     errorMessage.value = error.message || "목표 설정 채팅을 시작하지 못했습니다."
@@ -432,7 +443,9 @@ const startConsumptionAnalysis = async () => {
   try {
     const started = await conversationStore.startConsumptionAnalysis(userId.value)
     if (!started) {
-      errorMessage.value = "소비분석 채팅을 시작하지 못했습니다."
+      errorMessage.value = conversationErrorStatus.value === 429
+        ? conversationError.value
+        : "소비분석 채팅을 시작하지 못했습니다."
     }
   } finally {
     isConsumptionAnalysisStarting.value = false

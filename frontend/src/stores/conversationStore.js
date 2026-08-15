@@ -81,6 +81,8 @@ export const useConversationStore = defineStore("conversation", () => {
   const isLoading = ref(false)
   const isMessageLoading = ref(false)
   const isSending = ref(false)
+  const lastError = ref("")
+  const lastErrorStatus = ref(null)
   const initialLoading = ref(false)
   const refreshing = ref(false)
   const initialMessageLoading = ref(false)
@@ -130,6 +132,8 @@ export const useConversationStore = defineStore("conversation", () => {
     isLoading.value = false
     isMessageLoading.value = false
     isSending.value = false
+    lastError.value = ""
+    lastErrorStatus.value = null
     initialLoading.value = false
     refreshing.value = false
     initialMessageLoading.value = false
@@ -375,6 +379,8 @@ export const useConversationStore = defineStore("conversation", () => {
 
   const startNewConversation = async (userId, title = "새 채팅") => {
     const requestVersion = sessionVersion
+    lastError.value = ""
+    lastErrorStatus.value = null
     const hadExistingData = hasLoadedConversations.value
     isLoading.value = true
     initialLoading.value = !hadExistingData
@@ -400,7 +406,8 @@ export const useConversationStore = defineStore("conversation", () => {
         return null
       }
 
-      alert(error.message || "새 채팅방을 만들지 못했습니다.")
+      lastError.value = error.message || "새 채팅방을 만들지 못했습니다."
+      lastErrorStatus.value = error.status ?? null
       return null
     } finally {
       if (requestVersion === sessionVersion) {
@@ -498,6 +505,8 @@ export const useConversationStore = defineStore("conversation", () => {
 
     const requestVersion = sessionVersion
     isSending.value = true
+    lastError.value = ""
+    lastErrorStatus.value = null
     let conversationId = activeConversationId.value
     let pendingMessageId = null
 
@@ -584,7 +593,8 @@ export const useConversationStore = defineStore("conversation", () => {
       if (conversationId && activeConversationId.value === conversationId) {
         await fetchMessages(userId, conversationId, { force: true })
       }
-      alert(error.message || "메시지를 전송하지 못했습니다.")
+      lastError.value = error.message || "메시지를 전송하지 못했습니다."
+      lastErrorStatus.value = error.status ?? null
       return false
     } finally {
       if (requestVersion === sessionVersion) {
@@ -629,6 +639,8 @@ export const useConversationStore = defineStore("conversation", () => {
     isLoading,
     isMessageLoading,
     isSending,
+    lastError,
+    lastErrorStatus,
     initialLoading,
     refreshing,
     initialMessageLoading,
