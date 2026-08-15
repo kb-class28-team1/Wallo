@@ -23,6 +23,7 @@ from app.agents.goal.models import (
     GoalType,
     InterviewState,
 )
+from app.agents.goal.prompts import EXTRACTION_SYSTEM_PROMPT
 from app.agents.goal.service import (
     GoalInterviewService,
     calculate_feasibility,
@@ -82,6 +83,13 @@ def financial_context(
         debt_amount=4_800_000,
         accounts=[],
     )
+
+
+def test_extraction_prompt_requires_only_goal_tool_call():
+    assert "extract_financial_goal" in EXTRACTION_SYSTEM_PROMPT
+    assert "JSON 객체만 반환" not in EXTRACTION_SYSTEM_PROMPT
+    assert "함수 호출의 arguments" in EXTRACTION_SYSTEM_PROMPT
+    assert "다른 함수나 도구를 호출하지 마세요" in EXTRACTION_SYSTEM_PROMPT
 
 
 def test_extractor_parses_structured_goal_fields_and_sends_current_draft():
