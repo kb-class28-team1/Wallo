@@ -37,6 +37,7 @@ class CategoryAgent:
     """거래 카테고리 분류를 한 번의 LLM 호출로 처리하는 전문 Agent."""
 
     SINGLE_MAX_COMPLETION_TOKENS = 256
+    BATCH_MAX_COMPLETION_TOKENS_PER_ITEM = 128
 
     def __init__(self, client: Groq, model: str | None = None):
         self.client = client
@@ -85,7 +86,7 @@ class CategoryAgent:
         completion = None
         success = False
         requested_completion_tokens = (
-            self.SINGLE_MAX_COMPLETION_TOKENS * len(request.items)
+            self.BATCH_MAX_COMPLETION_TOKENS_PER_ITEM * len(request.items)
         )
         reset_groq_retry_tracking(self.client)
         transactions = json.dumps(
