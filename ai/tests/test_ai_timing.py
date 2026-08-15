@@ -11,6 +11,7 @@ from app.clients.groq_client import Groq
 from app.core.ai_timing import (
     get_groq_retry_count,
     log_groq_completion_timing,
+    request_id_context,
     reset_groq_retry_tracking,
     start_timer,
     timed_groq_completion,
@@ -62,6 +63,37 @@ def test_timed_groq_completion_logs_actual_usage(caplog):
     assert "totalTokens=18" in message
     assert "requestedCompletionTokens=123" in message
     assert "success=True" in message
+
+
+def test_timed_groq_completion_inherits_request_id(caplog):
+    caplog.set_level(logging.INFO, logger="wallo_ai")
+    completion = SimpleNamespace(
+        usage=None,
+        choices=[SimpleNamespace(finish_reason="stop")],
+    )
+
+    class Completions:
+        def create(self, **kwargs):
+            return completion
+
+    client = SimpleNamespace(
+        chat=SimpleNamespace(completions=Completions())
+    )
+
+    with request_id_context("goal-confirm-123"):
+        with timed_groq_completion(
+            client,
+            operation="test.request-id",
+            model="test-model",
+        ) as timing:
+            timing.create(messages=[])
+
+    message = next(
+        record.getMessage()
+        for record in caplog.records
+        if "operation=test.request-id" in record.getMessage()
+    )
+    assert "requestId=goal-confirm-123" in message
 
 
 def test_timed_groq_completion_logs_failure_type_without_raw_error(caplog):

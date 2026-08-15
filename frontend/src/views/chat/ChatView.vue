@@ -29,6 +29,11 @@ const timingNow = () => (
   typeof performance !== "undefined" ? performance.now() : Date.now()
 )
 
+const createRequestId = () => {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID()
+  return `wallo-${Date.now()}-${Math.random().toString(16).slice(2)}`
+}
+
 const logTiming = (event, details = {}) => {
   console.info(`${TIMING_LOG_PREFIX} ${event}`, details)
 }
@@ -259,12 +264,17 @@ const completeTypingMessage = (messageId) => {
   conversationStore.completeMessageAnimation(messageId)
 }
 
-async function sendMessage(message) {
+async function sendMessage(message, requestId = null) {
   if (isChatLoading.value || isGoalSettingStarting.value || !userId.value) return
 
   isMissingGoalConversation.value = false
   errorMessage.value = ""
-  const sendPromise = conversationStore.sendMessage(userId.value, message)
+  const sendPromise = conversationStore.sendMessage(
+    userId.value,
+    message,
+    null,
+    requestId,
+  )
   await scrollToBottom()
   const sent = await sendPromise
   await scrollToBottom()
@@ -311,11 +321,13 @@ const handleAccountSelect = async (accountId) => {
 
 const confirmGoal = async () => {
   const startedAt = timingNow()
-  logTiming("goal.confirm.start")
+  const requestId = createRequestId()
+  logTiming("goal.confirm.start", { requestId })
   resetGoalCompletionFlow()
-  const sent = await sendMessage("이대로 확정할게")
+  const sent = await sendMessage("이대로 확정할게", requestId)
   if (!sent || activeGoalInterview.value?.action !== "CONFIRM") {
     logTiming("goal.confirm.end", {
+      requestId,
       status: sent ? "not_confirmed" : "message_failed",
       elapsedMs: Math.round(timingNow() - startedAt),
     })
@@ -326,6 +338,7 @@ const confirmGoal = async () => {
   if (!goalId) {
     errorMessage.value = "목표 설정 결과를 확인하지 못했습니다."
     logTiming("goal.confirm.end", {
+      requestId,
       status: "goal_not_found",
       elapsedMs: Math.round(timingNow() - startedAt),
     })
@@ -342,6 +355,7 @@ const confirmGoal = async () => {
       isGoalRoadmapReady.value = true
       showGoalCompletionDialogIfReady()
       logTiming("goal.confirm.end", {
+        requestId,
         goalId,
         status: "roadmap_ready",
         elapsedMs: Math.round(timingNow() - startedAt),
@@ -354,6 +368,7 @@ const confirmGoal = async () => {
       ? "목표 설정은 완료되었지만 로드맵 생성에 실패했습니다."
       : "목표 설정 결과를 확인하지 못했습니다."
     logTiming("goal.confirm.end", {
+      requestId,
       goalId,
       status: roadmap?.generationStatus === "FAILED" ? "roadmap_failed" : "roadmap_not_ready",
       elapsedMs: Math.round(timingNow() - startedAt),

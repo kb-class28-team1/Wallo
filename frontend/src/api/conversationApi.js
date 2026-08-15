@@ -1,6 +1,11 @@
 import httpClient from "./httpClient"
 import { getApiErrorMessage } from "@/commonUtils/apiError"
 
+const createRequestId = () => {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID()
+  return `wallo-${Date.now()}-${Math.random().toString(16).slice(2)}`
+}
+
 export const getConversations = async (userId) => {
   try {
     const response = await httpClient.get("/api/conversations", {
@@ -52,17 +57,19 @@ export const sendConversationMessage = async (
   userId,
   message,
   chatMode = null,
+  requestId = null,
 ) => {
   try {
+    const effectiveRequestId = requestId || createRequestId()
     const payload = {
       userId,
       message,
       ...(chatMode ? { chatMode } : {}),
     }
-    const response = await httpClient.post(
-      `/api/conversations/${conversationId}/messages`,
-      payload,
-    )
+    const url = `/api/conversations/${conversationId}/messages`
+    const response = await httpClient.post(url, payload, {
+      headers: { "X-Request-Id": effectiveRequestId },
+    })
     return response.data
   } catch (error) {
     throw new Error(getApiErrorMessage(error, "메시지를 전송하지 못했습니다."))

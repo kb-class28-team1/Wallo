@@ -491,7 +491,7 @@ export const useConversationStore = defineStore("conversation", () => {
     }
   }
 
-  const sendMessage = async (userId, content, chatMode = null) => {
+  const sendMessage = async (userId, content, chatMode = null, requestId = null) => {
     if (isSending.value) {
       return false
     }
@@ -516,7 +516,15 @@ export const useConversationStore = defineStore("conversation", () => {
         createdAt: new Date().toISOString(),
       })
 
-      const response = await sendConversationMessage(conversationId, userId, content, chatMode)
+      const response = requestId
+        ? await sendConversationMessage(
+            conversationId,
+            userId,
+            content,
+            chatMode,
+            requestId,
+          )
+        : await sendConversationMessage(conversationId, userId, content, chatMode)
       if (requestVersion !== sessionVersion) {
         return false
       }

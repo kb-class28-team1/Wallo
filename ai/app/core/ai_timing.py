@@ -1,9 +1,35 @@
 import logging
+from contextlib import contextmanager
+from contextvars import ContextVar
 from time import perf_counter
 from typing import Any
 
 
 LOGGER = logging.getLogger("wallo_ai")
+_REQUEST_ID: ContextVar[str | None] = ContextVar(
+    "wallo_request_id",
+    default=None,
+)
+
+
+def normalize_request_id(request_id: str | None) -> str | None:
+    if not isinstance(request_id, str):
+        return None
+    normalized = request_id.strip()
+    return normalized[:128] or None
+
+
+@contextmanager
+def request_id_context(request_id: str | None):
+    token = _REQUEST_ID.set(normalize_request_id(request_id))
+    try:
+        yield _REQUEST_ID.get()
+    finally:
+        _REQUEST_ID.reset(token)
+
+
+def current_request_id() -> str | None:
+    return _REQUEST_ID.get()
 
 
 class GroqCompletionTimer:
@@ -15,11 +41,17 @@ class GroqCompletionTimer:
         operation: str,
         model: str,
         requested_completion_tokens: int | None = None,
+        request_id: str | None = None,
     ):
         self.client = client
         self.operation = operation
         self.model = model
         self.requested_completion_tokens = requested_completion_tokens
+        self.request_id = (
+            normalize_request_id(request_id)
+            if request_id is not None
+            else current_request_id()
+        )
         self.started_at: float | None = None
         self.completion: Any = None
         self.failure_reason: str | None = None
@@ -40,6 +72,7 @@ class GroqCompletionTimer:
         log_groq_completion_timing(
             operation=self.operation,
             model=self.model,
+            request_id=self.request_id,
             started_at=self.started_at or start_timer(),
             completion=self.completion,
             requested_completion_tokens=self.requested_completion_tokens,
@@ -81,12 +114,14 @@ def timed_groq_completion(
     operation: str,
     model: str,
     requested_completion_tokens: int | None = None,
+    request_id: str | None = None,
 ) -> GroqCompletionTimer:
     return GroqCompletionTimer(
         client,
         operation,
         model,
         requested_completion_tokens,
+        request_id,
     )
 
 
@@ -98,6 +133,7 @@ def log_groq_completion_timing(
     operation: str,
     model: str,
     started_at: float,
+    request_id: str | None = None,
     completion: Any = None,
     requested_completion_tokens: int | None = None,
     retry_count: int | None = None,
@@ -113,12 +149,13 @@ def log_groq_completion_timing(
     first_choice = choices[0] if choices else None
 
     LOGGER.info(
-        "[AI_TIMING] operation=%s model=%s elapsedMs=%d "
+        "[AI_TIMING] operation=%s requestId=%s model=%s elapsedMs=%d "
         "promptTokens=%s completionTokens=%s totalTokens=%s "
         "requestedCompletionTokens=%s finishReason=%s responseReceived=%s "
         "retryCount=%s rateLimited=%s fallbackUsed=%s fallbackReason=%s "
         "failureReason=%s success=%s",
         operation,
+        normalize_request_id(request_id),
         model,
         round((perf_counter() - started_at) * 1000),
         _usage_value(usage, "prompt_tokens"),
