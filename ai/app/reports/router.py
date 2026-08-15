@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException
 from groq import Groq, GroqError
 from pydantic import BaseModel, ValidationError, ValidationInfo, field_validator
 
+from app.core.ai_timing import timed_groq_completion
 from app.reports.prompts import FINANCIAL_REPORT_INSTRUCTIONS, build_report_input
 from app.reports.profile_repository import build_report_profile_context, load_report_profile
 
@@ -159,26 +160,31 @@ def generate_financial_report(client: Groq, request: NewsReportGenerateRequest, 
 
     while True:
         try:
-            response = client.chat.completions.create(
+            with timed_groq_completion(
+                client,
+                operation="report.generate",
                 model=model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": FINANCIAL_REPORT_INSTRUCTIONS,
+                requested_completion_tokens=REPORT_MAX_COMPLETION_TOKENS,
+            ) as timing:
+                response = timing.create(
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": FINANCIAL_REPORT_INSTRUCTIONS,
+                        },
+                        {"role": "user", "content": report_input},
+                    ],
+                    response_format={
+                        "type": "json_schema",
+                        "json_schema": {
+                            "name": "financial_report",
+                            "strict": True,
+                            "schema": FINANCIAL_REPORT_JSON_SCHEMA,
+                        },
                     },
-                    {"role": "user", "content": report_input},
-                ],
-                response_format={
-                    "type": "json_schema",
-                    "json_schema": {
-                        "name": "financial_report",
-                        "strict": True,
-                        "schema": FINANCIAL_REPORT_JSON_SCHEMA,
-                    },
-                },
-                max_completion_tokens=REPORT_MAX_COMPLETION_TOKENS,
-                **reasoning_options,
-            )
+                    max_completion_tokens=REPORT_MAX_COMPLETION_TOKENS,
+                    **reasoning_options,
+                )
             break
         except GroqError as error:
             status_code = getattr(error, "status_code", None)

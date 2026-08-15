@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import httpx
+import pytest
 from groq import Groq as GroqSdk
 
 from app.clients.groq_client import Groq
@@ -12,8 +13,85 @@ from app.core.ai_timing import (
     log_groq_completion_timing,
     reset_groq_retry_tracking,
     start_timer,
+    timed_groq_completion,
     was_groq_rate_limited,
 )
+
+
+def test_timed_groq_completion_logs_actual_usage(caplog):
+    caplog.set_level(logging.INFO, logger="wallo_ai")
+    completion = SimpleNamespace(
+        usage=SimpleNamespace(
+            prompt_tokens=11,
+            completion_tokens=7,
+            total_tokens=18,
+        ),
+        choices=[SimpleNamespace(finish_reason="stop")],
+    )
+    calls = []
+
+    class Completions:
+        def create(self, **kwargs):
+            calls.append(kwargs)
+            return completion
+
+    client = SimpleNamespace(
+        chat=SimpleNamespace(completions=Completions())
+    )
+
+    with timed_groq_completion(
+        client,
+        operation="test.common",
+        model="test-model",
+    ) as timing:
+        result = timing.create(messages=[], max_completion_tokens=123)
+
+    assert result is completion
+    assert calls == [{
+        "model": "test-model",
+        "messages": [],
+        "max_completion_tokens": 123,
+    }]
+    message = next(
+        record.getMessage()
+        for record in caplog.records
+        if "operation=test.common" in record.getMessage()
+    )
+    assert "promptTokens=11" in message
+    assert "completionTokens=7" in message
+    assert "totalTokens=18" in message
+    assert "requestedCompletionTokens=123" in message
+    assert "success=True" in message
+
+
+def test_timed_groq_completion_logs_failure_type_without_raw_error(caplog):
+    caplog.set_level(logging.INFO, logger="wallo_ai")
+    sensitive_error = ValueError("sensitive user financial content")
+
+    class Completions:
+        def create(self, **kwargs):
+            raise sensitive_error
+
+    client = SimpleNamespace(
+        chat=SimpleNamespace(completions=Completions())
+    )
+
+    with pytest.raises(ValueError), timed_groq_completion(
+        client,
+        operation="test.failure",
+        model="test-model",
+        requested_completion_tokens=123,
+    ) as timing:
+        timing.create(messages=[])
+
+    message = next(
+        record.getMessage()
+        for record in caplog.records
+        if "operation=test.failure" in record.getMessage()
+    )
+    assert "failureReason=ValueError" in message
+    assert "success=False" in message
+    assert str(sensitive_error) not in caplog.text
 
 
 def test_timing_log_contains_retry_and_outcome_metadata(caplog):

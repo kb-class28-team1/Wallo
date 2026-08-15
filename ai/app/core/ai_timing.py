@@ -6,6 +6,90 @@ from typing import Any
 LOGGER = logging.getLogger("wallo_ai")
 
 
+class GroqCompletionTimer:
+    """공통 Groq completion 호출·결과 측정 컨텍스트."""
+
+    def __init__(
+        self,
+        client: Any,
+        operation: str,
+        model: str,
+        requested_completion_tokens: int | None = None,
+    ):
+        self.client = client
+        self.operation = operation
+        self.model = model
+        self.requested_completion_tokens = requested_completion_tokens
+        self.started_at: float | None = None
+        self.completion: Any = None
+        self.failure_reason: str | None = None
+        self.fallback_used = False
+        self.fallback_reason: str | None = None
+        self.success = False
+
+    def __enter__(self) -> "GroqCompletionTimer":
+        reset_groq_retry_tracking(self.client)
+        self.started_at = start_timer()
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback) -> bool:
+        if exc_type is not None:
+            self.success = False
+            if self.failure_reason is None:
+                self.failure_reason = exc_type.__name__
+        log_groq_completion_timing(
+            operation=self.operation,
+            model=self.model,
+            started_at=self.started_at or start_timer(),
+            completion=self.completion,
+            requested_completion_tokens=self.requested_completion_tokens,
+            retry_count=get_groq_retry_count(self.client),
+            rate_limited=was_groq_rate_limited(self.client),
+            fallback_used=self.fallback_used,
+            fallback_reason=self.fallback_reason,
+            failure_reason=self.failure_reason,
+            success=self.success,
+        )
+        return False
+
+    def create(self, **request_options: Any) -> Any:
+        """공통 측정 범위 안에서 Groq completion을 한 번 호출한다."""
+        if self.requested_completion_tokens is None:
+            requested = request_options.get("max_completion_tokens")
+            if isinstance(requested, int) and not isinstance(requested, bool):
+                self.requested_completion_tokens = requested
+        try:
+            self.completion = self.client.chat.completions.create(
+                model=self.model,
+                **request_options,
+            )
+            self.success = True
+            return self.completion
+        except Exception as error:
+            self.failure_reason = type(error).__name__
+            raise
+
+    def mark_fallback(self, reason: str) -> None:
+        self.fallback_used = True
+        self.fallback_reason = reason
+        self.success = True
+
+
+def timed_groq_completion(
+    client: Any,
+    *,
+    operation: str,
+    model: str,
+    requested_completion_tokens: int | None = None,
+) -> GroqCompletionTimer:
+    return GroqCompletionTimer(
+        client,
+        operation,
+        model,
+        requested_completion_tokens,
+    )
+
+
 def start_timer() -> float:
     return perf_counter()
 

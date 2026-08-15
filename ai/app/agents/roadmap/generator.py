@@ -1,13 +1,7 @@
 from groq import Groq
 
 from app.agents.roadmap.models import GoalRoadmap, RoadmapGoal
-from app.core.ai_timing import (
-    get_groq_retry_count,
-    log_groq_completion_timing,
-    reset_groq_retry_tracking,
-    start_timer,
-    was_groq_rate_limited,
-)
+from app.core.ai_timing import timed_groq_completion
 from app.core.config import get_groq_model
 
 
@@ -53,14 +47,13 @@ def generate_goal_roadmap(
     resolved_model = model or get_groq_model()
     requested_completion_tokens = ROADMAP_MAX_COMPLETION_TOKENS
     goal_payload = goal.model_dump_json(by_alias=True, exclude_none=True)
-    completion = None
-    response_success = False
-    failure_reason: str | None = None
-    reset_groq_retry_tracking(client)
-    started_at = start_timer()
-    try:
-        completion = client.chat.completions.create(
-            model=resolved_model,
+    with timed_groq_completion(
+        client,
+        operation="goal.roadmap",
+        model=resolved_model,
+        requested_completion_tokens=requested_completion_tokens,
+    ) as timing:
+        completion = timing.create(
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {
@@ -92,21 +85,4 @@ def generate_goal_roadmap(
             for step in roadmap.steps
         ]
         roadmap = roadmap.model_copy(update={"steps": normalized_steps})
-        result = roadmap.validate_for(goal)
-        response_success = True
-        return result
-    except Exception as error:
-        failure_reason = type(error).__name__
-        raise
-    finally:
-        log_groq_completion_timing(
-            operation="goal.roadmap",
-            model=resolved_model,
-            started_at=started_at,
-            completion=completion,
-            requested_completion_tokens=requested_completion_tokens,
-            retry_count=get_groq_retry_count(client),
-            rate_limited=was_groq_rate_limited(client),
-            failure_reason=failure_reason,
-            success=response_success,
-        )
+        return roadmap.validate_for(goal)
