@@ -5,6 +5,7 @@ from unittest.mock import Mock, patch
 
 from app.agents.goal.models import (
     GoalDraft,
+    GoalField,
     GoalInterviewAction,
     GoalPriority,
     GoalType,
@@ -66,6 +67,52 @@ def test_financial_goal_tool_starts_structured_goal_interview():
     assert response.goal_interview.active is True
     assert response.goal_interview.draft.goal_type == GoalType.TRAVEL
     assert response.answer == "유럽 여행 자금을 언제까지 마련하고 싶으세요?"
+    assert client.chat.completions.create.call_count == 2
+
+
+def test_partial_goal_tool_response_continues_with_next_question():
+    client = Mock()
+    routing_call = SimpleNamespace(
+        function=SimpleNamespace(
+            name="set_financial_goal",
+            arguments=json.dumps({"request": "비상금 목표"}),
+        )
+    )
+    extraction_call = SimpleNamespace(
+        function=SimpleNamespace(
+            name="extract_financial_goal",
+            arguments=json.dumps({
+                "title": "비상금 마련",
+                "goal_type": "EMERGENCY_FUND",
+                "target_amount": None,
+                "target_date": None,
+                "motivation": None,
+                "priority": None,
+                "current_amount": None,
+                "assumptions": [],
+                "next_field": "targetAmount",
+                "next_question": "목표 금액을 알려주실 수 있나요?",
+            }, ensure_ascii=False),
+        )
+    )
+    client.chat.completions.create.side_effect = [
+        completion(SimpleNamespace(content=None, tool_calls=[routing_call])),
+        completion(SimpleNamespace(content=None, tool_calls=[extraction_call])),
+    ]
+
+    response = ChatService(client).chat(
+        ChatRequest(message="비상금을 마련하고 싶어"),
+    )
+
+    assert response.goal_interview is not None
+    assert response.goal_interview.active is True
+    assert response.goal_interview.draft.title == "비상금 마련"
+    assert response.goal_interview.draft.missing_fields == [
+        GoalField.TARGET_AMOUNT,
+        GoalField.TARGET_DATE,
+        GoalField.CURRENT_AMOUNT,
+    ]
+    assert response.answer == "목표 금액을 알려주실 수 있나요?"
     assert client.chat.completions.create.call_count == 2
 
 

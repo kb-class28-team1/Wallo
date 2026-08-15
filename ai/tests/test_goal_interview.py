@@ -113,6 +113,58 @@ def test_extractor_parses_structured_goal_fields_and_sends_current_draft():
     assert call is not None
 
 
+def test_goal_tool_schema_allows_null_for_optional_fields():
+    properties = GoalExtractor.TOOL_SCHEMA["function"]["parameters"]["properties"]
+    nullable_fields = {
+        "title",
+        "goal_type",
+        "target_amount",
+        "target_date",
+        "motivation",
+        "priority",
+        "current_amount",
+        "next_field",
+        "next_question",
+    }
+
+    for field in nullable_fields:
+        schema = properties[field]
+        assert {"type": "null"} in schema["anyOf"]
+
+
+def test_extractor_accepts_partial_goal_with_null_optional_fields():
+    client = SimpleNamespace(
+        chat=SimpleNamespace(
+            completions=SimpleNamespace(
+                create=lambda **kwargs: tool_completion(json.dumps({
+                    "title": "비상금 마련",
+                    "goal_type": "EMERGENCY_FUND",
+                    "target_amount": None,
+                    "target_date": None,
+                    "motivation": None,
+                    "priority": None,
+                    "current_amount": None,
+                    "assumptions": [],
+                    "next_field": "targetAmount",
+                    "next_question": "목표 금액을 알려주실 수 있나요?",
+                }, ensure_ascii=False))
+            )
+        )
+    )
+
+    result = GoalExtractor(client).extract(
+        "비상금을 마련하고 싶어",
+        GoalDraft(),
+        date(2026, 8, 6),
+    )
+
+    assert result.title == "비상금 마련"
+    assert result.goal_type == GoalType.EMERGENCY_FUND
+    assert result.target_amount is None
+    assert result.next_field == GoalField.TARGET_AMOUNT
+    assert result.next_question == "목표 금액을 알려주실 수 있나요?"
+
+
 def test_extractor_uses_explicit_facts_when_model_response_is_invalid():
     client = SimpleNamespace(
         chat=SimpleNamespace(

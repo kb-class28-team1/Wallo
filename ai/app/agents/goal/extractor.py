@@ -26,6 +26,11 @@ class GoalExtractionError(ValueError):
     """목표 정보 추출 응답이 계약을 만족하지 않을 때 발생한다."""
 
 
+def nullable_schema(schema: dict[str, object]) -> dict[str, object]:
+    """Groq Tool Schema에서 값이 아직 정해지지 않은 필드를 표현한다."""
+    return {"anyOf": [schema, {"type": "null"}]}
+
+
 class GoalExtractor:
     TOOL_NAME = "extract_financial_goal"
     TOOL_SCHEMA = {
@@ -36,35 +41,44 @@ class GoalExtractor:
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "title": {"type": "string"},
-                    "goal_type": {
+                    "title": nullable_schema({"type": "string"}),
+                    "goal_type": nullable_schema({
                         "type": "string",
                         "enum": [
                             "EMERGENCY_FUND", "TRAVEL", "HOUSING",
                             "EDUCATION", "MARRIAGE", "DEBT_REPAYMENT",
                             "INVESTMENT", "RETIREMENT", "PURCHASE", "OTHER",
                         ],
-                    },
-                    "target_amount": {"type": "integer", "minimum": 1},
-                    "target_date": {"type": "string", "format": "date"},
-                    "motivation": {"type": "string"},
-                    "priority": {
+                    }),
+                    "target_amount": nullable_schema({
+                        "type": "integer",
+                        "minimum": 1,
+                    }),
+                    "target_date": nullable_schema({
+                        "type": "string",
+                        "format": "date",
+                    }),
+                    "motivation": nullable_schema({"type": "string"}),
+                    "priority": nullable_schema({
                         "type": "string",
                         "enum": ["LOW", "MEDIUM", "HIGH"],
-                    },
-                    "current_amount": {"type": "integer", "minimum": 0},
+                    }),
+                    "current_amount": nullable_schema({
+                        "type": "integer",
+                        "minimum": 0,
+                    }),
                     "assumptions": {
                         "type": "array",
                         "items": {"type": "string"},
                     },
-                    "next_field": {
+                    "next_field": nullable_schema({
                         "type": "string",
                         "enum": [
                             "goalType", "targetAmount", "targetDate",
                             "currentAmount",
                         ],
-                    },
-                    "next_question": {"type": "string"},
+                    }),
+                    "next_question": nullable_schema({"type": "string"}),
                 },
                 "additionalProperties": False,
             },
