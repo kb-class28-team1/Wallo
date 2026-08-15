@@ -1,3 +1,4 @@
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -90,6 +91,34 @@ def test_classify_batch_calls_llm_once_for_all_items():
     assert client.chat.completions.calls[0]["messages"][1]["content"].count(
         "unknown"
     ) == 2
+
+
+def test_classify_batch_wraps_top_level_array_response():
+    client = FakeGroqClient(json.dumps([
+        {"category": "LIVING", "confidence": 0.86},
+        {"category": "FOOD", "confidence": 0.91},
+    ]))
+    agent = CategoryAgent(client, model="test-model")
+
+    result = agent.classify_batch(
+        CategoryClassificationBatchRequest(
+            items=[
+                CategoryClassificationRequest(
+                    merchantName="unknown one",
+                    merchantSector=None,
+                    amount=12000,
+                ),
+                CategoryClassificationRequest(
+                    merchantName="unknown two",
+                    merchantSector="restaurant",
+                    amount=18000,
+                ),
+            ]
+        )
+    )
+
+    assert [item.category for item in result.results] == ["LIVING", "FOOD"]
+    assert [item.confidence for item in result.results] == [0.86, 0.91]
 
 
 def test_classify_batch_rejects_invalid_result_count():

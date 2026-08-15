@@ -69,7 +69,11 @@ class CategoryAgent:
                 self.SINGLE_MAX_COMPLETION_TOKENS * len(request.items)
             ),
         )
-        parsed = self._parse_response(response, CategoryClassificationBatchResponse)
+        parsed = self._parse_response(
+            response,
+            CategoryClassificationBatchResponse,
+            wrap_batch_array=True,
+        )
 
         if len(parsed.results) != len(request.items):
             error = ValueError("Groq category batch response has an invalid result count")
@@ -119,7 +123,12 @@ class CategoryAgent:
         return {"type": "json_object"}
 
     @staticmethod
-    def _parse_response(response, response_model: type[BaseModel]):
+    def _parse_response(
+        response,
+        response_model: type[BaseModel],
+        *,
+        wrap_batch_array: bool = False,
+    ):
         try:
             if not response.choices:
                 raise ValueError("Groq category response has no choices")
@@ -128,7 +137,10 @@ class CategoryAgent:
             if not content:
                 raise ValueError("Groq category response has no content")
 
-            return response_model.model_validate_json(content)
+            payload = json.loads(content)
+            if wrap_batch_array and isinstance(payload, list):
+                payload = {"results": payload}
+            return response_model.model_validate(payload)
         except (
             json.JSONDecodeError,
             ValidationError,
