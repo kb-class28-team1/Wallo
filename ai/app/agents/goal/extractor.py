@@ -137,8 +137,15 @@ class GoalExtractor:
                 tool_calls = completion.choices[0].message.tool_calls
                 if not tool_calls:
                     raise ValueError("목표 추출 도구 호출이 없습니다.")
+                tool_call = tool_calls[0]
+                function = getattr(tool_call, "function", None)
+                tool_name = getattr(function, "name", None)
+                if tool_name != self.TOOL_NAME:
+                    raise ValueError(
+                        f"허용되지 않은 목표 추출 도구 호출입니다: {tool_name!r}"
+                    )
                 extraction = GoalExtraction.model_validate_json(
-                    tool_calls[0].function.arguments
+                    function.arguments
                 )
                 response_success = True
             except RateLimitError as error:
@@ -148,11 +155,17 @@ class GoalExtractor:
             except BadRequestError as error:
                 last_error = error
                 fallback_reason = "bad_request"
-                logger.warning("goal tool extraction rejected; using fallback: %s", error)
+                logger.warning(
+                    "goal tool extraction rejected; using fallback: errorType=%s",
+                    type(error).__name__,
+                )
             except (AttributeError, IndexError, TypeError, ValueError, ValidationError) as error:
                 last_error = error
                 fallback_reason = type(error).__name__
-                logger.warning("goal tool extraction failed; using fallback: %s", error)
+                logger.warning(
+                    "goal tool extraction failed; using fallback: errorType=%s",
+                    type(error).__name__,
+                )
 
             if extraction is None:
                 fallback = extract_explicit_goal_facts(user_message, reference_date)

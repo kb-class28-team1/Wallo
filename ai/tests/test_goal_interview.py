@@ -1,6 +1,7 @@
 """목표 정보 추출, 꼬리질문, 자산 개인화 및 월 필요액 계산 테스트."""
 
 import json
+import logging
 from datetime import date
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -44,13 +45,22 @@ class StubExtractor:
         return self.extraction
 
 
-def tool_completion(arguments):
+def tool_completion(arguments, name="extract_financial_goal"):
     return SimpleNamespace(
         choices=[SimpleNamespace(message=SimpleNamespace(
             content=None,
             tool_calls=[SimpleNamespace(
-                function=SimpleNamespace(arguments=arguments),
+                function=SimpleNamespace(name=name, arguments=arguments),
             )],
+        ))],
+    )
+
+
+def no_tool_completion():
+    return SimpleNamespace(
+        choices=[SimpleNamespace(message=SimpleNamespace(
+            content='{"title":"비상금 마련"}',
+            tool_calls=[],
         ))],
     )
 
@@ -191,24 +201,26 @@ def test_extractor_uses_explicit_facts_when_model_response_is_invalid():
     assert result.goal_type == GoalType.TRAVEL
 
 
-def test_extractor_uses_fallback_without_repeating_failed_provider_call():
+def test_extractor_uses_fallback_without_repeating_failed_provider_call(caplog):
     client = Mock()
     response = httpx.Response(
         400,
         request=httpx.Request("POST", "https://api.groq.com/openai/v1/chat/completions"),
     )
+    sensitive_error_text = "사용자 목표 금액 1300만 원 원문"
     json_error = BadRequestError(
-        "Failed to validate JSON",
+        sensitive_error_text,
         response=response,
-        body={"error": {"code": "json_validate_failed"}},
+        body={"error": {"code": "json_validate_failed", "message": sensitive_error_text}},
     )
     client.chat.completions.create.side_effect = json_error
 
-    result = GoalExtractor(client).extract(
-        "1300만 원 정도 필요해",
-        GoalDraft(title="유럽 여행 자금", goal_type=GoalType.TRAVEL),
-        date(2026, 8, 6),
-    )
+    with caplog.at_level(logging.WARNING, logger="wallo_ai"):
+        result = GoalExtractor(client).extract(
+            "1300만 원 정도 필요해",
+            GoalDraft(title="유럽 여행 자금", goal_type=GoalType.TRAVEL),
+            date(2026, 8, 6),
+        )
 
     assert result.target_amount == 13_000_000
     assert client.chat.completions.create.call_count == 1
@@ -218,6 +230,46 @@ def test_extractor_uses_fallback_without_repeating_failed_provider_call():
         "type": "function",
         "function": {"name": "extract_financial_goal"},
     }
+    assert sensitive_error_text not in caplog.text
+    assert "BadRequestError" in caplog.text
+
+
+def test_extractor_falls_back_when_model_returns_an_unregistered_tool():
+    client = SimpleNamespace(
+        chat=SimpleNamespace(
+            completions=SimpleNamespace(
+                create=lambda **kwargs: tool_completion(
+                    '{"target_amount":13000000}',
+                    name="json",
+                )
+            )
+        )
+    )
+
+    result = GoalExtractor(client).extract(
+        "1300만 원 정도 필요해",
+        GoalDraft(title="유럽 여행 자금", goal_type=GoalType.TRAVEL),
+        date(2026, 8, 6),
+    )
+
+    assert result.target_amount == 13_000_000
+
+
+def test_extractor_falls_back_when_model_does_not_call_a_tool():
+    client = SimpleNamespace(
+        chat=SimpleNamespace(
+            completions=SimpleNamespace(create=lambda **kwargs: no_tool_completion())
+        )
+    )
+
+    result = GoalExtractor(client).extract(
+        "비상금 1000만 원이 필요해",
+        GoalDraft(),
+        date(2026, 8, 6),
+    )
+
+    assert result.goal_type == GoalType.EMERGENCY_FUND
+    assert result.target_amount == 10_000_000
 
 
 def test_emergency_goal_gets_default_title_and_skips_redundant_title_question():
