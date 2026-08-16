@@ -1,6 +1,7 @@
 from groq import Groq
 
 from app.agents.roadmap.models import GoalRoadmap, RoadmapGoal
+from app.core.ai_timing import log_groq_completion_timing, start_timer
 from app.core.config import get_groq_model
 
 
@@ -37,23 +38,36 @@ TOOL_SCHEMA = {
 
 
 def generate_goal_roadmap(client: Groq, goal: RoadmapGoal, model: str | None = None) -> GoalRoadmap:
-    completion = client.chat.completions.create(
-        model=model or get_groq_model(),
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {
-                "role": "user",
-                "content": "다음 확정 목표의 로드맵을 생성하세요.\n"
-                + goal.model_dump_json(by_alias=True),
-            },
-        ],
-        tools=[TOOL_SCHEMA],
-        tool_choice={"type": "function", "function": {"name": TOOL_NAME}},
-        temperature=0,
-        reasoning_effort="low",
-        include_reasoning=False,
-        max_completion_tokens=4000,
-    )
+    resolved_model = model or get_groq_model()
+    requested_completion_tokens = 4000
+    completion = None
+    started_at = start_timer()
+    try:
+        completion = client.chat.completions.create(
+            model=resolved_model,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {
+                    "role": "user",
+                    "content": "다음 확정 목표의 로드맵을 생성하세요.\n"
+                    + goal.model_dump_json(by_alias=True),
+                },
+            ],
+            tools=[TOOL_SCHEMA],
+            tool_choice={"type": "function", "function": {"name": TOOL_NAME}},
+            temperature=0,
+            reasoning_effort="low",
+            include_reasoning=False,
+            max_completion_tokens=requested_completion_tokens,
+        )
+    finally:
+        log_groq_completion_timing(
+            operation="goal.roadmap",
+            model=resolved_model,
+            started_at=started_at,
+            completion=completion,
+            requested_completion_tokens=requested_completion_tokens,
+        )
     tool_calls = completion.choices[0].message.tool_calls
     if not tool_calls:
         raise ValueError("AI가 로드맵 도구 응답을 반환하지 않았습니다.")

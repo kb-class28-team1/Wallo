@@ -19,12 +19,33 @@ const props = defineProps({
     type: String,
     default: null,
   },
+  availableAccounts: {
+    type: Array,
+    default: () => [],
+  },
+  accountsLoading: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const emit = defineEmits(["retry"]);
 const selectedGoalIndex = ref(0);
 
 const selectedGoal = computed(() => props.goals[selectedGoalIndex.value] ?? null);
+const selectedAccount = computed(() => (
+  props.availableAccounts.find((account) => account.selected) ?? null
+));
+const accountSettingsLink = computed(() => {
+  if (!props.goals.length) {
+    return "/chat?start=goal-setting";
+  }
+
+  const conversationId = selectedGoal.value?.conversationId;
+  return conversationId
+    ? `/chat?conversationId=${encodeURIComponent(conversationId)}`
+    : "/chat";
+});
 
 watch(
   () => props.goals.length,
@@ -84,8 +105,11 @@ const formatGoalDate = (date) => {
           </h2>
         </div>
 
-        <RouterLink to="/chat" class="btn dashboard-action-button flex-shrink-0 ms-auto">
-          채팅에서 계좌 설정
+        <RouterLink
+          :to="accountSettingsLink"
+          class="btn dashboard-action-button flex-shrink-0 ms-auto"
+        >
+          {{ goals.length > 0 ? "계좌 설정" : "목표 설정하기" }}
           <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
         </RouterLink>
       </div>
@@ -152,6 +176,24 @@ const formatGoalDate = (date) => {
               <dd>{{ formatWon(selectedGoal.requiredMonthlyAmount) }}</dd>
             </div>
           </dl>
+
+          <div class="goal-account-summary" aria-label="설정된 계좌">
+            <div class="goal-account-label">설정된 계좌</div>
+            <div v-if="accountsLoading" class="small text-secondary" role="status">
+              <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
+              계좌 정보를 불러오는 중입니다.
+            </div>
+            <div v-else-if="selectedAccount" class="goal-account-value">
+              <strong>{{ selectedAccount.bankName || "연결 계좌" }}</strong>
+              <span>
+                {{ selectedAccount.accountName || "계좌" }}
+                <template v-if="selectedAccount.displayNumber">
+                  · {{ selectedAccount.displayNumber }}
+                </template>
+              </span>
+            </div>
+            <span v-else class="small text-secondary">설정된 계좌가 없습니다.</span>
+          </div>
 
           <div v-if="goals.length > 1" class="goal-carousel-footer">
             <div class="goal-carousel-controls" aria-label="목표 선택">
@@ -306,6 +348,29 @@ const formatGoalDate = (date) => {
 
 .goal-progress-summary {
   margin-bottom: 2rem !important;
+}
+
+.goal-account-summary {
+  margin-top: 1.5rem;
+}
+
+.goal-account-label {
+  margin-bottom: 0.35rem;
+  color: #6c757d;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.goal-account-value {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  color: #111111;
+}
+
+.goal-account-value span {
+  color: #6c757d;
+  font-size: 0.875rem;
 }
 
 .goal-progress-amount {

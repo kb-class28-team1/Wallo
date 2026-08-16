@@ -27,6 +27,7 @@ describe("GoalSummaryCard", () => {
             initialAmount: 3250000,
             currentAmount: 3250000,
             achievementRate: 65,
+            conversationId: 11,
             requiredMonthlyAmount: 500000,
             status: "ACTIVE",
           },
@@ -36,8 +37,9 @@ describe("GoalSummaryCard", () => {
 
     expect(wrapper.text()).toContain("Emergency fund");
     expect(wrapper.find("h2").text()).toBe("Emergency fund");
-    expect(wrapper.text()).toContain("채팅에서 계좌 설정");
-    expect(wrapper.find("a").attributes("data-to")).toBe("/chat");
+    expect(wrapper.text()).toContain("계좌 설정");
+    expect(wrapper.text()).not.toContain("채팅에서 계좌 설정");
+    expect(wrapper.find("a").attributes("data-to")).toBe("/chat?conversationId=11");
     expect(wrapper.find(".goal-account-selection").exists()).toBe(false);
     expect(wrapper.text()).not.toContain("확정된 목표");
     expect(wrapper.text()).not.toContain("금융 목표");
@@ -46,6 +48,7 @@ describe("GoalSummaryCard", () => {
     expect(wrapper.text()).toContain("65%");
     expect(wrapper.text()).toContain("목표 설정 당시 준비금 기준");
     expect(wrapper.text()).toContain("월 필요 납입액");
+    expect(wrapper.text()).toContain("설정된 계좌가 없습니다.");
     expect(wrapper.text()).not.toContain("진행 중");
     expect(wrapper.find(".goal-progress-bar").attributes("style")).toContain("width: 65%");
     expect(wrapper.find(".goal-carousel-controls").exists()).toBe(false);
@@ -105,7 +108,47 @@ describe("GoalSummaryCard", () => {
     });
 
     expect(wrapper.text()).toContain("아직 확정된 금융 목표가 없습니다.");
+    expect(wrapper.text()).toContain("목표 설정하기");
+    expect(wrapper.text()).not.toContain("채팅에서 계좌 설정");
+    expect(wrapper.find("a").attributes("data-to")).toBe(
+      "/chat?start=goal-setting",
+    );
     expect(wrapper.find(".goal-state").exists()).toBe(true);
+  });
+
+  it("shows the selected account without exposing an edit control", () => {
+    const wrapper = mount(GoalSummaryCard, {
+      ...globalOptions,
+      props: {
+        goals: [
+          {
+            goalId: 1,
+            title: "Emergency fund",
+            targetAmount: 5000000,
+            targetDate: "2027-11-30",
+            initialAmount: 3250000,
+            currentAmount: 3250000,
+            requiredMonthlyAmount: 500000,
+            status: "ACTIVE",
+          },
+        ],
+        availableAccounts: [
+          {
+            accountId: 101,
+            bankName: "Wallo Bank",
+            accountName: "생활비 통장",
+            displayNumber: "1234-****-7890",
+            selected: true,
+          },
+        ],
+      },
+    });
+
+    expect(wrapper.find(".goal-account-summary").text()).toContain("설정된 계좌");
+    expect(wrapper.find(".goal-account-summary").text()).toContain("Wallo Bank");
+    expect(wrapper.find(".goal-account-summary").text()).toContain("생활비 통장");
+    expect(wrapper.find(".goal-account-summary").text()).toContain("1234-****-7890");
+    expect(wrapper.find(".goal-account-summary button").exists()).toBe(false);
   });
 
   it("shows the error state and emits retry", async () => {

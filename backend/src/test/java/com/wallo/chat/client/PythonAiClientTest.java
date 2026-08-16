@@ -52,6 +52,7 @@ class PythonAiClientTest {
                             .getBodyAsString(StandardCharsets.UTF_8);
                     assertTrue(body.contains("\"targetDate\":\"2027-02-06\""));
                     assertTrue(body.contains("\"goalAlreadyExists\":true"));
+                    assertTrue(body.contains("\"chatMode\":\"GOAL_SETTING\""));
                     assertFalse(body.contains("\"targetDate\":[2027,2,6]"));
                 })
                 .andRespond(withSuccess("{\"answer\":\"다음 질문\"}", MediaType.APPLICATION_JSON));
@@ -64,6 +65,7 @@ class PythonAiClientTest {
                 new ChatRequest("11월까지 프랑스 여행 자금을 모으고 싶어")
                         .withGoalDraft(draft())
                         .withGoalAlreadyExists(true)
+                        .withChatMode("GOAL_SETTING")
         );
 
         assertEquals("다음 질문", response.answer());

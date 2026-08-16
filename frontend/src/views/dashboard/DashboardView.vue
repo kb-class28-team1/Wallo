@@ -9,9 +9,11 @@ import GoalSummaryCard from "@/components/dashboard/GoalSummaryCard.vue";
 import { useDashboardCharts } from "@/features/financial/useDashboardCharts";
 import { useDashboardStore } from "@/stores/useDashboardStore";
 import { useGoalStore } from "@/stores/goalStore";
+import { useUserStore } from "@/stores/userStore";
 
 const dashboardStore = useDashboardStore();
 const goalStore = useGoalStore();
+const userStore = useUserStore();
 const router = useRouter();
 const {
   initialLoading,
@@ -26,12 +28,16 @@ const {
   initialLoading: isGoalInitialLoading,
   refreshing: isGoalRefreshing,
   error: goalError,
+  availableAccounts,
+  isAccountLoading,
 } = storeToRefs(goalStore);
+const { user } = storeToRefs(userStore);
 const { assetTrendChartData, expenseChartData } = useDashboardCharts(assets, expenses);
 
 const GOAL_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 const isDashboardReady = ref(false);
 const hadDashboardDataBeforeLoad = ref(false);
+const userId = computed(() => user.value?.id ?? null);
 let goalRefreshTimer = null;
 let goalRefreshInFlight = null;
 
@@ -65,7 +71,11 @@ const handleBudgetSettings = async () => {
 };
 
 const handleGoalRetry = () => {
-  goalStore.fetchGoals({ force: true, syncAccounts: false });
+  goalStore.fetchGoals({
+    userId: userId.value,
+    force: true,
+    syncAccounts: false,
+  });
 };
 
 const refreshGoalData = ({ refreshDashboard = false } = {}) => {
@@ -75,17 +85,26 @@ const refreshGoalData = ({ refreshDashboard = false } = {}) => {
 
   goalRefreshInFlight = (async () => {
     const goalRequest = goalStore.fetchGoals({
+      userId: userId.value,
       notifyError: false,
       syncAccounts: false,
     });
+    const accountRequest = goalRequest.then((loadedGoals) => {
+      if (!loadedGoals.length) {
+        return [];
+      }
+
+      return goalStore.fetchAvailableAccounts({ notifyError: false });
+    });
+
     if (refreshDashboard) {
       await Promise.all([
-        goalRequest,
+        accountRequest,
         dashboardStore.fetchDashboardSummary(),
       ]);
       return;
     }
-    await goalRequest;
+    await accountRequest;
   })().finally(() => {
     goalRefreshInFlight = null;
   });
@@ -175,6 +194,8 @@ onBeforeUnmount(() => {
           :goals="goals"
           :loading="isGoalInitialLoading"
           :error="goalError"
+          :available-accounts="availableAccounts"
+          :accounts-loading="isAccountLoading"
           @retry="handleGoalRetry"
         />
       </div>

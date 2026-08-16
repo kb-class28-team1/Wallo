@@ -15,6 +15,7 @@ from app.chat.title_service import generate_conversation_title
 
 
 logger = logging.getLogger("wallo_ai")
+GOAL_SETTING_MODE = "GOAL_SETTING"
 
 
 class ChatService:
@@ -27,6 +28,12 @@ class ChatService:
         asset_analysis = None
         if request.goal_draft is not None:
             answer, goal_interview = self._continue_goal_interview(request)
+        elif self._is_goal_setting_mode(request.chat_mode):
+            if request.goal_already_exists:
+                answer = self._existing_goal_message()
+                goal_interview = None
+            else:
+                answer, goal_interview = self._run_goal_agent(request, None)
         else:
             normalized_message = self._normalize_message(request.message)
             if self._is_confirmation(normalized_message):
@@ -164,6 +171,9 @@ class ChatService:
 
     def _normalize_message(self, message: str) -> str:
         return re.sub(r"[\s.!?~]+", "", message).lower()
+
+    def _is_goal_setting_mode(self, chat_mode: str | None) -> bool:
+        return (chat_mode or "").strip().upper() == GOAL_SETTING_MODE
 
     def _is_cancellation(self, normalized_message: str) -> bool:
         return "취소" in normalized_message or normalized_message in {"그만", "그만할래"}

@@ -149,6 +149,25 @@ class ConversationMessageServiceTest {
     }
 
     @Test
+    void firstGoalSettingUsesFixedTitleAndPassesGoalMode() {
+        SendConversationMessageRequest request = request(1L, "목표를 설정하고 싶어요");
+        ChatRequest expectedRequest = new ChatRequest(request.getMessage(), false)
+                .withChatMode("GOAL_SETTING");
+        when(persistenceService.hasNoMessages(1L)).thenReturn(true);
+        when(persistenceService.saveMessage(1L, "USER", request.getMessage()))
+                .thenReturn(message(1L, "USER", request.getMessage()));
+        when(chatService.chat(expectedRequest, 1L))
+                .thenReturn(new ChatResponse("목표 설정을 시작할게요.", "AI가 만든 제목"));
+        when(persistenceService.saveMessage(1L, "ASSISTANT", "목표 설정을 시작할게요."))
+                .thenReturn(message(2L, "ASSISTANT", "목표 설정을 시작할게요."));
+
+        conversationMessageService.sendMessage(1L, 1L, request);
+
+        verify(chatService).chat(expectedRequest, 1L);
+        verify(conversationService).updateAfterUserMessage(1L, "목표 설정");
+    }
+
+    @Test
     void sendMessageIncludesStoredConversationHistory() {
         SendConversationMessageRequest request = request(1L, "그중 두 번째는?");
         ChatMessage previousUser = message(1L, "USER", "방법 세 가지를 알려줘");

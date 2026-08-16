@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from "vue"
 import { useRouter } from "vue-router"
 import { storeToRefs } from "pinia"
 import { useGoalStore } from "@/stores/goalStore"
+import { useUserStore } from "@/stores/userStore"
 import { formatWon } from "@/commonUtils/formatters"
 import {
   getGoalAchievementRate,
@@ -12,6 +13,7 @@ import {
 
 const router = useRouter()
 const goalStore = useGoalStore()
+const userStore = useUserStore()
 const {
   goals,
   initialLoading,
@@ -22,11 +24,13 @@ const {
   roadmapError,
   isRoadmapProgressSaving,
 } = storeToRefs(goalStore)
+const { user } = storeToRefs(userStore)
 
 const walloCharacter = "/images/profiles/thinking-penguin.svg"
 const hasGoal = computed(() => goals.value.length > 0)
 const currentGoal = computed(() => goals.value[0] ?? null)
 const roadmapSlider = ref(null)
+const userId = computed(() => user.value?.id ?? null)
 
 const currentAmount = computed(() => getGoalCurrentAmount(currentGoal.value))
 const targetAmount = computed(() => getGoalTargetAmount(currentGoal.value))
@@ -142,16 +146,24 @@ const benefits = [
 const loadGoalPage = async ({ force = false } = {}) => {
   error.value = null
   await goalStore.fetchGoals({
+    userId: userId.value,
     notifyError: false,
     force,
   })
 }
 
 const startGoalSetting = async () => {
+  await router.push({
+    name: "chat",
+    query: { start: "goal-setting" },
+  })
+}
+
+const startAiChat = async () => {
   await router.push({ name: "chat" })
 }
 
-onMounted(loadGoalPage)
+onMounted(() => loadGoalPage({ force: true }))
 </script>
 
 <template>
@@ -309,7 +321,7 @@ onMounted(loadGoalPage)
                 <h2 class="section-title h5 fw-bold">나의 목표</h2>
                 <div class="goal-heading-actions d-flex align-items-center gap-2">
                   <span class="goal-status-badge">진행 중</span>
-                  <button type="button" class="btn goal-chat-button" @click="startGoalSetting">
+                  <button type="button" class="btn goal-chat-button" @click="startAiChat">
                     <i class="bi bi-chat-dots me-1" aria-hidden="true"></i>
                     AI와 상담하기
                     <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>

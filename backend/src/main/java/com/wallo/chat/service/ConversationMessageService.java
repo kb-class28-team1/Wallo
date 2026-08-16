@@ -25,13 +25,17 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
+import java.util.logging.Logger;
 
 @Service
 public class ConversationMessageService {
+    private static final Logger LOGGER = Logger.getLogger(ConversationMessageService.class.getName());
     private static final int MAX_CONTEXT_MESSAGES = 20;
     private static final String USER_ROLE = "USER";
     private static final String ASSISTANT_ROLE = "ASSISTANT";
     private static final String CONSUMPTION_ANALYSIS_TITLE = "소비 분석";
+    private static final String GOAL_SETTING_MODE = "GOAL_SETTING";
+    private static final String GOAL_SETTING_TITLE = "목표 설정";
 
     private final ConversationService conversationService;
     private final ChatMessagePersistenceService persistenceService;
@@ -167,9 +171,12 @@ public class ConversationMessageService {
                 conversationId,
                 currentUserId
         );
+        long requestStartedAt = System.nanoTime();
         boolean isFirstMessage = persistenceService.hasNoMessages(conversationId);
 
         String content = request.getMessage().trim();
+        boolean goalSettingRequest = isGoalSettingRequest(content, request.getChatMode());
+        String chatMode = goalSettingRequest ? GOAL_SETTING_MODE : request.getChatMode();
         Conversation memory = conversationService.getConversationMemory(
                 conversationId, currentUserId);
         List<ChatMessage> storedMessages = persistenceService.getMessages(conversationId);
@@ -180,7 +187,13 @@ public class ConversationMessageService {
                                 .map(ChatMessage::getMessageId)
                                 .toList()
                 );
+        long summaryStartedAt = System.nanoTime();
         String summary = refreshSummary(conversationId, memory, storedMessages);
+        LOGGER.info(String.format(
+                "[WALLO_TIMING] conversation.summary conversationId=%d elapsedMs=%d",
+                conversationId,
+                elapsedMillis(summaryStartedAt)
+        ));
         List<ChatHistoryMessage> history = buildRecentHistory(storedMessages);
         GoalInterviewDto.Draft goalDraft = goalPersistenceService.getActiveDraft(
                 currentUserId,
@@ -196,23 +209,37 @@ public class ConversationMessageService {
                 content
         );
         boolean consumptionAnalysisRequest = isConsumptionAnalysisRequest(content);
+        long chatStartedAt = System.nanoTime();
         ChatResponse aiResponse = chatService.chat(
                 new ChatRequest(
                         content,
-                        isFirstMessage && !consumptionAnalysisRequest,
+                        isFirstMessage && !consumptionAnalysisRequest && !goalSettingRequest,
                         summary,
                         history
                 )
+                        .withChatMode(chatMode)
                         .withGoalDraft(goalDraft)
                         .withGoalAlreadyExists(goalAlreadyExists)
                         .withPreviousConsumptionPeriod(previousConsumptionPeriod),
                 currentUserId
         );
+        LOGGER.info(String.format(
+                "[WALLO_TIMING] conversation.chat conversationId=%d elapsedMs=%d",
+                conversationId,
+                elapsedMillis(chatStartedAt)
+        ));
+        long goalPersistenceStartedAt = System.nanoTime();
         GoalInterviewDto.Result persistedGoalInterview = goalPersistenceService.applyResult(
                 currentUserId,
                 conversationId,
                 aiResponse.goalInterview()
         );
+        LOGGER.info(String.format(
+                "[WALLO_TIMING] conversation.goalPersistence conversationId=%d elapsedMs=%d action=%s",
+                conversationId,
+                elapsedMillis(goalPersistenceStartedAt),
+                aiResponse.goalInterview() == null ? null : aiResponse.goalInterview().getAction()
+        ));
         ChatMessage assistantMessage = persistenceService.saveMessage(
                 conversationId,
                 ASSISTANT_ROLE,
@@ -249,6 +276,8 @@ public class ConversationMessageService {
             String title;
             if (consumptionAnalysisRequest) {
                 title = CONSUMPTION_ANALYSIS_TITLE;
+            } else if (goalSettingRequest) {
+                title = GOAL_SETTING_TITLE;
             } else {
                 title = aiResponse.title() == null
                         || aiResponse.title().isBlank()
@@ -259,6 +288,14 @@ public class ConversationMessageService {
         } else {
             conversationService.touch(conversationId);
         }
+
+        LOGGER.info(String.format(
+                "[WALLO_TIMING] conversation.total conversationId=%d userId=%d elapsedMs=%d goalSetting=%s",
+                conversationId,
+                currentUserId,
+                elapsedMillis(requestStartedAt),
+                goalSettingRequest
+        ));
 
         return new SendConversationMessageResponse(
                 ChatMessageResponse.from(userMessage),
@@ -272,10 +309,25 @@ public class ConversationMessageService {
         );
     }
 
+    private long elapsedMillis(long startedAt) {
+        return (System.nanoTime() - startedAt) / 1_000_000;
+    }
+
     private boolean isConsumptionAnalysisRequest(String message) {
         String normalized = message.toLowerCase(Locale.ROOT).replaceAll("\\s+", "");
         return normalized.contains("소비분석")
                 || (normalized.contains("소비") && normalized.contains("분석"));
+    }
+
+    private boolean isGoalSettingRequest(String message, String chatMode) {
+        if (GOAL_SETTING_MODE.equalsIgnoreCase(chatMode)) {
+            return true;
+        }
+
+        String normalized = message.toLowerCase(Locale.ROOT)
+                .replaceAll("\\s+", "")
+                .replaceAll("[.!?~]+", "");
+        return "목표를설정하고싶어요".equals(normalized);
     }
 
     private String refreshSummary(

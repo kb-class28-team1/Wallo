@@ -1,9 +1,11 @@
 import { createPinia, setActivePinia } from "pinia"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
+  createConversation,
   getActiveGoalInterview,
   getConversationMessages,
   getConversations,
+  sendConversationMessage,
 } from "@/api/conversationApi"
 import { useConversationStore } from "./conversationStore"
 
@@ -21,9 +23,7 @@ vi.mock("@/api/goalApi", () => ({
   getGoalByConversationId: vi.fn(),
 }))
 
-const conversations = [
-  { conversationId: 11, title: "첫 상담" },
-]
+const conversations = [{ conversationId: 11, title: "첫 상담" }]
 
 const messages = [
   {
@@ -90,5 +90,76 @@ describe("conversationStore", () => {
 
     expect(getConversationMessages).toHaveBeenCalledTimes(2)
     expect(getActiveGoalInterview).toHaveBeenCalledTimes(2)
+  })
+
+  it("clears conversation and message state when the session is reset", async () => {
+    const store = useConversationStore()
+
+    await store.fetchConversations(7)
+    await store.selectConversation(11, 7)
+
+    store.reset()
+
+    expect(store.conversations).toEqual([])
+    expect(store.activeConversationId).toBeNull()
+    expect(store.messages).toEqual([])
+    expect(store.activeGoalInterview).toBeNull()
+    expect(store.confirmedGoal).toBeNull()
+    expect(store.isLoading).toBe(false)
+    expect(store.isMessageLoading).toBe(false)
+    expect(store.isSending).toBe(false)
+
+    await store.fetchConversations(8)
+
+    expect(getConversations).toHaveBeenCalledTimes(2)
+    expect(getConversations).toHaveBeenLastCalledWith(8)
+  })
+
+  it("passes a custom title when starting a goal-setting conversation", async () => {
+    createConversation.mockResolvedValue({
+      conversationId: 12,
+      title: "목표 설정",
+    })
+
+    const store = useConversationStore()
+    const conversation = await store.startNewConversation(7, "목표 설정")
+
+    expect(createConversation).toHaveBeenCalledWith(7, "목표 설정")
+    expect(conversation).toMatchObject({
+      conversationId: 12,
+      title: "목표 설정",
+    })
+  })
+
+  it("starts a goal-setting conversation and sends the trigger message", async () => {
+    createConversation.mockResolvedValue({
+      conversationId: 12,
+      title: "목표 설정",
+    })
+    sendConversationMessage.mockResolvedValue({
+      userMessage: {
+        messageId: 201,
+        role: "USER",
+        content: "목표를 설정하고 싶어요",
+      },
+      assistantMessage: {
+        messageId: 202,
+        role: "ASSISTANT",
+        content: "어떤 목표를 세우고 싶으세요?",
+      },
+    })
+
+    const store = useConversationStore()
+    const started = await store.startGoalSettingConversation(7)
+
+    expect(started).toBe(true)
+    expect(createConversation).toHaveBeenCalledWith(7, "목표 설정")
+    expect(sendConversationMessage).toHaveBeenCalledWith(
+      12,
+      7,
+      "목표를 설정하고 싶어요",
+      "GOAL_SETTING",
+    )
+    expect(store.isSending).toBe(false)
   })
 })
