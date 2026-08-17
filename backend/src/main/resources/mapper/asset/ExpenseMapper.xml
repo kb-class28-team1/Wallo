@@ -92,22 +92,6 @@
         </if>
     </select>
 
-    <select id="selectFallbackTransactions"
-            resultType="com.wallo.asset.dto.ExpenseDto$Transaction">
-        SELECT
-            transaction_id AS transactionId,
-            transaction_date AS date,
-            type AS type,
-            CASE WHEN category = 'OTHER' THEN 'ETC' ELSE category END AS category,
-            amount AS amount,
-            merchant_name AS merchantName
-        FROM TRANSACTIONS
-        WHERE user_id = #{userId}
-          AND category_source = 'FALLBACK'
-          AND category &lt;&gt; 'CARD_WITHDRAWAL'
-        ORDER BY transaction_id ASC
-    </select>
-
     <update id="updateTransactionCategory">
         UPDATE TRANSACTIONS
         SET category = #{category},
@@ -117,18 +101,6 @@
         WHERE transaction_id = #{transactionId}
           AND user_id = #{userId}
           AND type IN ('EXPENSE', 'INCOME', 'TRANSFER')
-          AND category &lt;&gt; 'CARD_WITHDRAWAL'
-    </update>
-
-    <update id="updateReclassifiedCategory">
-        UPDATE TRANSACTIONS
-        SET category = #{category},
-            category_source = #{categorySource},
-            category_confidence = #{categoryConfidence},
-            classifier_version = #{classifierVersion}
-        WHERE transaction_id = #{transactionId}
-          AND user_id = #{userId}
-          AND category_source = 'FALLBACK'
           AND category &lt;&gt; 'CARD_WITHDRAWAL'
     </update>
 
