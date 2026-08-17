@@ -29,6 +29,7 @@ public class ExpenseService {
             "EDUCATION",
             "LOAN_REPAYMENT",
             "INCOME",
+            "RECEIVE",
             "SEND",
             ETC_CATEGORY
     );
