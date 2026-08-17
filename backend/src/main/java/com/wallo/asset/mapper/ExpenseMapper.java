@@ -1,6 +1,7 @@
 package com.wallo.asset.mapper;
 
 import com.wallo.asset.dto.ExpenseDto;
+import java.math.BigDecimal;
 import java.util.List;
 import org.apache.ibatis.annotations.Param;
 
@@ -36,10 +37,23 @@ public interface ExpenseMapper {
             @Param("condition") ExpenseDto.SearchCondition condition
     );
 
+    List<ExpenseDto.Transaction> selectFallbackTransactions(
+            @Param("userId") long userId
+    );
+
     int updateTransactionCategory(
             @Param("userId") long userId,
             @Param("transactionId") long transactionId,
             @Param("category") String category
+    );
+
+    int updateReclassifiedCategory(
+            @Param("userId") long userId,
+            @Param("transactionId") long transactionId,
+            @Param("category") String category,
+            @Param("categorySource") String categorySource,
+            @Param("categoryConfidence") BigDecimal categoryConfidence,
+            @Param("classifierVersion") String classifierVersion
     );
 
     List<ExpenseDto.AnalysisTransaction> selectAllExpenseTransactions(
