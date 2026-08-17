@@ -35,6 +35,16 @@ public final class AssetSyncDto {
         private final int inserted;
         private final int updated;
         private final int failedConnections;
+        private final int fallbackCount;
+
+        public SyncResponse(
+                LocalDateTime syncedAt,
+                int inserted,
+                int updated,
+                int failedConnections
+        ) {
+            this(syncedAt, inserted, updated, failedConnections, 0);
+        }
     }
 
     @Getter
@@ -42,9 +52,14 @@ public final class AssetSyncDto {
     public static class SyncStats {
         private final int inserted;
         private final int updated;
+        private final int fallbackCount;
+
+        public SyncStats(int inserted, int updated) {
+            this(inserted, updated, 0);
+        }
 
         public static SyncStats empty() {
-            return new SyncStats(0, 0);
+            return new SyncStats(0, 0, 0);
         }
 
         public int total() {
@@ -57,7 +72,8 @@ public final class AssetSyncDto {
             }
             return new SyncStats(
                     inserted + other.inserted,
-                    updated + other.updated
+                    updated + other.updated,
+                    fallbackCount + other.fallbackCount
             );
         }
     }

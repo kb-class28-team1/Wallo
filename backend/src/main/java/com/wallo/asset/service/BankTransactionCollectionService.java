@@ -148,6 +148,7 @@ public class BankTransactionCollectionService {
         int updatedCount = 0;
         int reusedClassificationCount = 0;
         int aiRequestCount = 0;
+        int fallbackCount = 0;
         long classificationStartedAt = System.nanoTime();
         List<PreparedBankTransaction> preparedTransactions = safeList(transactions).stream()
                 .map(source -> prepareTransaction(
@@ -194,6 +195,10 @@ public class BankTransactionCollectionService {
                     .equals(mapping.transaction().getCategorySource())) {
                 aiRequestCount++;
             }
+            if (AssetTransactionConstants.FALLBACK_CATEGORY_SOURCE
+                    .equals(mapping.transaction().getCategorySource())) {
+                fallbackCount++;
+            }
             savedCount++;
         }
         if (savedCount > 0) {
@@ -217,7 +222,7 @@ public class BankTransactionCollectionService {
                 processingElapsedMs,
                 elapsedMillis(startedAt)
         ));
-        return new AssetSyncDto.SyncStats(insertedCount, updatedCount);
+        return new AssetSyncDto.SyncStats(insertedCount, updatedCount, fallbackCount);
     }
 
     private void invalidateConsumptionInsightCache(

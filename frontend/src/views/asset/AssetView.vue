@@ -43,11 +43,19 @@ const syncAssets = async () => {
     reportRefreshKey.value += 1;
 
     const failedConnections = Number(result.failedConnections) || 0;
+    const fallbackCount = Number(result.fallbackCount) || 0;
     const summary = `신규 ${Number(result.inserted) || 0}건, 수정 ${Number(result.updated) || 0}건`;
-    syncStatus.value = failedConnections > 0
+    const warnings = [];
+    if (failedConnections > 0) {
+      warnings.push(`실패한 연결기관 ${failedConnections}건`);
+    }
+    if (fallbackCount > 0) {
+      warnings.push(`AI 분류 실패로 기타 처리된 거래 ${fallbackCount}건`);
+    }
+    syncStatus.value = warnings.length > 0
       ? {
           type: "warning",
-          message: `동기화가 완료되었습니다. ${summary}, 실패한 연결기관 ${failedConnections}건`,
+          message: `동기화가 완료되었습니다. ${summary}. ${warnings.join(", ")}`,
         }
       : {
           type: "success",
