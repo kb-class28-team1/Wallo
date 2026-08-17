@@ -112,7 +112,8 @@ const mountChat = () =>
         },
         ChatInput: {
           props: ["disabled"],
-          template: '<div class="stub-input" :data-disabled="String(disabled)" />',
+          emits: ["send"],
+          template: '<button class="stub-input" :data-disabled="String(disabled)" :disabled="disabled" @click="$emit(\'send\', \'테스트 메시지\')" />',
         },
         RouterLink: {
           props: ["to"],
@@ -477,6 +478,27 @@ describe("ChatView", () => {
 
     expect(wrapper.text()).toContain("목표 설정 채팅을 시작하지 못했습니다.")
     expect(wrapper.find(".stub-input").attributes("data-disabled")).toBe("false")
+    wrapper.unmount()
+  })
+
+  it("renders a chat rate-limit error in the page error area without alert", async () => {
+    sendConversationMessage.mockRejectedValue(
+      Object.assign(
+        new Error("현재 AI 사용량 한도에 도달했습니다. 잠시 후 다시 시도해 주세요."),
+        { status: 429 },
+      ),
+    )
+
+    const wrapper = mountChat()
+    await flushPromises()
+
+    await wrapper.find(".stub-input").trigger("click")
+    await flushPromises()
+
+    expect(wrapper.find(".alert.alert-danger").text()).toContain(
+      "현재 AI 사용량 한도에 도달했습니다. 잠시 후 다시 시도해 주세요.",
+    )
+    expect(globalThis.alert).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 

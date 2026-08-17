@@ -4,6 +4,7 @@ from groq import Groq, GroqError
 
 from app.agents.financial.agent import parse_tool_arguments
 from app.chat.prompts import TITLE_PROMPT
+from app.core.ai_timing import timed_groq_completion
 from app.core.config import get_groq_model
 
 logger = logging.getLogger("wallo_ai")
@@ -33,32 +34,38 @@ def generate_conversation_title(
     user_message: str,
     assistant_answer: str,
 ) -> str | None:
-    try:
-        completion = client.chat.completions.create(
-            model=get_groq_model(),
-            messages=[
-                {"role": "system", "content": TITLE_PROMPT},
-                {
-                    "role": "user",
-                    "content": f"첫 사용자 메시지:\n{user_message}\n\n첫 AI 답변:\n{assistant_answer}",
+    model = get_groq_model()
+    with timed_groq_completion(
+        client,
+        operation="conversation.title",
+        model=model,
+        requested_completion_tokens=500,
+    ) as timing:
+        try:
+            completion = timing.create(
+                messages=[
+                    {"role": "system", "content": TITLE_PROMPT},
+                    {
+                        "role": "user",
+                        "content": f"첫 사용자 메시지:\n{user_message}\n\n첫 AI 답변:\n{assistant_answer}",
+                    },
+                ],
+                tools=[TITLE_TOOL],
+                tool_choice={
+                    "type": "function",
+                    "function": {"name": "generate_conversation_title"},
                 },
-            ],
-            tools=[TITLE_TOOL],
-            tool_choice={
-                "type": "function",
-                "function": {"name": "generate_conversation_title"},
-            },
-            reasoning_effort="low",
-            max_completion_tokens=500,
-        )
-        tool_calls = completion.choices[0].message.tool_calls
-        if not tool_calls:
-            logger.warning("Groq did not call the conversation title tool")
+                reasoning_effort="low",
+                max_completion_tokens=500,
+            )
+            tool_calls = completion.choices[0].message.tool_calls
+            if not tool_calls:
+                logger.warning("Groq did not call the conversation title tool")
+                return None
+            title = str(
+                parse_tool_arguments(tool_calls[0].function.arguments).get("title", "")
+            ).strip(" \t\r\n\"'.")
+            return title[:30] if title else None
+        except GroqError:
+            logger.exception("Groq title generation failed")
             return None
-        title = str(
-            parse_tool_arguments(tool_calls[0].function.arguments).get("title", "")
-        ).strip(" \t\r\n\"'.")
-        return title[:30] if title else None
-    except GroqError:
-        logger.exception("Groq title generation failed")
-        return None

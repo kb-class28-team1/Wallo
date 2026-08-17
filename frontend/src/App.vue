@@ -3,6 +3,7 @@ import { computed } from "vue"
 import { RouterView, useRoute } from "vue-router"
 import SideNavigation from "@/components/navigation/SideNavigation.vue"
 import TopHeader from "@/components/navigation/TopHeader.vue"
+import AppToast from "@/components/common/AppToast.vue"
 import { useModalEnter } from "@/composables/useModalEnter"
 
 const route = useRoute()
@@ -11,6 +12,7 @@ useModalEnter()
 </script>
 
 <template>
+  <AppToast />
   <div v-if="usesAppShell" class="app-shell d-flex min-vh-100">
     <SideNavigation />
     <div class="app-shell-body d-flex flex-grow-1 flex-column">

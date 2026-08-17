@@ -19,6 +19,11 @@ public enum ErrorCode {
             "COMMON_004",
             "AI 서버 요청 처리에 실패했습니다."
     ),
+    AI_RATE_LIMIT(
+            HttpStatus.TOO_MANY_REQUESTS,
+            "COMMON_005",
+            "현재 AI 사용량 한도에 도달했습니다. 잠시 후 다시 시도해 주세요."
+    ),
     CONNECTION_CONSENT_REQUIRED(
             HttpStatus.BAD_REQUEST,
             "CONNECTION_001",

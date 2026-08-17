@@ -35,6 +35,7 @@ public class MissionGenerationScheduler {
             try {
                 service.generate(userId, false);
             } catch (RuntimeException exception) {
+                service.markGenerationFailed(userId, exception);
                 log.error("mission generation failed userId={}", userId, exception);
             }
         }
