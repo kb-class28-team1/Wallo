@@ -59,6 +59,14 @@ class ExpenseCategoryClassifierTest {
         assertEquals("SHOPPING", classify("편의점", "편의점"));
         assertEquals("CULTURE", classify("서점", "서점"));
         assertEquals("HOUSING", classify("통신요금", "통신"));
+        assertEquals("HEALTH", classify("동네 의원", "의료"));
+        assertEquals("HEALTH", classify("우리 약국", "약국"));
+        assertEquals("CAFE", classify("커피 전문점", "카페"));
+        assertEquals("TRANSPORT", classify("서울 택시", "택시"));
+        assertEquals("TRANSPORT", classify("버스 정기권", "대중교통"));
+        assertEquals("SHOPPING", classify("온라인몰", "온라인몰"));
+        assertEquals("SHOPPING", classify("생활 쇼핑", "쇼핑"));
+        assertEquals("HOUSING", classify("아파트 관리비", "관리비"));
     }
 
     @Test
