@@ -52,6 +52,9 @@ describe("AssetView manual synchronization", () => {
   it("syncs assets and refreshes the displayed data", async () => {
     expect(wrapper.find(".app-page-header__title").text()).toBe("자산관리")
     expect(wrapper.find(".asset-sync-button").classes()).toContain("app-button")
+    expect(wrapper.find(".asset-report-grid").exists()).toBe(true)
+    expect(wrapper.find('[data-testid="consumption-report-card"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="tax-deduction-card"]').exists()).toBe(true)
 
     await wrapper.get(".asset-sync-button").trigger("click")
     await flushPromises()
@@ -60,6 +63,7 @@ describe("AssetView manual synchronization", () => {
     expect(store.fetchAssets).toHaveBeenCalledTimes(2)
     expect(wrapper.find(".asset-sync-status").classes()).toContain("app-alert")
     expect(wrapper.find(".asset-sync-status").classes()).toContain("app-alert--success")
+    expect(wrapper.find(".asset-sync-status").attributes("role")).toBe("status")
     expect(wrapper.text()).toContain("동기화가 완료되었습니다")
     expect(wrapper.text()).toContain("신규 3건, 수정 42건")
   })

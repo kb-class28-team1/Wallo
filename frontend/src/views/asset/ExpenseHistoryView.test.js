@@ -1,32 +1,32 @@
-import { ref } from "vue";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { flushPromises, mount } from "@vue/test-utils";
-import ExpenseHistoryView from "./ExpenseHistoryView.vue";
-import { getExpenses } from "@/api/assetApi";
-import { useAssetStore } from "@/stores/assetStore";
+import { ref } from "vue"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { flushPromises, mount } from "@vue/test-utils"
+import ExpenseHistoryView from "./ExpenseHistoryView.vue"
+import { getExpenses } from "@/api/assetApi"
+import { useAssetStore } from "@/stores/assetStore"
 
 vi.mock("@/api/assetApi", () => ({
   getExpenses: vi.fn(),
   getCategoryBudgets: vi.fn(),
   updateExpenseCategory: vi.fn(),
-}));
+}))
 
 vi.mock("@/stores/assetStore", () => ({
   useAssetStore: vi.fn(),
-}));
+}))
 
 vi.mock("@/stores/budgetStore", () => ({
   useBudgetStore: vi.fn(),
-}));
+}))
 
 vi.mock("vue-router", () => ({
   useRoute: () => ({ query: {} }),
   useRouter: () => ({ replace: vi.fn() }),
-}));
+}))
 
-import { getCategoryBudgets } from "@/api/assetApi";
-import { updateExpenseCategory } from "@/api/assetApi";
-import { useBudgetStore } from "@/stores/budgetStore";
+import { getCategoryBudgets } from "@/api/assetApi"
+import { updateExpenseCategory } from "@/api/assetApi"
+import { useBudgetStore } from "@/stores/budgetStore"
 
 const createExpenseResponse = () => ({
   success: true,
@@ -43,13 +43,13 @@ const createExpenseResponse = () => ({
       hasNext: false,
     },
   },
-});
+})
 
 const createStore = () => ({
   isSyncing: ref(false),
   syncError: ref(null),
   syncAssets: vi.fn(),
-});
+})
 
 const createBudgetStore = () => ({
   categorySummary: ref({
@@ -68,110 +68,121 @@ const createBudgetStore = () => ({
   error: ref(null),
   fetchCategoryBudgets: vi.fn().mockResolvedValue(null),
   saveCategoryBudgets: vi.fn().mockResolvedValue(null),
-});
+})
 
 const globalStubs = {
   RouterLink: { template: "<a><slot /></a>" },
   ExpenseCalendar: {
-    template: '<button data-testid="select-date" @click="$emit(\'select-date\', \'2026-08-11\')">calendar</button>',
+    template:
+      "<button data-testid=\"select-date\" @click=\"$emit('select-date', '2026-08-11')\">calendar</button>",
   },
   ExpenseTransactionList: {
     props: ["transactions", "editable"],
-    template: '<div data-testid="transaction-list"><button v-if="editable && transactions.length" data-testid="edit-category" @click="$emit(\'edit-category\', transactions[0])">edit</button></div>',
+    template:
+      '<div data-testid="transaction-list"><button v-if="editable && transactions.length" data-testid="edit-category" @click="$emit(\'edit-category\', transactions[0])">edit</button></div>',
   },
   ExpenseCategoryEditModal: {
     props: ["visible", "transaction", "mode"],
-    template: '<div v-if="visible" :data-testid="mode === \'filter\' ? \'category-filter-modal\' : \'category-edit-modal\'"><button :data-testid="mode === \'filter\' ? \'save-filter-category\' : \'save-category\'" @click="$emit(\'save\', mode === \'filter\' ? { category: \'FOOD\' } : { transactionId: transaction.transactionId, category: \'FOOD\' })">save</button></div>',
+    template:
+      "<div v-if=\"visible\" :data-testid=\"mode === 'filter' ? 'category-filter-modal' : 'category-edit-modal'\"><button :data-testid=\"mode === 'filter' ? 'save-filter-category' : 'save-category'\" @click=\"$emit('save', mode === 'filter' ? { category: 'FOOD' } : { transactionId: transaction.transactionId, category: 'FOOD' })\">save</button></div>",
   },
   ExpenseCategoryBreakdown: { template: '<div data-testid="category-breakdown" />' },
-};
+}
 
 describe("ExpenseHistoryView manual synchronization", () => {
-  let wrapper;
-  let store;
-  let budgetStore;
+  let wrapper
+  let store
+  let budgetStore
 
   beforeEach(async () => {
-    getExpenses.mockResolvedValue(createExpenseResponse());
-    getCategoryBudgets.mockResolvedValue({ success: true, data: {} });
-    updateExpenseCategory.mockResolvedValue({ success: true, data: null });
-    store = createStore();
-    budgetStore = createBudgetStore();
+    getExpenses.mockResolvedValue(createExpenseResponse())
+    getCategoryBudgets.mockResolvedValue({ success: true, data: {} })
+    updateExpenseCategory.mockResolvedValue({ success: true, data: null })
+    store = createStore()
+    budgetStore = createBudgetStore()
     store.syncAssets.mockResolvedValue({
       syncedAt: "2026-08-12T10:00:00",
       inserted: 3,
       updated: 42,
       failedConnections: 0,
-    });
-    useAssetStore.mockReturnValue(store);
-    useBudgetStore.mockReturnValue(budgetStore);
-    wrapper = mount(ExpenseHistoryView, { global: { stubs: globalStubs } });
-    await flushPromises();
-  });
+    })
+    useAssetStore.mockReturnValue(store)
+    useBudgetStore.mockReturnValue(budgetStore)
+    wrapper = mount(ExpenseHistoryView, { global: { stubs: globalStubs } })
+    await flushPromises()
+  })
 
   afterEach(() => {
-    wrapper?.unmount();
-    vi.clearAllMocks();
-  });
+    wrapper?.unmount()
+    vi.clearAllMocks()
+  })
 
   it("syncs assets and reloads the selected month from the first page", async () => {
-    await wrapper.get(".expense-sync-button").trigger("click");
-    await flushPromises();
+    expect(wrapper.find(".page-header").classes()).toContain("app-page-header")
+    expect(wrapper.find(".history-card").classes()).toContain("app-card")
+    expect(wrapper.find(".expense-sync-button").classes()).toContain("app-button")
 
-    expect(store.syncAssets).toHaveBeenCalledOnce();
-    expect(getExpenses).toHaveBeenCalledTimes(2);
-    expect(getExpenses.mock.calls[1][0]).toMatchObject({ page: 0, size: 20 });
-    expect(budgetStore.fetchCategoryBudgets).toHaveBeenCalledTimes(2);
-    expect(budgetStore.fetchCategoryBudgets).toHaveBeenLastCalledWith(
-      "2026-08",
-      { notifyError: false },
-    );
-    expect(wrapper.text()).toContain("동기화가 완료되었습니다");
-    expect(wrapper.text()).toContain("신규 3건, 수정 42건");
-  });
+    await wrapper.get(".expense-sync-button").trigger("click")
+    await flushPromises()
+
+    expect(store.syncAssets).toHaveBeenCalledOnce()
+    expect(getExpenses).toHaveBeenCalledTimes(2)
+    expect(getExpenses.mock.calls[1][0]).toMatchObject({ page: 0, size: 20 })
+    expect(budgetStore.fetchCategoryBudgets).toHaveBeenCalledTimes(2)
+    expect(budgetStore.fetchCategoryBudgets).toHaveBeenLastCalledWith("2026-08", {
+      notifyError: false,
+    })
+    expect(wrapper.find(".expense-sync-status").classes()).toContain("app-alert")
+    expect(wrapper.find(".expense-sync-status").classes()).toContain("app-alert--success")
+    expect(wrapper.find(".expense-sync-status").attributes("role")).toBe("status")
+    expect(wrapper.text()).toContain("동기화가 완료되었습니다")
+    expect(wrapper.text()).toContain("신규 3건, 수정 42건")
+  })
 
   it("closes an open daily modal before refreshing the month", async () => {
-    await wrapper.get('[data-testid="select-date"]').trigger("click");
-    await flushPromises();
-    expect(wrapper.find('[role="dialog"]').exists()).toBe(true);
+    await wrapper.get('[data-testid="select-date"]').trigger("click")
+    await flushPromises()
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(true)
+    expect(wrapper.find('[role="dialog"]').classes()).toContain("app-dialog")
+    expect(wrapper.find(".app-dialog-confirm").text()).toContain("닫기")
 
-    await wrapper.get(".expense-sync-button").trigger("click");
-    await flushPromises();
+    await wrapper.get(".expense-sync-button").trigger("click")
+    await flushPromises()
 
-    expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
-    expect(getExpenses).toHaveBeenCalledTimes(3);
-  });
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    expect(getExpenses).toHaveBeenCalledTimes(3)
+  })
 
   it("disables the button while synchronization is in progress", async () => {
-    let finishSync;
+    let finishSync
     store.syncAssets.mockImplementation(() => {
-      store.isSyncing.value = true;
+      store.isSyncing.value = true
       return new Promise((resolve) => {
         finishSync = (result) => {
-          store.isSyncing.value = false;
-          resolve(result);
-        };
-      });
-    });
+          store.isSyncing.value = false
+          resolve(result)
+        }
+      })
+    })
 
-    const syncButton = wrapper.get(".expense-sync-button");
-    const request = syncButton.trigger("click");
-    await flushPromises();
+    const syncButton = wrapper.get(".expense-sync-button")
+    const request = syncButton.trigger("click")
+    await flushPromises()
 
-    expect(syncButton.element.disabled).toBe(true);
-    expect(syncButton.text()).toContain("동기화 중");
+    expect(syncButton.element.disabled).toBe(true)
+    expect(syncButton.text()).toContain("동기화 중")
 
     finishSync({
       syncedAt: "2026-08-12T10:00:00",
       inserted: 0,
       updated: 1,
       failedConnections: 0,
-    });
-    await request;
-    await flushPromises();
+    })
+    await request
+    await flushPromises()
 
-    expect(syncButton.element.disabled).toBe(false);
-  });
+    expect(syncButton.element.disabled).toBe(false)
+  })
 
   it("shows partial failures while keeping the refreshed expense data", async () => {
     store.syncAssets.mockResolvedValue({
@@ -179,63 +190,63 @@ describe("ExpenseHistoryView manual synchronization", () => {
       inserted: 1,
       updated: 2,
       failedConnections: 1,
-    });
+    })
 
-    await wrapper.get(".expense-sync-button").trigger("click");
-    await flushPromises();
+    await wrapper.get(".expense-sync-button").trigger("click")
+    await flushPromises()
 
-    expect(getExpenses).toHaveBeenCalledTimes(2);
-    expect(wrapper.text()).toContain("실패한 연결기관 1건");
-  });
+    expect(getExpenses).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).toContain("실패한 연결기관 1건")
+  })
 
   it("shows the synchronization error without reloading expenses after failure", async () => {
-    store.syncAssets.mockRejectedValue(new Error("CODEF unavailable"));
-    store.syncError.value = "CODEF unavailable";
+    store.syncAssets.mockRejectedValue(new Error("CODEF unavailable"))
+    store.syncError.value = "CODEF unavailable"
 
-    await wrapper.get(".expense-sync-button").trigger("click");
-    await flushPromises();
+    await wrapper.get(".expense-sync-button").trigger("click")
+    await flushPromises()
 
-    expect(getExpenses).toHaveBeenCalledOnce();
-    expect(wrapper.text()).toContain("CODEF unavailable");
-  });
+    expect(getExpenses).toHaveBeenCalledOnce()
+    expect(wrapper.text()).toContain("CODEF unavailable")
+  })
 
   it("applies the selected category only to list requests", async () => {
-    await wrapper.get(".view-toggle .btn:nth-child(2)").trigger("click");
-    expect(wrapper.get('[data-testid="open-category-filter"]').text()).toContain("카테고리 필터");
-    expect(wrapper.get('[data-testid="open-category-filter"]').text()).not.toContain("전체");
-    await wrapper.get('[data-testid="open-category-filter"]').trigger("click");
-    expect(wrapper.find('[data-testid="category-filter-modal"]').exists()).toBe(true);
-    await wrapper.get('[data-testid="save-filter-category"]').trigger("click");
-    await flushPromises();
+    await wrapper.get(".view-toggle .btn:nth-child(2)").trigger("click")
+    expect(wrapper.get('[data-testid="open-category-filter"]').text()).toContain("카테고리 필터")
+    expect(wrapper.get('[data-testid="open-category-filter"]').text()).not.toContain("전체")
+    await wrapper.get('[data-testid="open-category-filter"]').trigger("click")
+    expect(wrapper.find('[data-testid="category-filter-modal"]').exists()).toBe(true)
+    await wrapper.get('[data-testid="save-filter-category"]').trigger("click")
+    await flushPromises()
 
     expect(getExpenses.mock.calls[1][0]).toMatchObject({
       page: 0,
       size: 20,
       category: "FOOD",
-    });
+    })
 
-    await wrapper.get(".view-toggle .btn:nth-child(1)").trigger("click");
-    await wrapper.get('[data-testid="select-date"]').trigger("click");
-    await flushPromises();
+    await wrapper.get(".view-toggle .btn:nth-child(1)").trigger("click")
+    await wrapper.get('[data-testid="select-date"]').trigger("click")
+    await flushPromises()
 
-    expect(getExpenses.mock.calls[2][0]).not.toHaveProperty("category");
-  });
+    expect(getExpenses.mock.calls[2][0]).not.toHaveProperty("category")
+  })
 
   it("opens the category editor and reloads the filtered list after saving", async () => {
-    await wrapper.get(".view-toggle .btn:nth-child(2)").trigger("click");
-    await wrapper.get('[data-testid="edit-category"]').trigger("click");
-    expect(wrapper.find('[data-testid="category-edit-modal"]').exists()).toBe(true);
+    await wrapper.get(".view-toggle .btn:nth-child(2)").trigger("click")
+    await wrapper.get('[data-testid="edit-category"]').trigger("click")
+    expect(wrapper.find('[data-testid="category-edit-modal"]').exists()).toBe(true)
 
-    await wrapper.get('[data-testid="save-category"]').trigger("click");
-    await flushPromises();
+    await wrapper.get('[data-testid="save-category"]').trigger("click")
+    await flushPromises()
 
-    expect(updateExpenseCategory).toHaveBeenCalledWith(1, "FOOD");
-    expect(getExpenses).toHaveBeenCalledTimes(2);
+    expect(updateExpenseCategory).toHaveBeenCalledWith(1, "FOOD")
+    expect(getExpenses).toHaveBeenCalledTimes(2)
     expect(getExpenses.mock.calls[1][0]).toMatchObject({
       page: 0,
       size: 20,
       category: "ALL",
-    });
-    expect(wrapper.find('[data-testid="category-edit-modal"]').exists()).toBe(false);
-  });
-});
+    })
+    expect(wrapper.find('[data-testid="category-edit-modal"]').exists()).toBe(false)
+  })
+})
