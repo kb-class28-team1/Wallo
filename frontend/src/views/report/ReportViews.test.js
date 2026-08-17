@@ -52,13 +52,10 @@ const listReport = {
 }
 
 const globalStubs = {
-  ReportListCard: {
-    props: ["report"],
-    template: '<article class="stub-report-card">{{ report.title }}</article>',
-  },
   ReportSection: {
     props: ["title", "content", "segments"],
-    template: '<section class="stub-report-section"><h2>{{ title }}</h2><p>{{ content }}</p></section>',
+    template:
+      '<section class="stub-report-section"><h2>{{ title }}</h2><p>{{ content }}</p></section>',
   },
   TermInfoPanel: {
     props: ["term", "closable"],
@@ -88,14 +85,22 @@ describe("report views", () => {
     await flushPromises()
 
     expect(getReports).toHaveBeenCalledOnce()
-    expect(wrapper.findAll(".stub-report-card")).toHaveLength(1)
+    expect(wrapper.find(".app-page-header").exists()).toBe(true)
+    expect(wrapper.find(".app-page-header__title").text()).toBe("금융 리포트")
+    expect(wrapper.find(".report-crawl-button").classes()).toContain("app-button")
+    expect(wrapper.find(".report-generate-button").classes()).toContain("app-button")
+    expect(wrapper.find(".report-list-grid").exists()).toBe(true)
+    expect(wrapper.find(".report-card").classes()).toContain("app-card")
     expect(wrapper.text()).toContain("기준금리 변화와 가계 영향")
 
-    await wrapper.get(".btn-outline-primary").trigger("click")
+    await wrapper.get(".report-crawl-button").trigger("click")
     await flushPromises()
 
     expect(crawlNewsNow).toHaveBeenCalledOnce()
     expect(getReports).toHaveBeenCalledTimes(2)
+    expect(wrapper.find(".report-generation-message").classes()).toContain("app-alert")
+    expect(wrapper.find(".report-generation-message").classes()).toContain("app-alert--info")
+    expect(wrapper.find(".report-generation-message").attributes("role")).toBe("status")
     expect(wrapper.text()).toContain("새 뉴스 2건을 수집했습니다.")
 
     wrapper.unmount()
@@ -108,8 +113,11 @@ describe("report views", () => {
 
     expect(getReportDetail).toHaveBeenCalledWith("42")
     expect(mocks.markReportAsRead).toHaveBeenCalledWith("42")
+    expect(wrapper.find(".app-page-header").exists()).toBe(true)
+    expect(wrapper.find(".app-page-header__title").text()).toBe("금융 리포트 상세")
     expect(wrapper.find(".report-detail-card").exists()).toBe(true)
-    expect(wrapper.find("h1").text()).toContain("기준금리 변화와 가계 영향")
+    expect(wrapper.find(".report-detail-card").classes()).toContain("app-card")
+    expect(wrapper.find(".report-detail-card h2").text()).toContain("기준금리 변화와 가계 영향")
     expect(wrapper.text()).toContain("금리 변화가 가계 부담에 영향을 줍니다.")
     expect(wrapper.findAll(".stub-report-section")).toHaveLength(5)
 
