@@ -32,6 +32,7 @@ export const EXPENSE_CATEGORY_META = Object.freeze({
   EDUCATION: expenseCategory("교육", "#f0b44d", "bi-book", "blue"),
   LOAN_REPAYMENT: expenseCategory("대출상환", "#c47cff", "bi-bank", "purple"),
   INCOME: expenseCategory("수입", "#4f73e8", "bi-wallet2", "blue"),
+  RECEIVE: expenseCategory("입금 이체", "#55c2a3", "bi-arrow-down-left", "green"),
   SEND: expenseCategory("보낸 돈", "#8170ff", "bi-arrow-up-right", "purple"),
   ETC: expenseCategory("기타", "#a0a6b5", "bi-receipt", "gray"),
 });

@@ -46,7 +46,7 @@ const CATEGORY_GROUPS = Object.freeze({
     "ETC",
   ],
   INCOME: ["INCOME"],
-  TRANSFER: ["SEND"],
+  TRANSFER: ["SEND", "RECEIVE"],
 });
 
 const TYPE_TABS = Object.freeze([
@@ -122,7 +122,7 @@ watch(
       const category = initialCategory(transaction);
       selectedType.value = category === "INCOME"
         ? "INCOME"
-        : category === "SEND"
+        : category === "SEND" || category === "RECEIVE"
           ? "TRANSFER"
           : "EXPENSE";
     }
