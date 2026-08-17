@@ -2,10 +2,7 @@ import { flushPromises, mount } from "@vue/test-utils"
 import { createPinia, setActivePinia } from "pinia"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import AiAssistantView from "./AiAssistantView.vue"
-import {
-  getGoalRoadmap,
-  getGoals,
-} from "@/api/goalApi"
+import { getGoalRoadmap, getGoals } from "@/api/goalApi"
 
 const push = vi.fn()
 
@@ -34,6 +31,9 @@ describe("AiAssistantView", () => {
     await flushPromises()
     await vi.waitFor(() => expect(wrapper.find(".empty-dashboard").exists()).toBe(true))
 
+    expect(wrapper.find(".assistant-header").classes()).toContain("app-page-header")
+    expect(wrapper.find(".content-card").classes()).toContain("app-card")
+    expect(wrapper.find(".goal-button").classes()).toContain("app-button")
     expect(wrapper.text()).toContain("목표 달성을 위한 로드맵")
     expect(wrapper.text()).toContain("나에게 맞는 로드맵")
     expect(wrapper.text()).toContain("추천 금융 상품")
@@ -54,16 +54,18 @@ describe("AiAssistantView", () => {
 
   it("shows the saved goal, progress, roadmap, and action guide", async () => {
     getGoals.mockResolvedValue({
-      data: [{
-        goalId: 1,
-        title: "비상금 1,000만 원 만들기",
-        goalType: "EMERGENCY_FUND",
-        targetAmount: 10000000,
-        currentAmount: 2500000,
-        achievementRate: 25,
-        requiredMonthlyAmount: 500000,
-        targetDate: "2027-12-31",
-      }],
+      data: [
+        {
+          goalId: 1,
+          title: "비상금 1,000만 원 만들기",
+          goalType: "EMERGENCY_FUND",
+          targetAmount: 10000000,
+          currentAmount: 2500000,
+          achievementRate: 25,
+          requiredMonthlyAmount: 500000,
+          targetDate: "2027-12-31",
+        },
+      ],
     })
     getGoalRoadmap.mockResolvedValue({
       data: {
@@ -102,6 +104,7 @@ describe("AiAssistantView", () => {
     expect(wrapper.text()).toContain("최종 목표 달성")
     expect(wrapper.text()).toContain("이번 달 실천 가이드")
     expect(wrapper.text()).not.toContain("목표를 확인했어요")
+    expect(wrapper.find(".goal-chat-button").classes()).toContain("app-button")
 
     await wrapper.find(".goal-chat-button").trigger("click")
     expect(push).toHaveBeenCalledWith({ name: "chat" })

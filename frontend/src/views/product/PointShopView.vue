@@ -15,6 +15,12 @@ import {
   getResource,
   hasInFlightResource,
 } from "@/utils/resourceCache"
+import AppAlert from "@/components/ui/AppAlert.vue"
+import AppButton from "@/components/ui/AppButton.vue"
+import AppCard from "@/components/ui/AppCard.vue"
+import AppPageHeader from "@/components/ui/AppPageHeader.vue"
+import AppState from "@/components/ui/AppState.vue"
+import AppDialog from "@/components/common/AppDialog.vue"
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -490,19 +496,21 @@ onMounted(() => {
 
 <template>
   <section class="point-shop-page">
-    <header class="page-heading d-flex align-items-center gap-3 mb-4">
-      <button
-        type="button"
-        class="btn page-back-button"
-        aria-label="뒤로 가기"
-        @click="$router.back()"
-      >
-        <i class="bi bi-chevron-left" aria-hidden="true"></i>
-      </button>
-      <h1 class="mb-0">포인트 샵</h1>
-    </header>
+    <AppPageHeader class="page-heading" title="포인트 샵" compact>
+      <template #leading>
+        <AppButton
+          class="page-back-button"
+          variant="ghost"
+          size="sm"
+          aria-label="뒤로 가기"
+          @click="router.back()"
+        >
+          <i class="bi bi-chevron-left" aria-hidden="true"></i>
+        </AppButton>
+      </template>
+    </AppPageHeader>
 
-    <article class="point-summary-card">
+    <AppCard as="article" class="point-summary-card" padding="none">
       <span>보유 포인트</span>
       <strong>{{ formattedPoint }}</strong>
       <p>오늘의 미션을 인증하고 포인트를 모아보세요 🪙</p>
@@ -513,22 +521,33 @@ onMounted(() => {
       >
         포인트 내역 보기
       </RouterLink>
-    </article>
+    </AppCard>
 
-    <div v-if="initialLoading" class="loading-message" role="status">
-      포인트샵 정보를 불러오는 중임...
-    </div>
+    <AppState
+      v-if="initialLoading"
+      class="shop-state"
+      type="loading"
+      title="포인트샵 정보를 불러오는 중입니다."
+      message="잠시만 기다려 주세요."
+    />
 
-    <div v-if="refreshing" class="loading-message" role="status">
-      최신 포인트샵 정보를 확인하는 중...
-    </div>
+    <AppAlert
+      v-if="refreshing"
+      class="shop-refresh-status"
+      variant="neutral"
+      role="status"
+      :show-icon="false"
+      message="최신 포인트샵 정보를 확인하는 중입니다."
+    />
 
-    <div v-if="errorMessage" class="error-message" role="alert">
-      <span>{{ errorMessage }}</span>
-      <button type="button" class="btn retry-button" @click="loadPointShop({ force: true })">
-        다시 시도
-      </button>
-    </div>
+    <AppAlert v-if="errorMessage" class="shop-error" variant="danger">
+      <div class="shop-error-content">
+        <span>{{ errorMessage }}</span>
+        <AppButton variant="outline" size="sm" @click="loadPointShop({ force: true })">
+          다시 시도
+        </AppButton>
+      </div>
+    </AppAlert>
 
     <div class="section-title">
       <h2>🎁 랜덤 박스</h2>
@@ -536,29 +555,37 @@ onMounted(() => {
     </div>
 
     <div class="box-grid">
-      <article
+      <AppCard
+        as="article"
         v-for="box in randomBoxes"
         :key="box.id"
         class="random-box-card"
         :class="box.colorClass"
+        padding="none"
       >
         <div class="box-icon">{{ box.icon }}</div>
         <h3>{{ box.name }}</h3>
         <p>{{ box.description }}</p>
         <strong class="box-price">🪙 {{ box.price.toLocaleString("ko-KR") }}P</strong>
         <div class="open-box-actions">
-          <button
-            type="button"
+          <AppButton
             class="open-box-button"
+            variant="primary"
+            size="sm"
+            block
             :disabled="isOpeningBox || currentPoint < box.price"
+            :loading="isOpeningBox"
             @click="handleOpenBox(box)"
           >
             {{ isOpeningBox ? "상자를 여는 중임..." : "상자 열기" }}
-          </button>
-          <button
-            type="button"
+          </AppButton>
+          <AppButton
             class="bulk-open-box-button"
+            variant="outline"
+            size="sm"
+            block
             :disabled="isOpeningBox || currentPoint < bulkOpenPrice(box)"
+            :loading="isOpeningBox"
             @click="handleOpenBoxes(box)"
           >
             {{
@@ -566,7 +593,7 @@ onMounted(() => {
                 ? "10개를 여는 중..."
                 : `10개 한 번에 열기 · ${bulkOpenPrice(box).toLocaleString("ko-KR")}P`
             }}
-          </button>
+          </AppButton>
         </div>
         <div
           class="probability-control"
@@ -588,7 +615,7 @@ onMounted(() => {
             </div>
           </div>
         </div>
-      </article>
+      </AppCard>
     </div>
 
     <div class="section-title inventory-title">
@@ -599,7 +626,7 @@ onMounted(() => {
       >
     </div>
 
-    <article v-if="inventoryItems.length" class="inventory-card">
+    <AppCard v-if="inventoryItems.length" as="article" class="inventory-card" padding="none">
       <div
         v-for="item in inventoryItems"
         :key="item.id"
@@ -627,66 +654,46 @@ onMounted(() => {
           ×
         </button>
       </div>
-    </article>
+    </AppCard>
 
-    <article v-else class="empty-inventory">
-      <span>🎒</span>
-      <strong>보관함이 비어 있어요.</strong>
-      <p>랜덤박스에서 획득한 상품이 이곳에 표시돼요.</p>
-    </article>
+    <AppState
+      v-else
+      class="empty-inventory"
+      type="empty"
+      title="보관함이 비어 있어요."
+      message="랜덤박스에서 획득한 상품이 이곳에 표시돼요."
+    >
+      <template #icon>
+        <span>🎒</span>
+      </template>
+    </AppState>
 
-    <Transition name="inventory-detail-modal">
-      <div
-        v-if="inventoryDetailModal.open"
-        class="inventory-detail-backdrop"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="inventory-detail-title"
-        tabindex="-1"
-        @click.self="closeInventoryDetail"
-        @keydown.esc="closeInventoryDetail"
-      >
-        <article class="inventory-detail-card">
-          <button
-            type="button"
-            class="inventory-detail-close"
-            aria-label="기프티콘 상세 닫기"
-            @click="closeInventoryDetail"
-          >
-            <i class="bi bi-x-lg" aria-hidden="true"></i>
-          </button>
-          <div class="inventory-detail-icon" aria-hidden="true">
-            {{ inventoryDetailModal.item?.icon }}
-          </div>
-          <span class="inventory-detail-kicker">내 보관함 기프티콘</span>
-          <h2 id="inventory-detail-title">{{ inventoryDetailModal.item?.name }}</h2>
-          <p>{{ inventoryDetailModal.item?.description }}</p>
-          <dl class="inventory-detail-meta">
-            <div>
-              <dt>획득일</dt>
-              <dd>{{ inventoryDetailModal.item?.acquiredAt }}</dd>
-            </div>
-            <div>
-              <dt>상태</dt>
-              <dd>{{ inventoryDetailModal.item?.used ? "사용 완료" : "사용 가능" }}</dd>
-            </div>
-          </dl>
-          <div class="inventory-detail-actions">
-            <button
-              type="button"
-              class="inventory-detail-use"
-              :disabled="inventoryDetailModal.item?.used"
-              @click="handleUseInventoryItem"
-            >
-              {{ inventoryDetailModal.item?.used ? "사용 완료" : "사용하기" }}
-            </button>
-            <button type="button" class="inventory-detail-dismiss" @click="closeInventoryDetail">
-              닫기
-            </button>
-          </div>
-        </article>
+    <AppDialog
+      :visible="inventoryDetailModal.open"
+      :title="inventoryDetailModal.item?.name || '기프티콘 상세'"
+      :message="inventoryDetailModal.item?.description || ''"
+      :confirm-text="inventoryDetailModal.item?.used ? '사용 완료' : '사용하기'"
+      cancel-text="닫기"
+      :show-cancel="true"
+      :confirm-disabled="Boolean(inventoryDetailModal.item?.used)"
+      size="sm"
+      @close="closeInventoryDetail"
+      @confirm="handleUseInventoryItem"
+    >
+      <div class="inventory-detail-icon" aria-hidden="true">
+        {{ inventoryDetailModal.item?.icon }}
       </div>
-    </Transition>
+      <dl class="inventory-detail-meta">
+        <div>
+          <dt>획득일</dt>
+          <dd>{{ inventoryDetailModal.item?.acquiredAt }}</dd>
+        </div>
+        <div>
+          <dt>상태</dt>
+          <dd>{{ inventoryDetailModal.item?.used ? "사용 완료" : "사용 가능" }}</dd>
+        </div>
+      </dl>
+    </AppDialog>
 
     <Transition name="reward-modal">
       <div
@@ -950,9 +957,24 @@ onMounted(() => {
   color: #27304f;
 }
 
-.page-heading h1 {
+.page-heading :deep(.app-page-header__title) {
   font-size: 28px;
   font-weight: 800;
+}
+
+.shop-state,
+.shop-refresh-status,
+.shop-error {
+  margin-bottom: 12px;
+}
+
+.shop-error-content {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
 }
 
 .point-summary-card {
@@ -1058,6 +1080,7 @@ onMounted(() => {
 .random-box-card {
   position: relative;
   min-height: 258px;
+  overflow: visible;
   padding: 20px;
   border: 2px solid #e6e9f3;
   border-radius: 18px;
