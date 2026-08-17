@@ -10,6 +10,7 @@ import AppDialog from "@/components/common/AppDialog.vue"
 import AuthenticatedImage from "@/components/common/AuthenticatedImage.vue"
 import AppAlert from "@/components/ui/AppAlert.vue"
 import AppButton from "@/components/ui/AppButton.vue"
+import AppCard from "@/components/ui/AppCard.vue"
 import AppPageHeader from "@/components/ui/AppPageHeader.vue"
 import AppState from "@/components/ui/AppState.vue"
 import { leaveChallenge as leaveChallengeRequest } from "@/api/challengeApi"
@@ -966,9 +967,9 @@ onBeforeUnmount(() => {
         </main>
 
         <aside class="feed-sidebar">
-          <div class="saving-total">
+          <AppCard as="div" class="saving-total" variant="accent" padding="none">
             <small>나의 누적 절약 금액</small><strong>{{ formatWon(mySavingTotal) }}</strong>
-          </div>
+          </AppCard>
           <section class="chat-room">
             <header>
               <span class="online-dot"></span>
