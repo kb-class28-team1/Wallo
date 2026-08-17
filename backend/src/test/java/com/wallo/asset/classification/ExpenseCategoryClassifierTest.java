@@ -33,6 +33,25 @@ class ExpenseCategoryClassifierTest {
     }
 
     @Test
+    void classifiesKnownMerchantsBeforeAi() {
+        assertEquals("CAFE", classify("스타벅스", "기타"));
+        assertEquals("TRANSPORT", classify("카카오T", "기타"));
+        assertEquals("SHOPPING", classify("쿠팡", "기타"));
+        assertEquals("HEALTH", classify("동네 병원", "기타"));
+        assertEquals("CULTURE", classify("CGV", "기타"));
+    }
+
+    @Test
+    void appliesSpecificDeliveryKeywordBeforeBroadShoppingKeyword() {
+        ExpenseCategoryClassifier.Result result = classifier.classify(
+                new ExpenseCategoryClassifier.Context("쿠팡이츠", "온라인쇼핑")
+        );
+
+        assertEquals("DELIVERY", result.category());
+        assertEquals("MERCHANT_KEYWORD", result.source());
+    }
+
+    @Test
     void sourceSectorClassifiesKnownMerchantSector() {
         assertEquals("FOOD", classify("동네식당", "요식/음료"));
         assertEquals("TRANSPORT", classify("SK에너지", "주유"));
