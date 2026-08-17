@@ -8,6 +8,10 @@ import { formatWon } from "@/commonUtils/formatters"
 import arrowPaperPlaneUrl from "@/assets/arrow_paper_plane.svg"
 import AppDialog from "@/components/common/AppDialog.vue"
 import AuthenticatedImage from "@/components/common/AuthenticatedImage.vue"
+import AppAlert from "@/components/ui/AppAlert.vue"
+import AppButton from "@/components/ui/AppButton.vue"
+import AppPageHeader from "@/components/ui/AppPageHeader.vue"
+import AppState from "@/components/ui/AppState.vue"
 import { leaveChallenge as leaveChallengeRequest } from "@/api/challengeApi"
 import { getTodayMissions, verifyMissionWithFeed } from "@/api/missionApi"
 import {
@@ -765,63 +769,95 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="feed-page">
-    <div v-if="refreshing" class="small text-secondary mb-3" role="status">
-      최신 피드와 채팅을 확인하는 중...
-    </div>
-    <div
-      v-if="errorMessage && hasLoadedPage"
-      class="alert alert-warning d-flex align-items-center justify-content-between gap-2"
-      role="alert"
-    >
-      <span>{{ errorMessage }}</span>
-      <button class="btn btn-sm btn-outline-warning" @click="loadPage({ force: true })">
-        다시 시도
-      </button>
-    </div>
-    <div v-if="initialLoading" class="page-state">
-      <div class="spinner-border text-primary"></div>
-      <p>챌린지 피드를 불러오고 있어요.</p>
-    </div>
-    <div v-else-if="errorMessage && !hasLoadedPage" class="page-state">
-      <strong>{{ errorMessage }}</strong>
-      <button class="btn btn-primary" @click="loadPage({ force: true })">다시 시도</button>
-    </div>
+    <AppAlert
+      v-if="refreshing"
+      class="feed-refresh-status"
+      variant="neutral"
+      role="status"
+      :show-icon="false"
+      message="최신 피드와 채팅을 확인하는 중..."
+    />
+    <AppAlert v-if="errorMessage && hasLoadedPage" class="feed-error-alert" variant="warning">
+      <div class="feed-alert-content">
+        <span>{{ errorMessage }}</span>
+        <AppButton variant="outline" size="sm" @click="loadPage({ force: true })">
+          다시 시도
+        </AppButton>
+      </div>
+    </AppAlert>
+    <AppState
+      v-if="initialLoading"
+      class="page-state"
+      type="loading"
+      title="챌린지 피드를 불러오는 중입니다"
+      message="잠시만 기다려 주세요."
+    />
+    <AppState
+      v-else-if="errorMessage && !hasLoadedPage"
+      class="page-state"
+      type="error"
+      title="챌린지 피드를 불러오지 못했습니다"
+      :message="errorMessage"
+      action-text="다시 시도"
+      action-variant="danger"
+      @action="loadPage({ force: true })"
+    />
     <template v-else>
-      <header class="feed-header">
-        <div class="feed-header-row">
-          <h1>{{ challengeName }}</h1>
-        </div>
-        <p>함께 남긴 절약 기록을 확인하고 응원해 보세요.</p>
-      </header>
+      <AppPageHeader
+        class="feed-header"
+        :title="challengeName"
+        description="함께 남긴 절약 기록을 확인하고 응원해 보세요."
+        compact
+      />
 
       <div class="feed-layout">
         <main class="feed-column">
           <div class="feed-toolbar">
             <nav class="feed-tabs">
-              <button :class="{ active: activeTab === 'all' }" @click="changeTab('all')">
+              <AppButton
+                variant="ghost"
+                size="sm"
+                :class="{ active: activeTab === 'all' }"
+                @click="changeTab('all')"
+              >
                 전체 피드
-              </button>
-              <button :class="{ active: activeTab === 'mine' }" @click="changeTab('mine')">
+              </AppButton>
+              <AppButton
+                variant="ghost"
+                size="sm"
+                :class="{ active: activeTab === 'mine' }"
+                @click="changeTab('mine')"
+              >
                 내 피드
-              </button>
+              </AppButton>
             </nav>
             <div class="feed-header-actions">
               <div v-if="inviteCode" class="feed-invite-panel">
-                <button type="button" aria-label="초대 코드 복사" @click="copyInviteCode">
-                  <i class="bi bi-copy" aria-hidden="true"></i>
+                <AppButton
+                  variant="outline"
+                  size="sm"
+                  aria-label="초대 코드 복사"
+                  @click="copyInviteCode"
+                >
+                  <template #leading>
+                    <i class="bi bi-copy" aria-hidden="true"></i>
+                  </template>
                   초대코드 복사
-                </button>
+                </AppButton>
               </div>
-              <button
-                type="button"
+              <AppButton
                 class="feed-leave-button"
+                variant="ghost"
+                size="sm"
                 title="챌린지 나가기"
                 aria-label="챌린지 나가기"
                 :disabled="isLeavingChallenge"
                 @click="leaveCurrentChallenge"
               >
-                <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
-              </button>
+                <template #leading>
+                  <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+                </template>
+              </AppButton>
             </div>
           </div>
           <div v-if="!feeds.length" class="empty-feed">
@@ -1027,7 +1063,15 @@ onBeforeUnmount(() => {
           </section>
         </aside>
       </div>
-      <button class="floating-add" aria-label="절약 피드 추가" @click="openModal">+</button>
+      <AppButton
+        class="floating-add"
+        variant="primary"
+        size="lg"
+        aria-label="절약 피드 추가"
+        @click="openModal"
+      >
+        +
+      </AppButton>
     </template>
 
     <div v-if="modalOpen" class="modal-layer" @click.self="closeModal">
@@ -1221,14 +1265,21 @@ onBeforeUnmount(() => {
   justify-items: center;
   gap: 18px;
 }
+.feed-refresh-status,
+.feed-error-alert {
+  margin-bottom: 18px;
+}
+.feed-alert-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
 .feed-header {
   width: calc(100% - 352px);
   margin-bottom: 24px;
 }
-.feed-header-row {
-  display: block;
-}
-.feed-header h1 {
+.feed-header :deep(.app-page-header__title) {
   justify-self: start;
   min-width: 0;
   max-width: 100%;
@@ -1245,7 +1296,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 12px;
 }
-.feed-header p {
+.feed-header :deep(.app-page-header__description) {
   margin: 8px 0 0;
   color: #939bad;
   font-size: 0.67rem;
@@ -1820,6 +1871,8 @@ onBeforeUnmount(() => {
   z-index: 40;
   width: 58px;
   height: 58px;
+  min-height: 0;
+  padding: 0;
   font-size: 2rem;
   box-shadow: 0 10px 28px #6658cf66;
 }
@@ -2143,8 +2196,12 @@ textarea {
     width: 100%;
     margin-bottom: 20px;
   }
-  .feed-header h1 {
+  .feed-header :deep(.app-page-header__title) {
     font-size: 1.35rem;
+  }
+  .feed-alert-content {
+    align-items: flex-start;
+    flex-direction: column;
   }
   .feed-toolbar {
     align-items: stretch;
