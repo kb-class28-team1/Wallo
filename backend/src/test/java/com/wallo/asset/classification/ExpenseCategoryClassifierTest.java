@@ -1,7 +1,10 @@
 package com.wallo.asset.classification;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -39,6 +42,8 @@ class ExpenseCategoryClassifierTest {
         assertEquals("SHOPPING", classify("쿠팡", "기타"));
         assertEquals("HEALTH", classify("동네 병원", "기타"));
         assertEquals("CULTURE", classify("CGV", "기타"));
+
+        verify(categoryClassificationClient, never()).classify(any());
     }
 
     @Test
@@ -67,6 +72,8 @@ class ExpenseCategoryClassifierTest {
         assertEquals("SHOPPING", classify("온라인몰", "온라인몰"));
         assertEquals("SHOPPING", classify("생활 쇼핑", "쇼핑"));
         assertEquals("HOUSING", classify("아파트 관리비", "관리비"));
+
+        verify(categoryClassificationClient, never()).classify(any());
     }
 
     @Test
@@ -83,11 +90,12 @@ class ExpenseCategoryClassifierTest {
     @Test
     void unknownMerchantFallsBackToEtc() {
         ExpenseCategoryClassifier.Result result = classifier.classify(
-                new ExpenseCategoryClassifier.Context("알 수 없는 상점", "미분류")
+                new ExpenseCategoryClassifier.Context("알 수 없는 상점", "미분류", 12_000L)
         );
 
         assertEquals("ETC", result.category());
         assertEquals("FALLBACK", result.source());
+        verify(categoryClassificationClient).classify(any());
     }
 
     @Test
@@ -104,6 +112,7 @@ class ExpenseCategoryClassifierTest {
 
         assertEquals("LIVING", result.category());
         assertEquals("AI", result.source());
+        verify(categoryClassificationClient).classify(any());
     }
 
     private String classify(String merchantName, String sector) {
