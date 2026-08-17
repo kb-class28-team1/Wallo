@@ -8,6 +8,7 @@ import java.util.Locale;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -33,6 +34,7 @@ public class AiCategoryRule implements ExpenseCategoryRule {
     private final CategoryClassificationClient categoryClassificationClient;
     private final AiCategoryBatchExecutor batchExecutor;
 
+    @Autowired
     public AiCategoryRule(CategoryClassificationClient categoryClassificationClient) {
         this(categoryClassificationClient, new AiCategoryBatchExecutor());
     }
