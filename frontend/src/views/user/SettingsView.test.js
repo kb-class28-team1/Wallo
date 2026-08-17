@@ -37,8 +37,19 @@ describe("SettingsView", () => {
     const router = await createTestRouter("user-profile")
     wrapper = mount(SettingsView, { global: { plugins: [router] } })
 
+    expect(wrapper.find(".app-page-header").exists()).toBe(true)
+    expect(wrapper.find(".app-page-header__title").text()).toBe("설정")
+    expect(wrapper.find(".app-page-header__description").text()).toContain("프로필과 연결된 자산")
+    expect(wrapper.find(".settings-navigation").classes()).toContain("app-card")
+    expect(wrapper.find("nav[aria-label='설정 메뉴']").exists()).toBe(true)
+
     const tabs = wrapper.findAll(".settings-tab")
     expect(tabs).toHaveLength(3)
+    expect(tabs.map((tab) => tab.attributes("href"))).toEqual([
+      "/settings/profile",
+      "/settings/connections",
+      "/settings/password",
+    ])
     expect(tabs[0].attributes("aria-current")).toBe("page")
     expect(tabs[1].attributes("aria-current")).toBeUndefined()
 
