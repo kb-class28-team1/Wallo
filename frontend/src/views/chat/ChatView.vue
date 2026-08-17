@@ -6,6 +6,10 @@ import { useRoute, useRouter } from "vue-router"
 import ChatInput from "@/components/chat/ChatInput.vue"
 import ChatMessage from "@/components/chat/ChatMessage.vue"
 import AppDialog from "@/components/common/AppDialog.vue"
+import AppAlert from "@/components/ui/AppAlert.vue"
+import AppButton from "@/components/ui/AppButton.vue"
+import AppCard from "@/components/ui/AppCard.vue"
+import AppState from "@/components/ui/AppState.vue"
 import GoalInterviewCard from "@/components/chat/GoalInterviewCard.vue"
 import GoalAccountSelector from "@/components/goal/GoalAccountSelector.vue"
 import { useConversationStore } from "@/stores/conversationStore"
@@ -25,9 +29,7 @@ const GOAL_COMPLETION_DIALOG_MESSAGE =
   "목표 설정 및 로드맵이 완성되었습니다!\nAI 컨설팅 페이지에서 나의 목표와 로드맵을 확인해보세요."
 const TIMING_LOG_PREFIX = "[WALLO_TIMING]"
 
-const timingNow = () => (
-  typeof performance !== "undefined" ? performance.now() : Date.now()
-)
+const timingNow = () => (typeof performance !== "undefined" ? performance.now() : Date.now())
 
 const logTiming = (event, details = {}) => {
   console.info(`${TIMING_LOG_PREFIX} ${event}`, details)
@@ -72,9 +74,7 @@ const isGoalCompletionDialogVisible = ref(false)
 const isGoalRoadmapReady = ref(false)
 const isGoalAccountConfigured = ref(false)
 const userId = computed(() => user.value?.id ?? null)
-const isGoalDeleteBlocked = computed(
-  () => deleteTargetConversation.value?.hasGoal === true,
-)
+const isGoalDeleteBlocked = computed(() => deleteTargetConversation.value?.hasGoal === true)
 const deleteDialogTitle = computed(() =>
   isGoalDeleteBlocked.value ? "삭제할 수 없는 채팅" : "채팅 삭제",
 )
@@ -83,9 +83,7 @@ const deleteDialogMessage = computed(() =>
     ? GOAL_CHAT_DELETE_BLOCK_MESSAGE
     : `'${deleteTargetConversation.value?.title ?? ""}' 채팅방을 삭제할까요?`,
 )
-const deleteDialogConfirmText = computed(() =>
-  isGoalDeleteBlocked.value ? "확인" : "삭제",
-)
+const deleteDialogConfirmText = computed(() => (isGoalDeleteBlocked.value ? "확인" : "삭제"))
 const displayMessages = computed(() => {
   const consumptionAnalysisStarting = isConsumptionAnalysisStarting.value
   const goalSettingStarting = isGoalSettingStarting.value
@@ -208,9 +206,10 @@ const openDeleteDialog = async (conversation) => {
     force: true,
     syncAccounts: false,
   })
-  const hasGoal = Boolean(goalStore.error) || (Array.isArray(goals) && goals.some(
-    (goal) => Number(goal.conversationId) === Number(conversation.conversationId),
-  ))
+  const hasGoal =
+    Boolean(goalStore.error) ||
+    (Array.isArray(goals) &&
+      goals.some((goal) => Number(goal.conversationId) === Number(conversation.conversationId)))
 
   deleteTargetConversation.value = {
     ...conversation,
@@ -350,9 +349,10 @@ const confirmGoal = async () => {
     }
 
     isGoalRoadmapReady.value = false
-    errorMessage.value = roadmap?.generationStatus === "FAILED"
-      ? "목표 설정은 완료되었지만 로드맵 생성에 실패했습니다."
-      : "목표 설정 결과를 확인하지 못했습니다."
+    errorMessage.value =
+      roadmap?.generationStatus === "FAILED"
+        ? "목표 설정은 완료되었지만 로드맵 생성에 실패했습니다."
+        : "목표 설정 결과를 확인하지 못했습니다."
     logTiming("goal.confirm.end", {
       goalId,
       status: roadmap?.generationStatus === "FAILED" ? "roadmap_failed" : "roadmap_not_ready",
@@ -468,13 +468,12 @@ onMounted(async () => {
     force: hasConversationQuery,
   })
   const requestedConversationId = Number(route.query.conversationId)
-  const hasRequestedConversation = (
+  const hasRequestedConversation =
     Number.isInteger(requestedConversationId) &&
     requestedConversationId > 0 &&
     conversationStore.conversations.some(
       (conversation) => Number(conversation.conversationId) === requestedConversationId,
     )
-  )
 
   if (hasConversationQuery && !hasRequestedConversation) {
     activeConversationId.value = null
@@ -484,9 +483,7 @@ onMounted(async () => {
     return
   }
 
-  const conversationId = hasRequestedConversation
-    ? requestedConversationId
-    : fallbackConversationId
+  const conversationId = hasRequestedConversation ? requestedConversationId : fallbackConversationId
 
   if (conversationId) {
     if (conversationStore.activeConversationId === conversationId) {
@@ -501,30 +498,28 @@ onMounted(async () => {
 
 <template>
   <main class="chat-page">
-    <div class="row g-3">
-      <section class="col-12 col-lg-8 col-xl-9" aria-labelledby="chat-title">
-        <div class="chat-panel card border-0 shadow-sm">
-          <header class="card-header border-bottom bg-white px-4 py-3">
+    <div class="chat-layout">
+      <section class="chat-main-column" aria-labelledby="chat-title">
+        <AppCard as="section" class="chat-panel" padding="none">
+          <header class="chat-panel-header">
             <h1 id="chat-title" class="mb-1 fs-5 fw-bold">
               {{ isGoalSettingEntry ? GOAL_SETTING_TITLE : activeConversation?.title || "새 채팅" }}
             </h1>
             <p class="mb-0 small text-secondary">Wallo AI 금융 컨설턴트</p>
           </header>
 
-          <div ref="messageList" class="message-list card-body" aria-live="polite">
-            <div
+          <div ref="messageList" class="message-list" aria-live="polite">
+            <AppState
               v-if="isMessageInitialLoading"
-              class="loading-message"
+              class="message-state"
+              type="loading"
+              title="대화 내용을 불러오는 중입니다."
+              message="잠시만 기다려 주세요."
+              compact
               aria-label="대화 내용 불러오는 중"
-            >
-              대화 내용을 불러오는 중...
-            </div>
+            />
 
-            <div
-              v-else-if="isMessageRefreshing"
-              class="small text-secondary mb-3 text-center"
-              role="status"
-            >
+            <div v-else-if="isMessageRefreshing" class="message-refresh-status" role="status">
               최신 대화를 확인하는 중...
             </div>
 
@@ -579,16 +574,16 @@ onMounted(async () => {
             </div>
           </div>
 
-          <div v-if="errorMessage" class="alert alert-danger mx-3 mb-2" role="alert">
+          <AppAlert v-if="errorMessage" class="chat-error" variant="danger">
             {{ errorMessage }}
             <RouterLink
               v-if="isMissingGoalConversation"
               to="/dashboard"
-              class="btn btn-sm btn-outline-danger d-block mt-2"
+              class="chat-dashboard-link"
             >
               대시보드로 이동
             </RouterLink>
-          </div>
+          </AppAlert>
 
           <ChatInput
             :disabled="
@@ -602,74 +597,78 @@ onMounted(async () => {
             "
             @send="sendMessage"
           />
-        </div>
+        </AppCard>
       </section>
 
-      <aside class="col-12 col-lg-4 col-xl-3">
-        <section class="conversation-panel card border-0 shadow-sm">
-          <div class="card-body d-flex flex-column p-3">
-            <button
-              type="button"
-              class="btn btn-primary w-100 fw-semibold"
+      <aside class="chat-sidebar">
+        <AppCard as="section" class="conversation-panel" padding="none">
+          <div class="conversation-panel-content">
+            <AppButton
+              class="new-conversation-button"
+              block
               :disabled="isConversationLoading || !userId"
               @click="startNewConversation"
             >
-              <i class="bi bi-plus-lg me-2" aria-hidden="true"></i>
+              <template #leading>
+                <i class="bi bi-plus-lg" aria-hidden="true"></i>
+              </template>
               새 채팅
-            </button>
+            </AppButton>
 
-            <div class="d-flex align-items-center justify-content-between px-1 pb-2 pt-4">
+            <div class="conversation-panel-heading">
               <h2 class="mb-0 fs-6 fw-bold">채팅 목록</h2>
-              <span class="d-flex align-items-center gap-2">
+              <span class="conversation-panel-meta">
                 <span v-if="isConversationRefreshing" class="small text-secondary" role="status">
                   갱신 중
                 </span>
-                <span class="badge text-bg-light">{{ conversations.length }}</span>
+                <span class="conversation-count">{{ conversations.length }}</span>
               </span>
             </div>
 
-            <div
+            <AppState
               v-if="isConversationInitialLoading && !conversations.length"
-              class="py-4 text-center text-secondary"
-            >
-              <span class="spinner-border spinner-border-sm me-2"></span>
-              불러오는 중
-            </div>
+              class="conversation-state"
+              type="loading"
+              title="채팅 목록을 불러오는 중입니다."
+              message="저장된 대화를 확인하고 있습니다."
+              compact
+            />
 
-            <div
+            <AppState
               v-else-if="!conversations.length"
-              class="empty-conversations py-5 text-center text-secondary"
-            >
-              <i class="bi bi-chat-left-text d-block mb-2 fs-3"></i>
-              저장된 채팅이 없습니다.
-            </div>
+              class="conversation-state"
+              type="empty"
+              title="저장된 채팅이 없습니다."
+              message="새 채팅을 시작해 금융 상담을 받아보세요."
+              compact
+            />
 
-            <div v-else class="conversation-list list-group list-group-flush">
+            <div v-else class="conversation-list">
               <div
                 v-for="conversation in conversations"
                 :key="conversation.conversationId"
-                class="conversation-item list-group-item rounded-3 border-0"
+                class="conversation-item"
                 :class="{
                   active: conversation.conversationId === activeConversationId,
                 }"
               >
                 <form
                   v-if="editingConversationId === conversation.conversationId"
-                  class="d-flex align-items-center gap-1"
+                  class="conversation-title-form"
                   @submit.prevent="saveConversationTitle(conversation.conversationId)"
                 >
                   <input
                     v-model="editingTitle"
-                    class="form-control form-control-sm"
+                    class="conversation-title-input"
                     maxlength="100"
                     aria-label="채팅방 제목"
                   />
-                  <button type="submit" class="btn btn-sm btn-link" aria-label="제목 저장">
+                  <button type="submit" class="conversation-icon-button" aria-label="제목 저장">
                     <i class="bi bi-check-lg"></i>
                   </button>
                   <button
                     type="button"
-                    class="btn btn-sm btn-link text-secondary"
+                    class="conversation-icon-button"
                     aria-label="제목 변경 취소"
                     @click="cancelEditingTitle"
                   >
@@ -677,13 +676,13 @@ onMounted(async () => {
                   </button>
                 </form>
 
-                <div v-else class="d-flex align-items-center gap-1">
+                <div v-else class="conversation-item-content">
                   <button
                     type="button"
-                    class="conversation-select btn flex-grow-1 overflow-hidden p-0 text-start"
+                    class="conversation-select"
                     @click="selectConversation(conversation.conversationId)"
                   >
-                    <span class="d-block text-truncate fw-semibold">
+                    <span class="conversation-title">
                       {{ conversation.title }}
                     </span>
                     <small class="conversation-date">
@@ -692,7 +691,7 @@ onMounted(async () => {
                   </button>
                   <button
                     type="button"
-                    class="conversation-action btn btn-sm btn-link"
+                    class="conversation-action"
                     aria-label="채팅방 제목 변경"
                     @click="startEditingTitle(conversation)"
                   >
@@ -700,7 +699,7 @@ onMounted(async () => {
                   </button>
                   <button
                     type="button"
-                    class="conversation-action btn btn-sm btn-link text-danger"
+                    class="conversation-action conversation-action--danger"
                     aria-label="채팅방 삭제"
                     @click="openDeleteDialog(conversation)"
                   >
@@ -710,7 +709,7 @@ onMounted(async () => {
               </div>
             </div>
           </div>
-        </section>
+        </AppCard>
       </aside>
     </div>
 

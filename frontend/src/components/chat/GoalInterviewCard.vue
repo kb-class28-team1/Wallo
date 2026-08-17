@@ -1,5 +1,8 @@
 <script setup>
 import { computed } from "vue"
+import AppAlert from "@/components/ui/AppAlert.vue"
+import AppButton from "@/components/ui/AppButton.vue"
+import AppCard from "@/components/ui/AppCard.vue"
 
 const props = defineProps({
   interview: {
@@ -17,9 +20,7 @@ const emit = defineEmits(["confirm", "cancel"])
 const draft = computed(() => props.interview?.draft ?? {})
 const feasibility = computed(() => props.interview?.feasibility ?? null)
 
-const isReviewable = computed(() =>
-  ["CONFIRMATION", "REVIEW"].includes(draft.value.state),
-)
+const isReviewable = computed(() => ["CONFIRMATION", "REVIEW"].includes(draft.value.state))
 
 const isCompleted = computed(
   () => props.interview?.action === "CONFIRM" || draft.value.state === "COMPLETED",
@@ -37,9 +38,7 @@ const fieldLabels = {
 }
 
 const missingFieldLabels = computed(() =>
-  (draft.value.missingFields ?? []).map(
-    (field) => fieldLabels[field] ?? field,
-  ),
+  (draft.value.missingFields ?? []).map((field) => fieldLabels[field] ?? field),
 )
 
 const formatAmount = (amount) => {
@@ -73,11 +72,13 @@ const feasibilityClass = computed(() => {
 </script>
 
 <template>
-  <section
-    class="goal-interview-card card border-0 shadow-sm"
+  <AppCard
+    as="section"
+    class="goal-interview-card"
+    padding="none"
     aria-labelledby="goal-interview-title"
   >
-    <div class="card-body p-3 p-md-4">
+    <div class="goal-interview-body">
       <div class="d-flex align-items-start gap-3">
         <div class="goal-icon flex-shrink-0" aria-hidden="true">
           <i class="bi bi-bullseye"></i>
@@ -90,9 +91,9 @@ const feasibilityClass = computed(() => {
         </div>
       </div>
 
-      <div v-if="isCancelled" class="alert alert-secondary mt-3 mb-0 py-2" role="status">
+      <AppAlert v-if="isCancelled" class="goal-cancelled-message" variant="neutral" role="status">
         목표 설정을 취소했습니다.
-      </div>
+      </AppAlert>
 
       <template v-if="!isCancelled">
         <dl class="goal-details row g-2 mb-0 mt-3">
@@ -116,7 +117,10 @@ const feasibilityClass = computed(() => {
             <strong :class="feasibilityClass">{{ feasibilityLabel }}</strong>
           </div>
           <div
-            v-if="feasibility.requiredMonthlyAmount !== null && feasibility.requiredMonthlyAmount !== undefined"
+            v-if="
+              feasibility.requiredMonthlyAmount !== null &&
+              feasibility.requiredMonthlyAmount !== undefined
+            "
             class="d-flex justify-content-between align-items-center gap-2 small mt-2"
           >
             <span class="text-secondary">월 필요 납입액</span>
@@ -130,69 +134,70 @@ const feasibilityClass = computed(() => {
         </div>
 
         <div v-if="isReviewable && !isCompleted" class="d-flex gap-2 mt-3">
-          <button
-            type="button"
-            class="btn btn-primary flex-grow-1"
+          <AppButton
+            class="btn-primary goal-confirm-button flex-grow-1"
+            variant="primary"
             :disabled="loading"
+            :loading="loading"
             @click="emit('confirm')"
           >
-            <span v-if="loading" class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
             이대로 확정
-          </button>
-          <button
-            type="button"
-            class="btn btn-outline-secondary"
+          </AppButton>
+          <AppButton
+            class="btn-outline-secondary goal-cancel-button"
+            variant="secondary"
             :disabled="loading"
             @click="emit('cancel')"
           >
             취소
-          </button>
+          </AppButton>
         </div>
       </template>
     </div>
-  </section>
+  </AppCard>
 </template>
 
 <style scoped>
 .goal-interview-card {
   margin: 4px 0 18px;
-  border-left: 4px solid #7062de !important;
+  border-left: 4px solid var(--wallo-color-primary) !important;
+}
+
+.goal-interview-body {
+  padding: var(--wallo-space-4);
+}
+
+.goal-cancelled-message {
+  margin-top: var(--wallo-space-3);
 }
 
 .goal-icon {
   display: grid;
   width: 38px;
   height: 38px;
-  color: #7062de;
-  background: #efedff;
-  border-radius: 12px;
+  color: var(--wallo-color-primary);
+  background: rgb(112 98 222 / 10%);
+  border-radius: var(--wallo-radius-md);
   place-items: center;
   font-size: 1.1rem;
 }
 
 .goal-details dt {
-  color: #7b849b;
+  color: var(--wallo-color-text-muted);
   font-size: 0.75rem;
   font-weight: 500;
 }
 
 .goal-details dd {
   margin: 2px 0 0;
-  color: #29273a;
+  color: var(--wallo-color-text);
   font-size: 0.9rem;
   font-weight: 700;
 }
 
 .feasibility-box {
   padding: 10px 12px;
-  background: #f7f6ff;
-  border-radius: 10px;
-}
-
-.goal-interview-card .btn-primary {
-  --bs-btn-bg: #7062de;
-  --bs-btn-border-color: #7062de;
-  --bs-btn-hover-bg: #5f52c9;
-  --bs-btn-hover-border-color: #5f52c9;
+  background: var(--wallo-color-surface-soft);
+  border-radius: var(--wallo-radius-sm);
 }
 </style>
