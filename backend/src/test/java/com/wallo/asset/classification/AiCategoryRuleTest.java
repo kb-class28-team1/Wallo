@@ -47,6 +47,7 @@ class AiCategoryRuleTest {
         assertEquals("AI", result.get().source());
         assertEquals(new BigDecimal("0.8600"), result.get().confidence());
         assertEquals("ai-v1", result.get().classifierVersion());
+        verify(client).classify(any());
     }
 
     @Test
@@ -57,6 +58,7 @@ class AiCategoryRuleTest {
 
         ExpenseCategoryClassifier.Result result = rule.classify(context()).orElseThrow();
 
+        assertEquals("ETC", result.category());
         assertEquals("FALLBACK", result.source());
         assertEquals(CategoryFailureReason.LOW_CONFIDENCE, result.failureReason());
     }
@@ -69,6 +71,7 @@ class AiCategoryRuleTest {
 
         ExpenseCategoryClassifier.Result result = rule.classify(context()).orElseThrow();
 
+        assertEquals("ETC", result.category());
         assertEquals("FALLBACK", result.source());
         assertEquals(CategoryFailureReason.AI_INVALID_RESPONSE, result.failureReason());
     }
@@ -80,8 +83,10 @@ class AiCategoryRuleTest {
         Optional<ExpenseCategoryClassifier.Result> result = rule.classify(context());
 
         assertTrue(result.isPresent());
+        assertEquals("ETC", result.get().category());
         assertEquals("FALLBACK", result.get().source());
         assertEquals(CategoryFailureReason.AI_UNAVAILABLE, result.get().failureReason());
+        verify(client).classify(any());
     }
 
     @Test
@@ -167,6 +172,7 @@ class AiCategoryRuleTest {
             release.countDown();
         }
         assertEquals(123, future.get(5, TimeUnit.SECONDS).size());
+        verify(concurrentClient, times(3)).classifyBatch(any());
     }
 
     private List<ExpenseCategoryClassifier.Context> contexts(int count) {
