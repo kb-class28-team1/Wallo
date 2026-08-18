@@ -3,29 +3,39 @@ import { computed, onMounted, ref } from "vue"
 import { useRouter } from "vue-router"
 import { storeToRefs } from "pinia"
 import { useGoalStore } from "@/stores/goalStore"
+import { useUserStore } from "@/stores/userStore"
 import { formatWon } from "@/commonUtils/formatters"
 import {
   getGoalAchievementRate,
   getGoalCurrentAmount,
   getGoalTargetAmount,
 } from "@/commonUtils/goalProgress"
+import AppAlert from "@/components/ui/AppAlert.vue"
+import AppButton from "@/components/ui/AppButton.vue"
+import AppCard from "@/components/ui/AppCard.vue"
+import AppPageHeader from "@/components/ui/AppPageHeader.vue"
+import AppState from "@/components/ui/AppState.vue"
 
 const router = useRouter()
 const goalStore = useGoalStore()
+const userStore = useUserStore()
 const {
   goals,
-  isLoading,
+  initialLoading,
+  refreshing,
   error,
   roadmap,
   isRoadmapLoading,
   roadmapError,
   isRoadmapProgressSaving,
 } = storeToRefs(goalStore)
+const { user } = storeToRefs(userStore)
 
 const walloCharacter = "/images/profiles/thinking-penguin.svg"
 const hasGoal = computed(() => goals.value.length > 0)
 const currentGoal = computed(() => goals.value[0] ?? null)
 const roadmapSlider = ref(null)
+const userId = computed(() => user.value?.id ?? null)
 
 const currentAmount = computed(() => getGoalCurrentAmount(currentGoal.value))
 const targetAmount = computed(() => getGoalTargetAmount(currentGoal.value))
@@ -51,8 +61,8 @@ const remainingMonths = computed(() => {
   const targetDate = parseGoalDate(currentGoal.value?.targetDate)
   if (!targetDate) return 0
   const today = new Date()
-  const months = (targetDate.getFullYear() - today.getFullYear()) * 12
-    + targetDate.getMonth() - today.getMonth()
+  const months =
+    (targetDate.getFullYear() - today.getFullYear()) * 12 + targetDate.getMonth() - today.getMonth()
   return Math.max(0, months)
 })
 
@@ -69,8 +79,9 @@ const goalRoadmapSteps = computed(() => {
     description: step.description,
     actionItems: step.actionItems ?? [],
     completed: completedSteps.has(step.stepNumber ?? index + 1),
-    active: !completedSteps.has(step.stepNumber ?? index + 1)
-      && (step.stepNumber ?? index + 1) === currentStepNumber,
+    active:
+      !completedSteps.has(step.stepNumber ?? index + 1) &&
+      (step.stepNumber ?? index + 1) === currentStepNumber,
   }))
 })
 
@@ -137,48 +148,82 @@ const benefits = [
   },
 ]
 
-const loadGoalPage = async () => {
+const loadGoalPage = async ({ force = false } = {}) => {
+  error.value = null
   await goalStore.fetchGoals({
+    userId: userId.value,
     notifyError: false,
+    force,
   })
 }
 
 const startGoalSetting = async () => {
+  await router.push({
+    name: "chat",
+    query: { start: "goal-setting" },
+  })
+}
+
+const startAiChat = async () => {
   await router.push({ name: "chat" })
 }
 
-onMounted(loadGoalPage)
+onMounted(() => loadGoalPage({ force: true }))
 </script>
 
 <template>
   <section class="assistant-page">
-    <header class="assistant-header mb-4">
-      <h1 class="mb-2 fw-bold">AI 컨설팅</h1>
-      <p class="mb-0 text-secondary">
-        AI가 당신의 재무 상황을 분석하고, 목표 달성을 위한 맞춤 로드맵을 제안해드립니다.
-      </p>
-    </header>
+    <AppPageHeader
+      class="assistant-header"
+      title="AI 컨설팅"
+      description="AI가 당신의 재무 상황을 분석하고, 목표 달성을 위한 맞춤 로드맵을 제안해드립니다."
+    />
 
-    <div v-if="isLoading" class="state-card card border-0 shadow-sm" role="status">
-      <div class="card-body d-flex align-items-center justify-content-center gap-2">
-        <span class="spinner-border spinner-border-sm text-primary" aria-hidden="true"></span>
-        목표 정보를 불러오는 중입니다.
-      </div>
-    </div>
+    <AppAlert
+      v-if="refreshing"
+      class="assistant-refresh-status"
+      variant="neutral"
+      role="status"
+      :show-icon="false"
+      message="최신 목표 정보를 확인하는 중입니다."
+    />
 
-    <div v-else-if="error" class="state-card card border-0 shadow-sm">
-      <div class="card-body text-center">
-        <p class="mb-3 text-danger">{{ error }}</p>
-        <button type="button" class="btn btn-outline-primary" @click="loadGoalPage">
+    <AppAlert
+      v-if="error && goals.length"
+      class="assistant-refresh-error"
+      variant="warning"
+      :show-icon="false"
+    >
+      <div class="assistant-error-content">
+        <span>{{ error }}</span>
+        <AppButton variant="outline" size="sm" @click="loadGoalPage({ force: true })">
           다시 시도
-        </button>
+        </AppButton>
       </div>
-    </div>
+    </AppAlert>
+
+    <AppState
+      v-if="initialLoading"
+      class="state-card"
+      type="loading"
+      title="목표 정보를 불러오는 중입니다."
+      message="잠시만 기다려 주세요."
+    />
+
+    <AppState
+      v-else-if="error && !goals.length"
+      class="state-card"
+      type="error"
+      title="목표 정보를 불러오지 못했습니다."
+      :message="error"
+      action-text="다시 시도"
+      @action="loadGoalPage({ force: true })"
+    />
 
     <div v-else-if="!hasGoal" class="empty-dashboard">
       <div class="row g-4 align-items-stretch">
         <div class="col-xl-8">
-          <article class="content-card card h-100 border-0 shadow-sm">
+          <AppCard as="article" class="content-card" padding="none">
             <div class="card-body p-4 p-lg-5">
               <h2 class="section-title h5 fw-bold">
                 나의 목표
@@ -196,17 +241,17 @@ onMounted(loadGoalPage)
                     목표를 설정하면 AI가 당신만의 로드맵을 만들어 드릴게요.
                   </p>
                 </div>
-                <button type="button" class="btn goal-button" @click="startGoalSetting">
+                <AppButton class="goal-button" variant="primary" @click="startGoalSetting">
                   목표 설정하기
                   <i class="bi bi-arrow-right ms-2" aria-hidden="true"></i>
-                </button>
+                </AppButton>
               </div>
             </div>
-          </article>
+          </AppCard>
         </div>
 
         <div class="col-xl-4">
-          <aside class="content-card coaching-card card h-100 border-0 shadow-sm">
+          <AppCard as="aside" class="content-card coaching-card" padding="none">
             <div class="card-body p-4 p-lg-5">
               <h2 class="section-title h5 fw-bold">AI 한줄 코칭</h2>
               <div class="coach-bubble mt-4">
@@ -219,11 +264,11 @@ onMounted(loadGoalPage)
                 <img :src="walloCharacter" alt="" />
               </div>
             </div>
-          </aside>
+          </AppCard>
         </div>
       </div>
 
-      <article class="content-card card border-0 shadow-sm mt-4">
+      <AppCard as="article" class="content-card mt-4" padding="none">
         <div class="card-body p-4 p-lg-5">
           <h2 class="section-title h5 fw-bold">
             목표 달성을 위한 로드맵
@@ -238,7 +283,9 @@ onMounted(loadGoalPage)
               :class="{ active: index === 0 }"
             >
               <span class="step-number">{{ step.number }}</span>
-              <span class="step-icon"><i class="bi" :class="step.icon" aria-hidden="true"></i></span>
+              <span class="step-icon"
+                ><i class="bi" :class="step.icon" aria-hidden="true"></i
+              ></span>
               <span class="step-copy">
                 <strong>{{ step.title }}</strong>
                 <small>{{ step.description }}</small>
@@ -251,9 +298,9 @@ onMounted(loadGoalPage)
             </li>
           </ol>
         </div>
-      </article>
+      </AppCard>
 
-      <article class="content-card card border-0 shadow-sm mt-4">
+      <AppCard as="article" class="content-card mt-4" padding="none">
         <div class="card-body p-4 p-lg-5">
           <h2 class="section-title h5 fw-bold">목표를 설정하면 얻을 수 있어요</h2>
           <div class="row g-3 mt-2">
@@ -268,23 +315,28 @@ onMounted(loadGoalPage)
             </div>
           </div>
         </div>
-      </article>
+      </AppCard>
     </div>
 
     <div v-else class="goal-dashboard">
       <div class="row g-4 align-items-stretch">
         <div class="col-xl-8">
-          <article class="content-card card h-100 border-0 shadow-sm">
+          <AppCard as="article" class="content-card" padding="none">
             <div class="card-body p-4 p-lg-5">
               <div class="goal-card-heading d-flex align-items-start justify-content-between gap-3">
                 <h2 class="section-title h5 fw-bold">나의 목표</h2>
                 <div class="goal-heading-actions d-flex align-items-center gap-2">
                   <span class="goal-status-badge">진행 중</span>
-                  <button type="button" class="btn goal-chat-button" @click="startGoalSetting">
+                  <AppButton
+                    class="goal-chat-button"
+                    variant="outline"
+                    size="sm"
+                    @click="startAiChat"
+                  >
                     <i class="bi bi-chat-dots me-1" aria-hidden="true"></i>
                     AI와 상담하기
                     <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
-                  </button>
+                  </AppButton>
                 </div>
               </div>
 
@@ -333,13 +385,12 @@ onMounted(loadGoalPage)
                   </div>
                 </div>
               </div>
-
             </div>
-          </article>
+          </AppCard>
         </div>
 
         <div class="col-xl-4">
-          <aside class="content-card coaching-card card h-100 border-0 shadow-sm">
+          <AppCard as="aside" class="content-card coaching-card" padding="none">
             <div class="card-body p-4 p-lg-5">
               <h2 class="section-title h5 fw-bold">AI 한줄 코칭</h2>
               <div class="coach-bubble mt-4">{{ coachingMessage }}</div>
@@ -349,47 +400,63 @@ onMounted(loadGoalPage)
                 <img :src="walloCharacter" alt="" />
               </div>
             </div>
-          </aside>
+          </AppCard>
         </div>
       </div>
 
-      <article class="content-card card border-0 shadow-sm mt-4">
+      <AppCard as="article" class="content-card mt-4" padding="none">
         <div class="card-body p-4 p-lg-5">
           <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
             <h2 class="section-title h5 fw-bold">목표 달성을 위한 로드맵</h2>
             <div class="d-flex align-items-center gap-2">
               <span class="small text-secondary">AI가 생성한 맞춤 계획</span>
-              <div v-if="goalRoadmapSteps.length > 1" class="roadmap-navigation" aria-label="로드맵 이동">
-                <button
-                  type="button"
-                  class="btn roadmap-navigation-button"
+              <div
+                v-if="goalRoadmapSteps.length > 1"
+                class="roadmap-navigation"
+                aria-label="로드맵 이동"
+              >
+                <AppButton
+                  class="roadmap-navigation-button"
+                  variant="ghost"
+                  size="sm"
                   aria-label="이전 로드맵 단계 보기"
                   @click="scrollRoadmap(-1)"
                 >
                   <i class="bi bi-chevron-left" aria-hidden="true"></i>
-                </button>
-                <button
-                  type="button"
-                  class="btn roadmap-navigation-button"
+                </AppButton>
+                <AppButton
+                  class="roadmap-navigation-button"
+                  variant="ghost"
+                  size="sm"
                   aria-label="다음 로드맵 단계 보기"
                   @click="scrollRoadmap(1)"
                 >
                   <i class="bi bi-chevron-right" aria-hidden="true"></i>
-                </button>
+                </AppButton>
               </div>
             </div>
           </div>
 
-          <div v-if="isRoadmapLoading" class="roadmap-state text-secondary mt-4" role="status">
-            <span class="spinner-border spinner-border-sm text-primary me-2"></span>
-            저장된 로드맵을 불러오는 중입니다.
-          </div>
-          <div v-else-if="roadmapError" class="alert alert-danger mt-4 mb-0">
-            {{ roadmapError }}
-          </div>
-          <div v-else-if="roadmap?.generationStatus === 'FAILED'" class="alert alert-warning mt-4 mb-0">
-            AI 로드맵 생성에 실패했습니다. 목표는 정상적으로 저장되어 있습니다.
-          </div>
+          <AppState
+            v-if="isRoadmapLoading"
+            class="roadmap-state mt-4"
+            type="loading"
+            compact
+            title="저장된 로드맵을 불러오는 중입니다."
+            message="잠시만 기다려 주세요."
+          />
+          <AppAlert
+            v-else-if="roadmapError"
+            class="roadmap-alert mt-4"
+            variant="danger"
+            :message="roadmapError"
+          />
+          <AppAlert
+            v-else-if="roadmap?.generationStatus === 'FAILED'"
+            class="roadmap-alert mt-4"
+            variant="warning"
+            message="AI 로드맵 생성에 실패했습니다. 목표는 정상적으로 저장되어 있습니다."
+          />
           <ol
             v-else-if="goalRoadmapSteps.length"
             ref="roadmapSlider"
@@ -406,7 +473,9 @@ onMounted(loadGoalPage)
                 <i v-if="step.completed" class="bi bi-check-lg" aria-hidden="true"></i>
                 <template v-else>{{ step.number }}</template>
               </span>
-              <span class="step-icon"><i class="bi" :class="step.icon" aria-hidden="true"></i></span>
+              <span class="step-icon"
+                ><i class="bi" :class="step.icon" aria-hidden="true"></i
+              ></span>
               <span class="step-copy">
                 <small class="step-date">{{ step.date }}</small>
                 <strong>{{ step.title }}</strong>
@@ -414,16 +483,19 @@ onMounted(loadGoalPage)
                 <small v-for="action in step.actionItems" :key="action" class="roadmap-action">
                   · {{ action }}
                 </small>
-                <button
-                  type="button"
-                  class="btn btn-sm roadmap-progress-button mt-2"
-                  :class="step.completed ? 'btn-outline-secondary' : 'btn-outline-primary'"
+                <AppButton
+                  class="roadmap-progress-button mt-2"
+                  :variant="step.completed ? 'secondary' : 'outline'"
+                  size="sm"
                   :disabled="isRoadmapProgressSaving"
                   @click="toggleRoadmapStep(step)"
                 >
-                  <i class="bi me-1" :class="step.completed ? 'bi-arrow-counterclockwise' : 'bi-check-circle'"></i>
+                  <i
+                    class="bi me-1"
+                    :class="step.completed ? 'bi-arrow-counterclockwise' : 'bi-check-circle'"
+                  ></i>
                   {{ step.completed ? "완료 취소" : "이 단계까지 완료" }}
-                </button>
+                </AppButton>
               </span>
               <i
                 v-if="index < goalRoadmapSteps.length - 1"
@@ -432,13 +504,18 @@ onMounted(loadGoalPage)
               ></i>
             </li>
           </ol>
-          <p v-else class="roadmap-state text-secondary mt-4 mb-0">
-            아직 생성된 로드맵이 없습니다.
-          </p>
+          <AppState
+            v-else
+            class="roadmap-state mt-4"
+            type="empty"
+            compact
+            title="아직 생성된 로드맵이 없습니다."
+            message="목표를 저장하면 AI가 맞춤 로드맵을 준비합니다."
+          />
         </div>
-      </article>
+      </AppCard>
 
-      <article class="content-card card border-0 shadow-sm mt-4">
+      <AppCard as="article" class="content-card mt-4" padding="none">
         <div class="card-body p-4 p-lg-5">
           <h2 class="section-title h5 fw-bold">이번 달 실천 가이드</h2>
           <div class="row g-3 mt-2">
@@ -447,7 +524,10 @@ onMounted(loadGoalPage)
                 <span class="action-icon"><i class="bi bi-arrow-repeat"></i></span>
                 <div>
                   <h3 class="h6 fw-bold mb-2">자동 저축 설정</h3>
-                  <p class="mb-0 text-secondary">급여일에 {{ formatWon(currentGoal.requiredMonthlyAmount) }}이 자동으로 이체되도록 설정해보세요.</p>
+                  <p class="mb-0 text-secondary">
+                    급여일에 {{ formatWon(currentGoal.requiredMonthlyAmount) }}이 자동으로
+                    이체되도록 설정해보세요.
+                  </p>
                 </div>
               </div>
             </div>
@@ -456,7 +536,9 @@ onMounted(loadGoalPage)
                 <span class="action-icon"><i class="bi bi-calendar-check"></i></span>
                 <div>
                   <h3 class="h6 fw-bold mb-2">월말 진행 점검</h3>
-                  <p class="mb-0 text-secondary">월말에 목표 계좌 잔액과 계획 대비 달성률을 확인해보세요.</p>
+                  <p class="mb-0 text-secondary">
+                    월말에 목표 계좌 잔액과 계획 대비 달성률을 확인해보세요.
+                  </p>
                 </div>
               </div>
             </div>
@@ -465,13 +547,15 @@ onMounted(loadGoalPage)
                 <span class="action-icon"><i class="bi bi-shield-check"></i></span>
                 <div>
                   <h3 class="h6 fw-bold mb-2">계획 유지하기</h3>
-                  <p class="mb-0 text-secondary">부족한 달은 다음 달 납입액을 조정해 목표 일정이 밀리지 않게 관리해요.</p>
+                  <p class="mb-0 text-secondary">
+                    부족한 달은 다음 달 납입액을 조정해 목표 일정이 밀리지 않게 관리해요.
+                  </p>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </article>
+      </AppCard>
     </div>
   </section>
 </template>
@@ -482,13 +566,26 @@ onMounted(loadGoalPage)
   color: #1c2440;
 }
 
-.assistant-header h1 {
+.assistant-header :deep(.app-page-header__title) {
   font-size: clamp(1.75rem, 3vw, 2.35rem);
   letter-spacing: -0.045em;
 }
 
-.assistant-header p {
+.assistant-header :deep(.app-page-header__description) {
   font-size: 1.05rem;
+}
+
+.assistant-refresh-status,
+.assistant-refresh-error {
+  margin-bottom: var(--wallo-space-3);
+}
+
+.assistant-error-content {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--wallo-space-2);
 }
 
 .content-card,
@@ -939,7 +1036,7 @@ onMounted(loadGoalPage)
 }
 
 @media (max-width: 767.98px) {
-  .assistant-header p {
+  .assistant-header :deep(.app-page-header__description) {
     font-size: 0.95rem;
   }
 

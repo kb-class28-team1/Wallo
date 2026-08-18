@@ -127,6 +127,22 @@ class ChatServiceTest {
     }
 
     @Test
+    void preservesGoalSettingModeWhenAddingFinancialContext() {
+        GoalAssetContextDto.Response context = emptyContext(false);
+        ChatRequest request = new ChatRequest("목표를 설정하고 싶어요")
+                .withChatMode("GOAL_SETTING");
+        ChatRequest expected = request.withFinancialContext(context);
+        when(assetService.getGoalAssetContext(7L)).thenReturn(context);
+        when(pythonAiClient.chat(expected))
+                .thenReturn(new ChatResponse("어떤 목표를 세우고 싶으신가요?", null));
+
+        ChatResponse response = chatService.chat(request, 7L);
+
+        assertEquals("어떤 목표를 세우고 싶으신가요?", response.answer());
+        verify(pythonAiClient).chat(expected);
+    }
+
+    @Test
     void sendsEmptyFinancialContextWhenUserHasNoAccounts() {
         GoalAssetContextDto.Response context = emptyContext(false);
         ChatRequest request = new ChatRequest("목표를 만들고 싶어");

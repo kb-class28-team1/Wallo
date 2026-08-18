@@ -13,6 +13,7 @@ from app.agents.financial.prompts import SYSTEM_PROMPT
 from app.agents.financial.tools.registry import TOOL_SCHEMAS, execute_tool
 from app.agents.goal.context import FinancialContext
 from app.core.config import get_groq_model
+from app.core.ai_timing import timed_groq_completion
 from app.agents.financial.consumption_models import ConsumptionContext
 from app.agents.financial.spending_intent import (
     build_spending_arguments,
@@ -154,22 +155,32 @@ class FinancialAgent:
                     + json.dumps(tool_result.to_dict(), ensure_ascii=False)
                 ),
             })
-            final_completion = self.client.chat.completions.create(
+            with timed_groq_completion(
+                self.client,
+                operation="chat.consumption.final",
                 model=self.model,
-                messages=messages,
-                max_completion_tokens=SPENDING_ANALYSIS_FINAL_COMPLETION_TOKENS,
-            )
-            return (
-                final_completion.choices[0].message.content
-                or "소비분석 결과를 정리하지 못했습니다."
-            )
-        completion = self.client.chat.completions.create(
+                requested_completion_tokens=SPENDING_ANALYSIS_FINAL_COMPLETION_TOKENS,
+            ) as timing:
+                final_completion = timing.create(
+                    messages=messages,
+                    max_completion_tokens=SPENDING_ANALYSIS_FINAL_COMPLETION_TOKENS,
+                )
+                return (
+                    final_completion.choices[0].message.content
+                    or "소비분석 결과를 정리하지 못했습니다."
+                )
+        with timed_groq_completion(
+            self.client,
+            operation="chat.route",
             model=self.model,
-            messages=messages,
-            tools=TOOL_SCHEMAS,
-            tool_choice="auto",
-            max_completion_tokens=500,
-        )
+            requested_completion_tokens=500,
+        ) as timing:
+            completion = timing.create(
+                messages=messages,
+                tools=TOOL_SCHEMAS,
+                tool_choice="auto",
+                max_completion_tokens=500,
+            )
         assistant_message = completion.choices[0].message
         if not assistant_message.tool_calls:
             logger.info("[AI ROUTING] direct_response")
@@ -243,7 +254,17 @@ class FinancialAgent:
             final_options.update({
                 "max_completion_tokens": SPENDING_ANALYSIS_FINAL_COMPLETION_TOKENS,
             })
-        final_completion = self.client.chat.completions.create(**final_options)
+        with timed_groq_completion(
+            self.client,
+            operation="chat.final",
+            model=self.model,
+            requested_completion_tokens=final_options.get("max_completion_tokens"),
+        ) as timing:
+            final_completion = timing.create(**{
+                key: value
+                for key, value in final_options.items()
+                if key != "model"
+            })
         answer = final_completion.choices[0].message.content or "도구 호출 결과를 정리하지 못했습니다."
         if self.selected_tool == ASSET_ANALYSIS_TOOL:
             if isinstance(tool_result.data, dict):

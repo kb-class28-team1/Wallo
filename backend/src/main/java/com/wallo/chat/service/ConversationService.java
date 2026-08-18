@@ -5,6 +5,7 @@ import com.wallo.chat.dto.ConversationResponse;
 import com.wallo.chat.dto.CreateConversationRequest;
 import com.wallo.chat.dto.UpdateConversationTitleRequest;
 import com.wallo.chat.mapper.ConversationMapper;
+import com.wallo.goal.mapper.GoalMapper;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -16,11 +17,15 @@ public class ConversationService {
 
     private static final String DEFAULT_TITLE = "새 채팅";
     private static final String ACTIVE_STATUS = "ACTIVE";
+    private static final String GOAL_CONVERSATION_DELETE_MESSAGE =
+            "목표 설정이 완료된 채팅은 계좌 변경에 필요하므로 삭제할 수 없습니다.";
 
     private final ConversationMapper conversationMapper;
+    private final GoalMapper goalMapper;
 
-    public ConversationService(ConversationMapper conversationMapper) {
+    public ConversationService(ConversationMapper conversationMapper, GoalMapper goalMapper) {
         this.conversationMapper = conversationMapper;
+        this.goalMapper = goalMapper;
     }
 
     @Transactional(readOnly = true)
@@ -117,6 +122,9 @@ public class ConversationService {
     @Transactional
     public void deleteConversation(Long conversationId, Long userId) {
         validateOwnership(conversationId, userId);
+        if (goalMapper.findGoalByConversationId(userId, conversationId) != null) {
+            throw new IllegalArgumentException(GOAL_CONVERSATION_DELETE_MESSAGE);
+        }
         if (conversationMapper.softDelete(conversationId, userId) != 1) {
             throw new IllegalArgumentException("채팅방을 삭제할 수 없습니다.");
         }

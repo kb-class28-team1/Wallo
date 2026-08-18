@@ -39,12 +39,22 @@ public class MerchantSectorCategoryRule implements ExpenseCategoryRule {
         Map<String, String> categories = new LinkedHashMap<>();
         categories.put("요식/음료", "FOOD");
         categories.put("주유", "TRANSPORT");
+        categories.put("택시", "TRANSPORT");
+        categories.put("대중교통", "TRANSPORT");
+        categories.put("의료", "HEALTH");
+        categories.put("병원", "HEALTH");
+        categories.put("약국", "HEALTH");
+        categories.put("카페", "CAFE");
+        categories.put("커피", "CAFE");
         categories.put("온라인쇼핑", "SHOPPING");
+        categories.put("온라인몰", "SHOPPING");
+        categories.put("쇼핑", "SHOPPING");
         categories.put("잡화/화장품", "SHOPPING");
         categories.put("편의점", "SHOPPING");
         categories.put("서점", "CULTURE");
         categories.put("통신", "HOUSING");
         categories.put("주거", "HOUSING");
+        categories.put("관리비", "HOUSING");
         return Map.copyOf(categories);
     }
 

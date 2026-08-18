@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.wallo.chat.client.AiRateLimitException;
 import com.wallo.mission.client.MissionAiClient;
 import com.wallo.mission.domain.MissionAnalysisSource;
 import com.wallo.mission.domain.DailyMission;
@@ -20,6 +21,7 @@ import com.wallo.mission.mapper.MissionMapper;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
@@ -141,6 +143,39 @@ class MissionGenerationServiceTest {
         assertEquals(0, result.missionCount());
         verify(aiClient, never()).generate(any());
         verify(mapper, never()).insertCycle(any());
+    }
+
+    @Test
+    void recordsRateLimitFailureWithoutPersistingProviderErrorDetails() {
+        when(mapper.findCycle(7L, LocalDate.of(2026, 8, 17))).thenReturn(null);
+
+        service.markGenerationFailed(
+                7L,
+                new AiRateLimitException("provider response contains sensitive details", null));
+
+        ArgumentCaptor<com.wallo.mission.domain.MissionCycle> captor =
+                ArgumentCaptor.forClass(com.wallo.mission.domain.MissionCycle.class);
+        verify(mapper).insertCycle(captor.capture());
+        assertEquals("FAILED", captor.getValue().getStatus());
+        assertEquals("RATE_LIMIT", captor.getValue().getGenerationError());
+        assertEquals("pending-v1", captor.getValue().getPromptVersion());
+    }
+
+    @Test
+    void returnsRecentRateLimitFailureBeforeRetryingTheAiCall() {
+        com.wallo.mission.domain.MissionCycle failedCycle = new com.wallo.mission.domain.MissionCycle();
+        failedCycle.setMissionCycleId(20L);
+        failedCycle.setGenerationError("RATE_LIMIT");
+        failedCycle.setGeneratedAt(LocalDateTime.of(2026, 8, 17, 8, 59, 59));
+        when(mapper.findDailyMissions(7L, LocalDate.of(2026, 8, 17))).thenReturn(List.of());
+        when(mapper.findCycle(7L, LocalDate.of(2026, 8, 17))).thenReturn(failedCycle);
+
+        MissionGenerationDto.Result result = service.generateToday(
+                7L, LocalDate.of(2026, 8, 17));
+
+        assertEquals(TodayMissionResponse.GENERATION_FAILED_STATUS, result.status());
+        assertEquals("RATE_LIMIT", result.failureReason());
+        verify(aiClient, never()).generate(any());
     }
 
     @Test

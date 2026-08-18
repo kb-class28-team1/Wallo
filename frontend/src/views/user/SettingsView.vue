@@ -1,5 +1,7 @@
 <script setup>
 import { RouterLink, RouterView, useRoute } from "vue-router"
+import AppCard from "@/components/ui/AppCard.vue"
+import AppPageHeader from "@/components/ui/AppPageHeader.vue"
 
 const route = useRoute()
 
@@ -13,26 +15,30 @@ const isActiveTab = (tabName) => route.name === tabName
 </script>
 
 <template>
-  <section class="settings-view container-fluid px-4 py-4">
-    <header class="settings-header">
-      <h1 class="h3 fw-bold mb-0">설정</h1>
-    </header>
+  <section class="settings-view">
+    <AppPageHeader title="설정" description="프로필과 연결된 자산을 관리하세요." />
 
-    <nav class="settings-tabs" aria-label="설정 메뉴">
-      <RouterLink
-        v-for="tab in tabs"
-        :key="tab.name"
-        :to="{ name: tab.name }"
-        class="settings-tab"
-        :class="{ 'settings-tab-active': isActiveTab(tab.name) }"
-        :aria-current="isActiveTab(tab.name) ? 'page' : undefined"
-      >
-        {{ tab.label }}
-      </RouterLink>
-    </nav>
+    <AppCard class="settings-navigation" variant="soft" padding="none">
+      <nav class="settings-tabs" aria-label="설정 메뉴">
+        <RouterLink
+          v-for="tab in tabs"
+          :key="tab.name"
+          :to="{ name: tab.name }"
+          class="settings-tab"
+          :class="{ 'settings-tab-active': isActiveTab(tab.name) }"
+          :aria-current="isActiveTab(tab.name) ? 'page' : undefined"
+        >
+          {{ tab.label }}
+        </RouterLink>
+      </nav>
+    </AppCard>
 
     <main class="settings-content">
-      <RouterView />
+      <RouterView v-slot="{ Component }">
+        <KeepAlive>
+          <component :is="Component" :key="route.name" />
+        </KeepAlive>
+      </RouterView>
     </main>
   </section>
 </template>
@@ -42,30 +48,32 @@ const isActiveTab = (tabName) => route.name === tabName
   width: 100%;
   max-width: 980px;
   margin: 0 auto;
+  padding: var(--wallo-space-6) var(--wallo-space-4);
 }
 
-.settings-header {
-  padding: 0 8px 24px;
+.settings-navigation {
+  margin-bottom: var(--wallo-space-5);
+  border-radius: var(--wallo-radius-lg);
 }
 
 .settings-tabs {
   display: flex;
-  gap: 28px;
-  padding: 0 8px;
-  border-bottom: 1px solid #e6eaf2;
+  gap: var(--wallo-space-2);
+  padding: var(--wallo-space-2) var(--wallo-space-3) 0;
 }
 
 .settings-tab {
   position: relative;
   display: inline-flex;
-  min-height: 48px;
+  min-height: 44px;
   align-items: center;
-  padding: 0 2px;
-  color: #98a2b6;
-  font-size: 0.95rem;
-  font-weight: 600;
+  padding: 0 var(--wallo-space-3);
+  color: var(--wallo-color-text-muted);
+  font-size: 0.9rem;
+  font-weight: 700;
   text-decoration: none;
   white-space: nowrap;
+  border-radius: var(--wallo-radius-sm) var(--wallo-radius-sm) 0 0;
 }
 
 .settings-tab::after {
@@ -74,43 +82,45 @@ const isActiveTab = (tabName) => route.name === tabName
   bottom: -1px;
   left: 0;
   height: 2px;
-  background: transparent;
+  background: var(--wallo-color-primary);
+  opacity: 0;
   content: "";
 }
 
 .settings-tab:hover,
 .settings-tab:focus-visible,
 .settings-tab-active {
-  color: #6257e8;
+  color: var(--wallo-color-primary);
 }
 
 .settings-tab-active::after {
-  background: #6257e8;
+  opacity: 1;
 }
 
 .settings-content {
-  padding-top: 24px;
+  padding-top: var(--wallo-space-1);
 }
 
 @media (max-width: 575.98px) {
   .settings-view {
-    padding-right: 0 !important;
-    padding-left: 0 !important;
-  }
-
-  .settings-header,
-  .settings-tabs {
-    padding-right: 4px;
-    padding-left: 4px;
+    padding-right: var(--wallo-space-3);
+    padding-left: var(--wallo-space-3);
   }
 
   .settings-tabs {
-    gap: 20px;
+    padding-right: var(--wallo-space-2);
+    padding-left: var(--wallo-space-2);
+  }
+
+  .settings-tabs {
+    gap: var(--wallo-space-1);
     overflow-x: auto;
   }
 
   .settings-tab {
-    font-size: 0.88rem;
+    padding-right: var(--wallo-space-2);
+    padding-left: var(--wallo-space-2);
+    font-size: 0.85rem;
   }
 }
 </style>

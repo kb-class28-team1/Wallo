@@ -3,6 +3,11 @@ import { computed, onMounted, ref } from "vue"
 import { storeToRefs } from "pinia"
 import { grantWeeklyRankingRewardsForTest } from "@/api/challengeApi"
 import AuthenticatedImage from "@/components/common/AuthenticatedImage.vue"
+import AppAlert from "@/components/ui/AppAlert.vue"
+import AppButton from "@/components/ui/AppButton.vue"
+import AppCard from "@/components/ui/AppCard.vue"
+import AppPageHeader from "@/components/ui/AppPageHeader.vue"
+import AppState from "@/components/ui/AppState.vue"
 import { useChallengeStore } from "@/stores/challengeStore"
 import { formatNumber, formatWon } from "@/commonUtils/formatters"
 import { useUserStore } from "@/stores/userStore"
@@ -13,7 +18,7 @@ const userStore = useUserStore()
 const isRewarding = ref(false)
 
 // Pinia의 반응형 상태를 유지한 채 화면에서 사용할 값으로 분리함
-const { startDate, endDate, rankings, myRanking, isLoading, errorMessage } =
+const { startDate, endDate, rankings, myRanking, initialLoading, refreshing, errorMessage } =
   storeToRefs(challengeStore)
 
 // 상위 카드가 시안처럼 2위, 1위, 3위 순서로 배치되도록 DB 조회 결과를 정렬함
@@ -39,6 +44,10 @@ const rankingPeriod = computed(() => {
 
   return `${formatDate(startDate.value)} ~ ${formatDate(endDate.value)} (이번 주)`
 })
+const rankingDescription = computed(() => {
+  const period = rankingPeriod.value
+  return `매주 월요일 00시에 랭킹이 초기화됨${period ? ` · ${period}` : ""}`
+})
 
 const formatPoint = (point) => `${formatNumber(point)}P`
 const formatDate = (date) => date.replaceAll("-", ".")
@@ -62,7 +71,7 @@ const grantRewardsForTest = async () => {
     )
     // 지급 후 세션의 사용자 포인트를 강제로 다시 조회해 상단바를 갱신함.
     await userStore.restoreSession(true)
-    await challengeStore.fetchWeeklyRanking()
+    await challengeStore.fetchWeeklyRanking({ force: true })
   } catch (error) {
     alert(error.message || "주간 랭킹 보상을 지급하지 못했습니다.")
   } finally {
@@ -78,40 +87,82 @@ onMounted(() => {
 
 <template>
   <section class="ranking-page">
-    <header class="ranking-heading mb-3">
-      <div class="ranking-heading-row">
-        <h1 class="mb-2">주간 랭킹</h1>
-        <button
-          type="button"
+    <AppPageHeader
+      class="ranking-heading"
+      title="주간 랭킹"
+      :description="rankingDescription"
+      compact
+    >
+      <template #actions>
+        <AppButton
           class="test-reward-button"
+          variant="outline"
+          size="sm"
           :disabled="isRewarding"
+          :loading="isRewarding"
           @click="grantRewardsForTest"
         >
           {{ isRewarding ? "지급 중..." : "테스트 보상 지급" }}
-        </button>
+        </AppButton>
+      </template>
+    </AppPageHeader>
+
+    <AppAlert
+      v-if="refreshing"
+      class="ranking-refresh-status"
+      variant="neutral"
+      role="status"
+      :show-icon="false"
+      message="최신 주간 랭킹을 확인하는 중..."
+    />
+
+    <AppAlert
+      v-if="errorMessage && rankings.length > 0"
+      class="ranking-error-alert"
+      variant="warning"
+    >
+      <div class="ranking-alert-content">
+        <span>{{ errorMessage }}</span>
+        <AppButton
+          variant="outline"
+          size="sm"
+          @click="challengeStore.fetchWeeklyRanking({ force: true })"
+        >
+          다시 시도
+        </AppButton>
       </div>
-      <p class="mb-0">
-        매주 <strong>월요일 00시</strong>에 랭킹이 초기화됨
-        <template v-if="rankingPeriod"> · {{ rankingPeriod }}</template>
-      </p>
-    </header>
+    </AppAlert>
 
-    <div v-if="isLoading" class="ranking-state-card">주간 랭킹을 불러오는 중임...</div>
+    <AppState
+      v-if="initialLoading"
+      class="ranking-state-card"
+      type="loading"
+      title="주간 랭킹을 불러오는 중입니다"
+      message="잠시만 기다려 주세요."
+    />
 
-    <div v-else-if="errorMessage" class="ranking-state-card error-state">
-      {{ errorMessage }}
-    </div>
+    <AppState
+      v-else-if="errorMessage && rankings.length === 0"
+      class="ranking-state-card"
+      type="error"
+      title="주간 랭킹을 불러오지 못했습니다"
+      :message="errorMessage"
+      action-text="다시 시도"
+      action-variant="danger"
+      @action="challengeStore.fetchWeeklyRanking({ force: true })"
+    />
 
-    <div v-else-if="rankings.length === 0" class="ranking-state-card">
-      이번 주 랭킹 데이터가 아직 없음.
-    </div>
+    <AppState
+      v-else-if="rankings.length === 0"
+      class="ranking-state-card"
+      type="empty"
+      title="이번 주 랭킹 데이터가 아직 없습니다"
+      message="랭킹이 집계되면 이곳에서 확인할 수 있어요."
+    />
 
     <div v-else class="ranking-layout">
       <div class="ranking-main">
-        <div
-          class="podium-grid mb-3"
-          :class="`podium-count-${topRankings.length}`"
-        >
+        <div class="podium-grid mb-3" :class="`podium-count-${topRankings.length}`">
           <article
             v-for="ranking in topRankings"
             :key="ranking.rank"
@@ -132,7 +183,7 @@ onMounted(() => {
           </article>
         </div>
 
-        <div class="ranking-table-card">
+        <AppCard as="div" class="ranking-table-card" padding="none">
           <div class="ranking-table-header ranking-row">
             <span>순위</span>
             <span>닉네임</span>
@@ -158,13 +209,13 @@ onMounted(() => {
             <span>{{ ranking.streakDays }}일</span>
             <span>{{ ranking.likeCount }}</span>
           </div>
-        </div>
+        </AppCard>
 
         <div class="ranking-notice mt-3">🔥 연속 인증은 오늘 인증까지 포함된 연속 인증 일수임!</div>
       </div>
 
       <aside class="ranking-sidebar">
-        <article v-if="myRanking" class="side-card my-rank-card">
+        <AppCard v-if="myRanking" as="article" class="side-card my-rank-card" padding="none">
           <h2>내 순위</h2>
           <div class="my-rank-user">
             <div class="ranking-user">
@@ -190,9 +241,9 @@ onMounted(() => {
               <strong>{{ myRanking.likeCount }}</strong>
             </div>
           </div>
-        </article>
+        </AppCard>
 
-        <article v-if="myRanking" class="side-card">
+        <AppCard v-if="myRanking" as="article" class="side-card" padding="none">
           <h2>이번 주 나의 기록</h2>
           <ul class="record-list list-unstyled mb-0">
             <li>
@@ -205,9 +256,9 @@ onMounted(() => {
               <span>💗 받은 좋아요</span><strong>{{ myRanking.likeCount }}개</strong>
             </li>
           </ul>
-        </article>
+        </AppCard>
 
-        <article class="side-card">
+        <AppCard as="article" class="side-card" padding="none">
           <h2>🎁 랭킹 보상 안내</h2>
           <ul class="reward-list list-unstyled mb-0">
             <li
@@ -220,7 +271,7 @@ onMounted(() => {
               <strong>{{ formatPoint(reward.point) }}</strong>
             </li>
           </ul>
-        </article>
+        </AppCard>
       </aside>
     </div>
   </section>
@@ -232,16 +283,14 @@ onMounted(() => {
   color: #1f2a52;
 }
 
-.ranking-heading h1 {
+.ranking-heading :deep(.app-page-header__title) {
   font-size: 25px;
   font-weight: 750;
 }
 
-.ranking-heading-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+.ranking-heading :deep(.app-page-header__description) {
+  color: #8e98ba;
+  font-size: 12px;
 }
 
 .test-reward-button {
@@ -259,13 +308,16 @@ onMounted(() => {
   opacity: 0.6;
 }
 
-.ranking-heading p {
-  color: #8e98ba;
-  font-size: 12px;
+.ranking-refresh-status,
+.ranking-error-alert {
+  margin-bottom: 16px;
 }
 
-.ranking-heading strong {
-  color: #766cf5;
+.ranking-alert-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .ranking-state-card {
@@ -311,7 +363,18 @@ onMounted(() => {
   border: 3px solid #3a3638;
   border-radius: 5px 3px 8px 4px;
   box-shadow: 3px 3px 0 rgb(58 54 56 / 15%);
-  clip-path: polygon(0 13%, 18% 3%, 38% 10%, 58% 0, 80% 8%, 100% 3%, 99% 93%, 65% 100%, 38% 95%, 1% 89%);
+  clip-path: polygon(
+    0 13%,
+    18% 3%,
+    38% 10%,
+    58% 0,
+    80% 8%,
+    100% 3%,
+    99% 93%,
+    65% 100%,
+    38% 95%,
+    1% 89%
+  );
   transform: rotate(-0.8deg) skewX(-0.7deg);
 }
 
@@ -338,29 +401,83 @@ onMounted(() => {
   border-radius: 6px 4px 5px 3px;
   background: #b5906b;
   box-shadow: 3px 4px 0 rgb(58 54 56 / 15%);
-  clip-path: polygon(1% 3%, 21% 1%, 44% 3%, 67% 0%, 99% 2%, 98% 31%, 100% 64%, 97% 99%, 76% 97%, 52% 100%, 26% 98%, 3% 100%, 1% 70%, 0% 38%);
-  filter: drop-shadow(1px 0 #3a3638) drop-shadow(-1px 0 #3a3638) drop-shadow(0 1px #3a3638) drop-shadow(0 -1px #3a3638);
+  clip-path: polygon(
+    1% 3%,
+    21% 1%,
+    44% 3%,
+    67% 0%,
+    99% 2%,
+    98% 31%,
+    100% 64%,
+    97% 99%,
+    76% 97%,
+    52% 100%,
+    26% 98%,
+    3% 100%,
+    1% 70%,
+    0% 38%
+  );
+  filter: drop-shadow(1px 0 #3a3638) drop-shadow(-1px 0 #3a3638) drop-shadow(0 1px #3a3638)
+    drop-shadow(0 -1px #3a3638);
   transform: rotate(-1deg) skewX(-0.8deg);
 }
 
 .podium-card.rank-1 {
   min-height: 220px;
   background: #c19b67;
-  clip-path: polygon(0% 2%, 23% 0%, 48% 2%, 74% 0%, 100% 3%, 98% 36%, 100% 97%, 77% 99%, 52% 97%, 29% 100%, 2% 97%, 1% 64%);
+  clip-path: polygon(
+    0% 2%,
+    23% 0%,
+    48% 2%,
+    74% 0%,
+    100% 3%,
+    98% 36%,
+    100% 97%,
+    77% 99%,
+    52% 97%,
+    29% 100%,
+    2% 97%,
+    1% 64%
+  );
   transform: rotate(0.45deg) skewX(0.55deg);
 }
 
 .podium-card.rank-2 {
   min-height: 195px;
   background: #b99a78;
-  clip-path: polygon(2% 0%, 31% 2%, 58% 0%, 100% 4%, 98% 34%, 100% 96%, 67% 99%, 42% 97%, 17% 100%, 1% 96%, 3% 59%);
+  clip-path: polygon(
+    2% 0%,
+    31% 2%,
+    58% 0%,
+    100% 4%,
+    98% 34%,
+    100% 96%,
+    67% 99%,
+    42% 97%,
+    17% 100%,
+    1% 96%,
+    3% 59%
+  );
   transform: rotate(-1.25deg) skewX(-0.85deg);
 }
 
 .podium-card.rank-3 {
   min-height: 174px;
   background: #ae8c6b;
-  clip-path: polygon(1% 4%, 25% 0%, 53% 3%, 78% 1%, 100% 4%, 99% 61%, 97% 98%, 74% 96%, 48% 100%, 22% 97%, 0% 100%, 2% 48%);
+  clip-path: polygon(
+    1% 4%,
+    25% 0%,
+    53% 3%,
+    78% 1%,
+    100% 4%,
+    99% 61%,
+    97% 98%,
+    74% 96%,
+    48% 100%,
+    22% 97%,
+    0% 100%,
+    2% 48%
+  );
   transform: rotate(1.05deg) skewX(0.7deg);
 }
 
@@ -605,10 +722,6 @@ onMounted(() => {
 }
 
 @media (max-width: 1100px) {
-  .ranking-heading-row {
-    align-items: flex-start;
-  }
-
   .ranking-layout {
     grid-template-columns: 1fr;
   }
@@ -619,12 +732,13 @@ onMounted(() => {
 }
 
 @media (max-width: 767.98px) {
-  .ranking-heading-row {
-    flex-direction: column;
-  }
-
   .test-reward-button {
     align-self: flex-start;
+  }
+
+  .ranking-alert-content {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .podium-grid,

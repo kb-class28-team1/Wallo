@@ -1,6 +1,7 @@
 from groq import Groq
 
 from app.agents.roadmap.models import GoalRoadmap, RoadmapGoal
+from app.core.ai_timing import timed_groq_completion
 from app.core.config import get_groq_model
 
 
@@ -35,39 +36,53 @@ TOOL_SCHEMA = {
     },
 }
 
+ROADMAP_MAX_COMPLETION_TOKENS = 1600
 
-def generate_goal_roadmap(client: Groq, goal: RoadmapGoal, model: str | None = None) -> GoalRoadmap:
-    completion = client.chat.completions.create(
-        model=model or get_groq_model(),
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {
-                "role": "user",
-                "content": "다음 확정 목표의 로드맵을 생성하세요.\n"
-                + goal.model_dump_json(by_alias=True),
-            },
-        ],
-        tools=[TOOL_SCHEMA],
-        tool_choice={"type": "function", "function": {"name": TOOL_NAME}},
-        temperature=0,
-        reasoning_effort="low",
-        include_reasoning=False,
-        max_completion_tokens=4000,
-    )
-    tool_calls = completion.choices[0].message.tool_calls
-    if not tool_calls:
-        raise ValueError("AI가 로드맵 도구 응답을 반환하지 않았습니다.")
-    roadmap = GoalRoadmap.model_validate_json(tool_calls[0].function.arguments)
-    normalized_steps = [
-        step.model_copy(update={
-            "title": step.title or f"{step.sequence}단계 목표",
-            "monthly_contribution": (
-                step.monthly_contribution
-                if step.monthly_contribution is not None
-                else goal.required_monthly_amount
-            ),
-        })
-        for step in roadmap.steps
-    ]
-    roadmap = roadmap.model_copy(update={"steps": normalized_steps})
-    return roadmap.validate_for(goal)
+
+def generate_goal_roadmap(
+    client: Groq,
+    goal: RoadmapGoal,
+    model: str | None = None,
+) -> GoalRoadmap:
+    resolved_model = model or get_groq_model()
+    requested_completion_tokens = ROADMAP_MAX_COMPLETION_TOKENS
+    goal_payload = goal.model_dump_json(by_alias=True, exclude_none=True)
+    with timed_groq_completion(
+        client,
+        operation="goal.roadmap",
+        model=resolved_model,
+        requested_completion_tokens=requested_completion_tokens,
+    ) as timing:
+        completion = timing.create(
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {
+                    "role": "user",
+                    "content": "다음 확정 목표의 로드맵을 생성하세요.\n"
+                    + goal_payload,
+                },
+            ],
+            tools=[TOOL_SCHEMA],
+            tool_choice={"type": "function", "function": {"name": TOOL_NAME}},
+            temperature=0,
+            reasoning_effort="low",
+            include_reasoning=False,
+            max_completion_tokens=requested_completion_tokens,
+        )
+        tool_calls = completion.choices[0].message.tool_calls
+        if not tool_calls:
+            raise ValueError("AI가 로드맵 도구 응답을 반환하지 않았습니다.")
+        roadmap = GoalRoadmap.model_validate_json(tool_calls[0].function.arguments)
+        normalized_steps = [
+            step.model_copy(update={
+                "title": step.title or f"{step.sequence}단계 목표",
+                "monthly_contribution": (
+                    step.monthly_contribution
+                    if step.monthly_contribution is not None
+                    else goal.required_monthly_amount
+                ),
+            })
+            for step in roadmap.steps
+        ]
+        roadmap = roadmap.model_copy(update={"steps": normalized_steps})
+        return roadmap.validate_for(goal)

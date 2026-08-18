@@ -130,6 +130,7 @@ public class CardApprovalCollectionService {
         int updatedCount = 0;
         int reusedClassificationCount = 0;
         int aiRequestCount = 0;
+        int fallbackCount = 0;
         long classificationStartedAt = System.nanoTime();
         List<PreparedApproval> preparedApprovals = safeList(activeCardApprovals).stream()
                 .map(approval -> prepareApproval(userId, connectionId, institution, approval))
@@ -171,6 +172,10 @@ public class CardApprovalCollectionService {
                     .equals(mapping.transaction().getCategorySource())) {
                 aiRequestCount++;
             }
+            if (AssetTransactionConstants.FALLBACK_CATEGORY_SOURCE
+                    .equals(mapping.transaction().getCategorySource())) {
+                fallbackCount++;
+            }
             savedCount++;
         }
         if (savedCount > 0) {
@@ -194,7 +199,7 @@ public class CardApprovalCollectionService {
                 processingElapsedMs,
                 elapsedMillis(startedAt)
         ));
-        return new AssetSyncDto.SyncStats(insertedCount, updatedCount);
+        return new AssetSyncDto.SyncStats(insertedCount, updatedCount, fallbackCount);
     }
 
     private List<CodefDto.CardApproval> filterActiveCardApprovals(

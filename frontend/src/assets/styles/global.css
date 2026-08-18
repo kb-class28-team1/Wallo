@@ -30,24 +30,11 @@
   font-display: swap;
 }
 
-:root {
-  --wallo-bg: #f6f8fb;
-  --wallo-blue-bg: #eef6ff;
-  --wallo-surface: #ffffff;
-  --wallo-border: #e5e9f0;
-  --wallo-soft-border: #e7ebf2;
-  --wallo-soft-bg: #f9fafc;
-  --wallo-text: #263244;
-  --wallo-muted: #95a3b8;
-  --wallo-primary: #1f3fb4;
-  --wallo-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
-}
-
 body {
   margin: 0;
-  font-family: "NexonMaplestory", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  color: var(--wallo-text);
-  background: var(--wallo-bg);
+  font-family: var(--wallo-font-family);
+  color: var(--wallo-color-text);
+  background: var(--wallo-color-bg);
 }
 
 h1,
@@ -56,7 +43,7 @@ h3,
 h4,
 h5,
 h6 {
-  font-family: "NexonMaplestory", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-family: var(--wallo-font-family);
 }
 
 button,
@@ -69,7 +56,7 @@ textarea {
 .app-page {
   min-height: 100vh;
   padding: 48px 16px;
-  background: var(--wallo-bg);
+  background: var(--wallo-color-bg);
 }
 
 .form-panel {
@@ -77,10 +64,10 @@ textarea {
   max-width: 520px;
   margin: 0 auto;
   padding: 32px;
-  background: var(--wallo-surface);
-  border: 1px solid var(--wallo-border);
-  border-radius: 8px;
-  box-shadow: var(--wallo-shadow);
+  background: var(--wallo-color-surface);
+  border: 1px solid var(--wallo-color-border);
+  border-radius: var(--wallo-radius-sm);
+  box-shadow: var(--wallo-shadow-card);
 }
 
 .section-header {
@@ -89,19 +76,25 @@ textarea {
 
 .form-label {
   font-weight: 600;
-  color: #111827;
+  color: var(--wallo-color-text);
 }
 
 .form-control {
   min-height: 48px;
+  border-radius: var(--wallo-radius-md);
+}
+
+.form-control:focus {
+  border-color: var(--wallo-color-primary);
+  box-shadow: var(--wallo-focus-ring);
 }
 
 .agreement-box {
   padding: 16px;
   margin-bottom: 24px;
-  background: var(--wallo-soft-bg);
-  border: 1px solid var(--wallo-soft-border);
-  border-radius: 8px;
+  background: var(--wallo-color-surface-soft);
+  border: 1px solid var(--wallo-color-border-soft);
+  border-radius: var(--wallo-radius-sm);
 }
 
 .primary-action {
@@ -111,29 +104,29 @@ textarea {
 
 .progress {
   height: 12px;
-  background: #e8edf5;
+  background: var(--wallo-color-progress-track);
 }
 
 .app-modal {
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--wallo-radius-lg);
 }
 
 .modal-message {
   font-size: 1rem;
   font-weight: 600;
-  color: var(--wallo-text);
+  color: var(--wallo-color-text);
 }
 
 .connection-start-page {
   min-height: calc(100vh - 96px);
   display: grid;
   grid-template-columns: minmax(360px, 42%) minmax(480px, 58%);
-  background: var(--wallo-surface);
+  background: var(--wallo-color-surface);
   width: min(1180px, calc(100% - 96px));
   margin: 48px auto;
   overflow: hidden;
-  border: 1px solid var(--wallo-border);
+  border: 1px solid var(--wallo-color-border);
   border-radius: 28px;
   box-shadow: 0 24px 60px rgba(15, 23, 42, 0.12);
 }
@@ -143,7 +136,7 @@ textarea {
   flex-direction: column;
   justify-content: space-between;
   padding: 80px 72px 64px;
-  background: linear-gradient(90deg, var(--wallo-blue-bg) 0%, #f5fbff 100%);
+  background: linear-gradient(90deg, var(--wallo-color-info-bg) 0%, #f5fbff 100%);
 }
 
 .connection-hero-title {
@@ -169,7 +162,7 @@ textarea {
 .security-note {
   width: min(100%, 360px);
   padding: 18px 20px;
-  background: var(--wallo-surface);
+  background: var(--wallo-color-surface);
   border: 1px solid #eef2f8;
   border-radius: 8px;
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
@@ -210,7 +203,7 @@ textarea {
   display: flex;
   justify-content: center;
   padding: 72px 48px 64px;
-  background: var(--wallo-surface);
+  background: var(--wallo-color-surface);
 }
 
 .connection-form-inner {
@@ -230,7 +223,7 @@ textarea {
 
 .connection-form-header p {
   margin: 0;
-  color: var(--wallo-muted);
+  color: var(--wallo-color-text-subtle);
   font-size: 0.95rem;
   font-weight: 700;
 }
@@ -255,7 +248,7 @@ textarea {
 
 .consent-card small {
   display: block;
-  color: var(--wallo-muted);
+  color: var(--wallo-color-text-subtle);
   font-size: 0.88rem;
   font-weight: 700;
   line-height: 1.7;
@@ -307,12 +300,12 @@ textarea {
 }
 
 .connect-action:not(:disabled) {
-  background: var(--wallo-primary);
+  background: var(--wallo-color-finance-info);
   color: #ffffff;
 }
 
 .connect-action:not(:disabled):hover {
-  background: #18339c;
+  background: var(--wallo-color-finance-info-hover);
   color: #ffffff;
 }
 
@@ -327,8 +320,8 @@ textarea {
   justify-content: space-between;
   gap: 16px;
   padding: 18px;
-  background: var(--wallo-surface);
-  border: 1px solid var(--wallo-border);
+  background: var(--wallo-color-surface);
+  border: 1px solid var(--wallo-color-border);
   border-radius: 8px;
 }
 
@@ -348,7 +341,7 @@ textarea {
   justify-content: center;
   overflow: hidden;
   font-weight: 800;
-  color: var(--wallo-text);
+  color: var(--wallo-color-text);
 }
 
 .asset-logo-image {
@@ -360,7 +353,7 @@ textarea {
 
 .asset-name {
   display: block;
-  color: var(--wallo-text);
+  color: var(--wallo-color-text);
   font-size: 1rem;
 }
 

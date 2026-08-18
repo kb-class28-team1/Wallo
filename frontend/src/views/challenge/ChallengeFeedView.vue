@@ -8,6 +8,11 @@ import { formatWon } from "@/commonUtils/formatters"
 import arrowPaperPlaneUrl from "@/assets/arrow_paper_plane.svg"
 import AppDialog from "@/components/common/AppDialog.vue"
 import AuthenticatedImage from "@/components/common/AuthenticatedImage.vue"
+import AppAlert from "@/components/ui/AppAlert.vue"
+import AppButton from "@/components/ui/AppButton.vue"
+import AppCard from "@/components/ui/AppCard.vue"
+import AppPageHeader from "@/components/ui/AppPageHeader.vue"
+import AppState from "@/components/ui/AppState.vue"
 import { leaveChallenge as leaveChallengeRequest } from "@/api/challengeApi"
 import { getTodayMissions, verifyMissionWithFeed } from "@/api/missionApi"
 import {
@@ -22,6 +27,12 @@ import {
   EXPENSE_CATEGORY_META,
   FEED_CATEGORY_CODES,
 } from "@/features/financial/financialCategories"
+import {
+  getCachedResource,
+  getResource,
+  hasInFlightResource,
+  invalidateResource,
+} from "@/utils/resourceCache"
 
 const route = useRoute()
 const router = useRouter()
@@ -34,7 +45,10 @@ const challengeName = ref("챌린지")
 const inviteCode = ref("")
 const mySavingTotal = ref(0)
 const activeTab = ref(String(route.query.scope || "ALL").toUpperCase() === "ME" ? "mine" : "all")
-const isLoading = ref(true)
+const initialLoading = ref(true)
+const refreshing = ref(false)
+const hasLoadedPage = ref(false)
+const isLoading = computed(() => initialLoading.value || refreshing.value)
 const errorMessage = ref("")
 const modalOpen = ref(false)
 const isAnalyzing = ref(false)
@@ -66,6 +80,19 @@ let shouldReconnectChat = true
 let likeBurstSequence = 0
 const likeBurstTimers = new Set()
 let dialogResolver = null
+
+const FEED_STALE_TIME = 30 * 1000
+const MESSAGE_STALE_TIME = 15 * 1000
+const getFeedCacheKey = (id, tab) => `challenge:feeds:current:${id}:${tab}`
+const getMessagesCacheKey = (id) => `challenge:messages:current:${id}`
+const invalidateFeedCaches = (id = challengeId.value) => {
+  invalidateResource(getFeedCacheKey(id, "all"))
+  invalidateResource(getFeedCacheKey(id, "mine"))
+}
+const invalidatePageCaches = (id = challengeId.value) => {
+  invalidateFeedCaches(id)
+  invalidateResource(getMessagesCacheKey(id))
+}
 
 const form = reactive({
   file: null,
@@ -151,12 +178,41 @@ const scrollToFocusedFeed = async () => {
   })
 }
 
-const loadFeeds = async () => {
-  const data = await getFeeds(challengeId.value, activeTab.value === "mine")
-  feeds.value = data.feeds
-  challengeName.value = data.challengeName
-  inviteCode.value = data.inviteCode || ""
-  mySavingTotal.value = data.mySavingTotal
+const applyFeeds = (data) => {
+  feeds.value = Array.isArray(data?.feeds) ? data.feeds : []
+  challengeName.value = data?.challengeName || "챌린지"
+  inviteCode.value = data?.inviteCode || ""
+  mySavingTotal.value = data?.mySavingTotal || 0
+  return data
+}
+
+const loadFeeds = async ({ force = false } = {}) => {
+  const requestedChallengeId = challengeId.value
+  const requestedTab = activeTab.value
+  const cacheKey = getFeedCacheKey(requestedChallengeId, requestedTab)
+  const cached =
+    !force && !hasInFlightResource(cacheKey)
+      ? getCachedResource(cacheKey, { staleTime: FEED_STALE_TIME })
+      : undefined
+
+  if (cached !== undefined) {
+    return applyFeeds(cached)
+  }
+
+  const data = await getResource(
+    cacheKey,
+    () => getFeeds(requestedChallengeId, requestedTab === "mine"),
+    {
+      force,
+      staleTime: FEED_STALE_TIME,
+    },
+  )
+
+  if (requestedChallengeId !== challengeId.value || requestedTab !== activeTab.value) {
+    return data
+  }
+
+  return applyFeeds(data)
 }
 const isNearMessagesBottom = () => {
   const element = messagesElement.value
@@ -168,12 +224,35 @@ const scrollMessagesToBottom = async () => {
   const element = messagesElement.value
   if (element) element.scrollTop = element.scrollHeight
 }
-const loadMessages = async ({ forceScroll = false } = {}) => {
+const applyMessages = (data) => {
+  messages.value = Array.isArray(data?.messages) ? data.messages : []
+  challengeName.value = data?.challengeName || challengeName.value
+  return data
+}
+const loadMessages = async ({ forceScroll = false, force = false } = {}) => {
   const shouldScroll = forceScroll || isNearMessagesBottom()
-  const data = await getRoomMessages(challengeId.value)
-  messages.value = data.messages
-  challengeName.value = data.challengeName
+  const requestedChallengeId = challengeId.value
+  const cacheKey = getMessagesCacheKey(requestedChallengeId)
+  const cached =
+    !force && !hasInFlightResource(cacheKey)
+      ? getCachedResource(cacheKey, { staleTime: MESSAGE_STALE_TIME })
+      : undefined
+
+  const data =
+    cached !== undefined
+      ? cached
+      : await getResource(cacheKey, () => getRoomMessages(requestedChallengeId), {
+          force,
+          staleTime: MESSAGE_STALE_TIME,
+        })
+
+  if (requestedChallengeId !== challengeId.value) {
+    return data
+  }
+
+  applyMessages(data)
   if (shouldScroll) await scrollMessagesToBottom()
+  return data
 }
 
 const chatWebSocketUrl = () => {
@@ -202,6 +281,7 @@ const handleChatSocketMessage = async (event) => {
   const shouldScroll =
     isNearMessagesBottom() || Number(incomingMessage.userId) === Number(userStore.user?.id)
   messages.value = [...messages.value, incomingMessage]
+  invalidateResource(getMessagesCacheKey(challengeId.value))
   if (shouldScroll) await scrollMessagesToBottom()
 }
 
@@ -250,23 +330,31 @@ const disconnectChatSocket = () => {
     chatSocket = null
   }
 }
-const loadPage = async () => {
-  isLoading.value = true
+const loadPage = async ({ force = false, forceScroll = false } = {}) => {
+  const isInitialLoad = !hasLoadedPage.value
+  initialLoading.value = isInitialLoad
+  refreshing.value = !isInitialLoad
   errorMessage.value = ""
   try {
-    await Promise.all([loadFeeds(), loadMessages()])
+    await Promise.all([loadFeeds({ force }), loadMessages({ force, forceScroll })])
+    hasLoadedPage.value = true
   } catch (error) {
     errorMessage.value = error.message
   } finally {
-    isLoading.value = false
+    initialLoading.value = false
+    refreshing.value = false
   }
 }
 const changeTab = async (tab) => {
   activeTab.value = tab
+  refreshing.value = true
+  errorMessage.value = ""
   try {
     await loadFeeds()
   } catch (error) {
     errorMessage.value = error.message
+  } finally {
+    refreshing.value = false
   }
 }
 const copyInviteCode = async () => {
@@ -293,6 +381,7 @@ const leaveCurrentChallenge = async () => {
   isLeavingChallenge.value = true
   try {
     await leaveChallengeRequest(challengeId.value)
+    invalidatePageCaches()
     disconnectChatSocket()
     await router.replace({ name: "current-challenge" })
   } catch (error) {
@@ -347,6 +436,7 @@ const addLike = async (feed) => {
   try {
     const result = await addFeedLike(challengeId.value, feed.id)
     feed.likeCount = result.likeCount
+    invalidateFeedCaches()
     const id = ++likeBurstSequence
     likeBursts.value.push({
       id,
@@ -376,7 +466,8 @@ const removeFeed = async (feed) => {
   deletingFeedId.value = feed.id
   try {
     await deleteFeed(challengeId.value, feed.id)
-    await Promise.all([loadFeeds(), loadMessages({ forceScroll: true })])
+    invalidatePageCaches()
+    await loadPage({ force: true, forceScroll: true })
   } catch (error) {
     openDialog({ message: error.message })
   } finally {
@@ -560,7 +651,8 @@ const uploadFeed = async () => {
       }
     }
     closeModal()
-    await Promise.all([loadFeeds(), loadMessages({ forceScroll: true })])
+    invalidatePageCaches()
+    await loadPage({ force: true, forceScroll: true })
     if (verificationResult) {
       const resultMessage =
         verificationResult.decision === "PASS"
@@ -647,6 +739,7 @@ const sendMessage = async () => {
         referenceFeedId: mentionedFeed.value?.id || null,
       }),
     )
+    invalidateResource(getMessagesCacheKey(challengeId.value))
     chatInput.value = ""
     mentionedFeed.value = null
     await nextTick()
@@ -677,50 +770,95 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="feed-page">
-    <div v-if="isLoading" class="page-state">
-      <div class="spinner-border text-primary"></div>
-      <p>챌린지 피드를 불러오고 있어요.</p>
-    </div>
-    <div v-else-if="errorMessage" class="page-state">
-      <strong>{{ errorMessage }}</strong>
-      <button class="btn btn-primary" @click="loadPage">다시 시도</button>
-    </div>
+    <AppAlert
+      v-if="refreshing"
+      class="feed-refresh-status"
+      variant="neutral"
+      role="status"
+      :show-icon="false"
+      message="최신 피드와 채팅을 확인하는 중..."
+    />
+    <AppAlert v-if="errorMessage && hasLoadedPage" class="feed-error-alert" variant="warning">
+      <div class="feed-alert-content">
+        <span>{{ errorMessage }}</span>
+        <AppButton variant="outline" size="sm" @click="loadPage({ force: true })">
+          다시 시도
+        </AppButton>
+      </div>
+    </AppAlert>
+    <AppState
+      v-if="initialLoading"
+      class="page-state"
+      type="loading"
+      title="챌린지 피드를 불러오는 중입니다"
+      message="잠시만 기다려 주세요."
+    />
+    <AppState
+      v-else-if="errorMessage && !hasLoadedPage"
+      class="page-state"
+      type="error"
+      title="챌린지 피드를 불러오지 못했습니다"
+      :message="errorMessage"
+      action-text="다시 시도"
+      action-variant="danger"
+      @action="loadPage({ force: true })"
+    />
     <template v-else>
-      <header class="feed-header">
-        <div class="feed-header-row">
-          <h1>{{ challengeName }}</h1>
-        </div>
-        <p>함께 남긴 절약 기록을 확인하고 응원해 보세요.</p>
-      </header>
+      <AppPageHeader
+        class="feed-header"
+        :title="challengeName"
+        description="함께 남긴 절약 기록을 확인하고 응원해 보세요."
+        compact
+      />
 
       <div class="feed-layout">
         <main class="feed-column">
           <div class="feed-toolbar">
             <nav class="feed-tabs">
-              <button :class="{ active: activeTab === 'all' }" @click="changeTab('all')">
+              <AppButton
+                variant="ghost"
+                size="sm"
+                :class="{ active: activeTab === 'all' }"
+                @click="changeTab('all')"
+              >
                 전체 피드
-              </button>
-              <button :class="{ active: activeTab === 'mine' }" @click="changeTab('mine')">
+              </AppButton>
+              <AppButton
+                variant="ghost"
+                size="sm"
+                :class="{ active: activeTab === 'mine' }"
+                @click="changeTab('mine')"
+              >
                 내 피드
-              </button>
+              </AppButton>
             </nav>
             <div class="feed-header-actions">
               <div v-if="inviteCode" class="feed-invite-panel">
-                <button type="button" aria-label="초대 코드 복사" @click="copyInviteCode">
-                  <i class="bi bi-copy" aria-hidden="true"></i>
+                <AppButton
+                  variant="outline"
+                  size="sm"
+                  aria-label="초대 코드 복사"
+                  @click="copyInviteCode"
+                >
+                  <template #leading>
+                    <i class="bi bi-copy" aria-hidden="true"></i>
+                  </template>
                   초대코드 복사
-                </button>
+                </AppButton>
               </div>
-              <button
-                type="button"
+              <AppButton
                 class="feed-leave-button"
+                variant="ghost"
+                size="sm"
                 title="챌린지 나가기"
                 aria-label="챌린지 나가기"
                 :disabled="isLeavingChallenge"
                 @click="leaveCurrentChallenge"
               >
-                <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
-              </button>
+                <template #leading>
+                  <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+                </template>
+              </AppButton>
             </div>
           </div>
           <div v-if="!feeds.length" class="empty-feed">
@@ -829,9 +967,9 @@ onBeforeUnmount(() => {
         </main>
 
         <aside class="feed-sidebar">
-          <div class="saving-total">
+          <AppCard as="div" class="saving-total" variant="accent" padding="none">
             <small>나의 누적 절약 금액</small><strong>{{ formatWon(mySavingTotal) }}</strong>
-          </div>
+          </AppCard>
           <section class="chat-room">
             <header>
               <span class="online-dot"></span>
@@ -926,7 +1064,15 @@ onBeforeUnmount(() => {
           </section>
         </aside>
       </div>
-      <button class="floating-add" aria-label="절약 피드 추가" @click="openModal">+</button>
+      <AppButton
+        class="floating-add"
+        variant="primary"
+        size="lg"
+        aria-label="절약 피드 추가"
+        @click="openModal"
+      >
+        +
+      </AppButton>
     </template>
 
     <div v-if="modalOpen" class="modal-layer" @click.self="closeModal">
@@ -1120,14 +1266,21 @@ onBeforeUnmount(() => {
   justify-items: center;
   gap: 18px;
 }
+.feed-refresh-status,
+.feed-error-alert {
+  margin-bottom: 18px;
+}
+.feed-alert-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
 .feed-header {
   width: calc(100% - 352px);
   margin-bottom: 24px;
 }
-.feed-header-row {
-  display: block;
-}
-.feed-header h1 {
+.feed-header :deep(.app-page-header__title) {
   justify-self: start;
   min-width: 0;
   max-width: 100%;
@@ -1144,7 +1297,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 12px;
 }
-.feed-header p {
+.feed-header :deep(.app-page-header__description) {
   margin: 8px 0 0;
   color: #939bad;
   font-size: 0.67rem;
@@ -1719,6 +1872,8 @@ onBeforeUnmount(() => {
   z-index: 40;
   width: 58px;
   height: 58px;
+  min-height: 0;
+  padding: 0;
   font-size: 2rem;
   box-shadow: 0 10px 28px #6658cf66;
 }
@@ -2042,8 +2197,12 @@ textarea {
     width: 100%;
     margin-bottom: 20px;
   }
-  .feed-header h1 {
+  .feed-header :deep(.app-page-header__title) {
     font-size: 1.35rem;
+  }
+  .feed-alert-content {
+    align-items: flex-start;
+    flex-direction: column;
   }
   .feed-toolbar {
     align-items: stretch;
