@@ -1,8 +1,8 @@
 <script setup>
 import { computed } from "vue"
-import AppButton from "@/components/ui/AppButton.vue"
 import AppCard from "@/components/ui/AppCard.vue"
 import AppProgress from "@/components/ui/AppProgress.vue"
+import AppState from "@/components/ui/AppState.vue"
 import { formatWon } from "@/commonUtils/formatters"
 
 const props = defineProps({
@@ -37,17 +37,14 @@ const budgetRemaining = computed(
     <div class="budget-card-body">
       <div class="d-flex align-items-start justify-content-between gap-3">
         <h2 class="h5 fw-bold mb-0">이번 달 예산</h2>
-        <AppButton
-          class="dashboard-action-button"
-          variant="outline"
-          size="sm"
+        <button
+          type="button"
+          class="btn dashboard-action-button"
           @click="emit('open-budget-settings')"
         >
-          설정
-          <template #trailing>
-            <i class="bi bi-gear" aria-hidden="true"></i>
-          </template>
-        </AppButton>
+          설정하기
+          <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
+        </button>
       </div>
 
       <template v-if="isBudgetConfigured">
@@ -75,12 +72,15 @@ const budgetRemaining = computed(
         </div>
       </template>
 
-      <div v-else class="budget-empty-state text-center py-4">
-        <p class="text-secondary mb-3">예산이 없습니다. 예산을 설정해주세요.</p>
-        <AppButton variant="primary" size="sm" @click="emit('open-budget-settings')">
-          설정하기
-        </AppButton>
-      </div>
+      <AppState
+        v-else
+        class="budget-state"
+        type="empty"
+        title="아직 설정된 예산이 없습니다."
+        message="예산을 설정해주세요"
+        compact
+        hide-icon
+      />
     </div>
   </AppCard>
 </template>
@@ -92,6 +92,8 @@ const budgetRemaining = computed(
 }
 
 .budget-card-body {
+  display: flex;
+  flex-direction: column;
   min-height: 328px;
   padding: var(--wallo-space-6);
 }
@@ -115,9 +117,22 @@ const budgetRemaining = computed(
   min-width: 0;
 }
 
+.budget-state {
+  display: flex;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
 .dashboard-action-button {
-  border-color: var(--wallo-color-finance-info);
+  border: 1px solid var(--wallo-color-finance-info);
+  border-radius: var(--wallo-radius-md);
   color: var(--wallo-color-finance-info);
+  background: var(--wallo-color-surface);
   transition:
     color 0.2s ease,
     background-color 0.2s ease;
