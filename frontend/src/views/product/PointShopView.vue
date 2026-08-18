@@ -1,6 +1,5 @@
 <script setup>
 import { computed, onMounted, ref } from "vue"
-import { useRouter } from "vue-router"
 import {
   deleteUsedInventoryItem,
   getPointShop,
@@ -23,7 +22,6 @@ import AppState from "@/components/ui/AppState.vue"
 import AppDialog from "@/components/common/AppDialog.vue"
 
 const userStore = useUserStore()
-const router = useRouter()
 const activeProbabilityBox = ref(null)
 const shopPointBalance = ref(null)
 const initialLoading = ref(true)
@@ -496,19 +494,7 @@ onMounted(() => {
 
 <template>
   <section class="point-shop-page">
-    <AppPageHeader class="page-heading" title="포인트 샵" compact>
-      <template #leading>
-        <AppButton
-          class="page-back-button"
-          variant="ghost"
-          size="sm"
-          aria-label="뒤로 가기"
-          @click="router.back()"
-        >
-          <i class="bi bi-chevron-left" aria-hidden="true"></i>
-        </AppButton>
-      </template>
-    </AppPageHeader>
+    <AppPageHeader class="page-heading" title="포인트 샵" compact />
 
     <AppCard as="article" class="point-summary-card" padding="none">
       <span>보유 포인트</span>
@@ -915,43 +901,6 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.page-back-button {
-  display: inline-flex;
-  flex: 0 0 38px;
-  width: 38px;
-  height: 38px;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: 0;
-  border-radius: 12px;
-  background: #f1efff;
-  color: #6b64e8;
-  text-decoration: none;
-  transform: translateX(-8px);
-  transition:
-    background-color 160ms ease,
-    color 160ms ease,
-    transform 160ms ease;
-}
-
-.page-back-button:hover,
-.page-back-button:focus-visible {
-  background: #e8e5ff;
-  color: #574fd2;
-  transform: translateX(-8px) translateY(-1px);
-}
-
-.page-back-button:focus-visible {
-  outline: 3px solid rgb(107 100 232 / 22%);
-  outline-offset: 2px;
-}
-
-.page-back-button i {
-  font-size: 16px;
-  line-height: 1;
-}
-
 .point-shop-page {
   width: 100%;
   color: #27304f;
