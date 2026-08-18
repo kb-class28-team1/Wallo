@@ -1,5 +1,5 @@
 import httpClient from "@/api/httpClient"
-import { getApiErrorMessage } from "@/commonUtils/apiError"
+import { getApiErrorMessage } from "@/utils/apiError"
 import { getResource, invalidateResource } from "@/utils/resourceCache"
 
 const CONNECTIONS_CACHE_KEY = "connections:current"

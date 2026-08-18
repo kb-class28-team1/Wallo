@@ -11,7 +11,7 @@ import {
   Tooltip,
 } from "chart.js"
 import AppCard from "@/components/ui/AppCard.vue"
-import { formatWon } from "@/commonUtils/formatters"
+import { formatWon } from "@/utils/formatters"
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler)
 

@@ -6,7 +6,7 @@ import {
   ASSET_FALLBACK_COLORS,
   getAssetCategoryMeta,
 } from "@/features/financial/financialCategories"
-import { formatWon } from "@/commonUtils/formatters"
+import { formatWon } from "@/utils/formatters"
 import AppCard from "@/components/ui/AppCard.vue"
 import AppState from "@/components/ui/AppState.vue"
 

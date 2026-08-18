@@ -12,7 +12,7 @@ import {
   Tooltip,
 } from "chart.js"
 import { getMyChallengeDashboard } from "@/api/challengeApi"
-import { formatNumber, formatWon } from "@/commonUtils/formatters"
+import { formatNumber, formatWon } from "@/utils/formatters"
 import AuthenticatedImage from "@/components/common/AuthenticatedImage.vue"
 import AppAlert from "@/components/ui/AppAlert.vue"
 import AppButton from "@/components/ui/AppButton.vue"

@@ -3,7 +3,7 @@ import { computed } from "vue"
 import AppCard from "@/components/ui/AppCard.vue"
 import AppProgress from "@/components/ui/AppProgress.vue"
 import AppState from "@/components/ui/AppState.vue"
-import { formatWon } from "@/commonUtils/formatters"
+import { formatWon } from "@/utils/formatters"
 
 const props = defineProps({
   budget: {

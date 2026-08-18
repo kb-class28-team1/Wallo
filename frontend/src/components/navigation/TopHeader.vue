@@ -6,7 +6,7 @@ import { generateNextDayMissions, getTodayMissions } from "@/api/missionApi"
 import AuthenticatedImage from "@/components/common/AuthenticatedImage.vue"
 import { useUserStore } from "@/stores/userStore"
 import { useToastStore } from "@/stores/toastStore"
-import { formatNumber } from "@/commonUtils/formatters"
+import { formatNumber } from "@/utils/formatters"
 import AppButton from "@/components/ui/AppButton.vue"
 
 // public 폴더의 이미지는 루트 절대 경로로 참조함.

@@ -4,8 +4,8 @@ import AppAlert from "@/components/ui/AppAlert.vue"
 import AppButton from "@/components/ui/AppButton.vue"
 import AppCard from "@/components/ui/AppCard.vue"
 import AppState from "@/components/ui/AppState.vue"
-import { formatWon } from "@/commonUtils/formatters"
-import { getGoalAchievementRate, getGoalCurrentAmount } from "@/commonUtils/goalProgress"
+import { formatWon } from "@/utils/formatters"
+import { getGoalAchievementRate, getGoalCurrentAmount } from "@/utils/goalProgress"
 
 const props = defineProps({
   goals: {

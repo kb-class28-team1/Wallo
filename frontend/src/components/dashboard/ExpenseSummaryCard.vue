@@ -5,7 +5,7 @@ import { ArcElement, Chart as ChartJS, Legend, Tooltip } from "chart.js"
 import AppCard from "@/components/ui/AppCard.vue"
 import AppState from "@/components/ui/AppState.vue"
 import { getExpenseCategoryLabel } from "@/features/financial/financialCategories"
-import { formatWon } from "@/commonUtils/formatters"
+import { formatWon } from "@/utils/formatters"
 
 ChartJS.register(ArcElement, Tooltip, Legend)
 

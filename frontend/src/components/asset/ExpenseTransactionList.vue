@@ -1,6 +1,6 @@
 <script setup>
 import { getExpenseCategoryMeta } from "@/features/financial/financialCategories";
-import { formatNumber } from "@/commonUtils/formatters";
+import { formatNumber } from "@/utils/formatters";
 
 const props = defineProps({
   transactions: {

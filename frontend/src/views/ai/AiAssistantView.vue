@@ -4,12 +4,12 @@ import { useRouter } from "vue-router"
 import { storeToRefs } from "pinia"
 import { useGoalStore } from "@/stores/goalStore"
 import { useUserStore } from "@/stores/userStore"
-import { formatWon } from "@/commonUtils/formatters"
+import { formatWon } from "@/utils/formatters"
 import {
   getGoalAchievementRate,
   getGoalCurrentAmount,
   getGoalTargetAmount,
-} from "@/commonUtils/goalProgress"
+} from "@/utils/goalProgress"
 import AppAlert from "@/components/ui/AppAlert.vue"
 import AppButton from "@/components/ui/AppButton.vue"
 import AppCard from "@/components/ui/AppCard.vue"
