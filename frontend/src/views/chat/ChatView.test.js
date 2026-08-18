@@ -21,7 +21,6 @@ import {
   selectGoalAccount,
 } from "@/api/goalApi"
 import { useConversationStore } from "@/stores/conversationStore"
-import { useToastStore } from "@/stores/toastStore"
 import { useUserStore } from "@/stores/userStore"
 
 const { route, replaceMock, pushMock } = vi.hoisted(() => {
@@ -128,7 +127,6 @@ const mountChat = () =>
 describe("ChatView", () => {
   beforeEach(() => {
     setActivePinia(createPinia())
-    useToastStore().clear()
     route.query = {}
     vi.stubGlobal("alert", vi.fn())
     vi.clearAllMocks()
@@ -249,7 +247,7 @@ describe("ChatView", () => {
     wrapper.unmount()
   })
 
-  it("shows a completion toast and opens AI consulting after the roadmap is completed", async () => {
+  it("shows a completion modal and opens AI consulting after the roadmap is completed", async () => {
     getActiveGoalInterview.mockResolvedValue({
       active: true,
       draft: {
@@ -314,13 +312,15 @@ describe("ChatView", () => {
     await wrapper.find(".goal-account-selection button.btn-primary").trigger("click")
     await flushPromises()
 
-    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
-    expect(useToastStore().toasts).toEqual([
-      expect.objectContaining({
-        message: "목표 설정 및 로드맵이 완성되었습니다!\nAI 컨설팅 페이지에서 나의 목표와 로드맵을 확인해보세요.",
-        variant: "success",
-      }),
-    ])
+    expect(wrapper.find('[role="dialog"]').text()).toContain(
+      "목표 설정 및 로드맵이 완성되었습니다!",
+    )
+    expect(wrapper.find("[data-modal-confirm]").text()).toBe("확인하기")
+    expect(pushMock).not.toHaveBeenCalled()
+
+    await wrapper.find("[data-modal-confirm]").trigger("click")
+    await flushPromises()
+
     expect(pushMock).toHaveBeenCalledWith({ name: "ai-consulting" })
     wrapper.unmount()
   })
@@ -514,7 +514,7 @@ describe("ChatView", () => {
     await wrapper.find(".stub-input").trigger("click")
     await flushPromises()
 
-    expect(wrapper.find(".chat-error").text()).toContain(
+    expect(wrapper.find(".app-alert.app-alert--danger").text()).toContain(
       "현재 AI 사용량 한도에 도달했습니다. 잠시 후 다시 시도해 주세요.",
     )
     expect(globalThis.alert).not.toHaveBeenCalled()

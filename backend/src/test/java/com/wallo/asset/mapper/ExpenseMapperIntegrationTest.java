@@ -75,7 +75,7 @@ class ExpenseMapperIntegrationTest {
         List<ExpenseDto.Transaction> transactions =
                 expenseMapper.selectTransactions(7L, condition);
         assertEquals(2, transactions.size());
-        assertEquals(6L, expenseMapper.countTransactions(7L, condition));
+        assertEquals(7L, expenseMapper.countTransactions(7L, condition));
 
         ExpenseDto.SearchCondition unpagedCondition = new ExpenseDto.SearchCondition(
                 "2026-07-01", "2026-07-02", 0, 20, 0
@@ -87,6 +87,23 @@ class ExpenseMapperIntegrationTest {
                 .findFirst()
                 .orElseThrow();
         assertEquals("ETC", normalizedOther.getCategory());
+    }
+
+    @Test
+    void filtersIncomingTransferByReceiveCategoryWithoutIncludingOtherTypes() {
+        ExpenseDto.SearchCondition condition = new ExpenseDto.SearchCondition(
+                "2026-07-01", "2026-07-02", 0, 20, "RECEIVE", 0
+        );
+
+        List<ExpenseDto.Transaction> transactions = expenseMapper.selectTransactions(7L, condition);
+
+        assertEquals(1, transactions.size());
+        assertEquals(10L, transactions.get(0).getTransactionId());
+        assertEquals("TRANSFER", transactions.get(0).getType());
+        assertEquals("RECEIVE", transactions.get(0).getCategory());
+        assertEquals(1L, expenseMapper.countTransactions(7L, condition));
+        assertEquals(410L, expenseMapper.selectTotalExpense(7L, condition));
+        assertEquals(1_000L, expenseMapper.selectTotalIncome(7L, condition));
     }
 
     @Test
@@ -113,6 +130,7 @@ class ExpenseMapperIntegrationTest {
         assertEquals(1, expenseMapper.updateTransactionCategory(7L, 1L, "CAFE"));
         assertEquals(1, expenseMapper.updateTransactionCategory(7L, 3L, "FOOD"));
         assertEquals(1, expenseMapper.updateTransactionCategory(7L, 4L, "ETC"));
+        assertEquals(1, expenseMapper.updateTransactionCategory(7L, 10L, "RECEIVE"));
         assertEquals(0, expenseMapper.updateTransactionCategory(7L, 5L, "ETC"));
 
         try (Connection connection = sqlSession.getConnection();
@@ -120,7 +138,7 @@ class ExpenseMapperIntegrationTest {
              ResultSet resultSet = statement.executeQuery("""
                      SELECT transaction_id, category, category_source, classifier_version
                      FROM TRANSACTIONS
-                     WHERE user_id = 7 AND transaction_id IN (1, 3, 4, 5)
+                     WHERE user_id = 7 AND transaction_id IN (1, 3, 4, 5, 10)
                      ORDER BY transaction_id
                      """)) {
             assertTrue(resultSet.next());
@@ -144,6 +162,11 @@ class ExpenseMapperIntegrationTest {
             assertEquals("CARD_WITHDRAWAL", resultSet.getString("category"));
             assertEquals("TEST", resultSet.getString("category_source"));
             assertNull(resultSet.getString("classifier_version"));
+
+            assertTrue(resultSet.next());
+            assertEquals(10L, resultSet.getLong("transaction_id"));
+            assertEquals("RECEIVE", resultSet.getString("category"));
+            assertEquals("USER", resultSet.getString("category_source"));
         }
     }
 
@@ -172,6 +195,7 @@ class ExpenseMapperIntegrationTest {
                         (3, 7, 'INCOME', 'INCOME', 1000, '급여', '2026-07-02', '09:00:00'),
                         (4, 7, 'TRANSFER', 'SEND', 500, '김철수', '2026-07-02', '13:00:00'),
                         (5, 7, 'TRANSFER', 'CARD_WITHDRAWAL', 300, '체크가맹', '2026-07-02', '14:00:00'),
+                        (10, 7, 'TRANSFER', 'RECEIVE', 250, '친구', '2026-07-02', '15:00:00'),
                         (6, 7, 'EXPENSE', 'FOOD', 50, '카페', '2026-07-03', '10:00:00'),
                         (7, 8, 'EXPENSE', 'SHOPPING', 900, '쇼핑몰', '2026-07-01', '10:00:00'),
                         (8, 7, 'EXPENSE', 'OTHER', 70, '기타 상점', '2026-07-01', '15:00:00'),

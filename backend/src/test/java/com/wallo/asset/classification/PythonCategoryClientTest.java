@@ -4,15 +4,21 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.wallo.chat.client.AiServerException;
 import java.math.BigDecimal;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
@@ -21,7 +27,9 @@ class PythonCategoryClientTest {
     private final RestTemplate restTemplate = mock(RestTemplate.class);
     private final PythonCategoryClient client = new PythonCategoryClient(
             restTemplate,
-            "http://localhost:8000/"
+            "http://localhost:8000/",
+            ignored -> {
+            }
     );
 
     @Test
@@ -107,5 +115,72 @@ class PythonCategoryClientTest {
         )).thenThrow(new ResourceAccessException("connection refused"));
 
         assertThrows(AiServerException.class, () -> client.classify(request));
+    }
+
+    @Test
+    void retriesTransientHttpFailureOnce() {
+        CategoryClassificationDto.Request request = new CategoryClassificationDto.Request(
+                "일시 장애 상점",
+                "기타",
+                1_000L
+        );
+        CategoryClassificationDto.Response expected = new CategoryClassificationDto.Response(
+                "ETC",
+                new BigDecimal("0.7100")
+        );
+        HttpServerErrorException transientFailure = HttpServerErrorException.create(
+                HttpStatus.BAD_GATEWAY,
+                "Bad Gateway",
+                HttpHeaders.EMPTY,
+                "{\"detail\":{\"errorCode\":\"AI_UPSTREAM_ERROR\",\"message\":\"temporary\",\"retryable\":true}}"
+                        .getBytes(StandardCharsets.UTF_8),
+                StandardCharsets.UTF_8
+        );
+        when(restTemplate.postForEntity(
+                eq(URI.create("http://localhost:8000/api/category/classify")),
+                eq(request),
+                eq(CategoryClassificationDto.Response.class)
+        )).thenThrow(transientFailure).thenReturn(ResponseEntity.ok(expected));
+
+        assertEquals(expected, client.classify(request));
+        verify(restTemplate, times(2)).postForEntity(
+                eq(URI.create("http://localhost:8000/api/category/classify")),
+                eq(request),
+                eq(CategoryClassificationDto.Response.class)
+        );
+    }
+
+    @Test
+    void doesNotRetryInvalidRequest() {
+        CategoryClassificationDto.Request request = new CategoryClassificationDto.Request(
+                "잘못된 요청 상점",
+                null,
+                1_000L
+        );
+        HttpClientErrorException invalidRequest = HttpClientErrorException.create(
+                HttpStatus.UNPROCESSABLE_ENTITY,
+                "Unprocessable Entity",
+                HttpHeaders.EMPTY,
+                "{\"detail\":{\"errorCode\":\"AI_INVALID_REQUEST\",\"message\":\"invalid\",\"retryable\":false}}"
+                        .getBytes(StandardCharsets.UTF_8),
+                StandardCharsets.UTF_8
+        );
+        when(restTemplate.postForEntity(
+                eq(URI.create("http://localhost:8000/api/category/classify")),
+                eq(request),
+                eq(CategoryClassificationDto.Response.class)
+        )).thenThrow(invalidRequest);
+
+        AiServerException exception = assertThrows(
+                AiServerException.class,
+                () -> client.classify(request)
+        );
+
+        assertEquals(AiServerException.FailureReason.AI_INVALID_REQUEST, exception.getFailureReason());
+        verify(restTemplate).postForEntity(
+                eq(URI.create("http://localhost:8000/api/category/classify")),
+                eq(request),
+                eq(CategoryClassificationDto.Response.class)
+        );
     }
 }
