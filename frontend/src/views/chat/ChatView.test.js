@@ -514,7 +514,7 @@ describe("ChatView", () => {
     await wrapper.find(".stub-input").trigger("click")
     await flushPromises()
 
-    expect(wrapper.find(".alert.alert-danger").text()).toContain(
+    expect(wrapper.find(".app-alert.app-alert--danger").text()).toContain(
       "현재 AI 사용량 한도에 도달했습니다. 잠시 후 다시 시도해 주세요.",
     )
     expect(globalThis.alert).not.toHaveBeenCalled()

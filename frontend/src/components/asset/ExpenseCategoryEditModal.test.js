@@ -24,7 +24,7 @@ describe("ExpenseCategoryEditModal", () => {
     const options = wrapper.findAll(".category-option")
     expect(wrapper.get('[data-testid="category-option-ETC"]').classes()).toContain("selected")
     expect(wrapper.findAll('[role="tab"]')[1].classes()).toContain("app-tabs__tab--active")
-    expect(options).toHaveLength(Object.keys(EXPENSE_CATEGORY_META).length - 2)
+    expect(options).toHaveLength(Object.keys(EXPENSE_CATEGORY_META).length - 3)
     expect(wrapper.get('[data-testid="category-option-FOOD"] .category-option-icon').exists()).toBe(
       true,
     )
@@ -36,6 +36,9 @@ describe("ExpenseCategoryEditModal", () => {
     )
     expect(options.map((option) => option.attributes("data-testid"))).not.toContain(
       "category-option-SEND",
+    )
+    expect(options.map((option) => option.attributes("data-testid"))).not.toContain(
+      "category-option-RECEIVE",
     )
   })
 
@@ -53,8 +56,25 @@ describe("ExpenseCategoryEditModal", () => {
     expect(wrapper.find('[data-testid="category-option-FOOD"]').exists()).toBe(false)
 
     await wrapper.get('[data-testid="transaction-type-TRANSFER"]').trigger("click")
-    expect(wrapper.findAll(".category-option")).toHaveLength(1)
+    expect(wrapper.findAll(".category-option")).toHaveLength(2)
     expect(wrapper.get('[data-testid="category-option-SEND"]').classes()).toContain("selected")
+    expect(wrapper.get('[data-testid="category-option-RECEIVE"]').exists()).toBe(true)
+
+    await wrapper.get('[data-testid="category-option-RECEIVE"]').trigger("click")
+    expect(wrapper.get('[data-testid="category-option-RECEIVE"]').classes()).toContain("selected")
+  })
+
+  it("opens the RECEIVE filter in the transfer category group", () => {
+    const wrapper = mount(ExpenseCategoryEditModal, {
+      props: {
+        visible: true,
+        mode: "filter",
+        initialCategory: "RECEIVE",
+      },
+    })
+
+    expect(wrapper.findAll('[role="tab"]')[2].classes()).toContain("app-tabs__tab--active")
+    expect(wrapper.get('[data-testid="category-option-RECEIVE"]').classes()).toContain("selected")
   })
 
   it("reuses the category cards for an ALL filter and emits only the category", async () => {

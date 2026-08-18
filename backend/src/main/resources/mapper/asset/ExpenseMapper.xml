@@ -65,6 +65,10 @@
                 <when test="condition.category == 'ETC'">
                     AND category IN ('OTHER', 'ETC')
                 </when>
+                <when test="condition.category == 'RECEIVE' or condition.category == 'SEND'">
+                    AND type = 'TRANSFER'
+                    AND category = #{condition.category}
+                </when>
                 <otherwise>
                     AND category = #{condition.category}
                 </otherwise>
@@ -84,6 +88,10 @@
             <choose>
                 <when test="condition.category == 'ETC'">
                     AND category IN ('OTHER', 'ETC')
+                </when>
+                <when test="condition.category == 'RECEIVE' or condition.category == 'SEND'">
+                    AND type = 'TRANSFER'
+                    AND category = #{condition.category}
                 </when>
                 <otherwise>
                     AND category = #{condition.category}

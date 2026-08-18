@@ -48,7 +48,7 @@ const CATEGORY_GROUPS = Object.freeze({
     "ETC",
   ],
   INCOME: ["INCOME"],
-  TRANSFER: ["SEND"],
+  TRANSFER: ["SEND", "RECEIVE"],
 })
 
 const TYPE_TABS = Object.freeze([
@@ -126,7 +126,11 @@ watch(
     } else if (visible && isFilterMode.value) {
       const category = initialCategory(transaction)
       selectedType.value =
-        category === "INCOME" ? "INCOME" : category === "SEND" ? "TRANSFER" : "EXPENSE"
+        category === "INCOME"
+          ? "INCOME"
+          : category === "SEND" || category === "RECEIVE"
+            ? "TRANSFER"
+            : "EXPENSE"
     }
 
     if (visible) {
