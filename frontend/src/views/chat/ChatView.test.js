@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { nextTick } from "vue"
 
 import ChatView from "./ChatView.vue"
+import ChatInput from "@/components/chat/ChatInput.vue"
 import {
   createConversation,
   deleteConversation,
@@ -161,11 +162,29 @@ describe("ChatView", () => {
       expect(wrapper.find(".goal-account-selection").exists()).toBe(true)
     })
 
+    expect(wrapper.find(".goal-interview-card").classes()).toContain("app-card")
+    expect(wrapper.find(".chat-panel").classes()).toContain("app-card")
+    expect(wrapper.find(".conversation-panel").classes()).toContain("app-card")
+    expect(wrapper.find(".new-conversation-button").classes()).toContain("app-button")
+    expect(wrapper.find(".message-list").exists()).toBe(true)
     expect(wrapper.text()).toContain("비상금 목표")
     expect(wrapper.text()).toContain("10,000,000원")
     expect(wrapper.text()).not.toContain("이대로 확정")
     expect(wrapper.text()).toContain("Wallo Bank")
     expect(getGoalByConversationId).toHaveBeenCalledWith(11)
+  })
+
+  it("uses the shared button for sending chat messages", async () => {
+    const wrapper = mount(ChatInput)
+    const sendButton = wrapper.get(".message-send-button")
+
+    expect(sendButton.classes()).toContain("app-button")
+    expect(sendButton.classes()).toContain("app-button--primary")
+    expect(sendButton.element.disabled).toBe(true)
+
+    await wrapper.get("#message-input").setValue("자산을 확인하고 싶어요")
+
+    expect(sendButton.element.disabled).toBe(false)
   })
 
   it("opens the requested goal conversation from the dashboard", async () => {
@@ -200,9 +219,9 @@ describe("ChatView", () => {
     expect(wrapper.find('[role="dialog"]').text()).toContain(
       "목표 설정이 완료된 채팅은 계좌 변경에 필요하므로 삭제할 수 없습니다.",
     )
-    expect(wrapper.find('[data-modal-confirm]').text()).toBe("확인")
+    expect(wrapper.find("[data-modal-confirm]").text()).toBe("확인")
 
-    await wrapper.find('[data-modal-confirm]').trigger("click")
+    await wrapper.find("[data-modal-confirm]").trigger("click")
     await flushPromises()
 
     expect(deleteConversation).not.toHaveBeenCalled()
@@ -220,7 +239,7 @@ describe("ChatView", () => {
     expect(wrapper.find('[role="dialog"]').exists()).toBe(true)
     expect(wrapper.find('[role="dialog"]').text()).toContain("'비상금 목표' 채팅방을 삭제할까요?")
 
-    await wrapper.find('[data-modal-confirm]').trigger("click")
+    await wrapper.find("[data-modal-confirm]").trigger("click")
     await flushPromises()
 
     expect(deleteConversation).toHaveBeenCalledWith(11, 7)
@@ -296,10 +315,10 @@ describe("ChatView", () => {
     expect(wrapper.find('[role="dialog"]').text()).toContain(
       "목표 설정 및 로드맵이 완성되었습니다!",
     )
-    expect(wrapper.find('[data-modal-confirm]').text()).toBe("확인하기")
+    expect(wrapper.find("[data-modal-confirm]").text()).toBe("확인하기")
     expect(pushMock).not.toHaveBeenCalled()
 
-    await wrapper.find('[data-modal-confirm]').trigger("click")
+    await wrapper.find("[data-modal-confirm]").trigger("click")
     await flushPromises()
 
     expect(pushMock).toHaveBeenCalledWith({ name: "ai-consulting" })

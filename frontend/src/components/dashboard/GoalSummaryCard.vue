@@ -1,10 +1,11 @@
 <script setup>
-import { computed, ref, watch } from "vue";
-import { formatWon } from "@/commonUtils/formatters";
-import {
-  getGoalAchievementRate,
-  getGoalCurrentAmount,
-} from "@/commonUtils/goalProgress";
+import { computed, ref, watch } from "vue"
+import AppAlert from "@/components/ui/AppAlert.vue"
+import AppButton from "@/components/ui/AppButton.vue"
+import AppCard from "@/components/ui/AppCard.vue"
+import AppState from "@/components/ui/AppState.vue"
+import { formatWon } from "@/commonUtils/formatters"
+import { getGoalAchievementRate, getGoalCurrentAmount } from "@/commonUtils/goalProgress"
 
 const props = defineProps({
   goals: {
@@ -27,77 +28,70 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
-});
+})
 
-const emit = defineEmits(["retry"]);
-const selectedGoalIndex = ref(0);
+const emit = defineEmits(["retry"])
+const selectedGoalIndex = ref(0)
 
-const selectedGoal = computed(() => props.goals[selectedGoalIndex.value] ?? null);
-const selectedAccount = computed(() => (
-  props.availableAccounts.find((account) => account.selected) ?? null
-));
+const selectedGoal = computed(() => props.goals[selectedGoalIndex.value] ?? null)
+const selectedAccount = computed(
+  () => props.availableAccounts.find((account) => account.selected) ?? null,
+)
 const accountSettingsLink = computed(() => {
   if (!props.goals.length) {
-    return "/chat?start=goal-setting";
+    return "/chat?start=goal-setting"
   }
 
-  const conversationId = selectedGoal.value?.conversationId;
-  return conversationId
-    ? `/chat?conversationId=${encodeURIComponent(conversationId)}`
-    : "/chat";
-});
+  const conversationId = selectedGoal.value?.conversationId
+  return conversationId ? `/chat?conversationId=${encodeURIComponent(conversationId)}` : "/chat"
+})
 
 watch(
   () => props.goals.length,
   (goalCount) => {
     if (goalCount === 0) {
-      selectedGoalIndex.value = 0;
-      return;
+      selectedGoalIndex.value = 0
+      return
     }
 
     if (selectedGoalIndex.value >= goalCount) {
-      selectedGoalIndex.value = goalCount - 1;
+      selectedGoalIndex.value = goalCount - 1
     }
   },
-);
+)
 
 const showPreviousGoal = () => {
-  if (props.goals.length < 2) return;
-  selectedGoalIndex.value = (
-    selectedGoalIndex.value - 1 + props.goals.length
-  ) % props.goals.length;
-};
+  if (props.goals.length < 2) return
+  selectedGoalIndex.value = (selectedGoalIndex.value - 1 + props.goals.length) % props.goals.length
+}
 
 const showNextGoal = () => {
-  if (props.goals.length < 2) return;
-  selectedGoalIndex.value = (selectedGoalIndex.value + 1) % props.goals.length;
-};
+  if (props.goals.length < 2) return
+  selectedGoalIndex.value = (selectedGoalIndex.value + 1) % props.goals.length
+}
 
 const formatGoalDate = (date) => {
   if (!date) {
-    return "-";
+    return "-"
   }
 
-  const parsedDate = new Date(
-    String(date).length === 10 ? `${date}T00:00:00` : date,
-  );
+  const parsedDate = new Date(String(date).length === 10 ? `${date}T00:00:00` : date)
 
   if (Number.isNaN(parsedDate.getTime())) {
-    return date;
+    return date
   }
 
   return new Intl.DateTimeFormat("ko-KR", {
     year: "numeric",
     month: "long",
     day: "numeric",
-  }).format(parsedDate);
-};
-
+  }).format(parsedDate)
+}
 </script>
 
 <template>
-  <article class="card goal-summary-card border-0 shadow-sm">
-    <div class="card-body goal-card-body">
+  <AppCard class="goal-summary-card" padding="none">
+    <div class="goal-card-body">
       <div class="goal-card-header d-flex align-items-start justify-content-between gap-3 mb-4">
         <div v-if="selectedGoal" class="min-w-0">
           <h2 class="h5 fw-bold mb-0 text-truncate">
@@ -114,23 +108,27 @@ const formatGoalDate = (date) => {
         </RouterLink>
       </div>
 
-      <div v-if="loading" class="goal-state text-secondary" role="status">
-        <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
-        목표 정보를 불러오는 중입니다.
-      </div>
+      <AppState
+        v-if="loading"
+        class="goal-state"
+        type="loading"
+        title="목표 정보를 불러오는 중입니다."
+        message="잠시만 기다려 주세요."
+        compact
+      />
 
-      <div v-else-if="error" class="alert alert-danger mb-0" role="alert">
-        <p class="mb-3">{{ error }}</p>
-        <button type="button" class="btn btn-sm btn-outline-danger" @click="emit('retry')">
-          다시 시도
-        </button>
-      </div>
+      <AppAlert v-else-if="error" class="goal-state" variant="danger" :title="error">
+        <AppButton variant="outline" size="sm" @click="emit('retry')"> 다시 시도 </AppButton>
+      </AppAlert>
 
-      <div v-else-if="goals.length === 0" class="goal-state text-secondary">
-        <i class="bi bi-bullseye fs-2 d-block mb-2" aria-hidden="true"></i>
-        <p class="mb-1 fw-semibold text-dark">아직 확정된 금융 목표가 없습니다.</p>
-        <p class="mb-0">AI 컨설팅에서 목표를 설정해보세요.</p>
-      </div>
+      <AppState
+        v-else-if="goals.length === 0"
+        class="goal-state"
+        type="empty"
+        title="아직 확정된 금융 목표가 없습니다."
+        message="AI 컨설팅에서 목표를 설정해보세요."
+        compact
+      />
 
       <div v-else class="goal-list">
         <section
@@ -145,7 +143,9 @@ const formatGoalDate = (date) => {
                 <strong>{{ formatWon(getGoalCurrentAmount(selectedGoal)) }}</strong>
                 <span>/ {{ formatWon(selectedGoal.targetAmount) }}</span>
               </div>
-              <strong class="goal-progress-rate">{{ getGoalAchievementRate(selectedGoal) }}%</strong>
+              <strong class="goal-progress-rate"
+                >{{ getGoalAchievementRate(selectedGoal) }}%</strong
+              >
             </div>
             <div
               class="progress goal-progress mt-2"
@@ -180,7 +180,10 @@ const formatGoalDate = (date) => {
           <div class="goal-account-summary" aria-label="설정된 계좌">
             <div class="goal-account-label">설정된 계좌</div>
             <div v-if="accountsLoading" class="small text-secondary" role="status">
-              <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
+              <span
+                class="spinner-border spinner-border-sm text-primary me-2"
+                aria-hidden="true"
+              ></span>
               계좌 정보를 불러오는 중입니다.
             </div>
             <div v-else-if="selectedAccount" class="goal-account-value">
@@ -197,31 +200,33 @@ const formatGoalDate = (date) => {
 
           <div v-if="goals.length > 1" class="goal-carousel-footer">
             <div class="goal-carousel-controls" aria-label="목표 선택">
-              <button
-                type="button"
-                class="btn goal-carousel-button"
+              <AppButton
+                class="goal-carousel-button"
+                variant="ghost"
+                size="sm"
                 aria-label="이전 목표"
                 @click="showPreviousGoal"
               >
                 &lt;
-              </button>
+              </AppButton>
               <span class="goal-carousel-position" aria-live="polite">
                 {{ selectedGoalIndex + 1 }} / {{ goals.length }}
               </span>
-              <button
-                type="button"
-                class="btn goal-carousel-button"
+              <AppButton
+                class="goal-carousel-button"
+                variant="ghost"
+                size="sm"
                 aria-label="다음 목표"
                 @click="showNextGoal"
               >
                 &gt;
-              </button>
+              </AppButton>
             </div>
           </div>
         </section>
       </div>
     </div>
-  </article>
+  </AppCard>
 </template>
 
 <style scoped>
@@ -229,8 +234,15 @@ const formatGoalDate = (date) => {
   width: 100%;
   height: 100%;
   max-width: 1080px;
-  border-radius: 32px;
-  background: #ffffff;
+  border-radius: var(--wallo-radius-xl);
+  background: var(--wallo-color-surface);
+}
+
+.goal-summary-card :deep(.app-card__body) {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
 }
 
 .goal-card-body {
@@ -245,18 +257,20 @@ const formatGoalDate = (date) => {
 }
 
 .dashboard-action-button {
-  border: 1px solid #0000d5;
-  border-radius: 14px;
-  color: #0000d5;
-  background: #ffffff;
-  transition: color 0.2s ease, background-color 0.2s ease;
+  border: 1px solid var(--wallo-color-finance-info);
+  border-radius: var(--wallo-radius-md);
+  color: var(--wallo-color-finance-info);
+  background: var(--wallo-color-surface);
+  transition:
+    color 0.2s ease,
+    background-color 0.2s ease;
 }
 
 .dashboard-action-button:hover,
 .dashboard-action-button:focus {
-  border-color: #0000d5;
-  color: #ffffff;
-  background: #0000d5;
+  border-color: var(--wallo-color-finance-info-hover);
+  color: var(--wallo-color-surface);
+  background: var(--wallo-color-finance-info);
 }
 
 .goal-state {
@@ -283,19 +297,19 @@ const formatGoalDate = (date) => {
 .goal-item + .goal-item {
   margin-top: 1rem;
   padding-top: 1rem;
-  border-top: 1px solid #e9ecef;
+  border-top: 1px solid var(--wallo-color-border-soft);
 }
 
 .goal-item dt {
   margin-bottom: 0.35rem;
-  color: #6c757d;
+  color: var(--wallo-color-text-muted);
   font-size: 0.875rem;
   font-weight: 500;
 }
 
 .goal-item dd {
   margin-bottom: 0;
-  color: #111111;
+  color: var(--wallo-color-text);
   font-weight: 700;
 }
 
@@ -316,12 +330,13 @@ const formatGoalDate = (date) => {
   display: inline-flex;
   width: 32px;
   height: 32px;
+  min-height: 32px;
   align-items: center;
   justify-content: center;
   padding: 0;
   border: 0;
-  border-radius: 10px;
-  color: #555b6e;
+  border-radius: var(--wallo-radius-sm);
+  color: var(--wallo-color-text-muted);
   background: transparent;
   font-size: 1rem;
   line-height: 1;
@@ -329,20 +344,20 @@ const formatGoalDate = (date) => {
 
 .goal-carousel-button:hover,
 .goal-carousel-button:focus {
-  color: #6b5bd2;
-  background: #f0edff;
+  color: var(--wallo-color-primary);
+  background: rgb(112 98 222 / 10%);
 }
 
 .goal-carousel-position {
   min-width: 2.7rem;
-  color: #6c757d;
+  color: var(--wallo-color-text-muted);
   font-size: 0.75rem;
   text-align: center;
 }
 
 .goal-progress-caption {
   margin-bottom: 0.5rem !important;
-  color: #6c757d;
+  color: var(--wallo-color-text-muted);
   font-size: 0.8rem;
 }
 
@@ -356,7 +371,7 @@ const formatGoalDate = (date) => {
 
 .goal-account-label {
   margin-bottom: 0.35rem;
-  color: #6c757d;
+  color: var(--wallo-color-text-muted);
   font-size: 0.8rem;
   font-weight: 600;
 }
@@ -365,31 +380,31 @@ const formatGoalDate = (date) => {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
-  color: #111111;
+  color: var(--wallo-color-text);
 }
 
 .goal-account-value span {
-  color: #6c757d;
+  color: var(--wallo-color-text-muted);
   font-size: 0.875rem;
 }
 
 .goal-progress-amount {
-  color: #111111;
+  color: var(--wallo-color-text);
 }
 
 .goal-progress-amount strong {
-  color: #4f46e5;
+  color: var(--wallo-color-primary);
   font-size: 1.65rem;
   letter-spacing: -0.04em;
 }
 
 .goal-progress-amount span {
-  color: #6c757d;
+  color: var(--wallo-color-text-muted);
   font-size: 0.95rem;
 }
 
 .goal-progress-rate {
-  color: #4f46e5;
+  color: var(--wallo-color-primary);
   font-size: 1rem;
 }
 
@@ -397,13 +412,13 @@ const formatGoalDate = (date) => {
   margin-top: 0.75rem !important;
   height: 0.7rem;
   overflow: hidden;
-  border-radius: 999px;
-  background: #e6e7ff;
+  border-radius: var(--wallo-radius-pill);
+  background: var(--wallo-color-info-bg);
 }
 
 .goal-progress-bar {
   border-radius: inherit;
-  background: linear-gradient(90deg, #5d52f4, #766bff);
+  background: var(--wallo-color-primary);
 }
 
 @media (max-width: 575.98px) {

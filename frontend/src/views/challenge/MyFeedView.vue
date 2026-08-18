@@ -4,6 +4,11 @@ import { storeToRefs } from "pinia"
 import { useRouter } from "vue-router"
 import { useMyFeedStore } from "@/stores/myFeedStore"
 import { formatNumber, formatWon } from "@/commonUtils/formatters"
+import AppAlert from "@/components/ui/AppAlert.vue"
+import AppButton from "@/components/ui/AppButton.vue"
+import AppCard from "@/components/ui/AppCard.vue"
+import AppPageHeader from "@/components/ui/AppPageHeader.vue"
+import AppState from "@/components/ui/AppState.vue"
 import {
   EXPENSE_CATEGORY_META,
   FEED_CATEGORY_CODES,
@@ -120,19 +125,23 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
 
 <template>
   <section class="my-feed-page">
-    <header class="page-heading d-flex align-items-center gap-3 mb-4">
-      <button
-        type="button"
-        class="btn page-back-button"
-        aria-label="내 챌린지로 이동"
-        @click="router.push({ name: 'my-challenge' })"
-      >
-        <i class="bi bi-chevron-left" aria-hidden="true"></i>
-      </button>
-      <h1 class="mb-0">내 게시물</h1>
-    </header>
+    <AppPageHeader class="page-heading" title="내 게시물" compact>
+      <template #leading>
+        <AppButton
+          class="page-back-button"
+          variant="ghost"
+          size="sm"
+          aria-label="내 챌린지로 이동"
+          @click="router.push({ name: 'my-challenge' })"
+        >
+          <template #leading>
+            <i class="bi bi-chevron-left" aria-hidden="true"></i>
+          </template>
+        </AppButton>
+      </template>
+    </AppPageHeader>
 
-    <article class="overview-card">
+    <AppCard as="article" class="overview-card" padding="none">
       <div class="overview-header d-flex flex-wrap justify-content-between gap-3">
         <div>
           <h2>내가 올린 게시물 · {{ selectedSortLabel }}</h2>
@@ -171,63 +180,76 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
       </div>
 
       <div class="summary-grid">
-        <div
+        <AppCard
           v-for="card in summaryCards"
           :key="card.label"
+          as="div"
           class="summary-card"
           :class="card.className"
+          variant="soft"
+          padding="none"
         >
           <span>{{ card.label }}</span>
           <strong>{{ card.value }}</strong>
-        </div>
+        </AppCard>
       </div>
-    </article>
+    </AppCard>
 
-    <div v-if="refreshing" class="feed-refresh-status text-secondary" role="status">
-      최신 내 게시물 정보를 확인하는 중...
-    </div>
+    <AppAlert
+      v-if="refreshing"
+      class="feed-refresh-status"
+      variant="neutral"
+      role="status"
+      :show-icon="false"
+      message="최신 내 게시물 정보를 확인하는 중..."
+    />
 
-    <div
-      v-if="errorMessage && feeds.length > 0"
-      class="alert alert-warning d-flex align-items-center justify-content-between gap-2 mt-3"
-      role="alert"
+    <AppAlert v-if="errorMessage && feeds.length > 0" class="feed-error-alert" variant="warning">
+      <div class="feed-error-content">
+        <span>{{ errorMessage }}</span>
+        <AppButton variant="outline" size="sm" @click="myFeedStore.refreshMyFeedPage">
+          다시 시도
+        </AppButton>
+      </div>
+    </AppAlert>
+
+    <AppState
+      v-if="initialLoading && feeds.length === 0"
+      class="page-state-card"
+      type="loading"
+      title="내 게시물을 불러오는 중입니다"
+      message="잠시만 기다려 주세요."
+    />
+
+    <AppState
+      v-else-if="errorMessage && feeds.length === 0"
+      class="page-state-card"
+      type="error"
+      title="내 게시물을 불러오지 못했습니다"
+      :message="errorMessage"
+      action-text="다시 시도"
+      action-variant="danger"
+      @action="myFeedStore.refreshMyFeedPage"
+    />
+
+    <AppState
+      v-else-if="feeds.length === 0"
+      class="page-state-card"
+      type="empty"
+      title="조건에 맞는 게시물이 없습니다"
+      message="절약 인증 게시물을 작성하면 이곳에서 확인할 수 있습니다."
     >
-      <span>{{ errorMessage }}</span>
-      <button
-        type="button"
-        class="btn btn-sm btn-outline-warning"
-        @click="myFeedStore.refreshMyFeedPage"
-      >
-        다시 시도
-      </button>
-    </div>
-
-    <div v-if="initialLoading && feeds.length === 0" class="page-state-card">
-      <div class="spinner-border text-primary" role="status">
-        <span class="visually-hidden">로딩 중</span>
-      </div>
-      <span>내 게시물을 불러오는 중입니다...</span>
-    </div>
-
-    <div v-else-if="errorMessage && feeds.length === 0" class="page-state-card error-state">
-      <span>{{ errorMessage }}</span>
-      <button type="button" class="btn retry-button" @click="myFeedStore.refreshMyFeedPage">
-        다시 시도
-      </button>
-    </div>
-
-    <div v-else-if="feeds.length === 0" class="page-state-card">
-      <span class="empty-icon" aria-hidden="true">📝</span>
-      <strong>조건에 맞는 게시물이 없습니다.</strong>
-      <span>절약 인증 게시물을 작성하면 이곳에서 확인할 수 있습니다.</span>
-    </div>
+      <template #icon><span class="empty-icon" aria-hidden="true">📝</span></template>
+    </AppState>
 
     <template v-else>
       <div class="feed-grid">
-        <article
+        <AppCard
           v-for="(feed, index) in feeds"
           :key="feed.feedId"
+          as="article"
           class="feed-card"
+          padding="none"
           role="link"
           tabindex="0"
           @click="openFeed(feed)"
@@ -270,27 +292,29 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
             <span class="comment-count">💬 {{ formatNumber(feed.commentCount) }}</span>
             <strong>{{ formatWon(feed.savingAmount) }}</strong>
           </div>
-        </article>
+        </AppCard>
       </div>
 
       <nav v-if="totalPages > 1" class="pagination-wrap" aria-label="내 게시물 페이지 이동">
-        <button
-          type="button"
-          class="btn page-button"
+        <AppButton
+          class="page-button"
+          variant="outline"
+          size="sm"
           :disabled="!hasPreviousPage || isFeedLoading"
           @click="movePage(page - 1)"
         >
           이전
-        </button>
+        </AppButton>
         <span>{{ page + 1 }} / {{ totalPages }}</span>
-        <button
-          type="button"
-          class="btn page-button"
+        <AppButton
+          class="page-button"
+          variant="outline"
+          size="sm"
           :disabled="!hasNextPage || isFeedLoading"
           @click="movePage(page + 1)"
         >
           다음
-        </button>
+        </AppButton>
       </nav>
     </template>
   </section>
@@ -339,7 +363,7 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
   color: #27304f;
 }
 
-.page-heading h1 {
+.page-heading :deep(.app-page-header__title) {
   font-size: 28px;
   font-weight: 800;
 }
@@ -354,6 +378,16 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
 
 .overview-card {
   padding: 26px;
+}
+
+.summary-card.app-card,
+.feed-card.app-card {
+  display: grid;
+}
+
+.summary-card :deep(.app-card__body),
+.feed-card :deep(.app-card__body) {
+  display: contents;
 }
 
 .overview-header h2 {
@@ -449,6 +483,10 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
   transition:
     transform 160ms ease,
     box-shadow 160ms ease;
+}
+
+.feed-card.app-card {
+  overflow: visible;
 }
 
 .feed-card:hover,
@@ -572,6 +610,17 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
   font-size: 13px;
 }
 
+.feed-error-alert {
+  margin-top: 16px;
+}
+
+.feed-error-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .empty-icon {
   font-size: 34px;
 }
@@ -627,6 +676,11 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
   .feed-card {
     grid-template-columns: 48px minmax(0, 1fr);
     padding: 17px;
+  }
+
+  .feed-error-content {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .feed-thumbnail {

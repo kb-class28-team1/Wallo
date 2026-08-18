@@ -221,6 +221,9 @@ describe("challenge page views", () => {
     expect(getFeeds).toHaveBeenCalledWith(7, false)
     expect(getRoomMessages).toHaveBeenCalledWith(7)
     expect(firstWrapper.find(".feed-card").exists()).toBe(true)
+    expect(firstWrapper.find(".feed-header").classes()).toContain("app-page-header")
+    expect(firstWrapper.find(".saving-total").classes()).toContain("app-card")
+    expect(firstWrapper.findAll(".feed-tabs .app-button")).toHaveLength(2)
 
     firstWrapper.unmount()
 

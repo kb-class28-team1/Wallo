@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from "vue"
 import { RouterLink } from "vue-router"
+import AppCard from "@/components/ui/AppCard.vue"
 
 const props = defineProps({
   report: {
@@ -25,8 +26,8 @@ const readBadgeText = computed(() => (props.report.read ? "읽음" : "안읽음"
 
 <template>
   <RouterLink :to="`/reports/${report.id}`" class="text-decoration-none text-reset d-block">
-    <article class="card border-0 shadow-sm report-card">
-      <div class="card-body p-4">
+    <AppCard class="report-card" padding="md" interactive>
+      <div class="report-card-content">
         <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
           <span class="badge rounded-pill text-bg-light">{{ report.category }}</span>
           <span class="badge rounded-pill" :class="readBadgeClass">{{ readBadgeText }}</span>
@@ -41,21 +42,13 @@ const readBadgeText = computed(() => (props.report.read ? "읽음" : "안읽음"
           <span>{{ formattedDate }}</span>
         </div>
       </div>
-    </article>
+    </AppCard>
   </RouterLink>
 </template>
 
 <style scoped>
 .report-card {
-  border-radius: 16px;
-  transition:
-    transform 0.15s ease,
-    box-shadow 0.15s ease;
-}
-
-.report-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.08) !important;
+  width: 100%;
 }
 
 .report-title,

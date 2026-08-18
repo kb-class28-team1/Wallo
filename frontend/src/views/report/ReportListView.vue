@@ -2,6 +2,10 @@
 import { onBeforeUnmount, onMounted, ref } from "vue"
 import { crawlNewsNow, generateMissingReports, getReports } from "@/api/reportApi"
 import ReportListCard from "@/components/report/ReportListCard.vue"
+import AppAlert from "@/components/ui/AppAlert.vue"
+import AppButton from "@/components/ui/AppButton.vue"
+import AppPageHeader from "@/components/ui/AppPageHeader.vue"
+import AppState from "@/components/ui/AppState.vue"
 import {
   getCachedResource,
   getResource,
@@ -124,90 +128,131 @@ const generateNow = async () => {
 </script>
 
 <template>
-  <section class="report-list-view container-fluid py-4 px-4">
-    <header class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
-      <div>
-        <h1 class="h3 fw-bold mb-1">금융 리포트</h1>
-        <p class="text-secondary mb-0">AI가 분석한 금융·경제 뉴스를 확인하세요.</p>
-      </div>
-      <div class="d-flex flex-wrap gap-2">
-        <button
-          type="button"
-          class="btn btn-outline-primary"
+  <section class="report-list-view">
+    <AppPageHeader
+      eyebrow="금융·경제"
+      title="금융 리포트"
+      description="AI가 분석한 금융·경제 뉴스를 확인하세요."
+    >
+      <template #actions>
+        <AppButton
+          class="report-crawl-button"
+          variant="outline"
           :disabled="isCrawling"
+          :loading="isCrawling"
           @click="crawlNow"
         >
-          <span
-            v-if="isCrawling"
-            class="spinner-border spinner-border-sm me-2"
-            aria-hidden="true"
-          ></span>
           {{ isCrawling ? "크롤링 중..." : "새 뉴스 크롤링" }}
-        </button>
-        <button type="button" class="btn btn-primary" :disabled="isGenerating" @click="generateNow">
-          <span
-            v-if="isGenerating"
-            class="spinner-border spinner-border-sm me-2"
-            aria-hidden="true"
-          ></span>
+        </AppButton>
+        <AppButton
+          class="report-generate-button"
+          variant="primary"
+          :disabled="isGenerating"
+          :loading="isGenerating"
+          @click="generateNow"
+        >
           {{ isGenerating ? "요청 중..." : "AI 리포트 생성" }}
-        </button>
-      </div>
-    </header>
+        </AppButton>
+      </template>
+    </AppPageHeader>
 
-    <div v-if="generationMessage" class="alert alert-info" role="status">
-      {{ generationMessage }}
-    </div>
+    <AppAlert
+      v-if="generationMessage"
+      class="report-generation-message"
+      variant="info"
+      role="status"
+      :message="generationMessage"
+    />
 
-    <div v-if="refreshing" class="small text-secondary mb-3" role="status">
+    <div v-if="refreshing" class="report-refresh-status" role="status">
       최신 리포트 목록을 확인하는 중...
     </div>
 
-    <div v-if="initialLoading" class="text-center py-5">
-      <div class="spinner-border text-primary" role="status">
-        <span class="visually-hidden">불러오는 중...</span>
-      </div>
-    </div>
+    <AppState
+      v-if="initialLoading"
+      class="report-state"
+      type="loading"
+      title="금융 리포트 목록을 불러오는 중입니다."
+      message="최신 금융·경제 뉴스를 확인하고 있습니다."
+    />
 
-    <div
-      v-else-if="errorMessage && !reports.length"
-      class="alert alert-danger d-flex flex-wrap justify-content-between align-items-center gap-2"
-      role="alert"
-    >
+    <AppAlert v-else-if="errorMessage && !reports.length" class="report-error" variant="danger">
       <span>{{ errorMessage }}</span>
-      <button
-        type="button"
-        class="btn btn-sm btn-outline-danger"
-        @click="loadReports({ force: true })"
-      >
+      <AppButton variant="outline" size="sm" @click="loadReports({ force: true })">
         다시 시도
-      </button>
-    </div>
+      </AppButton>
+    </AppAlert>
 
     <template v-else>
-      <div
-        v-if="errorMessage"
-        class="alert alert-warning d-flex flex-wrap justify-content-between align-items-center gap-2"
-        role="alert"
-      >
+      <AppAlert v-if="errorMessage" class="report-error" variant="warning">
         <span>{{ errorMessage }}</span>
-        <button
-          type="button"
-          class="btn btn-sm btn-outline-warning"
-          @click="loadReports({ force: true })"
-        >
+        <AppButton variant="outline" size="sm" @click="loadReports({ force: true })">
           다시 시도
-        </button>
-      </div>
+        </AppButton>
+      </AppAlert>
 
-      <div v-if="reports.length === 0" class="text-center text-secondary py-5">
-        <i class="bi bi-newspaper fs-1 d-block mb-3" aria-hidden="true"></i>
-        <p class="mb-0">아직 등록된 금융 리포트가 없습니다.</p>
-      </div>
+      <AppState
+        v-if="reports.length === 0"
+        class="report-empty-state"
+        type="empty"
+        title="아직 등록된 금융 리포트가 없습니다."
+        message="새 뉴스가 수집되면 금융 리포트가 이곳에 표시됩니다."
+      />
 
-      <div v-else class="d-flex flex-column gap-3">
+      <div v-else class="report-list-grid" aria-label="금융 리포트 목록">
         <ReportListCard v-for="report in reports" :key="report.id" :report="report" />
       </div>
     </template>
   </section>
 </template>
+
+<style scoped>
+.report-list-view {
+  width: 100%;
+  padding: var(--wallo-space-6) var(--wallo-space-4);
+}
+
+.report-generation-message,
+.report-error,
+.report-refresh-status {
+  margin-bottom: var(--wallo-space-4);
+}
+
+.report-error {
+  align-items: center;
+}
+
+.report-error :deep(.app-alert__message) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--wallo-space-3);
+}
+
+.report-refresh-status {
+  color: var(--wallo-color-text-muted);
+  font-size: 0.875rem;
+}
+
+.report-state,
+.report-empty-state {
+  min-height: 280px;
+}
+
+.report-list-grid {
+  display: grid;
+  gap: var(--wallo-space-4);
+}
+
+@media (max-width: 576px) {
+  .report-list-view {
+    padding-right: var(--wallo-space-3);
+    padding-left: var(--wallo-space-3);
+  }
+
+  .report-error :deep(.app-alert__message) {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+</style>

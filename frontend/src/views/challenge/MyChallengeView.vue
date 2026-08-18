@@ -14,6 +14,11 @@ import {
 import { getMyChallengeDashboard } from "@/api/challengeApi"
 import { formatNumber, formatWon } from "@/commonUtils/formatters"
 import AuthenticatedImage from "@/components/common/AuthenticatedImage.vue"
+import AppAlert from "@/components/ui/AppAlert.vue"
+import AppButton from "@/components/ui/AppButton.vue"
+import AppCard from "@/components/ui/AppCard.vue"
+import AppPageHeader from "@/components/ui/AppPageHeader.vue"
+import AppState from "@/components/ui/AppState.vue"
 import { getCachedResource, getResource, hasInFlightResource } from "@/utils/resourceCache"
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler)
@@ -247,40 +252,52 @@ onMounted(loadDashboard)
 
 <template>
   <section class="my-challenge-page">
-    <header class="page-heading mb-3">
-      <h1 class="mb-0">내 챌린지</h1>
-    </header>
+    <AppPageHeader
+      class="page-heading"
+      title="내 챌린지"
+      description="절약 기록과 챌린지 성과를 한눈에 확인하세요."
+      compact
+    />
 
-    <div v-if="refreshing" class="small text-secondary mb-3" role="status">
-      최신 내 챌린지 정보를 확인하는 중...
-    </div>
+    <AppAlert
+      v-if="refreshing"
+      class="dashboard-refresh-status"
+      variant="neutral"
+      role="status"
+      :show-icon="false"
+      message="최신 내 챌린지 정보를 확인하는 중..."
+    />
 
-    <div
-      v-if="errorMessage && dashboard"
-      class="alert alert-warning d-flex align-items-center justify-content-between gap-2"
-      role="alert"
-    >
-      <span>{{ errorMessage }}</span>
-      <button
-        type="button"
-        class="btn btn-sm btn-outline-warning"
-        @click="loadDashboard({ force: true })"
-      >
-        다시 시도
-      </button>
-    </div>
+    <AppAlert v-if="errorMessage && dashboard" class="dashboard-error-alert" variant="warning">
+      <div class="dashboard-alert-content">
+        <span>{{ errorMessage }}</span>
+        <AppButton variant="outline" size="sm" @click="loadDashboard({ force: true })">
+          다시 시도
+        </AppButton>
+      </div>
+    </AppAlert>
 
-    <div v-if="initialLoading" class="dashboard-state-card">내 챌린지 정보를 불러오는 중임...</div>
+    <AppState
+      v-if="initialLoading"
+      class="dashboard-state-card"
+      type="loading"
+      title="내 챌린지 정보를 불러오는 중입니다"
+      message="잠시만 기다려 주세요."
+    />
 
-    <div v-else-if="errorMessage && !dashboard" class="dashboard-state-card error-state">
-      <p class="mb-3">{{ errorMessage }}</p>
-      <button type="button" class="btn retry-button" @click="loadDashboard({ force: true })">
-        다시 시도
-      </button>
-    </div>
+    <AppState
+      v-else-if="errorMessage && !dashboard"
+      class="dashboard-state-card"
+      type="error"
+      title="내 챌린지 정보를 불러오지 못했습니다"
+      :message="errorMessage"
+      action-text="다시 시도"
+      action-variant="danger"
+      @action="loadDashboard({ force: true })"
+    />
 
     <div v-else-if="dashboard" class="dashboard-grid">
-      <article class="dashboard-card profile-card">
+      <AppCard as="article" class="dashboard-card profile-card" padding="none">
         <div class="profile-header">
           <div class="profile-avatar">
             <AuthenticatedImage :src="profileImage" :alt="`${dashboard.nickname} 프로필 이미지`" />
@@ -313,9 +330,9 @@ onMounted(loadDashboard)
         <RouterLink :to="{ name: 'user-profile' }" class="btn profile-edit-button">
           프로필 편집
         </RouterLink>
-      </article>
+      </AppCard>
 
-      <article class="dashboard-card saving-summary-card">
+      <AppCard as="article" class="dashboard-card saving-summary-card" padding="none">
         <div class="total-saving">
           <span>총 절약 금액</span>
           <strong>{{ formatWon(dashboard.totalSavingAmount) }}</strong>
@@ -337,9 +354,9 @@ onMounted(loadDashboard)
             {{ stat.icon }} {{ stat.label }} <strong>{{ stat.value }}</strong>
           </span>
         </div>
-      </article>
+      </AppCard>
 
-      <article class="dashboard-card trend-card">
+      <AppCard as="article" class="dashboard-card trend-card" padding="none">
         <div class="card-heading">
           <div>
             <h2>절약 금액 추이</h2>
@@ -360,9 +377,9 @@ onMounted(loadDashboard)
         <div class="trend-chart" :aria-label="`최근 ${selectedPeriodLabel} 절약 금액 차트`">
           <Line :data="chartData" :options="chartOptions" />
         </div>
-      </article>
+      </AppCard>
 
-      <article class="dashboard-card liked-feed-card">
+      <AppCard as="article" class="dashboard-card liked-feed-card" padding="none">
         <div class="card-heading">
           <h2>좋아요 받은 게시물 TOP 3</h2>
           <RouterLink to="/my-feeds" class="view-all-link">
@@ -403,7 +420,7 @@ onMounted(loadDashboard)
         </ol>
 
         <div v-else class="empty-feed-state">아직 작성한 인증 게시물이 없음.</div>
-      </article>
+      </AppCard>
     </div>
   </section>
 </template>
@@ -415,9 +432,25 @@ onMounted(loadDashboard)
   font-size: 19.2px;
 }
 
-.page-heading h1 {
+.page-heading :deep(.app-page-header__title) {
   font-size: 34.8px;
   font-weight: 750;
+}
+
+.page-heading :deep(.app-page-header__description) {
+  font-size: 14px;
+}
+
+.dashboard-refresh-status,
+.dashboard-error-alert {
+  margin-bottom: 16px;
+}
+
+.dashboard-alert-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .dashboard-state-card {
@@ -456,6 +489,10 @@ onMounted(loadDashboard)
   border-radius: 18px;
   background: #fff;
   box-shadow: 0 5px 20px rgb(48 60 110 / 5%);
+}
+
+.dashboard-card :deep(.app-card__body) {
+  display: contents;
 }
 
 .profile-card,
@@ -777,6 +814,11 @@ onMounted(loadDashboard)
 
   .summary-stat-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-alert-content {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 </style>

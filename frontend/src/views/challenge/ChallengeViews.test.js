@@ -163,6 +163,9 @@ describe("challenge views", () => {
     expect(wrapper.findAll(".ranking-item")).toHaveLength(1)
     expect(wrapper.text()).toContain("네 번째 절약왕")
     expect(wrapper.text()).toContain("2026.08.10 ~ 2026.08.16")
+    expect(wrapper.find(".ranking-heading").classes()).toContain("app-page-header")
+    expect(wrapper.find(".ranking-table-card").classes()).toContain("app-card")
+    expect(wrapper.findAll(".side-card.app-card")).toHaveLength(3)
 
     wrapper.unmount()
   })
@@ -189,6 +192,10 @@ describe("challenge views", () => {
 
     expect(feedStore.initializeMyFeedPage).toHaveBeenCalledOnce()
     expect(wrapper.findAll(".summary-card")).toHaveLength(4)
+    expect(wrapper.find(".page-heading").classes()).toContain("app-page-header")
+    expect(wrapper.find(".overview-card").classes()).toContain("app-card")
+    expect(wrapper.findAll(".summary-card.app-card")).toHaveLength(4)
+    expect(wrapper.find(".feed-card").classes()).toContain("app-card")
     expect(wrapper.text()).toContain("이번 주 식비를 줄였어요")
     expect(wrapper.text()).toContain("25,000원")
 
