@@ -105,6 +105,19 @@ class ExpenseServiceTest {
     }
 
     @Test
+    void allowsReceiveCategoryBeforeUpdatingTransactionCategory() {
+        when(expenseMapper.updateTransactionCategory(7L, 42L, "RECEIVE")).thenReturn(1);
+
+        expenseService.updateTransactionCategory(
+                7L,
+                42L,
+                new ExpenseDto.CategoryUpdateRequest(" receive ")
+        );
+
+        verify(expenseMapper).updateTransactionCategory(7L, 42L, "RECEIVE");
+    }
+
+    @Test
     void rejectsUnknownCategoryBeforeCallingMapper() {
         assertThrows(
                 InvalidDashboardRequestException.class,

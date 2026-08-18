@@ -1,8 +1,11 @@
 import { mount } from "@vue/test-utils"
+import { createPinia, setActivePinia } from "pinia"
 import { afterEach, describe, expect, it, vi } from "vitest"
+import { nextTick } from "vue"
 
 import AppDialog from "./AppDialog.vue"
 import AppToast from "./AppToast.vue"
+import { useToastStore } from "@/stores/toastStore"
 
 afterEach(() => {
   vi.useRealTimers()
@@ -34,32 +37,32 @@ describe("AppDialog", () => {
 describe("AppToast", () => {
   it("closes manually and automatically after its duration", async () => {
     vi.useFakeTimers()
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const toastStore = useToastStore()
 
     const wrapper = mount(AppToast, {
-      props: {
-        visible: true,
-        message: "동기화가 완료되었습니다.",
-        placement: "bottom-end",
-      },
+      global: { plugins: [pinia] },
     })
+    toastStore.show("동기화가 완료되었습니다.", { duration: 0 })
+    await nextTick()
 
-    expect(wrapper.find(".app-toast--bottom-end").exists()).toBe(true)
+    expect(wrapper.find(".wallo-toast").exists()).toBe(true)
     expect(wrapper.text()).toContain("동기화가 완료되었습니다.")
 
-    await wrapper.get(".app-alert__close").trigger("click")
-    expect(wrapper.emitted("close")).toHaveLength(1)
+    await wrapper.get(".wallo-toast-close").trigger("click")
+    expect(toastStore.toasts).toHaveLength(0)
 
     const autoCloseWrapper = mount(AppToast, {
-      props: {
-        visible: true,
-        message: "자동 닫힘",
-        duration: 1000,
-      },
+      global: { plugins: [pinia] },
     })
+    toastStore.show("자동 닫힘", { duration: 1000 })
+    await nextTick()
 
     vi.advanceTimersByTime(1000)
+    await nextTick()
 
-    expect(wrapper.emitted("close")).toHaveLength(1)
-    expect(autoCloseWrapper.emitted("close")).toHaveLength(1)
+    expect(toastStore.toasts).toHaveLength(0)
+    expect(autoCloseWrapper.text()).not.toContain("자동 닫힘")
   })
 })

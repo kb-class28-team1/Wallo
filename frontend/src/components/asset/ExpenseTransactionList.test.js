@@ -36,4 +36,36 @@ describe("ExpenseTransactionList category editing", () => {
     expect(wrapper.find('[data-testid="transaction-category-button"]').exists()).toBe(false);
     expect(wrapper.find(".transaction-icon").exists()).toBe(true);
   });
+
+  it("shows incoming and outgoing transfer directions with the correct sign", () => {
+    const wrapper = mount(ExpenseTransactionList, {
+      props: {
+        transactions: [
+          {
+            ...transaction,
+            transactionId: 10,
+            type: "TRANSFER",
+            category: "RECEIVE",
+            amount: 5_000,
+            merchantName: "친구",
+          },
+          {
+            ...transaction,
+            transactionId: 11,
+            type: "TRANSFER",
+            category: "SEND",
+            amount: 7_000,
+            merchantName: "이체",
+          },
+        ],
+        editable: false,
+      },
+    });
+
+    const rows = wrapper.findAll("li");
+    expect(rows[0].text()).toContain("받은 돈");
+    expect(rows[0].text()).toContain("+5,000원");
+    expect(rows[1].text()).toContain("보낸 돈");
+    expect(rows[1].text()).toContain("-7,000원");
+  });
 });

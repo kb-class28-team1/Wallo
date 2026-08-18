@@ -114,6 +114,22 @@ describe("AssetView manual synchronization", () => {
     expect(wrapper.text()).toContain("실패한 연결기관 1건")
   })
 
+  it("shows fallback classification warnings after synchronization", async () => {
+    store.syncAssets.mockResolvedValue({
+      syncedAt: "2026-08-12T10:00:00",
+      inserted: 1,
+      updated: 2,
+      failedConnections: 0,
+      fallbackCount: 3,
+    })
+
+    await wrapper.get(".asset-sync-button").trigger("click")
+    await flushPromises()
+
+    expect(wrapper.find(".asset-sync-status").classes()).toContain("app-alert--warning")
+    expect(wrapper.text()).toContain("AI 분류 실패로 기타 처리된 거래 3건")
+  })
+
   it("shows the synchronization error when the request fails", async () => {
     store.syncAssets.mockRejectedValue(new Error("CODEF unavailable"))
     store.syncError.value = "CODEF unavailable"

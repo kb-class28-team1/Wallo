@@ -95,7 +95,8 @@ public class AssetSyncOrchestrator {
                 LocalDateTime.now(clock),
                 totalStats.getInserted(),
                 totalStats.getUpdated(),
-                failedConnections
+                failedConnections,
+                totalStats.getFallbackCount()
         );
     }
 
