@@ -73,6 +73,82 @@ describe("goalStore", () => {
     expect(getGoals).toHaveBeenNthCalledWith(2, { syncAccounts: true });
   });
 
+  it("reuses goals only for the user that owns the cache", async () => {
+    const goals = [{ goalId: 1, title: "Emergency fund" }];
+    getGoals.mockResolvedValue({ success: true, data: goals });
+
+    const store = useGoalStore();
+
+    await store.fetchGoals({
+      userId: 7,
+      notifyError: false,
+      syncAccounts: false,
+    });
+    await store.fetchGoals({
+      userId: 7,
+      notifyError: false,
+      syncAccounts: false,
+    });
+
+    expect(getGoals).toHaveBeenCalledOnce();
+    expect(store.lastFetchedUserId).toBe("7");
+  });
+
+  it("fetches fresh goals when the authenticated user changes", async () => {
+    const firstUserGoals = [{ goalId: 1, title: "User A goal" }];
+    getGoals
+      .mockResolvedValueOnce({ success: true, data: firstUserGoals })
+      .mockResolvedValueOnce({ success: true, data: [] });
+
+    const store = useGoalStore();
+
+    await store.fetchGoals({
+      userId: 7,
+      notifyError: false,
+      syncAccounts: false,
+    });
+    await store.fetchGoals({
+      userId: 8,
+      notifyError: false,
+      syncAccounts: false,
+    });
+
+    expect(getGoals).toHaveBeenCalledTimes(2);
+    expect(store.goals).toEqual([]);
+    expect(store.lastFetchedUserId).toBe("8");
+  });
+
+  it("does not let a previous user's in-flight response overwrite the current user", async () => {
+    let resolvePreviousUserRequest;
+    getGoals
+      .mockReturnValueOnce(new Promise((resolve) => {
+        resolvePreviousUserRequest = resolve;
+      }))
+      .mockResolvedValueOnce({ success: true, data: [] });
+
+    const store = useGoalStore();
+    const previousUserRequest = store.fetchGoals({
+      userId: 7,
+      notifyError: false,
+      syncAccounts: false,
+    });
+    const currentUserRequest = store.fetchGoals({
+      userId: 8,
+      notifyError: false,
+      syncAccounts: false,
+    });
+
+    await currentUserRequest;
+    resolvePreviousUserRequest({
+      success: true,
+      data: [{ goalId: 1, title: "User A goal" }],
+    });
+    await previousUserRequest;
+
+    expect(store.goals).toEqual([]);
+    expect(store.lastFetchedUserId).toBe("8");
+  });
+
   it("stores the AI roadmap returned for a confirmed goal", async () => {
     const roadmap = {
       goalId: 31,
@@ -114,6 +190,26 @@ describe("goalStore", () => {
     expect(alert).not.toHaveBeenCalled();
   });
 
+  it("clears goal, account, and roadmap state when the session is reset", () => {
+    const store = useGoalStore();
+    store.goals = [{ goalId: 1, title: "Old goal" }];
+    store.availableAccounts = [{ accountId: 101, selected: true }];
+    store.roadmap = { goalId: 1, generationStatus: "COMPLETED" };
+    store.lastFetchedAt = Date.now();
+    store.availableAccountsLastFetchedAt = Date.now();
+
+    store.reset();
+
+    expect(store.goals).toEqual([]);
+    expect(store.availableAccounts).toEqual([]);
+    expect(store.roadmap).toBeNull();
+    expect(store.lastFetchedAt).toBe(0);
+    expect(store.availableAccountsLastFetchedAt).toBe(0);
+    expect(store.error).toBeNull();
+    expect(store.accountError).toBeNull();
+    expect(store.roadmapError).toBeNull();
+  });
+
   it("exposes the error, clears stale goals, and notifies the user", async () => {
     const store = useGoalStore();
     store.goals = [{ goalId: 1, title: "Old goal" }];
@@ -138,6 +234,26 @@ describe("goalStore", () => {
     await expect(store.fetchAvailableAccounts()).resolves.toEqual(accounts);
     expect(store.availableAccounts).toEqual(accounts);
     expect(store.isAccountLoading).toBe(false);
+  });
+
+  it("invalidates the account cache before the next account load", async () => {
+    const accounts = [{ accountId: 101, accountType: "입출금" }];
+    getAvailableGoalAccounts
+      .mockResolvedValueOnce({ success: true, data: accounts })
+      .mockResolvedValueOnce({ success: true, data: accounts });
+
+    const store = useGoalStore();
+    await store.fetchAvailableAccounts({ notifyError: false });
+
+    store.invalidateAvailableAccounts();
+
+    expect(store.availableAccounts).toEqual([]);
+    expect(store.availableAccountsLastFetchedAt).toBe(0);
+
+    await store.fetchAvailableAccounts({ notifyError: false });
+
+    expect(getAvailableGoalAccounts).toHaveBeenCalledTimes(2);
+    expect(store.availableAccounts).toEqual(accounts);
   });
 
   it("updates the selected account after saving", async () => {

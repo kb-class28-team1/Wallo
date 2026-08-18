@@ -2,17 +2,17 @@
 import { computed, onBeforeUnmount, onMounted, ref } from "vue"
 import { storeToRefs } from "pinia"
 import { RouterLink, useRouter } from "vue-router"
-import {
-  generateNextDayMissions,
-  getTodayMissions,
-} from "@/api/missionApi"
+import { generateNextDayMissions, getTodayMissions } from "@/api/missionApi"
 import AuthenticatedImage from "@/components/common/AuthenticatedImage.vue"
 import { useUserStore } from "@/stores/userStore"
+import { useToastStore } from "@/stores/toastStore"
 import { formatNumber } from "@/commonUtils/formatters"
+import AppButton from "@/components/ui/AppButton.vue"
 
 // public 폴더의 이미지는 루트 절대 경로로 참조함.
 const pointWCoin = "/images/profiles/point-w-coin.svg"
 const userStore = useUserStore()
+const toastStore = useToastStore()
 const router = useRouter()
 const { nickname, profileImageUrl, pointBalance, isLoading } = storeToRefs(userStore)
 const missions = ref([])
@@ -29,6 +29,10 @@ let missionPollingTimer = null
 let missionPollingAttempts = 0
 const MISSION_POLL_INTERVAL_MS = 2500
 const MAX_MISSION_POLL_ATTEMPTS = 48
+const MISSION_GENERATION_FAILED_STATUS = "GENERATION_FAILED"
+const MISSION_RATE_LIMIT_MESSAGE = "AI 사용량 제한으로 잠시 후 다시 생성됩니다."
+const missionFailureNotified = ref(false)
+const missionFailureReason = ref(null)
 
 // 포인트 숫자에 천 단위 구분 기호를 적용함
 const formattedPointBalance = computed(() => formatNumber(pointBalance.value))
@@ -50,8 +54,12 @@ const totalMissionReward = computed(() =>
 
 onMounted(() => {
   userStore.fetchUserProfile()
-  loadTodayMissions()
   window.addEventListener("wallo:mission-updated", handleMissionUpdated)
+  void loadTodayMissions().then(() => {
+    if (missionStatus.value === MISSION_GENERATION_FAILED_STATUS) {
+      startMissionPolling()
+    }
+  })
 })
 
 onBeforeUnmount(() => {
@@ -75,10 +83,30 @@ const loadTodayMissions = async (notifyError = true) => {
     const response = await getTodayMissions()
     missionStatus.value = response.status || "READY"
     missions.value = response.missions
+    missionFailureReason.value = response.failureReason || null
+    if (missionStatus.value === MISSION_GENERATION_FAILED_STATUS) {
+      if (!missionFailureNotified.value) {
+        toastStore.show(
+          response.failureReason === "RATE_LIMIT"
+            ? MISSION_RATE_LIMIT_MESSAGE
+            : "오늘의 미션을 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+        )
+        missionFailureNotified.value = true
+      }
+    } else {
+      missionFailureNotified.value = false
+    }
   } catch (error) {
-    missionStatus.value = "ERROR"
+    const isRateLimited = error.status === 429
+    missionStatus.value = isRateLimited ? MISSION_GENERATION_FAILED_STATUS : "ERROR"
     missions.value = []
-    if (notifyError) {
+    missionFailureReason.value = isRateLimited ? "RATE_LIMIT" : null
+    if (isRateLimited) {
+      if (!missionFailureNotified.value) {
+        toastStore.show(MISSION_RATE_LIMIT_MESSAGE)
+        missionFailureNotified.value = true
+      }
+    } else if (notifyError) {
       alert(error.message || "오늘의 미션을 불러오지 못했습니다.")
     }
   } finally {
@@ -94,8 +122,8 @@ const startMissionPolling = () => {
     await loadTodayMissions(false)
 
     if (
-      missionStatus.value !== "WAITING_ANALYSIS"
-      || missionPollingAttempts >= MAX_MISSION_POLL_ATTEMPTS
+      !["WAITING_ANALYSIS", MISSION_GENERATION_FAILED_STATUS].includes(missionStatus.value) ||
+      missionPollingAttempts >= MAX_MISSION_POLL_ATTEMPTS
     ) {
       stopMissionPolling()
     }
@@ -104,7 +132,7 @@ const startMissionPolling = () => {
 
 const handleMissionUpdated = async () => {
   await loadTodayMissions()
-  if (missionStatus.value === "WAITING_ANALYSIS") {
+  if (["WAITING_ANALYSIS", MISSION_GENERATION_FAILED_STATUS].includes(missionStatus.value)) {
     startMissionPolling()
   }
 }
@@ -122,9 +150,15 @@ const generateNextDay = async () => {
     }
   } catch (error) {
     missionStatus.value = "ERROR"
-    alert(error.status === 404
-      ? "백엔드의 mission.dev-api.enabled 설정을 true로 변경해 주세요."
-      : error.message)
+    if (error.status === 429) {
+      toastStore.show(MISSION_RATE_LIMIT_MESSAGE)
+    } else {
+      alert(
+        error.status === 404
+          ? "백엔드의 mission.dev-api.enabled 설정을 true로 변경해 주세요."
+          : error.message,
+      )
+    }
   } finally {
     isMissionDevLoading.value = false
   }
@@ -181,42 +215,50 @@ const handleLogout = async () => {
         @focusin="openMissionMenu"
         @focusout="handleMissionFocusOut"
       >
-        <button
-          type="button"
-          class="mission-trigger d-inline-flex align-items-center"
+        <AppButton
+          class="mission-trigger"
+          variant="ghost"
+          size="sm"
           :aria-expanded="isMissionOpen"
           aria-controls="today-mission-popover"
           @click="toggleMissionMenu"
         >
-          <span class="mission-check" aria-hidden="true">✓</span>
-          <span>오늘의 미션</span>
+          <template #leading><span class="mission-check" aria-hidden="true">✓</span></template>
+          <span class="mission-label">오늘의 미션</span>
           <strong v-if="missions.length">{{ completedMissionCount }}/{{ missions.length }}</strong>
           <span v-else class="mission-planned-label">오늘 0개</span>
-          <i class="bi bi-chevron-down" aria-hidden="true"></i>
-        </button>
+          <i class="mission-chevron bi bi-chevron-down" aria-hidden="true"></i>
+        </AppButton>
 
         <div v-if="isMissionOpen" id="today-mission-popover" class="mission-popover">
           <div class="mission-popover-heading">
             <strong>오늘의 미션</strong>
-            <span v-if="missions.length">{{ completedMissionReward }} / {{ totalMissionReward }}P</span>
+            <span v-if="missions.length"
+              >{{ completedMissionReward }} / {{ totalMissionReward }}P</span
+            >
           </div>
 
           <div v-if="isMissionLoading" class="mission-loading">미션을 불러오는 중...</div>
           <div v-else-if="missionStatus === 'WAITING_ANALYSIS'" class="mission-empty">
             소비 분석이 완료되면 오늘의 미션이 생성됩니다.
-            <button
-              type="button"
-              class="btn btn-sm btn-outline-primary d-block w-100 mt-3"
+            <AppButton
+              class="mt-3"
+              variant="outline"
+              size="sm"
+              block
               :disabled="isMissionPolling"
               @click="startConsumptionAnalysis"
             >
               <i class="bi bi-bar-chart-line me-1" aria-hidden="true"></i>
               {{ isMissionPolling ? "오늘의 미션을 생성하는 중..." : "소비분석 하러가기" }}
-            </button>
+            </AppButton>
           </div>
-          <div v-else-if="!missions.length" class="mission-empty">
-            오늘 배정된 미션이 없습니다.
+          <div v-else-if="missionStatus === MISSION_GENERATION_FAILED_STATUS" class="mission-empty">
+            {{ missionFailureReason === "RATE_LIMIT"
+              ? MISSION_RATE_LIMIT_MESSAGE
+              : "오늘의 미션을 생성하지 못했습니다. 잠시 후 다시 시도해 주세요." }}
           </div>
+          <div v-else-if="!missions.length" class="mission-empty">오늘 배정된 미션이 없습니다.</div>
           <div v-else class="mission-list">
             <div
               v-for="mission in missions"
@@ -247,14 +289,15 @@ const handleLogout = async () => {
               <span>현재 로그인 사용자</span>
             </div>
             <div>
-              <button
-                type="button"
-                class="btn btn-sm btn-primary w-100"
+              <AppButton
+                variant="primary"
+                size="sm"
+                block
                 :disabled="isMissionDevLoading"
                 @click="generateNextDay"
               >
                 다음날 미션 생성
-              </button>
+              </AppButton>
             </div>
             <div v-if="isMissionDevLoading" class="mission-dev-result">처리 중...</div>
             <div v-else-if="missionDevResult" class="mission-dev-result">
@@ -268,42 +311,43 @@ const handleLogout = async () => {
       </div>
 
       <div class="user-summary d-flex align-items-center">
-      <!-- 프로필 이미지와 이름을 누르면 설정 페이지로 이동함 -->
-      <RouterLink
-        to="/users/profile"
-        class="profile-link d-flex align-items-center"
-        aria-label="설정 페이지로 이동"
-      >
-        <AuthenticatedImage
-          :src="profileImageUrl"
-          class="profile-image rounded-circle"
-          alt="사용자 프로필"
-        />
+        <!-- 프로필 이미지와 이름을 누르면 설정 페이지로 이동함 -->
+        <RouterLink
+          to="/users/profile"
+          class="profile-link d-flex align-items-center"
+          aria-label="설정 페이지로 이동"
+        >
+          <AuthenticatedImage
+            :src="profileImageUrl"
+            class="profile-image rounded-circle"
+            alt="사용자 프로필"
+          />
 
-        <span class="user-name">
-          {{ displayedNickname }}
-        </span>
-      </RouterLink>
+          <span class="user-name">
+            {{ displayedNickname }}
+          </span>
+        </RouterLink>
 
-      <!-- 보유 포인트를 누르면 포인트 샵으로 이동함 -->
-      <RouterLink
-        to="/point-shop"
-        class="point-badge d-inline-flex align-items-center"
-        aria-label="포인트 샵으로 이동"
-      >
-        <img :src="pointWCoin" class="point-icon" alt="" aria-hidden="true" />
-        {{ formattedPointBalance }} P
-      </RouterLink>
+        <!-- 보유 포인트를 누르면 포인트 샵으로 이동함 -->
+        <RouterLink
+          to="/point-shop"
+          class="point-badge d-inline-flex align-items-center"
+          aria-label="포인트 샵으로 이동"
+        >
+          <img :src="pointWCoin" class="point-icon" alt="" aria-hidden="true" />
+          {{ formattedPointBalance }} P
+        </RouterLink>
 
-      <button
-        type="button"
-        class="logout-button"
-        aria-label="로그아웃"
-        :disabled="isLoading"
-        @click="handleLogout"
-      >
-        <span aria-hidden="true">[→</span>
-      </button>
+        <AppButton
+          class="logout-button"
+          variant="ghost"
+          size="sm"
+          aria-label="로그아웃"
+          :disabled="isLoading"
+          @click="handleLogout"
+        >
+          <template #leading><span aria-hidden="true">[→</span></template>
+        </AppButton>
       </div>
     </div>
   </header>
@@ -352,6 +396,22 @@ const handleLogout = async () => {
   white-space: nowrap;
 }
 
+.mission-trigger.app-button {
+  justify-content: flex-start;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid #d9daf3;
+  border-radius: 999px;
+  background: #fff;
+}
+
+.mission-trigger :deep(.app-button__label) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  overflow: visible;
+}
+
 .mission-trigger strong {
   color: #6559db;
 }
@@ -362,7 +422,7 @@ const handleLogout = async () => {
   font-weight: 700;
 }
 
-.mission-trigger > i {
+.mission-trigger .mission-chevron {
   color: #8c91b1;
   font-size: 11px;
 }
@@ -605,6 +665,18 @@ const handleLogout = async () => {
   text-decoration: none;
 }
 
+.logout-button.app-button {
+  min-height: 0;
+  padding: 0 0 0 6px;
+  border: 0;
+  color: #5d62c8;
+  font-size: 29px;
+}
+
+.logout-button :deep(.app-button__label) {
+  display: none;
+}
+
 @media (max-width: 991.98px) {
   .mission-menu {
     margin-left: 0;
@@ -630,7 +702,7 @@ const handleLogout = async () => {
     padding-left: 8px;
   }
 
-  .mission-trigger > span:nth-child(2) {
+  .mission-trigger .mission-label {
     display: none;
   }
 

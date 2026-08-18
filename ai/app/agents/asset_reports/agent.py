@@ -12,6 +12,7 @@ from app.asset_reports.schemas import (
     ConsumptionInsightGenerateRequest,
     ConsumptionInsightGenerateResponse,
 )
+from app.core.ai_timing import timed_groq_completion
 from app.core.config import get_groq_model
 
 
@@ -38,29 +39,35 @@ class ConsumptionInsightAgent:
         return self._parse_response(response)
 
     def _call_groq(self, request: ConsumptionInsightGenerateRequest):
-        try:
-            return self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": CONSUMPTION_INSIGHT_INSTRUCTIONS,
-                    },
-                    {
-                        "role": "user",
-                        "content": build_consumption_insight_input(request),
-                    },
-                ],
-                **self._build_completion_options(),
-            )
-        except GroqError as error:
-            status_code = getattr(error, "status_code", "unknown")
-            logger.exception(
-                "Groq consumption insight request failed status=%s errorType=%s",
-                status_code,
-                type(error).__name__,
-            )
-            raise
+        options = self._build_completion_options()
+        with timed_groq_completion(
+            self.client,
+            operation="consumption.insight",
+            model=self.model,
+            requested_completion_tokens=options["max_completion_tokens"],
+        ) as timing:
+            try:
+                return timing.create(
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": CONSUMPTION_INSIGHT_INSTRUCTIONS,
+                        },
+                        {
+                            "role": "user",
+                            "content": build_consumption_insight_input(request),
+                        },
+                    ],
+                    **options,
+                )
+            except GroqError as error:
+                status_code = getattr(error, "status_code", "unknown")
+                logger.error(
+                    "Groq consumption insight request failed status=%s errorType=%s",
+                    status_code,
+                    type(error).__name__,
+                )
+                raise
 
     def _build_completion_options(self) -> dict:
         options = {

@@ -138,6 +138,10 @@ describe("point views", () => {
     expect(wrapper.text()).toContain("1,000P")
     expect(wrapper.text()).toContain("챌린지 보상")
     expect(wrapper.text()).toContain("+250P")
+    expect(wrapper.find(".page-heading").classes()).toContain("app-page-header")
+    expect(wrapper.find(".summary-card").classes()).toContain("app-card")
+    expect(wrapper.find(".filter-panel").classes()).toContain("app-card")
+    expect(wrapper.find(".filter-tab").classes()).toContain("app-button")
 
     await wrapper.findAll(".filter-tab")[1].trigger("click")
     await flushPromises()
@@ -177,8 +181,18 @@ describe("point views", () => {
 
     expect(getPointShop).toHaveBeenCalledOnce()
     expect(wrapper.find(".point-summary-card").text()).toContain("1,200P")
+    expect(wrapper.find(".page-heading").classes()).toContain("app-page-header")
+    expect(wrapper.find(".point-summary-card").classes()).toContain("app-card")
+    expect(wrapper.find(".random-box-card").classes()).toContain("app-card")
+    expect(wrapper.find(".open-box-button").classes()).toContain("app-button")
     expect(wrapper.find(".random-box-card").text()).toContain("기본 절약 상자")
     expect(wrapper.find(".inventory-item").text()).toContain("아메리카노 기프티콘")
+
+    await wrapper.get(".inventory-item").trigger("click")
+    expect(wrapper.find('[role="dialog"]').classes()).toContain("app-dialog")
+    expect(wrapper.find(".app-dialog-confirm").text()).toContain("사용하기")
+    await wrapper.get(".app-dialog-cancel").trigger("click")
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
 
     await wrapper.get(".open-box-button").trigger("click")
     await flushPromises()

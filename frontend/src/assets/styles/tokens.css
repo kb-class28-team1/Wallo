@@ -1,0 +1,56 @@
+:root {
+  --wallo-color-bg: #f6f8fb;
+  --wallo-color-info-bg: #eef6ff;
+  --wallo-color-surface: #ffffff;
+  --wallo-color-surface-soft: #f9fafc;
+  --wallo-color-border: #e5e9f0;
+  --wallo-color-border-soft: #e7ebf2;
+  --wallo-color-text: #263244;
+  --wallo-color-text-muted: #7c8497;
+  --wallo-color-text-subtle: #95a3b8;
+
+  --wallo-color-primary: #7062de;
+  --wallo-color-primary-hover: #5f50d2;
+  --wallo-color-finance-info: #1f3fb4;
+  --wallo-color-finance-info-hover: #18339c;
+  --wallo-color-finance-increase: #dc3545;
+  --wallo-color-finance-decrease: #1f3fb4;
+  --wallo-color-success: #18b982;
+  --wallo-color-warning: #e39b00;
+  --wallo-color-danger: #dc3545;
+  --wallo-color-progress-track: #e8edf5;
+
+  --wallo-font-family: "NexonMaplestory", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+
+  --wallo-space-1: 4px;
+  --wallo-space-2: 8px;
+  --wallo-space-3: 12px;
+  --wallo-space-4: 16px;
+  --wallo-space-5: 24px;
+  --wallo-space-6: 32px;
+  --wallo-space-7: 40px;
+  --wallo-space-8: 48px;
+
+  --wallo-radius-sm: 8px;
+  --wallo-radius-md: 12px;
+  --wallo-radius-lg: 16px;
+  --wallo-radius-xl: 24px;
+  --wallo-radius-pill: 999px;
+
+  --wallo-shadow-card: 0 8px 24px rgb(48 60 110 / 6%);
+  --wallo-shadow-modal: 0 24px 70px rgb(26 31 70 / 25%);
+  --wallo-focus-ring: 0 0 0 3px rgb(112 98 222 / 18%);
+
+  --wallo-sidebar-width: 273px;
+  --wallo-header-height: 68px;
+  --wallo-page-top-offset: 100px;
+  --wallo-page-gutter: 32px;
+  --wallo-page-gutter-mobile: 20px;
+  --wallo-content-max-width: 1180px;
+
+  --bs-primary: var(--wallo-color-primary);
+  --bs-primary-rgb: 112, 98, 222;
+  --bs-link-color: var(--wallo-color-primary);
+  --bs-link-hover-color: var(--wallo-color-primary-hover);
+  --bs-focus-ring-color: rgb(112 98 222 / 25%);
+}

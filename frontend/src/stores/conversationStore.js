@@ -12,6 +12,7 @@ import {
 } from "@/api/conversationApi"
 import { getGoalByConversationId } from "@/api/goalApi"
 import {
+  clearResourceCache,
   getCachedResource,
   getResource,
   hasInFlightResource,
@@ -23,6 +24,9 @@ import { normalizeAssetAnalysis } from "@/types/assetAnalysis"
 const CONVERSATION_STALE_TIME = 60 * 1000
 const MESSAGE_STALE_TIME = 30 * 1000
 const GOAL_STALE_TIME = 60 * 1000
+const GOAL_SETTING_TITLE = "목표 설정"
+const GOAL_SETTING_TRIGGER_MESSAGE = "목표를 설정하고 싶어요"
+const GOAL_SETTING_MODE = "GOAL_SETTING"
 
 const toViewMessage = (
   message,
@@ -77,14 +81,17 @@ export const useConversationStore = defineStore("conversation", () => {
   const isLoading = ref(false)
   const isMessageLoading = ref(false)
   const isSending = ref(false)
+  const lastError = ref("")
+  const lastErrorStatus = ref(null)
   const initialLoading = ref(false)
   const refreshing = ref(false)
   const initialMessageLoading = ref(false)
   const refreshingMessages = ref(false)
   const hasLoadedConversations = ref(false)
   const loadedMessageConversationId = ref(null)
-  const cacheScope = {}
+  let cacheScope = {}
   let messageRequestSequence = 0
+  let sessionVersion = 0
 
   const activeConversation = computed(() =>
     conversations.value.find(
@@ -111,6 +118,30 @@ export const useConversationStore = defineStore("conversation", () => {
     setCachedResource(conversationCacheKey(userId), [...conversations.value], { scope: cacheScope })
   }
 
+  const reset = () => {
+    sessionVersion += 1
+    messageRequestSequence += 1
+    clearResourceCache({ scope: cacheScope })
+    cacheScope = {}
+
+    conversations.value = []
+    activeConversationId.value = null
+    messages.value = []
+    activeGoalInterview.value = null
+    confirmedGoal.value = null
+    isLoading.value = false
+    isMessageLoading.value = false
+    isSending.value = false
+    lastError.value = ""
+    lastErrorStatus.value = null
+    initialLoading.value = false
+    refreshing.value = false
+    initialMessageLoading.value = false
+    refreshingMessages.value = false
+    hasLoadedConversations.value = false
+    loadedMessageConversationId.value = null
+  }
+
   const applyConfirmedGoal = (goal) => {
     confirmedGoal.value = goal
     if (confirmedGoal.value && activeGoalInterview.value?.action === "CONFIRM") {
@@ -124,6 +155,7 @@ export const useConversationStore = defineStore("conversation", () => {
       return null
     }
 
+    const requestVersion = sessionVersion
     const key = goalCacheKey(conversationId)
     const cachedGoal =
       !force && !hasInFlightResource(key, { scope: cacheScope })
@@ -151,15 +183,24 @@ export const useConversationStore = defineStore("conversation", () => {
           staleTime: GOAL_STALE_TIME,
         },
       )
+      if (requestVersion !== sessionVersion) {
+        return null
+      }
+
       applyConfirmedGoal(goal)
       return goal
     } catch {
+      if (requestVersion !== sessionVersion) {
+        return null
+      }
+
       confirmedGoal.value = null
       return null
     }
   }
 
   const fetchConversations = async (userId, { force = false } = {}) => {
+    const requestVersion = sessionVersion
     const key = conversationCacheKey(userId)
     const cachedConversations =
       !force && !hasInFlightResource(key, { scope: cacheScope })
@@ -184,8 +225,16 @@ export const useConversationStore = defineStore("conversation", () => {
         force,
         staleTime: CONVERSATION_STALE_TIME,
       })
+      if (requestVersion !== sessionVersion) {
+        return null
+      }
+
       return applyConversations(nextConversations)
     } catch (error) {
+      if (requestVersion !== sessionVersion) {
+        return null
+      }
+
       if (!hasExistingData) {
         conversations.value = []
         activeConversationId.value = null
@@ -194,9 +243,11 @@ export const useConversationStore = defineStore("conversation", () => {
       alert(error.message || "채팅방 목록을 불러오지 못했습니다.")
       return null
     } finally {
-      isLoading.value = false
-      initialLoading.value = false
-      refreshing.value = false
+      if (requestVersion === sessionVersion) {
+        isLoading.value = false
+        initialLoading.value = false
+        refreshing.value = false
+      }
     }
   }
 
@@ -250,6 +301,7 @@ export const useConversationStore = defineStore("conversation", () => {
       return
     }
 
+    const requestVersion = sessionVersion
     const key = messagesCacheKey(userId, conversationId)
     const cachedSnapshot =
       !force && !hasInFlightResource(key, { scope: cacheScope })
@@ -292,13 +344,22 @@ export const useConversationStore = defineStore("conversation", () => {
       )
 
       if (
+        requestVersion === sessionVersion &&
         requestId === messageRequestSequence &&
         (activeConversationId.value === conversationId || activeConversationId.value === null)
       ) {
         applyConversationSnapshot(conversationId, snapshot)
       }
+      if (requestVersion !== sessionVersion) {
+        return null
+      }
+
       return snapshot
     } catch (error) {
+      if (requestVersion !== sessionVersion) {
+        return null
+      }
+
       if (requestId === messageRequestSequence && !hasExistingData) {
         messages.value = []
         activeGoalInterview.value = null
@@ -308,7 +369,7 @@ export const useConversationStore = defineStore("conversation", () => {
       alert(error.message || "대화 내용을 불러오지 못했습니다.")
       return null
     } finally {
-      if (requestId === messageRequestSequence) {
+      if (requestVersion === sessionVersion && requestId === messageRequestSequence) {
         isMessageLoading.value = false
         initialMessageLoading.value = false
         refreshingMessages.value = false
@@ -316,14 +377,21 @@ export const useConversationStore = defineStore("conversation", () => {
     }
   }
 
-  const startNewConversation = async (userId) => {
+  const startNewConversation = async (userId, title = "새 채팅") => {
+    const requestVersion = sessionVersion
+    lastError.value = ""
+    lastErrorStatus.value = null
     const hadExistingData = hasLoadedConversations.value
     isLoading.value = true
     initialLoading.value = !hadExistingData
     refreshing.value = hadExistingData
 
     try {
-      const conversation = await createConversation(userId)
+      const conversation = await createConversation(userId, title)
+      if (requestVersion !== sessionVersion) {
+        return null
+      }
+
       conversations.value.unshift(conversation)
       hasLoadedConversations.value = true
       activeConversationId.value = conversation.conversationId
@@ -334,12 +402,19 @@ export const useConversationStore = defineStore("conversation", () => {
       loadedMessageConversationId.value = conversation.conversationId
       return conversation
     } catch (error) {
-      alert(error.message || "새 채팅방을 만들지 못했습니다.")
+      if (requestVersion !== sessionVersion) {
+        return null
+      }
+
+      lastError.value = error.message || "새 채팅방을 만들지 못했습니다."
+      lastErrorStatus.value = error.status ?? null
       return null
     } finally {
-      isLoading.value = false
-      initialLoading.value = false
-      refreshing.value = false
+      if (requestVersion === sessionVersion) {
+        isLoading.value = false
+        initialLoading.value = false
+        refreshing.value = false
+      }
     }
   }
 
@@ -358,8 +433,13 @@ export const useConversationStore = defineStore("conversation", () => {
   }
 
   const renameConversation = async (conversationId, userId, title) => {
+    const requestVersion = sessionVersion
     try {
       const updatedConversation = await updateConversationTitle(conversationId, userId, title)
+      if (requestVersion !== sessionVersion) {
+        return false
+      }
+
       const index = conversations.value.findIndex(
         (conversation) => conversation.conversationId === conversationId,
       )
@@ -369,14 +449,23 @@ export const useConversationStore = defineStore("conversation", () => {
       }
       return true
     } catch (error) {
+      if (requestVersion !== sessionVersion) {
+        return false
+      }
+
       alert(error.message || "채팅방 제목을 변경하지 못했습니다.")
       return false
     }
   }
 
   const removeConversation = async (conversationId, userId) => {
+    const requestVersion = sessionVersion
     try {
       await deleteConversationApi(conversationId, userId)
+      if (requestVersion !== sessionVersion) {
+        return false
+      }
+
       conversations.value = conversations.value.filter(
         (conversation) => conversation.conversationId !== conversationId,
       )
@@ -400,17 +489,24 @@ export const useConversationStore = defineStore("conversation", () => {
       }
       return true
     } catch (error) {
+      if (requestVersion !== sessionVersion) {
+        return false
+      }
+
       alert(error.message || "채팅방을 삭제하지 못했습니다.")
       return false
     }
   }
 
-  const sendMessage = async (userId, content) => {
+  const sendMessage = async (userId, content, chatMode = null, requestId = null) => {
     if (isSending.value) {
       return false
     }
 
+    const requestVersion = sessionVersion
     isSending.value = true
+    lastError.value = ""
+    lastErrorStatus.value = null
     let conversationId = activeConversationId.value
     let pendingMessageId = null
 
@@ -429,7 +525,18 @@ export const useConversationStore = defineStore("conversation", () => {
         createdAt: new Date().toISOString(),
       })
 
-      const response = await sendConversationMessage(conversationId, userId, content)
+      const response = requestId
+        ? await sendConversationMessage(
+            conversationId,
+            userId,
+            content,
+            chatMode,
+            requestId,
+          )
+        : await sendConversationMessage(conversationId, userId, content, chatMode)
+      if (requestVersion !== sessionVersion) {
+        return false
+      }
 
       if (response.consumptionAnalysis) {
         window.dispatchEvent(new CustomEvent("wallo:mission-updated"))
@@ -478,14 +585,21 @@ export const useConversationStore = defineStore("conversation", () => {
       await fetchConversations(userId, { force: true })
       return true
     } catch (error) {
+      if (requestVersion !== sessionVersion) {
+        return false
+      }
+
       // 사용자 메시지는 AI 호출 전에 저장되므로 실패 시 DB 상태를 다시 읽는다.
       if (conversationId && activeConversationId.value === conversationId) {
         await fetchMessages(userId, conversationId, { force: true })
       }
-      alert(error.message || "메시지를 전송하지 못했습니다.")
+      lastError.value = error.message || "메시지를 전송하지 못했습니다."
+      lastErrorStatus.value = error.status ?? null
       return false
     } finally {
-      isSending.value = false
+      if (requestVersion === sessionVersion) {
+        isSending.value = false
+      }
     }
   }
 
@@ -502,6 +616,19 @@ export const useConversationStore = defineStore("conversation", () => {
     return sendMessage(userId, "내 소비를 분석해줘")
   }
 
+  const startGoalSettingConversation = async (userId) => {
+    if (isLoading.value || isSending.value) {
+      return false
+    }
+
+    const conversation = await startNewConversation(userId, GOAL_SETTING_TITLE)
+    if (!conversation) {
+      return false
+    }
+
+    return sendMessage(userId, GOAL_SETTING_TRIGGER_MESSAGE, GOAL_SETTING_MODE)
+  }
+
   return {
     conversations,
     activeConversation,
@@ -512,6 +639,8 @@ export const useConversationStore = defineStore("conversation", () => {
     isLoading,
     isMessageLoading,
     isSending,
+    lastError,
+    lastErrorStatus,
     initialLoading,
     refreshing,
     initialMessageLoading,
@@ -526,5 +655,7 @@ export const useConversationStore = defineStore("conversation", () => {
     removeConversation,
     sendMessage,
     startConsumptionAnalysis,
+    startGoalSettingConversation,
+    reset,
   }
 })

@@ -1,154 +1,153 @@
 <script setup>
-import { computed, onMounted, ref, watch } from "vue";
-import { storeToRefs } from "pinia";
-import { useReportStore } from "@/stores/assetReportStore.js";
+import { computed, onMounted, ref, watch } from "vue"
+import { storeToRefs } from "pinia"
+import { useReportStore } from "@/stores/assetReportStore.js"
 import {
   CONSUMPTION_REPORT_FALLBACK_IMAGE,
   getConsumptionReportImage,
   getConsumptionReportImageAlt,
-} from "@/features/asset/consumptionReportImages.js";
+} from "@/features/asset/consumptionReportImages.js"
+import AppAlert from "@/components/ui/AppAlert.vue"
+import AppButton from "@/components/ui/AppButton.vue"
+import AppCard from "@/components/ui/AppCard.vue"
+import AppState from "@/components/ui/AppState.vue"
 
-const reportStore = useReportStore();
+const reportStore = useReportStore()
 const props = defineProps({
   forceRefresh: {
     type: Boolean,
     default: false,
   },
-});
-const {
-  insight,
-  initialInsightLoading,
-  refreshingInsight,
-  isInsightLoading,
-  insightError,
-} = storeToRefs(reportStore);
-const reportImageLoadFailed = ref(false);
+})
+const { insight, initialInsightLoading, refreshingInsight, isInsightLoading, insightError } =
+  storeToRefs(reportStore)
+const reportImageLoadFailed = ref(false)
 
-const isInitialLoading = computed(() => (
-  initialInsightLoading?.value ?? Boolean(isInsightLoading?.value && !insight.value)
-));
-const isRefreshing = computed(() => refreshingInsight?.value ?? false);
+const isInitialLoading = computed(
+  () => initialInsightLoading?.value ?? Boolean(isInsightLoading?.value && !insight.value),
+)
+const isRefreshing = computed(() => refreshingInsight?.value ?? false)
 
-const isFallbackInsight = computed(
-  () => insight.value?.generationMode === "FALLBACK",
-);
-const categoryReportImage = computed(() =>
-  getConsumptionReportImage(insight.value?.category),
-);
+const isFallbackInsight = computed(() => insight.value?.generationMode === "FALLBACK")
+const categoryReportImage = computed(() => getConsumptionReportImage(insight.value?.category))
 const usesFallbackImage = computed(
   () =>
     isFallbackInsight.value ||
     reportImageLoadFailed.value ||
     categoryReportImage.value === CONSUMPTION_REPORT_FALLBACK_IMAGE,
-);
+)
 const reportImage = computed(() =>
-  usesFallbackImage.value
-    ? CONSUMPTION_REPORT_FALLBACK_IMAGE
-    : categoryReportImage.value,
-);
+  usesFallbackImage.value ? CONSUMPTION_REPORT_FALLBACK_IMAGE : categoryReportImage.value,
+)
 const reportImageAlt = computed(() =>
   usesFallbackImage.value
     ? "소비 리포트를 준비 중인 이미지"
     : getConsumptionReportImageAlt(insight.value?.category),
-);
+)
 
 const handleReportImageError = () => {
-  reportImageLoadFailed.value = true;
-};
+  reportImageLoadFailed.value = true
+}
 
 watch(
   () => [insight.value?.category, insight.value?.generationMode],
   () => {
-    reportImageLoadFailed.value = false;
+    reportImageLoadFailed.value = false
   },
-);
+)
 
 const REPORT_CALLOUTS = [
   "지출 내역을 점검해보세요.",
   "가벼운 점검 해보세요 😊",
   "소비 내역을 확인해 보세요!",
-];
+]
 
 const reportDescription = computed(() => {
-  const content = insight.value?.reportContent ?? "";
-  const callout = REPORT_CALLOUTS.find((item) => content.endsWith(item));
+  const content = insight.value?.reportContent ?? ""
+  const callout = REPORT_CALLOUTS.find((item) => content.endsWith(item))
 
   if (!callout) {
-    return { summary: content, callout: "" };
+    return { summary: content, callout: "" }
   }
 
   return {
     summary: content.slice(0, -callout.length).trim(),
     callout,
-  };
-});
+  }
+})
 
 const loadInsight = async ({ force = false } = {}) => {
   try {
-    await reportStore.fetchInsight({ force });
+    await reportStore.fetchInsight({ force })
   } catch {
     // 사용자 안내와 인증 만료 이동은 Pinia 및 Axios 인터셉터에서 처리합니다.
   }
-};
+}
 
 const retryInsight = async () => {
   try {
-    await reportStore.fetchInsight({ force: true });
+    await reportStore.fetchInsight({ force: true })
   } catch {
     // 재시도 오류는 Pinia에서 상태와 사용자 안내를 갱신합니다.
   }
-};
+}
 
-onMounted(() => loadInsight({ force: props.forceRefresh }));
+onMounted(() => loadInsight({ force: props.forceRefresh }))
 </script>
 
 <template>
-  <article class="card consumption-report-card h-100 border-0 shadow-sm">
-    <div class="card-body consumption-report-body">
+  <AppCard class="consumption-report-card h-100" padding="none">
+    <div class="consumption-report-body">
       <h2 class="h5 fw-bold mb-0">소비 리포트</h2>
 
-      <div
+      <AppState
         v-if="isInitialLoading"
-        class="report-state text-center"
-        aria-live="polite"
-      >
-        <div class="spinner-border text-primary" role="status">
-          <span class="visually-hidden">소비 리포트를 불러오는 중</span>
-        </div>
-        <p class="text-secondary mb-0 mt-3">소비 내역을 분석하고 있습니다.</p>
-      </div>
+        class="report-state"
+        type="loading"
+        title="소비 리포트를 불러오는 중입니다."
+        message="소비 내역을 분석하고 있습니다."
+        compact
+      />
 
-      <div v-else-if="insightError && !insight" class="report-state">
-        <img
-          :src="CONSUMPTION_REPORT_FALLBACK_IMAGE"
-          alt="소비 리포트를 불러오지 못함"
-          class="report-state-image"
-          @error="handleReportImageError"
-        />
-        <i class="bi bi-exclamation-circle text-danger fs-2" aria-hidden="true"></i>
-        <p class="fw-semibold mb-1 mt-3">소비 리포트를 불러오지 못했습니다.</p>
-        <p class="small text-secondary text-center mb-3">{{ insightError }}</p>
-        <button type="button" class="btn btn-outline-danger" @click="retryInsight">
-          다시 시도
-        </button>
-      </div>
-
-      <div
-        v-else-if="insight"
-        class="report-content"
-        :class="{ 'has-report-image': reportImage }"
+      <AppState
+        v-else-if="insightError && !insight"
+        class="report-state"
+        type="error"
+        title="소비 리포트를 불러오지 못했습니다."
+        :message="insightError"
+        action-text="다시 시도"
+        action-variant="danger"
+        compact
+        @action="retryInsight"
       >
+        <template #icon>
+          <img
+            :src="CONSUMPTION_REPORT_FALLBACK_IMAGE"
+            alt="소비 리포트를 불러오지 못함"
+            class="report-state-image"
+            @error="handleReportImageError"
+          />
+        </template>
+      </AppState>
+
+      <div v-else-if="insight" class="report-content" :class="{ 'has-report-image': reportImage }">
         <div v-if="isRefreshing" class="small text-secondary mb-3" role="status">
-          <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
+          <span
+            class="spinner-border spinner-border-sm text-primary me-2"
+            aria-hidden="true"
+          ></span>
           소비 리포트를 최신 상태로 갱신하고 있습니다.
         </div>
 
-        <div v-if="insightError" class="alert alert-warning small" role="alert">
-          최신 리포트를 갱신하지 못했습니다. 기존 리포트를 표시하고 있습니다.
-          <button type="button" class="btn btn-sm btn-outline-warning ms-2" @click="retryInsight">
-            다시 시도
-          </button>
-        </div>
+        <AppAlert
+          v-if="insightError"
+          class="report-sync-alert"
+          variant="warning"
+          :show-icon="false"
+        >
+          <span>최신 리포트를 갱신하지 못했습니다. 기존 리포트를 표시하고 있습니다.</span>
+          <AppButton variant="outline" size="sm" @click="retryInsight">다시 시도</AppButton>
+        </AppAlert>
 
         <img
           v-if="reportImage"
@@ -159,10 +158,7 @@ onMounted(() => loadInsight({ force: props.forceRefresh }));
         />
 
         <div class="report-alert d-flex align-items-start gap-2">
-          <i
-            class="bi bi-exclamation-triangle-fill report-warning-icon"
-            aria-hidden="true"
-          ></i>
+          <i class="bi bi-exclamation-triangle-fill report-warning-icon" aria-hidden="true"></i>
           <strong>{{ insight.reportTitle }}</strong>
         </div>
 
@@ -179,26 +175,33 @@ onMounted(() => loadInsight({ force: props.forceRefresh }));
         </RouterLink>
       </div>
 
-      <div v-else class="report-state text-center">
-        <i class="bi bi-clipboard-data text-secondary fs-2" aria-hidden="true"></i>
-        <p class="text-secondary mb-0 mt-3">분석할 소비 데이터가 없습니다.</p>
-      </div>
+      <AppState
+        v-else
+        class="report-state"
+        type="empty"
+        title="분석할 소비 데이터가 없습니다."
+        message="소비 내역이 쌓이면 맞춤형 리포트를 확인할 수 있습니다."
+        compact
+      />
     </div>
-  </article>
+  </AppCard>
 </template>
 
 <style scoped>
 .consumption-report-card {
   min-height: 310px;
-  border-radius: 32px;
-  background: #ffffff;
+  border-radius: var(--wallo-radius-xl);
 }
 
 .consumption-report-body {
   display: flex;
   min-height: 310px;
   flex-direction: column;
-  padding: 36px 42px;
+  padding: var(--wallo-space-6);
+}
+
+.report-sync-alert {
+  margin-bottom: var(--wallo-space-4);
 }
 
 .report-content {
@@ -223,7 +226,7 @@ onMounted(() => loadInsight({ force: props.forceRefresh }));
 }
 
 .report-alert {
-  color: #dc3545;
+  color: var(--wallo-color-finance-decrease);
   font-size: 1.08rem;
   line-height: 1.5;
 }
@@ -236,7 +239,7 @@ onMounted(() => loadInsight({ force: props.forceRefresh }));
 .report-description {
   max-width: 520px;
   padding-top: 18px;
-  color: #555b6e;
+  color: var(--wallo-color-text-muted);
   line-height: 1.7;
   word-break: keep-all;
   overflow-wrap: break-word;
@@ -250,14 +253,14 @@ onMounted(() => loadInsight({ force: props.forceRefresh }));
   align-self: flex-start;
   margin-top: auto;
   padding-top: 24px;
-  color: #5f50d2;
+  color: var(--wallo-color-primary);
   font-weight: 700;
   text-decoration: none;
 }
 
 .report-detail-link:hover,
 .report-detail-link:focus {
-  color: #3f31ad;
+  color: var(--wallo-color-primary-hover);
   text-decoration: underline;
   text-underline-offset: 4px;
 }
@@ -272,6 +275,7 @@ onMounted(() => loadInsight({ force: props.forceRefresh }));
 }
 
 .report-state-image {
+  display: block;
   width: 80px;
   height: 80px;
   margin-bottom: 4px;

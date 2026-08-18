@@ -1,5 +1,9 @@
 <script setup>
 import { reactive, ref } from "vue"
+import AppAlert from "@/components/ui/AppAlert.vue"
+import AppButton from "@/components/ui/AppButton.vue"
+import AppCard from "@/components/ui/AppCard.vue"
+import AppFormField from "@/components/ui/AppFormField.vue"
 import { useUserStore } from "@/stores/userStore"
 
 const userStore = useUserStore()
@@ -82,55 +86,87 @@ const changePassword = async () => {
 </script>
 
 <template>
-  <section class="settings-panel card border-0 shadow-sm" aria-labelledby="password-settings-title">
-    <div class="card-body p-4 p-md-5">
+  <AppCard
+    as="section"
+    class="settings-panel"
+    padding="none"
+    aria-labelledby="password-settings-title"
+  >
+    <div class="password-card-body">
       <div class="password-form">
         <h2 id="password-settings-title" class="h5 fw-bold mb-2">비밀번호 변경</h2>
-        <br>
 
         <form @submit.prevent="changePassword">
           <div v-for="field in passwordFields" :key="field.id" class="mb-3">
-            <label :for="field.id" class="form-label">{{ field.label }}</label>
-            <input
+            <AppFormField
               :id="field.id"
+              v-model="form[field.model]"
+              :label="field.label"
               type="password"
-              class="form-control"
               :placeholder="field.placeholder"
               :autocomplete="field.autocomplete"
-              :value="form[field.model]"
               :disabled="isSaving"
-              @input="form[field.model] = $event.target.value; clearMessages()"
+              :help-text="
+                field.id === 'new-password' ? '비밀번호는 8자 이상 72자 이하로 입력해 주세요.' : ''
+              "
+              @input="clearMessages"
             />
-            <div v-if="field.id === 'new-password'" class="form-text">
-              비밀번호는 8자 이상 72자 이하로 입력해 주세요.
-            </div>
           </div>
 
-          <div v-if="errorMessage" class="alert alert-danger py-2 mt-3 mb-0" role="alert">
-            {{ errorMessage }}
-          </div>
-          <div v-else-if="successMessage" class="alert alert-success py-2 mt-3 mb-0" role="status">
-            {{ successMessage }}
-          </div>
+          <AppAlert
+            v-if="errorMessage"
+            class="password-message"
+            variant="danger"
+            :message="errorMessage"
+            :show-icon="false"
+          />
+          <AppAlert
+            v-else-if="successMessage"
+            class="password-message"
+            variant="success"
+            :message="successMessage"
+            :show-icon="false"
+            role="status"
+          />
 
-          <button type="submit" class="btn btn-primary w-100 mt-3" :disabled="isSaving">
-            {{ isSaving ? "변경 중..." : "비밀번호 변경하기" }}
-          </button>
+          <AppButton
+            type="submit"
+            class="password-submit w-100 mt-3"
+            variant="primary"
+            block
+            :disabled="isSaving"
+            :loading="isSaving"
+          >
+            비밀번호 변경하기
+          </AppButton>
         </form>
       </div>
     </div>
-  </section>
+  </AppCard>
 </template>
 
 <style scoped>
 .settings-panel {
   min-height: 420px;
-  border-radius: 20px;
-  background: #ffffff;
+  border-radius: var(--wallo-radius-xl);
+}
+
+.password-card-body {
+  padding: var(--wallo-space-6);
 }
 
 .password-form {
   width: min(100%, 420px);
   margin: 0 auto;
+}
+
+.password-message {
+  margin-top: var(--wallo-space-3);
+}
+
+@media (max-width: 767.98px) {
+  .password-card-body {
+    padding: var(--wallo-space-5);
+  }
 }
 </style>
