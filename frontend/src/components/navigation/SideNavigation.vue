@@ -406,6 +406,10 @@ const moveToMyFeeds = () => {
   color: #7062de;
 }
 
+.sidebar :deep(.app-button--ghost:hover:not(:disabled)) {
+  background-color: transparent;
+}
+
 .menu-icon {
   display: inline-flex;
   flex: 0 0 40px;
