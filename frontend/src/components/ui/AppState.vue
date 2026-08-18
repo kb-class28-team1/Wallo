@@ -127,7 +127,6 @@ const resolvedActionVariant = computed(() => {
 
 .app-state--error .app-state__icon {
   color: var(--wallo-color-danger);
-  background: rgb(220 53 69 / 10%);
 }
 
 .app-state__spinner {
