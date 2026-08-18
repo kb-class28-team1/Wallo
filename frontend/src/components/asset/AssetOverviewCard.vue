@@ -238,7 +238,7 @@ const chartOptions = {
 
 .asset-balance-summary {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 10px;
 }
 
@@ -263,7 +263,7 @@ const chartOptions = {
 }
 
 .asset-balance-summary .loan-balance {
-  color: var(--wallo-color-finance-decrease);
+  color: var(--wallo-color-danger);
 }
 
 .asset-doughnut-chart {
