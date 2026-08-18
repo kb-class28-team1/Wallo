@@ -3,6 +3,11 @@ import { computed, onMounted, ref, watch } from "vue"
 import { getPointHistory } from "@/api/pointHistoryApi"
 import { getCachedResource, getResource, hasInFlightResource } from "@/utils/resourceCache"
 import { useUserStore } from "@/stores/userStore"
+import AppAlert from "@/components/ui/AppAlert.vue"
+import AppButton from "@/components/ui/AppButton.vue"
+import AppCard from "@/components/ui/AppCard.vue"
+import AppPageHeader from "@/components/ui/AppPageHeader.vue"
+import AppState from "@/components/ui/AppState.vue"
 
 const userStore = useUserStore()
 const activeType = ref("ALL")
@@ -157,47 +162,49 @@ onMounted(loadHistory)
 
 <template>
   <section class="point-history-page">
-    <header class="page-heading d-flex align-items-start gap-3 mb-4">
-      <RouterLink to="/point-shop" class="page-back-button" aria-label="포인트 샵으로 이동">
-        <i class="bi bi-chevron-left" aria-hidden="true"></i>
-      </RouterLink>
-      <div>
-        <h1 class="mb-1">포인트 내역</h1>
-        <p class="mb-0">내가 얻고 사용한 포인트를 한눈에 확인해보세요.</p>
-      </div>
-    </header>
+    <AppPageHeader
+      class="page-heading"
+      title="포인트 내역"
+      description="내가 얻고 사용한 포인트를 한눈에 확인해보세요."
+    >
+      <template #leading>
+        <RouterLink to="/point-shop" class="page-back-button" aria-label="포인트 샵으로 이동">
+          <i class="bi bi-chevron-left" aria-hidden="true"></i>
+        </RouterLink>
+      </template>
+    </AppPageHeader>
 
     <div class="summary-grid">
-      <article class="summary-card earned-card">
+      <AppCard as="article" class="summary-card earned-card" padding="none">
         <span>총 적립 포인트</span>
         <strong>{{ formattedSummary.totalEarned }}</strong>
-      </article>
-      <article class="summary-card used-card">
+      </AppCard>
+      <AppCard as="article" class="summary-card used-card" padding="none">
         <span>총 사용 포인트</span>
         <strong>{{ formattedSummary.totalUsed }}</strong>
-      </article>
-      <article class="summary-card balance-card">
+      </AppCard>
+      <AppCard as="article" class="summary-card balance-card" padding="none">
         <span>남은 포인트</span>
         <strong>{{ formattedSummary.balance }}</strong>
-      </article>
-      <article class="summary-card monthly-card">
+      </AppCard>
+      <AppCard as="article" class="summary-card monthly-card" padding="none">
         <span>이번 달 변동</span>
         <strong>{{ formattedSummary.monthlyChange }}</strong>
-      </article>
+      </AppCard>
     </div>
 
-    <section class="filter-panel" aria-label="포인트 내역 필터">
+    <AppCard as="section" class="filter-panel" padding="none" aria-label="포인트 내역 필터">
       <div class="filter-tabs">
-        <button
+        <AppButton
           v-for="tab in tabs"
           :key="tab.value"
-          type="button"
           class="filter-tab"
-          :class="{ active: activeType === tab.value }"
+          size="sm"
+          :variant="activeType === tab.value ? 'primary' : 'outline'"
           @click="activeType = tab.value"
         >
           {{ tab.label }}
-        </button>
+        </AppButton>
       </div>
 
       <label class="filter-field">
@@ -211,16 +218,16 @@ onMounted(loadHistory)
       <div class="period-field">
         <span>기간</span>
         <div class="period-buttons">
-          <button
+          <AppButton
             v-for="period in periods"
             :key="period.value"
-            type="button"
             class="period-button"
-            :class="{ active: activePeriod === period.value }"
+            size="sm"
+            :variant="activePeriod === period.value ? 'primary' : 'outline'"
             @click="activePeriod = period.value"
           >
             {{ period.label }}
-          </button>
+          </AppButton>
         </div>
       </div>
 
@@ -234,39 +241,58 @@ onMounted(loadHistory)
             class="form-control"
             placeholder="내역 검색"
           />
-          <button type="submit" class="btn search-button" aria-label="검색">
+          <AppButton
+            type="submit"
+            class="search-button"
+            variant="secondary"
+            size="sm"
+            aria-label="검색"
+          >
             <i class="bi bi-search" aria-hidden="true"></i>
-          </button>
+          </AppButton>
         </div>
       </form>
-    </section>
+    </AppCard>
 
-    <div v-if="initialLoading" class="state-message" role="status">
-      포인트 내역을 불러오는 중입니다...
-    </div>
+    <AppState
+      v-if="initialLoading"
+      class="state-message"
+      type="loading"
+      title="포인트 내역을 불러오는 중입니다."
+      message="잠시만 기다려 주세요."
+    />
 
-    <div
+    <AppAlert
       v-else-if="errorMessage && !hasLoadedHistory"
       class="state-message error-state"
-      role="alert"
+      variant="danger"
     >
-      <span>{{ errorMessage }}</span>
-      <button type="button" class="btn retry-button" @click="loadHistory({ force: true })">
-        다시 시도
-      </button>
-    </div>
+      <div class="point-state-content">
+        <span>{{ errorMessage }}</span>
+        <AppButton variant="outline" size="sm" @click="loadHistory({ force: true })">
+          다시 시도
+        </AppButton>
+      </div>
+    </AppAlert>
 
     <section v-else class="history-list-section">
-      <div v-if="refreshing" class="state-message" role="status">
-        최신 포인트 내역을 확인하는 중입니다...
-      </div>
-      <div v-if="errorMessage" class="state-message error-state" role="alert">
-        <span>{{ errorMessage }}</span>
-        <button type="button" class="btn retry-button" @click="loadHistory({ force: true })">
-          다시 시도
-        </button>
-      </div>
-      <div v-if="items.length" class="history-list">
+      <AppAlert
+        v-if="refreshing"
+        class="state-message"
+        variant="neutral"
+        role="status"
+        :show-icon="false"
+        message="최신 포인트 내역을 확인하는 중입니다..."
+      />
+      <AppAlert v-if="errorMessage" class="state-message error-state" variant="danger">
+        <div class="point-state-content">
+          <span>{{ errorMessage }}</span>
+          <AppButton variant="outline" size="sm" @click="loadHistory({ force: true })">
+            다시 시도
+          </AppButton>
+        </div>
+      </AppAlert>
+      <AppCard v-if="items.length" as="div" class="history-list" padding="none">
         <article v-for="item in items" :key="item.id" class="history-item">
           <div class="history-icon" :class="item.type === 'EARN' ? 'earn-icon' : 'use-icon'">
             <i
@@ -287,32 +313,40 @@ onMounted(loadHistory)
             {{ item.status }}
           </span>
         </article>
-      </div>
+      </AppCard>
 
-      <div v-else class="empty-state">
-        <i class="bi bi-receipt" aria-hidden="true"></i>
-        <strong>포인트 내역이 없습니다.</strong>
-        <span>조건을 바꾸거나 포인트를 사용해보세요.</span>
-      </div>
+      <AppState
+        v-else
+        class="empty-state"
+        type="empty"
+        title="포인트 내역이 없습니다."
+        message="조건을 바꾸거나 포인트를 사용해보세요."
+      >
+        <template #icon>
+          <i class="bi bi-receipt" aria-hidden="true"></i>
+        </template>
+      </AppState>
 
       <nav v-if="totalPages > 1" class="pagination-wrap" aria-label="포인트 내역 페이지">
-        <button
-          type="button"
+        <AppButton
           class="page-button"
+          variant="secondary"
+          size="sm"
           :disabled="page === 0"
           @click="movePage(page - 1)"
         >
           <i class="bi bi-chevron-left" aria-hidden="true"></i>
-        </button>
+        </AppButton>
         <span>{{ page + 1 }} / {{ totalPages }}</span>
-        <button
-          type="button"
+        <AppButton
           class="page-button"
+          variant="secondary"
+          size="sm"
           :disabled="page + 1 >= totalPages"
           @click="movePage(page + 1)"
         >
           <i class="bi bi-chevron-right" aria-hidden="true"></i>
-        </button>
+        </AppButton>
       </nav>
     </section>
   </section>
@@ -368,14 +402,23 @@ onMounted(loadHistory)
   justify-content: flex-start;
 }
 
-.page-heading h1 {
+.page-heading :deep(.app-page-header__title) {
   font-size: 28px;
   font-weight: 800;
 }
 
-.page-heading p {
+.page-heading :deep(.app-page-header__description) {
   color: #8c95b0;
   font-size: 13px;
+}
+
+.point-state-content {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
 }
 
 .summary-grid {

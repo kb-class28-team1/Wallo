@@ -1,11 +1,13 @@
 <script setup>
-import { computed } from "vue";
-import { Doughnut } from "vue-chartjs";
-import { ArcElement, Chart as ChartJS, Legend, Tooltip } from "chart.js";
-import { getExpenseCategoryLabel } from "@/features/financial/financialCategories";
-import { formatWon } from "@/commonUtils/formatters";
+import { computed } from "vue"
+import { Doughnut } from "vue-chartjs"
+import { ArcElement, Chart as ChartJS, Legend, Tooltip } from "chart.js"
+import AppCard from "@/components/ui/AppCard.vue"
+import AppState from "@/components/ui/AppState.vue"
+import { getExpenseCategoryLabel } from "@/features/financial/financialCategories"
+import { formatWon } from "@/commonUtils/formatters"
 
-ChartJS.register(ArcElement, Tooltip, Legend);
+ChartJS.register(ArcElement, Tooltip, Legend)
 
 const props = defineProps({
   expenses: {
@@ -19,14 +21,14 @@ const props = defineProps({
     type: Object,
     required: true,
   },
-});
+})
 
-const topExpenseCategories = computed(() => (
+const topExpenseCategories = computed(() =>
   [...(props.expenses.expenseCategoryBreakdown ?? [])]
     .sort((first, second) => Number(second.amount) - Number(first.amount))
-    .slice(0, 5)
-));
-const hasExpenseData = computed(() => props.chartData.datasets[0].data.length > 0);
+    .slice(0, 5),
+)
+const hasExpenseData = computed(() => props.chartData.datasets[0].data.length > 0)
 const chartOptions = {
   responsive: true,
   maintainAspectRatio: false,
@@ -42,30 +44,30 @@ const chartOptions = {
       },
     },
   },
-};
+}
 
 const expenseCategoryColor = (category) => {
   const categoryIndex = (props.expenses.expenseCategoryBreakdown ?? []).findIndex(
     (item) => item.category === category,
-  );
+  )
 
-  return props.chartData.datasets[0].backgroundColor[categoryIndex] ?? "#8170ff";
-};
+  return props.chartData.datasets[0].backgroundColor[categoryIndex] ?? "#8170ff"
+}
 
 const expenseCategoryRate = (amount) => {
-  const totalExpense = Number(props.expenses.totalExpense ?? 0);
+  const totalExpense = Number(props.expenses.totalExpense ?? 0)
 
   if (totalExpense <= 0) {
-    return 0;
+    return 0
   }
 
-  return Math.round((Number(amount) / totalExpense) * 100);
-};
+  return Math.round((Number(amount) / totalExpense) * 100)
+}
 </script>
 
 <template>
-  <article class="card expense-summary-card border-0 shadow-sm">
-    <div class="card-body expense-card-body">
+  <AppCard class="expense-summary-card" padding="none">
+    <div class="expense-card-body">
       <div class="d-flex align-items-start justify-content-between gap-3">
         <div>
           <h2 class="h5 fw-bold mb-2">이번 달 총 지출</h2>
@@ -101,43 +103,50 @@ const expenseCategoryRate = (amount) => {
         </div>
       </div>
 
-      <p v-else class="expense-empty-state text-center text-secondary mb-0">
-        이번 달 지출 데이터가 없습니다.
-      </p>
+      <AppState
+        v-else
+        class="expense-empty-state"
+        type="empty"
+        title="이번 달 지출 데이터가 없습니다."
+        message="지출 내역이 등록되면 카테고리별 현황을 확인할 수 있습니다."
+        compact
+      />
     </div>
-  </article>
+  </AppCard>
 </template>
 
 <style scoped>
 .expense-summary-card {
   max-width: 540px;
-  border-radius: 32px;
-  background: #ffffff;
+  border-radius: var(--wallo-radius-xl);
+  background: var(--wallo-color-surface);
 }
 
 .expense-card-body {
   min-height: 310px;
-  padding: 36px 42px;
+  padding: var(--wallo-space-6);
 }
 
 .expense-total {
-  color: #000000;
+  color: var(--wallo-color-text);
   font-size: clamp(1.75rem, 3vw, 2.25rem);
 }
 
 .dashboard-action-button {
-  border: 1px solid #0000d5;
-  border-radius: 14px;
-  color: #0000d5;
-  background: #ffffff;
-  transition: color 0.2s ease, background-color 0.2s ease;
+  border: 1px solid var(--wallo-color-finance-info);
+  border-radius: var(--wallo-radius-md);
+  color: var(--wallo-color-finance-info);
+  background: var(--wallo-color-surface);
+  transition:
+    color 0.2s ease,
+    background-color 0.2s ease;
 }
 
 .dashboard-action-button:hover,
 .dashboard-action-button:focus {
-  border-color: #0000d5;
-  color: #ffffff;
-  background: #0000d5;
+  border-color: var(--wallo-color-finance-info-hover);
+  color: var(--wallo-color-surface);
+  background: var(--wallo-color-finance-info);
 }
 
 .expense-doughnut-chart {
@@ -149,7 +158,7 @@ const expenseCategoryRate = (amount) => {
   position: absolute;
   top: 50%;
   left: 50%;
-  color: #6c757d;
+  color: var(--wallo-color-text-muted);
   font-size: 0.9rem;
   font-weight: 600;
   line-height: 1.45;
@@ -159,15 +168,15 @@ const expenseCategoryRate = (amount) => {
 
 .expense-category-list {
   display: grid;
-  gap: 12px;
+  gap: var(--wallo-space-3);
 }
 
 .expense-category-list li {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 44px 118px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #edf0f5;
-  color: #111111;
+  padding-bottom: var(--wallo-space-2);
+  border-bottom: 1px solid var(--wallo-color-border-soft);
+  color: var(--wallo-color-text);
 }
 
 .expense-category-list li:last-child {
@@ -189,7 +198,7 @@ const expenseCategoryRate = (amount) => {
 }
 
 .expense-category-rate {
-  color: #6c757d;
+  color: var(--wallo-color-text-muted);
   font-size: 0.9rem;
   text-align: right;
 }
@@ -200,16 +209,17 @@ const expenseCategoryRate = (amount) => {
 }
 
 .expense-empty-state {
-  display: flex;
   min-height: 180px;
-  align-items: center;
-  justify-content: center;
+  padding: var(--wallo-space-4);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
 }
 
 @media (max-width: 991.98px) {
   .expense-card-body {
     min-height: auto;
-    padding: 30px;
+    padding: var(--wallo-space-5);
   }
 }
 </style>

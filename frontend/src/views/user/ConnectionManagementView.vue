@@ -3,6 +3,11 @@ import { computed, nextTick, onMounted, ref } from "vue"
 import { RouterLink } from "vue-router"
 import { getApiErrorMessage } from "@/commonUtils/apiError"
 import { disconnectConnection, getConnections } from "@/api/connectionApi"
+import AppAlert from "@/components/ui/AppAlert.vue"
+import AppButton from "@/components/ui/AppButton.vue"
+import AppCard from "@/components/ui/AppCard.vue"
+import AppState from "@/components/ui/AppState.vue"
+import AppTabs from "@/components/ui/AppTabs.vue"
 import { getLocalInstitutionLogo } from "@/features/asset/institutionLogos"
 import { useAssetStore } from "@/stores/assetStore"
 
@@ -17,56 +22,13 @@ const disconnectingId = ref(null)
 const pendingDisconnectConnection = ref(null)
 const disconnectModalError = ref("")
 const disconnectModalRef = ref(null)
-const categoryTabRefs = ref({})
 const previousFocusedElement = ref(null)
 const connectionCategories = Object.freeze([
-  { key: "ACCOUNT", label: "계좌", emptyMessage: "연결된 계좌가 없습니다." },
-  { key: "CARD", label: "카드", emptyMessage: "연결된 카드가 없습니다." },
-  { key: "STOCK", label: "증권", emptyMessage: "연결된 증권이 없습니다." },
+  { key: "ACCOUNT", value: "ACCOUNT", label: "계좌", emptyMessage: "연결된 계좌가 없습니다." },
+  { key: "CARD", value: "CARD", label: "카드", emptyMessage: "연결된 카드가 없습니다." },
+  { key: "STOCK", value: "STOCK", label: "증권", emptyMessage: "연결된 증권이 없습니다." },
 ])
 const activeCategory = ref("ACCOUNT")
-
-const getCategoryTabId = (categoryKey) => `connection-category-tab-${categoryKey.toLowerCase()}`
-
-const setCategoryTabRef = (categoryKey, element) => {
-  if (element) {
-    categoryTabRefs.value[categoryKey] = element
-  } else {
-    delete categoryTabRefs.value[categoryKey]
-  }
-}
-
-const selectCategory = (categoryKey, shouldFocus = false) => {
-  activeCategory.value = categoryKey
-
-  if (shouldFocus) {
-    nextTick(() => categoryTabRefs.value[categoryKey]?.focus())
-  }
-}
-
-const handleCategoryKeydown = (event, currentIndex) => {
-  const navigationKeys = ["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp", "Home", "End"]
-  if (!navigationKeys.includes(event.key)) {
-    return
-  }
-
-  event.preventDefault()
-
-  const lastIndex = connectionCategories.length - 1
-  let nextIndex = currentIndex
-
-  if (event.key === "Home") {
-    nextIndex = 0
-  } else if (event.key === "End") {
-    nextIndex = lastIndex
-  } else if (event.key === "ArrowRight" || event.key === "ArrowDown") {
-    nextIndex = currentIndex === lastIndex ? 0 : currentIndex + 1
-  } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
-    nextIndex = currentIndex === 0 ? lastIndex : currentIndex - 1
-  }
-
-  selectCategory(connectionCategories[nextIndex].key, true)
-}
 
 const getConnectionCategory = (connection) => {
   if (connection.assetKind === "CARD") {
@@ -270,7 +232,9 @@ const restoreModalFocus = () => {
   previousFocusedElement.value = null
 
   nextTick(() => {
-    const fallbackElement = categoryTabRefs.value[activeCategory.value]
+    const fallbackElement = document.querySelector(
+      ".connection-category-tabs [role='tab'][aria-selected='true']",
+    )
     const isFocusableTarget = (element) =>
       element &&
       element !== document.body &&
@@ -371,61 +335,59 @@ onMounted(loadConnections)
 </script>
 
 <template>
-  <section
-    class="settings-panel card border-0 shadow-sm"
+  <AppCard
+    as="section"
+    class="settings-panel"
+    padding="none"
     aria-labelledby="connection-settings-title"
   >
-    <div v-if="refreshing" class="connection-refresh-status text-secondary" role="status">
+    <div v-if="refreshing" class="connection-refresh-status" role="status">
       최신 연결 정보를 확인하는 중...
     </div>
 
-    <div v-if="initialLoading" class="connection-state text-center" aria-live="polite">
-      <div class="spinner-border text-primary" role="status">
-        <span class="visually-hidden">연결 정보를 불러오는 중</span>
-      </div>
-      <p class="text-secondary mb-0 mt-3">연결된 자산 정보를 불러오고 있습니다.</p>
-    </div>
+    <AppState
+      v-if="initialLoading"
+      class="connection-state"
+      type="loading"
+      title="연결된 자산 정보를 불러오는 중입니다."
+      message="잠시만 기다려 주세요."
+      compact
+    />
 
-    <div v-else class="card-body p-4 p-md-5">
+    <div v-else class="connection-card-body">
       <h2 id="connection-settings-title" class="h5 fw-bold mb-4">연결된 자산</h2>
 
-      <div v-if="errorMessage" class="alert alert-danger py-2" role="alert">
+      <AppAlert v-if="errorMessage" class="connection-alert" variant="danger" :show-icon="false">
         <div class="d-flex align-items-center justify-content-between gap-3">
           <span>{{ errorMessage }}</span>
-          <button
-            type="button"
-            class="btn btn-sm btn-outline-danger"
-            @click="loadConnections({ force: true })"
-          >
+          <AppButton variant="outline" size="sm" @click="loadConnections({ force: true })">
             다시 시도
-          </button>
+          </AppButton>
         </div>
-      </div>
+      </AppAlert>
 
-      <div v-if="successMessage" class="alert alert-success py-2" role="status">
-        {{ successMessage }}
-      </div>
+      <AppAlert
+        v-if="successMessage"
+        class="connection-alert"
+        variant="success"
+        :message="successMessage"
+        :show-icon="false"
+        role="status"
+      />
 
-      <div class="connection-category-tabs" role="tablist" aria-label="연결된 자산 유형">
-        <button
-          v-for="category in connectionCategories"
-          :key="category.key"
-          type="button"
-          class="connection-category-tab"
-          :class="{ 'connection-category-tab-active': activeCategory === category.key }"
-          :id="getCategoryTabId(category.key)"
-          role="tab"
-          :aria-selected="activeCategory === category.key"
-          :aria-controls="`connection-category-panel-${category.key.toLowerCase()}`"
-          :tabindex="activeCategory === category.key ? 0 : -1"
-          :ref="(element) => setCategoryTabRef(category.key, element)"
-          @click="selectCategory(category.key)"
-          @keydown="handleCategoryKeydown($event, connectionCategories.indexOf(category))"
-        >
-          {{ category.label }}
-          <span class="connection-category-count">{{ getCategoryCount(category.key) }}</span>
-        </button>
-      </div>
+      <AppTabs
+        v-model="activeCategory"
+        class="connection-category-tabs"
+        :items="connectionCategories"
+        variant="segment"
+        full-width
+        aria-label="연결된 자산 유형"
+      >
+        <template #tab="{ item }">
+          {{ item.label }}
+          <span class="connection-category-count">{{ getCategoryCount(item.value) }}</span>
+        </template>
+      </AppTabs>
 
       <div
         class="connection-section-heading d-flex align-items-center justify-content-between gap-3"
@@ -441,7 +403,7 @@ onMounted(loadConnections)
         :id="`connection-category-panel-${activeCategory.toLowerCase()}`"
         class="connection-list"
         role="tabpanel"
-        :aria-labelledby="getCategoryTabId(activeCategory)"
+        :aria-label="`${activeCategoryLabel} 연결 목록`"
         tabindex="0"
       >
         <article
@@ -474,9 +436,11 @@ onMounted(loadConnections)
               </small>
             </div>
 
-            <button
+            <AppButton
               type="button"
-              class="btn btn-link connection-disconnect text-nowrap"
+              class="connection-disconnect text-nowrap"
+              variant="ghost"
+              size="sm"
               :disabled="disconnectingId !== null"
               @click="openDisconnectModal(group)"
             >
@@ -485,8 +449,8 @@ onMounted(loadConnections)
                 class="spinner-border spinner-border-sm me-1"
                 aria-hidden="true"
               ></span>
-              연결 해제
-            </button>
+              <template v-if="disconnectingId !== group.connectionId">연결 해제</template>
+            </AppButton>
           </div>
 
           <ul class="connection-asset-list mb-0">
@@ -521,14 +485,16 @@ onMounted(loadConnections)
         :id="`connection-category-panel-${activeCategory.toLowerCase()}`"
         class="connection-empty-state text-center"
         role="tabpanel"
-        :aria-labelledby="getCategoryTabId(activeCategory)"
+        :aria-label="`${activeCategoryLabel} 연결 목록`"
         tabindex="0"
       >
-        <i class="bi bi-wallet2 fs-2 text-secondary" aria-hidden="true"></i>
-        <p class="fw-semibold mb-1 mt-3">{{ activeCategoryEmptyMessage }}</p>
-        <p class="small text-secondary mb-4">
-          금융기관을 연동하면 {{ activeCategoryLabel }} 정보를 이곳에서 관리할 수 있습니다.
-        </p>
+        <AppState
+          class="connection-empty-state-ui"
+          type="empty"
+          :title="activeCategoryEmptyMessage"
+          :message="`금융기관을 연동하면 ${activeCategoryLabel} 정보를 이곳에서 관리할 수 있습니다.`"
+          compact
+        />
       </div>
 
       <RouterLink to="/connections/mydata" class="connection-add-button">
@@ -536,7 +502,7 @@ onMounted(loadConnections)
         자산 연동 추가
       </RouterLink>
     </div>
-  </section>
+  </AppCard>
 
   <Teleport to="body">
     <div
@@ -600,27 +566,25 @@ onMounted(loadConnections)
         </div>
 
         <div class="connection-modal-footer d-flex gap-2">
-          <button
+          <AppButton
             type="button"
-            class="btn btn-light flex-fill"
+            class="btn-light flex-fill"
+            variant="secondary"
             :disabled="disconnectingId !== null"
             @click="closeDisconnectModal"
           >
             취소
-          </button>
-          <button
+          </AppButton>
+          <AppButton
             type="button"
-            class="btn btn-danger flex-fill"
+            class="btn-danger flex-fill"
+            variant="danger"
             :disabled="disconnectingId !== null"
+            :loading="disconnectingId !== null"
             @click="handleDisconnect"
           >
-            <span
-              v-if="disconnectingId !== null"
-              class="spinner-border spinner-border-sm me-1"
-              aria-hidden="true"
-            ></span>
             연결 해제
-          </button>
+          </AppButton>
         </div>
       </section>
     </div>
@@ -630,90 +594,64 @@ onMounted(loadConnections)
 <style scoped>
 .settings-panel {
   min-height: 420px;
-  border-radius: 20px;
-  background: #ffffff;
+  border-radius: var(--wallo-radius-xl);
 }
 
 .connection-state {
-  display: flex;
   min-height: 420px;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 32px;
+}
+
+.connection-card-body {
+  padding: var(--wallo-space-6);
+}
+
+.connection-alert {
+  margin-bottom: var(--wallo-space-4);
 }
 
 .connection-refresh-status {
-  margin-bottom: 12px;
-  padding: 10px 14px;
-  border-radius: 10px;
-  background: #f8f8ff;
-  font-size: 13px;
+  margin: var(--wallo-space-3) var(--wallo-space-3) 0;
+  padding: var(--wallo-space-2) var(--wallo-space-3);
+  color: var(--wallo-color-text-muted);
+  border-radius: var(--wallo-radius-md);
+  background: var(--wallo-color-info-bg);
+  font-size: 0.85rem;
 }
 
 .connection-section-heading {
-  padding: 0 0 12px;
-  border-bottom: 1px solid #eef0f5;
+  padding: 0 0 var(--wallo-space-3);
+  border-bottom: 1px solid var(--wallo-color-border-soft);
 }
 
 .connection-category-tabs {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
-  padding: 4px;
-  border-radius: 12px;
-  background: #f7f8fc;
-}
-
-.connection-category-tab {
-  flex: 1;
-  padding: 10px 12px;
-  border: 0;
-  border-radius: 9px;
-  background: transparent;
-  color: #7f8ba0;
-  font-size: 14px;
-  font-weight: 600;
-  transition:
-    background-color 0.2s ease,
-    color 0.2s ease;
-}
-
-.connection-category-tab:hover,
-.connection-category-tab:focus-visible,
-.connection-category-tab-active {
-  background: #ffffff;
-  color: #4f46c7;
-}
-
-.connection-category-tab-active {
-  box-shadow: 0 2px 8px rgb(28 35 52 / 8%);
+  margin-bottom: var(--wallo-space-4);
 }
 
 .connection-category-count {
-  margin-left: 4px;
-  font-size: 12px;
-  font-weight: 500;
+  margin-left: var(--wallo-space-1);
+  color: var(--wallo-color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
 }
 
 .connection-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 24px 0 20px;
+  gap: var(--wallo-space-3);
+  padding: var(--wallo-space-5) 0 var(--wallo-space-4);
 }
 
 .connection-institution {
   min-width: 0;
-  padding: 14px;
-  border: 1px solid #e8edf4;
-  border-radius: 14px;
+  padding: var(--wallo-space-4);
+  border: 1px solid var(--wallo-color-border-soft);
+  border-radius: var(--wallo-radius-md);
 }
 
 .connection-institution-header {
   min-width: 0;
-  padding-bottom: 14px;
-  border-bottom: 1px solid #eef0f5;
+  padding-bottom: var(--wallo-space-3);
+  border-bottom: 1px solid var(--wallo-color-border-soft);
 }
 
 .connection-information {
@@ -729,41 +667,40 @@ onMounted(loadConnections)
 .connection-asset-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding-top: 8px;
+  gap: var(--wallo-space-1);
+  padding-top: var(--wallo-space-2);
 }
 
 .connection-asset {
   min-width: 0;
-  padding: 10px 0 6px 62px;
+  padding: var(--wallo-space-3) 0 var(--wallo-space-2) 62px;
 }
 
 .connection-asset + .connection-asset {
-  border-top: 1px solid #f0f2f6;
+  border-top: 1px solid var(--wallo-color-border-soft);
 }
 
 .connection-amount {
-  color: #27324a;
+  color: var(--wallo-color-text);
   font-size: 14px;
 }
 
 .connection-amount-label {
   display: block;
-  color: #8b96a8;
+  color: var(--wallo-color-text-muted);
   font-size: 11px;
   font-weight: 400;
   text-align: right;
 }
 
 .connection-disconnect {
-  padding: 0;
-  color: #7f8ba0;
-  font-size: 13px;
+  color: var(--wallo-color-text-muted);
+  font-size: 0.8rem;
   text-decoration: none;
 }
 
 .connection-disconnect:hover {
-  color: #4f46c7;
+  color: var(--wallo-color-primary);
 }
 
 .connection-modal-assets {
@@ -774,8 +711,8 @@ onMounted(loadConnections)
 }
 
 .connection-modal-asset {
-  padding: 10px 0;
-  border-bottom: 1px solid #eef0f5;
+  padding: var(--wallo-space-3) 0;
+  border-bottom: 1px solid var(--wallo-color-border-soft);
 }
 
 .connection-modal-asset:last-child {
@@ -783,7 +720,14 @@ onMounted(loadConnections)
 }
 
 .connection-empty-state {
-  padding: 72px 16px 56px;
+  padding: 0;
+}
+
+.connection-empty-state :deep(.connection-empty-state-ui) {
+  min-height: 220px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .connection-add-button {
@@ -809,15 +753,15 @@ onMounted(loadConnections)
   align-items: center;
   justify-content: center;
   padding: 16px;
-  background: rgb(28 35 52 / 45%);
+  background: rgb(19 23 43 / 58%);
 }
 
 .connection-modal {
   width: min(100%, 420px);
   overflow: hidden;
-  border-radius: 18px;
-  background: #ffffff;
-  box-shadow: 0 18px 50px rgb(28 35 52 / 22%);
+  border-radius: var(--wallo-radius-lg);
+  background: var(--wallo-color-surface);
+  box-shadow: var(--wallo-shadow-modal);
 }
 
 .connection-modal-header,
@@ -829,7 +773,7 @@ onMounted(loadConnections)
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid #eef0f5;
+  border-bottom: 1px solid var(--wallo-color-border-soft);
 }
 
 .connection-modal-body {
@@ -837,10 +781,14 @@ onMounted(loadConnections)
 }
 
 .connection-modal-footer {
-  border-top: 1px solid #eef0f5;
+  border-top: 1px solid var(--wallo-color-border-soft);
 }
 
 @media (max-width: 576px) {
+  .connection-card-body {
+    padding: var(--wallo-space-5);
+  }
+
   .connection-institution-header {
     flex-wrap: wrap;
   }

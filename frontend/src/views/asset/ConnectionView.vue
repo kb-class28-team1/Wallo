@@ -8,6 +8,10 @@ import { useReportStore } from "@/stores/assetReportStore"
 import { useUserStore } from "@/stores/userStore"
 import { useAssetStore } from "@/stores/assetStore"
 import { getApiErrorMessage } from "@/commonUtils/apiError"
+import AppButton from "@/components/ui/AppButton.vue"
+import AppCard from "@/components/ui/AppCard.vue"
+import AppFormField from "@/components/ui/AppFormField.vue"
+import AppDialog from "@/components/common/AppDialog.vue"
 
 const router = useRouter()
 const reportStore = useReportStore()
@@ -275,7 +279,7 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
-    <section class="connection-form-panel">
+    <AppCard as="section" class="connection-form-panel" padding="none">
       <div class="connection-form-inner">
         <div class="connection-form-header">
           <h2>자산 연결</h2>
@@ -284,170 +288,140 @@ onBeforeUnmount(() => {
 
         <form class="connection-form" @submit.prevent="handleSubmit">
           <fieldset :disabled="isFormDisabled">
-            <label class="consent-card" for="creditConsent">
-              <input
-                id="creditConsent"
-                v-model="consentAgreed"
-                class="form-check-input consent-check"
-                type="checkbox"
-              />
-              <span>
-                <strong>[필수] 통합 자산 정보 수집·이용 동의</strong>
-                <small>
-                  모든 은행, 카드, 증권 정보를 한 번에 불러오는 것에 동의하며, 마이데이터 서비스
-                  제공을 위해 동의합니다.
-                </small>
-              </span>
-            </label>
+            <div class="connection-form-fields">
+              <label class="consent-card" for="creditConsent">
+                <input
+                  id="creditConsent"
+                  v-model="consentAgreed"
+                  class="form-check-input consent-check"
+                  type="checkbox"
+                />
+                <span>
+                  <strong>[필수] 통합 자산 정보 수집·이용 동의</strong>
+                  <small>
+                    모든 은행, 카드, 증권 정보를 한 번에 불러오는 것에 동의하며, 마이데이터 서비스
+                    제공을 위해 동의합니다.
+                  </small>
+                </span>
+              </label>
 
-            <div class="mb-3">
-              <label for="userName" class="form-label">이름</label>
-              <input
+              <AppFormField
                 id="userName"
                 v-model="name"
-                type="text"
-                class="form-control soft-input"
+                label="이름"
                 autocomplete="name"
                 placeholder="홍길동"
+                class="soft-input"
               />
-            </div>
 
-            <div class="mb-4">
-              <label for="phoneNumber" class="form-label">휴대폰 번호</label>
-              <input
+              <AppFormField
                 id="phoneNumber"
                 v-model="phoneNumber"
+                label="휴대폰 번호"
                 type="tel"
-                class="form-control soft-input"
                 inputmode="tel"
                 autocomplete="tel"
                 placeholder="01012345678"
+                class="soft-input"
               />
             </div>
           </fieldset>
 
-          <button
+          <AppButton
             type="submit"
-            class="btn w-100 connect-action"
+            class="connect-action"
+            block
             :disabled="!isFormValid || isLoading"
+            :loading="isLoading"
           >
-            <span
-              v-if="isLoading"
-              class="spinner-border spinner-border-sm me-2"
-              aria-hidden="true"
-            ></span>
-            <span>{{ isLoading ? "연결 중..." : "동의하고 자산 연결하기" }}</span>
-          </button>
+            {{ isLoading ? "연결 중..." : "동의하고 자산 연결하기" }}
+          </AppButton>
         </form>
       </div>
-    </section>
+    </AppCard>
 
-    <div v-if="isLoading" class="modal-backdrop fade show"></div>
+    <div v-if="isLoading" class="connection-progress-backdrop" role="presentation"></div>
     <div
       v-if="isLoading"
-      class="modal fade show d-block"
-      tabindex="-1"
+      class="connection-progress-layer"
       role="dialog"
       aria-modal="true"
       aria-labelledby="connectionProgressTitle"
     >
-      <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content app-modal">
-          <div class="modal-header">
-            <h2 id="connectionProgressTitle" class="modal-title h5">자산 연결 진행 중</h2>
-          </div>
-          <div class="modal-body">
-            <div class="d-flex align-items-center mb-3">
-              <span
-                class="spinner-border spinner-border-sm text-primary me-2"
-                aria-hidden="true"
-              ></span>
-              <span class="fw-semibold">{{ loadingMessage }}</span>
-            </div>
-            <div
-              class="progress"
-              role="progressbar"
-              :aria-valuenow="progress"
-              aria-valuemin="0"
-              aria-valuemax="100"
-            >
-              <div
-                class="progress-bar progress-bar-striped progress-bar-animated"
-                :style="{ width: `${progress}%` }"
-              ></div>
-            </div>
-            <div class="text-end small text-secondary mt-2">{{ progress }}%</div>
-          </div>
+      <AppCard as="section" class="connection-progress-card" padding="lg">
+        <h2 id="connectionProgressTitle">자산 연결 진행 중</h2>
+        <div class="connection-progress-message">
+          <span class="connection-progress-spinner" aria-hidden="true"></span>
+          <span>{{ loadingMessage }}</span>
         </div>
-      </div>
+        <div
+          class="progress"
+          role="progressbar"
+          :aria-valuenow="progress"
+          aria-valuemin="0"
+          aria-valuemax="100"
+        >
+          <div
+            class="progress-bar progress-bar-striped progress-bar-animated"
+            :style="{ width: `${progress}%` }"
+          ></div>
+        </div>
+        <div class="connection-progress-percent">{{ progress }}%</div>
+      </AppCard>
     </div>
 
-    <div v-if="isSuccessModalVisible" class="modal-backdrop fade show"></div>
-    <div
-      v-if="isSuccessModalVisible"
-      class="modal fade show d-block"
-      tabindex="-1"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="connectionSuccessTitle"
+    <AppDialog
+      :visible="isSuccessModalVisible"
+      :title="connectionResultTitle"
+      :message="successMessage"
+      confirm-text="대시보드로 이동"
+      :show-cancel="false"
+      :show-close="false"
+      :close-on-backdrop="false"
+      :close-on-esc="false"
+      @close="isSuccessModalVisible = false"
+      @confirm="moveToDashboard"
     >
-      <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content app-modal">
-          <div class="modal-header">
-            <h2 id="connectionSuccessTitle" class="modal-title h5">
-              {{ connectionResultTitle }}
-            </h2>
-          </div>
-          <div class="modal-body">
-            <p class="modal-message mb-3">{{ successMessage }}</p>
-            <div class="asset-summary-list">
-              <article v-for="group in connectedGroups" :key="group.id" class="asset-summary-item">
-                <div class="asset-summary-left">
-                  <div class="asset-logo">
-                    <img
-                      v-if="group.logoUrl || group.localLogoUrl"
-                      :src="group.logoUrl || group.localLogoUrl"
-                      :alt="`${group.name} 로고`"
-                      :data-fallback-src="group.localLogoUrl"
-                      class="asset-logo-image"
-                      @error="handleLogoError"
-                    />
-                    <span :class="getLogoFallbackClass(group.logoUrl || group.localLogoUrl)">
-                      {{ group.logoText }}
-                    </span>
-                  </div>
-                  <div class="asset-group-info">
-                    <strong class="asset-name">{{ group.name }}</strong>
-                    <div class="d-flex flex-wrap gap-1 mt-1">
-                      <span
-                        v-for="typeLabel in group.typeLabels"
-                        :key="typeLabel"
-                        class="badge rounded-pill text-bg-light border"
-                      >
-                        {{ typeLabel }}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div class="asset-result-copy">
-                  <p :class="['asset-detail mb-0', getResultTextClass(group.status)]">
-                    {{ group.message }}
-                  </p>
-                  <small v-if="group.failedMessage" class="text-secondary">
-                    {{ group.failedMessage }}
-                  </small>
-                </div>
-              </article>
+      <div class="asset-summary-list">
+        <article v-for="group in connectedGroups" :key="group.id" class="asset-summary-item">
+          <div class="asset-summary-left">
+            <div class="asset-logo">
+              <img
+                v-if="group.logoUrl || group.localLogoUrl"
+                :src="group.logoUrl || group.localLogoUrl"
+                :alt="`${group.name} 로고`"
+                :data-fallback-src="group.localLogoUrl"
+                class="asset-logo-image"
+                @error="handleLogoError"
+              />
+              <span :class="getLogoFallbackClass(group.logoUrl || group.localLogoUrl)">
+                {{ group.logoText }}
+              </span>
+            </div>
+            <div class="asset-group-info">
+              <strong class="asset-name">{{ group.name }}</strong>
+              <div class="d-flex flex-wrap gap-1 mt-1">
+                <span
+                  v-for="typeLabel in group.typeLabels"
+                  :key="typeLabel"
+                  class="badge rounded-pill text-bg-light border"
+                >
+                  {{ typeLabel }}
+                </span>
+              </div>
             </div>
           </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-primary" @click="moveToDashboard">
-              대시보드로 이동
-            </button>
+          <div class="asset-result-copy">
+            <p :class="['asset-detail mb-0', getResultTextClass(group.status)]">
+              {{ group.message }}
+            </p>
+            <small v-if="group.failedMessage" class="text-secondary">
+              {{ group.failedMessage }}
+            </small>
           </div>
-        </div>
+        </article>
       </div>
-    </div>
+    </AppDialog>
   </main>
 </template>
 
@@ -456,6 +430,73 @@ onBeforeUnmount(() => {
   margin: 0;
   padding: 0;
   border: 0;
+}
+
+.connection-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wallo-space-4);
+}
+
+.connection-form-fields {
+  display: grid;
+  gap: var(--wallo-space-4);
+}
+
+.connection-form-fields .consent-card {
+  margin-bottom: 0;
+}
+
+.connection-progress-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1390;
+  background: rgb(19 23 43 / 58%);
+}
+
+.connection-progress-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 1391;
+  display: grid;
+  place-items: center;
+  padding: var(--wallo-space-5);
+  pointer-events: none;
+}
+
+.connection-progress-card {
+  width: min(100%, 420px);
+  pointer-events: auto;
+}
+
+.connection-progress-card h2 {
+  margin: 0 0 var(--wallo-space-5);
+  font-size: 1.2rem;
+}
+
+.connection-progress-message {
+  display: flex;
+  align-items: center;
+  gap: var(--wallo-space-2);
+  margin-bottom: var(--wallo-space-3);
+  font-weight: 700;
+}
+
+.connection-progress-spinner {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+  border: 2px solid var(--wallo-color-primary);
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: connection-progress-spin 700ms linear infinite;
+}
+
+.connection-progress-percent {
+  margin-top: var(--wallo-space-2);
+  color: var(--wallo-color-text-muted);
+  font-size: 0.875rem;
+  text-align: right;
 }
 
 .asset-group-info {
@@ -475,6 +516,18 @@ onBeforeUnmount(() => {
 @media (max-width: 576px) {
   .asset-summary-item {
     align-items: flex-start;
+  }
+}
+
+@keyframes connection-progress-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .connection-progress-spinner {
+    animation: none;
   }
 }
 </style>

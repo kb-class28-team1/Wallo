@@ -1,74 +1,70 @@
 <script setup>
-import { computed } from "vue";
-import { formatWon } from "@/commonUtils/formatters";
+import { computed } from "vue"
+import AppButton from "@/components/ui/AppButton.vue"
+import AppCard from "@/components/ui/AppCard.vue"
+import AppProgress from "@/components/ui/AppProgress.vue"
+import { formatWon } from "@/commonUtils/formatters"
 
 const props = defineProps({
   budget: {
     type: Object,
     default: null,
   },
-});
-const emit = defineEmits(["open-budget-settings"]);
-const currentBudgetMonthLabel = computed(() => `${new Date().getMonth() + 1}월 예산`);
-const isBudgetConfigured = computed(() => Number(props.budget?.totalAmount ?? 0) > 0);
+})
+const emit = defineEmits(["open-budget-settings"])
+const currentBudgetMonthLabel = computed(() => `${new Date().getMonth() + 1}월 예산`)
+const isBudgetConfigured = computed(() => Number(props.budget?.totalAmount ?? 0) > 0)
 const budgetUsageRate = computed(() => {
-  const totalAmount = Number(props.budget?.totalAmount ?? 0);
-  const spentAmount = Number(props.budget?.spentAmount ?? 0);
+  const totalAmount = Number(props.budget?.totalAmount ?? 0)
+  const spentAmount = Number(props.budget?.spentAmount ?? 0)
 
   if (totalAmount <= 0) {
-    return 0;
+    return 0
   }
 
-  return Math.round((spentAmount / totalAmount) * 100);
-});
-const isBudgetOver = computed(() => (
-  Number(props.budget?.spentAmount ?? 0) > Number(props.budget?.totalAmount ?? 0)
-));
-const budgetRemaining = computed(() => (
-  Number(props.budget?.totalAmount ?? 0) - Number(props.budget?.spentAmount ?? 0)
-));
+  return Math.round((spentAmount / totalAmount) * 100)
+})
+const isBudgetOver = computed(
+  () => Number(props.budget?.spentAmount ?? 0) > Number(props.budget?.totalAmount ?? 0),
+)
+const budgetRemaining = computed(
+  () => Number(props.budget?.totalAmount ?? 0) - Number(props.budget?.spentAmount ?? 0),
+)
 </script>
 
 <template>
-  <article class="card budget-summary-card border-0 shadow-sm">
-    <div class="card-body budget-card-body">
+  <AppCard class="budget-summary-card" padding="none">
+    <div class="budget-card-body">
       <div class="d-flex align-items-start justify-content-between gap-3">
         <h2 class="h5 fw-bold mb-0">이번 달 예산</h2>
-        <button
-          type="button"
-          class="btn dashboard-action-button"
+        <AppButton
+          class="dashboard-action-button"
+          variant="outline"
+          size="sm"
           @click="emit('open-budget-settings')"
         >
           설정
-          <i class="bi bi-gear ms-1" aria-hidden="true"></i>
-        </button>
+          <template #trailing>
+            <i class="bi bi-gear" aria-hidden="true"></i>
+          </template>
+        </AppButton>
       </div>
 
       <template v-if="isBudgetConfigured">
         <div class="budget-content">
           <p class="budget-balance-label mb-2">{{ currentBudgetMonthLabel }} 잔액</p>
-          <strong
-            class="budget-total d-block mb-3"
-            :class="{ 'text-danger': isBudgetOver }"
-          >
+          <strong class="budget-total d-block mb-3" :class="{ 'text-danger': isBudgetOver }">
             {{ formatWon(budgetRemaining) }}
           </strong>
 
           <div class="d-flex align-items-center gap-3">
-            <div
-              class="progress budget-progress flex-grow-1"
-              role="progressbar"
-              aria-label="이번 달 예산 소진율"
-              :aria-valuenow="budgetUsageRate"
-              aria-valuemin="0"
-              aria-valuemax="100"
-            >
-              <div
-                class="progress-bar"
-                :class="{ 'bg-danger': isBudgetOver }"
-                :style="{ width: `${Math.min(100, Math.max(0, budgetUsageRate))}%` }"
-              ></div>
-            </div>
+            <AppProgress
+              class="budget-progress flex-grow-1"
+              label="예산 소진율"
+              :value="budgetUsageRate"
+              :variant="isBudgetOver ? 'danger' : 'info'"
+              size="md"
+            />
             <strong class="budget-usage-rate" :class="{ 'text-danger': isBudgetOver }">
               {{ budgetUsageRate }}%
             </strong>
@@ -81,27 +77,23 @@ const budgetRemaining = computed(() => (
 
       <div v-else class="budget-empty-state text-center py-4">
         <p class="text-secondary mb-3">예산이 없습니다. 예산을 설정해주세요.</p>
-        <button
-          type="button"
-          class="btn btn-primary"
-          @click="emit('open-budget-settings')"
-        >
+        <AppButton variant="primary" size="sm" @click="emit('open-budget-settings')">
           설정하기
-        </button>
+        </AppButton>
       </div>
     </div>
-  </article>
+  </AppCard>
 </template>
 
 <style scoped>
 .budget-summary-card {
-  border-radius: 48px;
-  background: #ffffff;
+  border-radius: var(--wallo-radius-xl);
+  background: var(--wallo-color-surface);
 }
 
 .budget-card-body {
   min-height: 328px;
-  padding: 42px;
+  padding: var(--wallo-space-6);
 }
 
 .budget-content {
@@ -111,42 +103,37 @@ const budgetRemaining = computed(() => (
 .budget-balance-label,
 .budget-detail,
 .budget-usage-rate {
-  color: #111111;
+  color: var(--wallo-color-text);
 }
 
 .budget-total {
-  color: #000000;
+  color: var(--wallo-color-text);
   font-size: clamp(1.75rem, 3vw, 2.25rem);
 }
 
 .budget-progress {
-  height: 12px;
-  border-radius: 999px;
-}
-
-.budget-progress .progress-bar {
-  background: #8170ff;
+  min-width: 0;
 }
 
 .dashboard-action-button {
-  border: 1px solid #0000d5;
-  border-radius: 14px;
-  color: #0000d5;
-  background: #ffffff;
-  transition: color 0.2s ease, background-color 0.2s ease;
+  border-color: var(--wallo-color-finance-info);
+  color: var(--wallo-color-finance-info);
+  transition:
+    color 0.2s ease,
+    background-color 0.2s ease;
 }
 
 .dashboard-action-button:hover,
 .dashboard-action-button:focus {
-  border-color: #0000d5;
-  color: #ffffff;
-  background: #0000d5;
+  border-color: var(--wallo-color-finance-info-hover);
+  color: var(--wallo-color-surface);
+  background: var(--wallo-color-finance-info);
 }
 
 @media (max-width: 991.98px) {
   .budget-card-body {
     min-height: auto;
-    padding: 30px;
+    padding: var(--wallo-space-5);
   }
 }
 </style>

@@ -95,7 +95,11 @@ describe("ConnectionManagementView", () => {
     })
     await flushPromises()
 
+    expect(wrapper.find(".settings-panel").classes()).toContain("app-card")
+    expect(wrapper.find(".app-tabs").exists()).toBe(true)
     const tabs = wrapper.findAll('[role="tab"]')
+    expect(tabs[0].classes()).toContain("app-tabs__tab")
+    expect(tabs).toHaveLength(3)
     expect(tabs[0].attributes("tabindex")).toBe("0")
     expect(tabs[1].attributes("tabindex")).toBe("-1")
 
@@ -143,5 +147,46 @@ describe("ConnectionManagementView", () => {
     expect(assetStore.fetchAssets).toHaveBeenCalledWith({ notifyError: false })
     expect(document.body.querySelector('[role="dialog"]')).toBeNull()
     expect(document.activeElement).toBe(wrapper.find('[role="tab"]').element)
+  })
+
+  it("renders a shared empty state for each asset category", async () => {
+    getConnections.mockResolvedValueOnce({ connections: [] })
+    wrapper = mount(ConnectionManagementView, {
+      attachTo: document.body,
+      global: {
+        stubs: {
+          RouterLink: { template: "<a><slot /></a>" },
+        },
+      },
+    })
+    await flushPromises()
+
+    expect(wrapper.find(".connection-empty-state").attributes("role")).toBe("tabpanel")
+    expect(wrapper.find(".connection-empty-state .app-state").exists()).toBe(true)
+    expect(wrapper.find(".connection-empty-state .app-state").attributes("data-state")).toBe(
+      "empty",
+    )
+    expect(wrapper.find(".connection-empty-state").text()).toContain("연결된 계좌가 없습니다.")
+
+    await wrapper.findAll('[role="tab"]')[1].trigger("click")
+
+    expect(wrapper.find(".connection-empty-state").text()).toContain("연결된 카드가 없습니다.")
+  })
+
+  it("shows a shared error alert when the initial connection load fails", async () => {
+    getConnections.mockRejectedValueOnce(new Error("연결 조회 실패"))
+    wrapper = mount(ConnectionManagementView, {
+      attachTo: document.body,
+      global: {
+        stubs: {
+          RouterLink: { template: "<a><slot /></a>" },
+        },
+      },
+    })
+    await flushPromises()
+
+    expect(wrapper.find(".connection-alert").classes()).toContain("app-alert")
+    expect(wrapper.find(".connection-alert").classes()).toContain("app-alert--danger")
+    expect(wrapper.find('[role="alert"]').text()).toContain("연결 조회 실패")
   })
 })
