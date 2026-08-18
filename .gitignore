@@ -14,3 +14,8 @@ dist/
 backend/src/main/resources/application.properties
 database/dbinit.sql
 database/mysql/dbInit.sql
+
+# Local worktrees, caches, and generated output
+.worktrees/
+.pytest_cache/
+output/
