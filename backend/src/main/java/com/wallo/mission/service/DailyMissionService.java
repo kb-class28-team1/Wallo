@@ -1,8 +1,10 @@
 package com.wallo.mission.service;
 
+import com.wallo.chat.client.AiRateLimitException;
 import com.wallo.mission.domain.DailyMission;
 import com.wallo.mission.domain.Mission;
 import com.wallo.mission.domain.MissionCycle;
+import com.wallo.mission.dto.MissionGenerationDto;
 import com.wallo.mission.dto.TodayMissionResponse;
 import com.wallo.mission.mapper.MissionMapper;
 import java.security.SecureRandom;
@@ -67,7 +69,23 @@ public class DailyMissionService {
         }
 
         if (generationService != null) {
-            generationService.generateToday(userId, date);
+            MissionGenerationDto.Result generationResult;
+            try {
+                generationResult = generationService.generateToday(userId, date);
+            } catch (AiRateLimitException exception) {
+                generationService.markGenerationFailed(userId, exception);
+                return TodayMissionResponse.generationFailed(
+                        date, "RATE_LIMIT");
+            }
+            if (generationResult != null
+                    && TodayMissionResponse.WAITING_ANALYSIS_STATUS.equals(generationResult.status())) {
+                return TodayMissionResponse.waitingForAnalysis(date);
+            }
+            if (generationResult != null
+                    && TodayMissionResponse.GENERATION_FAILED_STATUS.equals(generationResult.status())) {
+                return TodayMissionResponse.generationFailed(
+                        date, generationResult.failureReason());
+            }
             return TodayMissionResponse.of(
                     date, missionMapper.findDailyMissions(userId, date));
         }

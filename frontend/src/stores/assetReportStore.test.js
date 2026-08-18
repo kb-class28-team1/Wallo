@@ -1,6 +1,6 @@
 import { createPinia, setActivePinia } from "pinia";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getTaxSettlement, updateAnnualSalary } from "@/api/assetApi";
+import { getInsight, getTaxSettlement, updateAnnualSalary } from "@/api/assetApi";
 import {
   ANNUAL_SALARY_LOOKUP_STATUS,
   useReportStore,
@@ -34,6 +34,30 @@ describe("assetReportStore annual salary lookup state", () => {
     );
     expect(store.taxSettlementErrorCode).toBeNull();
     expect(store.annualSalaryError).toBeNull();
+  });
+
+  it("caches the insight response and refreshes it only when forced", async () => {
+    const insight = { score: 82, title: "좋은 흐름이에요" };
+    getInsight.mockResolvedValue({ data: insight });
+    const store = useReportStore();
+
+    await expect(store.fetchInsight({ notifyError: false })).resolves.toEqual(insight);
+    await expect(store.fetchInsight({ notifyError: false })).resolves.toEqual(insight);
+
+    expect(getInsight).toHaveBeenCalledOnce();
+    expect(store.initialInsightLoading).toBe(false);
+
+    const refreshRequest = store.fetchInsight({
+      notifyError: false,
+      force: true,
+    });
+    expect(store.refreshingInsight).toBe(true);
+
+    await refreshRequest;
+
+    expect(getInsight).toHaveBeenCalledTimes(2);
+    expect(store.refreshingInsight).toBe(false);
+    expect(store.isInsightLoading).toBe(false);
   });
 
   it("saves a manual salary and refetches the tax settlement", async () => {

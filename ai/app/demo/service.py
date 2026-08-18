@@ -6,6 +6,7 @@ from groq import Groq
 from app.core.config import get_groq_model
 from app.demo.repository import load_demo_profiles
 from app.demo.schemas import DemoProfileSummary
+from app.core.ai_timing import timed_groq_completion
 
 
 def list_demo_profiles() -> list[DemoProfileSummary]:
@@ -97,23 +98,29 @@ def format_demo_asset_facts(facts: dict[str, Any]) -> str:
 
 def generate_demo_asset_analysis(client: Groq, profile: dict[str, Any], question: str) -> str:
     facts = build_demo_asset_facts(profile)
-    completion = client.chat.completions.create(
-        model=get_groq_model(),
-        messages=[
-            {"role": "system", "content": (
-                "당신은 한국어 개인재무 자산분석가입니다. 제공된 수치만 근거로 분석하고 없는 정보는 "
-                "추측하지 마세요. 답변은 ① 한줄 진단 ② 강점 ③ 위험 신호 ④ 우선 행동 3가지 "
-                "⑤ 추가로 필요한 정보 순서로 작성하세요."
-            )},
-            {"role": "user", "content": (
-                f"질문: {question}\n\n코드로 계산한 핵심 지표:\n"
-                + json.dumps(facts, ensure_ascii=False, indent=2)
-                + "\n\n가상 사용자 금융 데이터:\n"
-                + json.dumps(compact_demo_profile(profile), ensure_ascii=False, indent=2)
-            )},
-        ],
-        reasoning_effort="low",
-        max_completion_tokens=4000,
-    )
-    analysis = completion.choices[0].message.content or "자산 분석 결과를 생성하지 못했습니다."
-    return format_demo_asset_facts(facts) + "\n\n" + analysis
+    model = get_groq_model()
+    with timed_groq_completion(
+        client,
+        operation="demo.asset_analysis",
+        model=model,
+        requested_completion_tokens=4000,
+    ) as timing:
+        completion = timing.create(
+            messages=[
+                {"role": "system", "content": (
+                    "당신은 한국어 개인재무 자산분석가입니다. 제공된 수치만 근거로 분석하고 없는 정보는 "
+                    "추측하지 마세요. 답변은 ① 한줄 진단 ② 강점 ③ 위험 신호 ④ 우선 행동 3가지 "
+                    "⑤ 추가로 필요한 정보 순서로 작성하세요."
+                )},
+                {"role": "user", "content": (
+                    f"질문: {question}\n\n코드로 계산한 핵심 지표:\n"
+                    + json.dumps(facts, ensure_ascii=False, indent=2)
+                    + "\n\n가상 사용자 금융 데이터:\n"
+                    + json.dumps(compact_demo_profile(profile), ensure_ascii=False, indent=2)
+                )},
+            ],
+            reasoning_effort="low",
+            max_completion_tokens=4000,
+        )
+        analysis = completion.choices[0].message.content or "자산 분석 결과를 생성하지 못했습니다."
+        return format_demo_asset_facts(facts) + "\n\n" + analysis

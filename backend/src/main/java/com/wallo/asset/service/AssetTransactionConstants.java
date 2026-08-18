@@ -18,6 +18,7 @@ public final class AssetTransactionConstants {
     public static final String INCOME_TYPE = "INCOME";
     public static final String TRANSFER_TYPE = "TRANSFER";
     public static final String INCOME_CATEGORY = "INCOME";
+    public static final String RECEIVE_CATEGORY = "RECEIVE";
     public static final String SEND_CATEGORY = "SEND";
     public static final String CARD_WITHDRAWAL_CATEGORY = "CARD_WITHDRAWAL";
     public static final String CARD_PAYMENT_KIND = "CARD_PAYMENT";

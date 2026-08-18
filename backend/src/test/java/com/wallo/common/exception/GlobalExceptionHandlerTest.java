@@ -3,6 +3,7 @@ package com.wallo.common.exception;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
+import com.wallo.chat.client.AiRateLimitException;
 import com.wallo.chat.client.AiServerException;
 import com.wallo.common.response.CommonResponse;
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,15 @@ class GlobalExceptionHandlerTest {
                 exceptionHandler.handleAiServer(new AiServerException("AI 서버 연결 실패"));
 
         assertError(response, HttpStatus.BAD_GATEWAY, "COMMON_004", "AI 서버 연결 실패");
+    }
+
+    @Test
+    void handlesAiRateLimitExceptionAsTooManyRequests() {
+        ResponseEntity<CommonResponse<Void>> response =
+                exceptionHandler.handleAiRateLimit(
+                        new AiRateLimitException("사용량 제한 안내", null));
+
+        assertError(response, HttpStatus.TOO_MANY_REQUESTS, "COMMON_005", "사용량 제한 안내");
     }
 
     private void assertError(

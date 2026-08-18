@@ -73,6 +73,18 @@ class GoalControllerTest {
     }
 
     @Test
+    void getGoalSummaryUsesTheReadOnlyGoalServicePath() throws Exception {
+        when(goalService.getGoals(7L, false)).thenReturn(List.of(goal()));
+
+        mockMvc.perform(get("/api/goals/summary"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data[0].goalId").value(31));
+
+        verify(goalService).getGoals(7L, false);
+    }
+
+    @Test
     void getAvailableAccountsReturnsOnlyGoalAccountCandidates() throws Exception {
         when(goalAccountService.getAvailableAccounts(7L)).thenReturn(List.of(account()));
 

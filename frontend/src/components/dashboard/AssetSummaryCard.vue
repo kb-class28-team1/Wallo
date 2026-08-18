@@ -1,6 +1,6 @@
 <script setup>
-import { computed } from "vue";
-import { Line } from "vue-chartjs";
+import { computed } from "vue"
+import { Line } from "vue-chartjs"
 import {
   CategoryScale,
   Chart as ChartJS,
@@ -9,17 +9,11 @@ import {
   LineElement,
   PointElement,
   Tooltip,
-} from "chart.js";
-import { formatWon } from "@/commonUtils/formatters";
+} from "chart.js"
+import AppCard from "@/components/ui/AppCard.vue"
+import { formatWon } from "@/commonUtils/formatters"
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Tooltip,
-  Filler,
-);
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler)
 
 const props = defineProps({
   assets: {
@@ -33,34 +27,34 @@ const props = defineProps({
     type: Object,
     required: true,
   },
-});
+})
 
 const assetChangeAmount = computed(() => {
   if (!props.assets.previousMonthTotalAssets) {
-    return null;
+    return null
   }
 
-  return props.assets.totalAssets - props.assets.previousMonthTotalAssets;
-});
+  return props.assets.totalAssets - props.assets.previousMonthTotalAssets
+})
 const assetChangeMessage = computed(() => {
   if (assetChangeAmount.value === null) {
-    return "지난달 자산 데이터가 없습니다.";
+    return "지난달 자산 데이터가 없습니다."
   }
 
   if (assetChangeAmount.value === 0) {
-    return "±0원";
+    return "±0원"
   }
 
-  const sign = assetChangeAmount.value > 0 ? "+" : "-";
+  const sign = assetChangeAmount.value > 0 ? "+" : "-"
 
-  return `${sign}${formatWon(Math.abs(assetChangeAmount.value))}`;
-});
-const assetChangeClass = computed(() => (
+  return `${sign}${formatWon(Math.abs(assetChangeAmount.value))}`
+})
+const assetChangeClass = computed(() =>
   assetChangeAmount.value !== null && assetChangeAmount.value < 0
     ? "asset-change-negative"
-    : "asset-change-positive"
-));
-const hasTrendData = computed(() => props.chartData.datasets[0].data.length > 0);
+    : "asset-change-positive",
+)
+const hasTrendData = computed(() => props.chartData.datasets[0].data.length > 0)
 
 const chartOptions = {
   responsive: true,
@@ -86,12 +80,12 @@ const chartOptions = {
       beginAtZero: false,
     },
   },
-};
+}
 </script>
 
 <template>
-  <article class="card asset-summary-card border-0 shadow-sm">
-    <div class="card-body asset-card-body">
+  <AppCard class="asset-summary-card" padding="none">
+    <div class="asset-card-body">
       <div class="asset-card-content row g-4 h-100">
         <div class="col-lg-5 d-flex flex-column">
           <p class="asset-label fw-semibold mb-3">총 자산</p>
@@ -124,18 +118,18 @@ const chartOptions = {
         </div>
       </div>
     </div>
-  </article>
+  </AppCard>
 </template>
 
 <style scoped>
 .asset-summary-card {
-  border-radius: 48px;
-  background: #ffffff;
+  border-radius: var(--wallo-radius-xl);
+  background: var(--wallo-color-surface);
 }
 
 .asset-card-body {
   min-height: 328px;
-  padding: 42px;
+  padding: var(--wallo-space-6);
 }
 
 .asset-card-content {
@@ -144,12 +138,12 @@ const chartOptions = {
 
 .asset-label,
 .asset-change-label {
-  color: #111111;
+  color: var(--wallo-color-text);
   font-size: 1.25rem;
 }
 
 .asset-total {
-  color: #000000;
+  color: var(--wallo-color-text);
   font-size: clamp(1.65rem, 2.7vw, 2.4rem);
   letter-spacing: -1.5px;
   white-space: nowrap;
@@ -160,26 +154,28 @@ const chartOptions = {
 }
 
 .asset-change-positive {
-  color: #ff0000;
+  color: var(--wallo-color-finance-increase);
 }
 
 .asset-change-negative {
-  color: #0000d5;
+  color: var(--wallo-color-finance-decrease);
 }
 
 .dashboard-action-button {
-  border: 1px solid #0000d5;
-  border-radius: 14px;
-  color: #0000d5;
-  background: #ffffff;
-  transition: color 0.2s ease, background-color 0.2s ease;
+  border: 1px solid var(--wallo-color-finance-info);
+  border-radius: var(--wallo-radius-md);
+  color: var(--wallo-color-finance-info);
+  background: var(--wallo-color-surface);
+  transition:
+    color 0.2s ease,
+    background-color 0.2s ease;
 }
 
 .dashboard-action-button:hover,
 .dashboard-action-button:focus {
-  border-color: #0000d5;
-  color: #ffffff;
-  background: #0000d5;
+  border-color: var(--wallo-color-finance-info-hover);
+  color: var(--wallo-color-surface);
+  background: var(--wallo-color-finance-info);
 }
 
 .asset-trend-section {
@@ -208,7 +204,7 @@ const chartOptions = {
 @media (max-width: 991.98px) {
   .asset-card-body {
     min-height: auto;
-    padding: 30px;
+    padding: var(--wallo-space-5);
   }
 
   .asset-trend-section {

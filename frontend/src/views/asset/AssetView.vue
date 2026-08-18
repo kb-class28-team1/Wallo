@@ -1,134 +1,171 @@
 <script setup>
-import { onMounted, ref } from "vue";
-import { storeToRefs } from "pinia";
-import AssetOverviewCard from "@/components/asset/AssetOverviewCard.vue";
-import ConsumptionReportCard from "@/components/asset/ConsumptionReportCard.vue";
-import TaxDeductionTrackerCard from "@/components/asset/TaxDeductionTrackerCard.vue";
-import { useAssetStore } from "@/stores/assetStore";
+import { computed, onMounted, ref } from "vue"
+import { storeToRefs } from "pinia"
+import AssetOverviewCard from "@/components/asset/AssetOverviewCard.vue"
+import ConsumptionReportCard from "@/components/asset/ConsumptionReportCard.vue"
+import TaxDeductionTrackerCard from "@/components/asset/TaxDeductionTrackerCard.vue"
+import AppAlert from "@/components/ui/AppAlert.vue"
+import AppButton from "@/components/ui/AppButton.vue"
+import AppPageHeader from "@/components/ui/AppPageHeader.vue"
+import AppState from "@/components/ui/AppState.vue"
+import { useAssetStore } from "@/stores/assetStore"
 
-const assetStore = useAssetStore();
+const assetStore = useAssetStore()
 const {
   assets,
   error,
+  initialLoading: assetInitialLoading,
+  refreshing: assetRefreshing,
   isAssetLoading,
   isSyncing,
   syncError,
-} = storeToRefs(assetStore);
-const reportRefreshKey = ref(0);
-const syncStatus = ref(null);
+} = storeToRefs(assetStore)
+const reportRefreshKey = ref(0)
+const syncStatus = ref(null)
 
-const loadAssets = async () => {
+const isInitialLoading = computed(
+  () => assetInitialLoading?.value ?? Boolean(isAssetLoading?.value && !assets.value),
+)
+const isRefreshing = computed(() => assetRefreshing?.value ?? false)
+
+const loadAssets = async ({ force = false } = {}) => {
   try {
-    await assetStore.fetchAssets();
+    await assetStore.fetchAssets({ force })
   } catch {
     // 오류 메시지와 401 이동은 Pinia 및 Axios 인터셉터에서 처리합니다.
   }
-};
+}
 
 const syncAssets = async () => {
-  syncStatus.value = null;
+  syncStatus.value = null
 
   try {
-    const result = await assetStore.syncAssets();
-    if (!result) return;
+    const result = await assetStore.syncAssets()
+    if (!result) return
 
-    await assetStore.fetchAssets({ notifyError: false });
-    reportRefreshKey.value += 1;
+    await assetStore.fetchAssets({ notifyError: false })
+    reportRefreshKey.value += 1
 
-    const failedConnections = Number(result.failedConnections) || 0;
-    const summary = `신규 ${Number(result.inserted) || 0}건, 수정 ${Number(result.updated) || 0}건`;
-    syncStatus.value = failedConnections > 0
+    const failedConnections = Number(result.failedConnections) || 0
+    const fallbackCount = Number(result.fallbackCount) || 0
+    const summary = `신규 ${Number(result.inserted) || 0}건, 수정 ${Number(result.updated) || 0}건`
+    const warnings = []
+    if (failedConnections > 0) {
+      warnings.push(`실패한 연결기관 ${failedConnections}건`)
+    }
+    if (fallbackCount > 0) {
+      warnings.push(`AI 분류 실패로 기타 처리된 거래 ${fallbackCount}건`)
+    }
+    syncStatus.value = warnings.length > 0
       ? {
           type: "warning",
-          message: `동기화가 완료되었습니다. ${summary}, 실패한 연결기관 ${failedConnections}건`,
+          message: `동기화가 완료되었습니다. ${summary}. ${warnings.join(", ")}`,
         }
       : {
           type: "success",
           message: `동기화가 완료되었습니다. ${summary}`,
-        };
+        }
   } catch {
     syncStatus.value = {
       type: "danger",
       message: syncError.value || "자산 거래내역 동기화에 실패했습니다.",
-    };
+    }
   }
-};
+}
 
-onMounted(loadAssets);
+onMounted(loadAssets)
 </script>
 
 <template>
-  <section class="asset-view container-fluid px-4 py-4">
-    <header class="asset-page-header d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
-      <div>
-        <h1 class="h3 fw-bold mb-1">자산관리</h1>
-        <p class="text-secondary mb-0">
-          연결된 계좌와 투자 자산을 한곳에서 확인하세요.
-        </p>
-      </div>
-      <button
-        type="button"
-        class="btn btn-primary asset-sync-button"
-        :disabled="isSyncing || isAssetLoading"
-        @click="syncAssets"
-      >
-        <span
-          v-if="isSyncing"
-          class="spinner-border spinner-border-sm me-2"
-          aria-hidden="true"
-        ></span>
-        {{ isSyncing ? "동기화 중..." : "거래내역 새로고침" }}
-      </button>
-    </header>
+  <section class="asset-view">
+    <AppPageHeader title="자산관리" description="연결된 계좌와 투자 자산을 한곳에서 확인하세요.">
+      <template #actions>
+        <AppButton
+          class="asset-sync-button"
+          variant="primary"
+          type="button"
+          :disabled="isSyncing || isInitialLoading || isRefreshing"
+          @click="syncAssets"
+        >
+          <span
+            v-if="isSyncing"
+            class="spinner-border spinner-border-sm me-2"
+            aria-hidden="true"
+          ></span>
+          {{ isSyncing ? "동기화 중..." : "거래내역 새로고침" }}
+        </AppButton>
+      </template>
+    </AppPageHeader>
 
-    <div
+    <AppAlert
       v-if="syncStatus"
-      class="alert"
-      :class="`alert-${syncStatus.type}`"
+      class="asset-sync-status"
+      :variant="syncStatus.type"
+      :message="syncStatus.message"
       role="status"
-    >
-      {{ syncStatus.message }}
+    />
+
+    <div v-if="isRefreshing" class="asset-refresh-status" role="status">
+      <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
+      자산 정보를 최신 상태로 갱신하고 있습니다.
     </div>
 
     <section class="asset-overview-section" aria-label="자산 현황">
-      <div v-if="isAssetLoading" class="asset-state" aria-live="polite">
-        <div class="spinner-border text-primary" role="status">
-          <span class="visually-hidden">자산 정보를 불러오는 중</span>
-        </div>
-        <p class="text-secondary mb-0 mt-3">자산 정보를 불러오고 있습니다.</p>
-      </div>
+      <AppState
+        v-if="isInitialLoading"
+        class="asset-state"
+        type="loading"
+        title="자산 정보를 불러오는 중입니다."
+        message="잠시만 기다려 주세요."
+      />
 
-      <div v-else-if="error" class="alert alert-danger asset-error" role="alert">
+      <AppAlert v-else-if="error && !assets" class="asset-error" variant="danger">
         <div>
-          <h2 class="h6 fw-bold mb-1">자산 정보를 불러오지 못했습니다.</h2>
-          <p class="mb-0">{{ error }}</p>
+          <strong class="d-block mb-1">자산 정보를 불러오지 못했습니다.</strong>
+          <span>{{ error }}</span>
         </div>
-        <button type="button" class="btn btn-outline-danger flex-shrink-0" @click="loadAssets">
+        <AppButton variant="outline" size="sm" @click="loadAssets({ force: true })">
           다시 시도
-        </button>
-      </div>
+        </AppButton>
+      </AppAlert>
 
       <AssetOverviewCard v-else-if="assets" :assets="assets" />
 
-      <div v-else class="asset-state">
-        <i class="bi bi-wallet2 fs-1 text-secondary" aria-hidden="true"></i>
-        <h2 class="h5 fw-bold mb-1 mt-3">연결된 자산이 없습니다.</h2>
-        <p class="text-secondary mb-3">
-          금융기관을 연동하면 자산 현황을 확인할 수 있습니다.
-        </p>
-        <RouterLink to="/users/profile/connections" class="btn btn-primary">
-          연동관리로 이동
-        </RouterLink>
-      </div>
+      <AppState v-else class="asset-state" type="empty" title="연결된 자산이 없습니다.">
+        <template #actions>
+          <RouterLink to="/users/profile/connections" class="asset-connect-link">
+            연동관리로 이동
+          </RouterLink>
+        </template>
+        금융기관을 연동하면 자산 현황을 확인할 수 있습니다.
+      </AppState>
     </section>
 
-    <section class="row g-4 mt-0 asset-report-grid" aria-label="자산 리포트">
-      <div class="col-12 col-lg-6">
-        <ConsumptionReportCard :key="`consumption-report-${reportRefreshKey}`" />
+    <AppAlert
+      v-if="error && assets"
+      class="asset-refresh-alert"
+      variant="warning"
+      message="최신 자산 정보를 갱신하지 못했습니다. 기존 정보를 표시하고 있습니다."
+    >
+      <span>최신 자산 정보를 갱신하지 못했습니다. 기존 정보를 표시하고 있습니다.</span>
+      <AppButton variant="outline" size="sm" @click="loadAssets({ force: true })">
+        다시 시도
+      </AppButton>
+    </AppAlert>
+
+    <section class="asset-report-grid" aria-label="자산 리포트">
+      <div>
+        <ConsumptionReportCard
+          :key="`consumption-report-${reportRefreshKey}`"
+          :force-refresh="reportRefreshKey > 0"
+        />
       </div>
 
-      <div class="col-12 col-lg-6">
-        <TaxDeductionTrackerCard :key="`tax-deduction-${reportRefreshKey}`" />
+      <div>
+        <TaxDeductionTrackerCard
+          :key="`tax-deduction-${reportRefreshKey}`"
+          :force-refresh="reportRefreshKey > 0"
+        />
       </div>
     </section>
   </section>
@@ -137,10 +174,24 @@ onMounted(loadAssets);
 <style scoped>
 .asset-view {
   width: 100%;
+  padding: var(--wallo-space-6) var(--wallo-space-4);
 }
 
 .asset-sync-button {
   min-width: 172px;
+}
+
+.asset-sync-status,
+.asset-refresh-alert {
+  margin-bottom: var(--wallo-space-4);
+}
+
+.asset-refresh-status {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: var(--wallo-space-4);
+  color: var(--wallo-color-text-muted);
+  font-size: 0.875rem;
 }
 
 .asset-overview-section {
@@ -148,39 +199,51 @@ onMounted(loadAssets);
 }
 
 .asset-report-grid {
-  padding-top: 24px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--wallo-space-6);
+  margin-top: var(--wallo-space-6);
 }
 
 .asset-state {
-  display: flex;
   min-height: 360px;
-  flex-direction: column;
+}
+
+.asset-connect-link {
+  display: inline-flex;
+  min-height: 36px;
   align-items: center;
-  justify-content: center;
-  border-radius: 28px;
-  background: #ffffff;
-  box-shadow: 0 0.25rem 1rem rgba(35, 31, 67, 0.06);
-  text-align: center;
+  padding: 0 var(--wallo-space-3);
+  color: var(--wallo-color-surface);
+  background: var(--wallo-color-primary);
+  border-radius: var(--wallo-radius-sm);
+  font-weight: 700;
+  text-decoration: none;
 }
 
 .asset-error {
-  display: flex;
   min-height: 110px;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  border-radius: 18px;
 }
 
 @media (max-width: 575.98px) {
   .asset-view {
-    padding-right: 0 !important;
-    padding-left: 0 !important;
+    padding-right: var(--wallo-space-3);
+    padding-left: var(--wallo-space-3);
   }
 
   .asset-error {
     align-items: stretch;
     flex-direction: column;
+  }
+}
+
+@media (max-width: 991.98px) {
+  .asset-report-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--wallo-space-5);
+    margin-top: var(--wallo-space-5);
   }
 }
 </style>

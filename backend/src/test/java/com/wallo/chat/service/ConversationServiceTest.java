@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -12,6 +13,8 @@ import com.wallo.chat.dto.ConversationResponse;
 import com.wallo.chat.dto.CreateConversationRequest;
 import com.wallo.chat.dto.UpdateConversationTitleRequest;
 import com.wallo.chat.mapper.ConversationMapper;
+import com.wallo.goal.domain.FinancialGoal;
+import com.wallo.goal.mapper.GoalMapper;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,12 +27,15 @@ class ConversationServiceTest {
     @Mock
     private ConversationMapper conversationMapper;
 
+    @Mock
+    private GoalMapper goalMapper;
+
     private ConversationService conversationService;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        conversationService = new ConversationService(conversationMapper);
+        conversationService = new ConversationService(conversationMapper, goalMapper);
     }
 
     @Test
@@ -111,11 +117,31 @@ class ConversationServiceTest {
     void deleteConversationSoftDeletesOwnedConversation() {
         when(conversationMapper.findByIdAndUserId(1L, 7L))
                 .thenReturn(conversation(1L, 7L, "삭제할 채팅"));
+        when(goalMapper.findGoalByConversationId(7L, 1L)).thenReturn(null);
         when(conversationMapper.softDelete(1L, 7L)).thenReturn(1);
 
         conversationService.deleteConversation(1L, 7L);
 
         verify(conversationMapper).softDelete(1L, 7L);
+    }
+
+    @Test
+    void doesNotDeleteConversationLinkedToFinancialGoal() {
+        when(conversationMapper.findByIdAndUserId(1L, 7L))
+                .thenReturn(conversation(1L, 7L, "목표 설정"));
+        when(goalMapper.findGoalByConversationId(7L, 1L))
+                .thenReturn(new FinancialGoal());
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> conversationService.deleteConversation(1L, 7L)
+        );
+
+        assertEquals(
+                "목표 설정이 완료된 채팅은 계좌 변경에 필요하므로 삭제할 수 없습니다.",
+                exception.getMessage()
+        );
+        verify(conversationMapper, never()).softDelete(1L, 7L);
     }
 
     private Conversation conversation(Long id, Long userId, String title) {

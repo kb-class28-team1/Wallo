@@ -81,4 +81,48 @@ describe("assetStore manual synchronization", () => {
     expect(getAssets).toHaveBeenCalledOnce();
     expect(store.assets).toEqual(assets);
   });
+
+  it("reuses an in-flight request and separates initial and refresh states", async () => {
+    let resolveRequest;
+    getAssets.mockReturnValue(new Promise((resolve) => {
+      resolveRequest = resolve;
+    }));
+    const store = useAssetStore();
+
+    const firstRequest = store.fetchAssets({ notifyError: false });
+
+    expect(store.initialLoading).toBe(true);
+    expect(store.refreshing).toBe(false);
+
+    const secondRequest = store.fetchAssets({ notifyError: false });
+    expect(getAssets).toHaveBeenCalledOnce();
+
+    resolveRequest({ success: true, data: { totalAssets: 1_000_000 } });
+    await Promise.all([firstRequest, secondRequest]);
+
+    expect(store.initialLoading).toBe(false);
+    expect(store.refreshing).toBe(false);
+
+    getAssets.mockResolvedValue({ success: true, data: { totalAssets: 2_000_000 } });
+    const refreshRequest = store.fetchAssets({ notifyError: false, force: true });
+
+    expect(store.initialLoading).toBe(false);
+    expect(store.refreshing).toBe(true);
+
+    await refreshRequest;
+
+    expect(store.refreshing).toBe(false);
+    expect(store.assets.totalAssets).toBe(2_000_000);
+    expect(getAssets).toHaveBeenCalledTimes(2);
+  });
+
+  it("serves a fresh asset cache without requesting the API again", async () => {
+    getAssets.mockResolvedValue({ success: true, data: { totalAssets: 1_000_000 } });
+    const store = useAssetStore();
+
+    await store.fetchAssets({ notifyError: false });
+    await store.fetchAssets({ notifyError: false });
+
+    expect(getAssets).toHaveBeenCalledOnce();
+  });
 });

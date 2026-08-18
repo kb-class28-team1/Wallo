@@ -1,5 +1,8 @@
 <script setup>
-import { nextTick, ref, watch } from "vue"
+import { computed, nextTick, ref, useSlots, watch } from "vue"
+import AppButton from "@/components/ui/AppButton.vue"
+
+let dialogInstance = 0
 
 const props = defineProps({
   visible: {
@@ -34,53 +37,119 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  confirmVariant: {
+    type: String,
+    default: "primary",
+    validator: (value) => ["primary", "secondary", "outline", "danger", "ghost"].includes(value),
+  },
+  confirmDisabled: {
+    type: Boolean,
+    default: false,
+  },
+  confirmLoading: {
+    type: Boolean,
+    default: false,
+  },
+  closeOnBackdrop: {
+    type: Boolean,
+    default: true,
+  },
+  closeOnEsc: {
+    type: Boolean,
+    default: true,
+  },
+  showClose: {
+    type: Boolean,
+    default: true,
+  },
+  size: {
+    type: String,
+    default: "md",
+    validator: (value) => ["sm", "md", "lg"].includes(value),
+  },
 })
 
 const emit = defineEmits(["confirm", "close"])
 const confirmButton = ref(null)
+const slots = useSlots()
+const instanceId = `app-dialog-${++dialogInstance}`
+const titleId = `${instanceId}-title`
+const messageId = `${instanceId}-message`
+const hasBody = computed(() => Boolean(props.message || slots.default))
+
+function closeDialog() {
+  emit("close")
+}
+
+function handleBackdropClick() {
+  if (props.closeOnBackdrop) closeDialog()
+}
+
+function handleKeydown(event) {
+  if (event.key === "Escape" && props.closeOnEsc) closeDialog()
+}
 
 watch(
   () => props.visible,
   async (visible) => {
     if (!visible) return
     await nextTick()
-    confirmButton.value?.focus()
+    confirmButton.value?.$el?.focus?.()
   },
 )
 </script>
 
 <template>
-  <div v-if="visible" class="app-dialog-layer" @click.self="emit('close')">
+  <div v-if="visible" class="app-dialog-layer" @click.self="handleBackdropClick">
     <section
       class="app-dialog"
+      :class="`app-dialog--${size}`"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="app-dialog-title"
-      aria-describedby="app-dialog-message"
+      :aria-labelledby="titleId"
+      :aria-describedby="hasBody ? messageId : undefined"
       tabindex="-1"
-      @keydown.esc="emit('close')"
+      @keydown="handleKeydown"
     >
       <header class="app-dialog-header">
-        <h2 id="app-dialog-title">{{ title }}</h2>
-        <button type="button" class="app-dialog-close" aria-label="닫기" @click="emit('close')">
+        <h2 :id="titleId">{{ title }}</h2>
+        <button
+          v-if="showClose"
+          type="button"
+          class="app-dialog-close"
+          aria-label="닫기"
+          @click="closeDialog"
+        >
           ×
         </button>
       </header>
       <img v-if="imageSrc" class="app-dialog-image" :src="imageSrc" :alt="imageAlt" />
-      <p id="app-dialog-message" class="app-dialog-message">{{ message }}</p>
+      <div v-if="hasBody" :id="messageId" class="app-dialog-body">
+        <p v-if="message" class="app-dialog-message">{{ message }}</p>
+        <slot />
+      </div>
       <footer class="app-dialog-footer">
-        <button v-if="showCancel" type="button" class="app-dialog-cancel" @click="emit('close')">
+        <AppButton
+          v-if="showCancel"
+          class="app-dialog-cancel"
+          variant="secondary"
+          size="sm"
+          @click="closeDialog"
+        >
           {{ cancelText }}
-        </button>
-        <button
+        </AppButton>
+        <AppButton
           ref="confirmButton"
-          type="button"
           class="app-dialog-confirm"
+          :variant="confirmVariant"
+          size="sm"
+          :disabled="confirmDisabled"
+          :loading="confirmLoading"
           data-modal-confirm
-          @click="emit('confirm')"
+          @click="emit('confirm', $event)"
         >
           {{ confirmText }}
-        </button>
+        </AppButton>
       </footer>
     </section>
   </div>
@@ -93,18 +162,30 @@ watch(
   z-index: 1400;
   display: grid;
   place-items: center;
-  padding: 20px;
-  background: rgba(19, 23, 43, 0.58);
+  padding: var(--wallo-space-5);
+  background: rgb(19 23 43 / 58%);
   backdrop-filter: blur(3px);
 }
 
 .app-dialog {
-  width: min(420px, 100%);
-  padding: 24px;
-  color: #202840;
-  background: #fff;
-  border-radius: 20px;
-  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.24);
+  width: 100%;
+  padding: var(--wallo-space-5);
+  color: var(--wallo-color-text);
+  background: var(--wallo-color-surface);
+  border-radius: var(--wallo-radius-lg);
+  box-shadow: var(--wallo-shadow-modal);
+}
+
+.app-dialog--sm {
+  max-width: 360px;
+}
+
+.app-dialog--md {
+  max-width: 420px;
+}
+
+.app-dialog--lg {
+  max-width: 620px;
 }
 
 .app-dialog-header,
@@ -115,27 +196,44 @@ watch(
 
 .app-dialog-header {
   justify-content: space-between;
-  gap: 16px;
+  gap: var(--wallo-space-4);
 }
 
 .app-dialog-header h2 {
   margin: 0;
+  color: var(--wallo-color-text);
   font-size: 1.2rem;
-  font-weight: 850;
+  font-weight: 800;
 }
 
 .app-dialog-close {
-  padding: 0 4px;
-  color: #9ba2b7;
+  flex: 0 0 auto;
+  padding: 2px 4px;
+  color: var(--wallo-color-text-subtle);
   background: transparent;
   border: 0;
   font-size: 1.8rem;
   line-height: 1;
+  cursor: pointer;
+}
+
+.app-dialog-close:hover {
+  color: var(--wallo-color-text);
+}
+
+.app-dialog-close:focus-visible {
+  outline: 0;
+  box-shadow: var(--wallo-focus-ring);
+  border-radius: var(--wallo-radius-sm);
+}
+
+.app-dialog-body {
+  margin: var(--wallo-space-5) 0;
 }
 
 .app-dialog-message {
-  margin: 20px 0;
-  color: #59647f;
+  margin: 0;
+  color: var(--wallo-color-text-muted);
   line-height: 1.6;
   white-space: pre-line;
 }
@@ -144,30 +242,11 @@ watch(
   display: block;
   width: min(260px, 100%);
   height: auto;
-  margin: 12px auto 16px;
+  margin: var(--wallo-space-3) auto var(--wallo-space-4);
 }
 
 .app-dialog-footer {
   justify-content: flex-end;
-  gap: 8px;
-}
-
-.app-dialog-footer button {
-  min-width: 82px;
-  padding: 10px 16px;
-  border-radius: 10px;
-  font-weight: 750;
-}
-
-.app-dialog-cancel {
-  color: #687086;
-  background: #fff;
-  border: 1px solid #dedfeb;
-}
-
-.app-dialog-confirm {
-  color: #fff;
-  background: #6d5ddd;
-  border: 1px solid #6d5ddd;
+  gap: var(--wallo-space-2);
 }
 </style>

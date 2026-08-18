@@ -1,6 +1,7 @@
 package com.wallo.common.exception;
 
 import com.wallo.auth.UnauthenticatedException;
+import com.wallo.chat.client.AiRateLimitException;
 import com.wallo.chat.client.AiServerException;
 import com.wallo.common.response.CommonResponse;
 import java.util.logging.Level;
@@ -29,6 +30,17 @@ public class GlobalExceptionHandler {
     public ResponseEntity<CommonResponse<Void>> handleBadRequest(
             IllegalArgumentException exception) {
         ErrorCode errorCode = ErrorCode.INVALID_REQUEST;
+        return ResponseEntity
+                .status(errorCode.getHttpStatus())
+                .body(CommonResponse.failure(
+                        errorCode.getCode(),
+                        messageOrDefault(exception.getMessage(), errorCode)));
+    }
+
+    @ExceptionHandler(AiRateLimitException.class)
+    public ResponseEntity<CommonResponse<Void>> handleAiRateLimit(
+            AiRateLimitException exception) {
+        ErrorCode errorCode = ErrorCode.AI_RATE_LIMIT;
         return ResponseEntity
                 .status(errorCode.getHttpStatus())
                 .body(CommonResponse.failure(

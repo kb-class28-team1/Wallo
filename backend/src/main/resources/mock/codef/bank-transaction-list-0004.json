@@ -274,6 +274,16 @@
       "resAccountOut": "17000",
       "resAccountDesc": "올리브영",
       "transactionKind": "CARD_PAYMENT"
+    },
+    {
+      "resAccount": "987654-01-321098",
+      "resTrNo": "BANK-202608-0029",
+      "resTrDate": "20260812",
+      "resTrTime": "180000",
+      "resAccountIn": "50000",
+      "resAccountOut": "0",
+      "resAccountDesc": "친구 송금",
+      "transactionKind": "TRANSFER"
     }
   ]
 }

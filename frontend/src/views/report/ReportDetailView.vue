@@ -4,15 +4,27 @@ import { RouterLink, useRoute } from "vue-router"
 import { getReportDetail } from "@/api/reportApi"
 import ReportSection from "@/components/report/ReportSection.vue"
 import TermInfoPanel from "@/components/report/TermInfoPanel.vue"
+import AppAlert from "@/components/ui/AppAlert.vue"
+import AppButton from "@/components/ui/AppButton.vue"
+import AppCard from "@/components/ui/AppCard.vue"
+import AppPageHeader from "@/components/ui/AppPageHeader.vue"
+import AppState from "@/components/ui/AppState.vue"
+import { getCachedResource, getResource, hasInFlightResource } from "@/utils/resourceCache"
 import { markReportAsRead } from "@/utils/report/reportReadState"
 import { buildTermSegments } from "@/utils/report/termHighlight"
 
 const route = useRoute()
 const newsId = computed(() => route.params.newsId)
 
+const REPORT_DETAIL_STALE_TIME = 5 * 60 * 1000
+const cacheScope = {}
+const detailCacheKey = (id) => `reports:detail:${id}`
 const report = ref(null)
-const isLoading = ref(true)
+const initialLoading = ref(true)
+const refreshing = ref(false)
 const errorMessage = ref("")
+const loadedNewsId = ref(null)
+let loadSequence = 0
 
 // 밑줄 강조 대상 5개 섹션. 순서대로 처리해야 "상세 페이지 전체 기준 첫 등장 1회" 규칙이
 // 위에서 아래로 읽는 사용자 시선과 일치한다(먼저 나오는 섹션에서 강조되고, 같은 용어가 나중
@@ -66,7 +78,10 @@ const updateTermPopoverPosition = () => {
     left = reportCardRect.left - TERM_CARD_GAP - TERM_CARD_WIDTH
   }
 
-  left = Math.max(VIEWPORT_PADDING, Math.min(left, window.innerWidth - TERM_CARD_WIDTH - VIEWPORT_PADDING))
+  left = Math.max(
+    VIEWPORT_PADDING,
+    Math.min(left, window.innerWidth - TERM_CARD_WIDTH - VIEWPORT_PADDING),
+  )
   top = Math.max(
     VIEWPORT_PADDING,
     Math.min(top, window.innerHeight - cardHeight - VIEWPORT_PADDING),
@@ -125,23 +140,77 @@ const formattedDate = computed(() => {
   })
 })
 
-const loadDetail = async () => {
-  isLoading.value = true
+const loadDetail = async ({ force = false } = {}) => {
+  const requestedNewsId = newsId.value
+  const requestId = ++loadSequence
   errorMessage.value = ""
   closeMobileTermCard()
 
+  if (!requestedNewsId) {
+    report.value = null
+    loadedNewsId.value = null
+    initialLoading.value = false
+    refreshing.value = false
+    return null
+  }
+
+  const key = detailCacheKey(requestedNewsId)
+  const cachedReport =
+    !force && !hasInFlightResource(key, { scope: cacheScope })
+      ? getCachedResource(key, {
+          scope: cacheScope,
+          staleTime: REPORT_DETAIL_STALE_TIME,
+        })
+      : undefined
+
+  if (cachedReport !== undefined) {
+    report.value = cachedReport
+    loadedNewsId.value = requestedNewsId
+    initialLoading.value = false
+    refreshing.value = false
+    markReportAsRead(requestedNewsId)
+    return cachedReport
+  }
+
+  const hasExistingReport = loadedNewsId.value === requestedNewsId && Boolean(report.value)
+  initialLoading.value = !hasExistingReport
+  refreshing.value = hasExistingReport
+  if (!hasExistingReport) report.value = null
+
   try {
-    report.value = await getReportDetail(newsId.value)
-    markReportAsRead(newsId.value)
+    const nextReport = await getResource(key, () => getReportDetail(requestedNewsId), {
+      scope: cacheScope,
+      force,
+      staleTime: REPORT_DETAIL_STALE_TIME,
+    })
+
+    if (requestId !== loadSequence || newsId.value !== requestedNewsId) {
+      return nextReport
+    }
+
+    report.value = nextReport
+    loadedNewsId.value = requestedNewsId
+    markReportAsRead(requestedNewsId)
+    return nextReport
   } catch (error) {
-    errorMessage.value = error.message
+    if (requestId === loadSequence && newsId.value === requestedNewsId) {
+      errorMessage.value = error.message
+      if (!hasExistingReport) {
+        report.value = null
+        loadedNewsId.value = null
+      }
+    }
+    return null
   } finally {
-    isLoading.value = false
+    if (requestId === loadSequence) {
+      initialLoading.value = false
+      refreshing.value = false
+    }
   }
 }
 
 onMounted(() => {
-  loadDetail()
+  void loadDetail()
   window.addEventListener("resize", handleViewportChange)
   window.addEventListener("scroll", handleViewportChange, true)
   window.addEventListener("keydown", handleEscape)
@@ -155,41 +224,64 @@ onBeforeUnmount(() => {
 
 // 같은 라우트 컴포넌트를 재사용하며 newsId만 바뀌는 경우(다른 리포트로 이동)에도 다시 불러옴
 watch(newsId, () => {
-  loadDetail()
+  void loadDetail()
 })
 </script>
 
 <template>
-  <section class="report-detail-view container-fluid py-4 px-4">
-    <RouterLink to="/reports" class="btn btn-link ps-0 mb-3 text-decoration-none">
-      <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>
-      목록으로
-    </RouterLink>
-
-    <div v-if="isLoading" class="text-center py-5">
-      <div class="spinner-border text-primary" role="status">
-        <span class="visually-hidden">불러오는 중...</span>
-      </div>
-    </div>
-
-    <div
-      v-else-if="errorMessage"
-      class="alert alert-danger d-flex flex-wrap justify-content-between align-items-center gap-2"
-      role="alert"
+  <section class="report-detail-view">
+    <AppPageHeader
+      eyebrow="금융·경제"
+      title="금융 리포트 상세"
+      description="뉴스의 핵심 내용과 나에게 미치는 영향을 쉽게 확인하세요."
+      compact
     >
-      <span>{{ errorMessage }}</span>
-      <button type="button" class="btn btn-sm btn-outline-danger" @click="loadDetail">다시 시도</button>
-    </div>
+      <template #leading>
+        <RouterLink to="/reports" class="report-back-link" aria-label="금융 리포트 목록으로 이동">
+          <i class="bi bi-arrow-left" aria-hidden="true"></i>
+        </RouterLink>
+      </template>
+    </AppPageHeader>
 
-    <div v-else-if="report" class="row g-4">
-      <div class="col-12 col-lg-8">
-        <div ref="reportCard" class="report-detail-card card border-0 shadow-sm">
-          <div class="card-body p-4 p-md-5">
+    <AppState
+      v-if="initialLoading"
+      class="report-detail-state"
+      type="loading"
+      title="리포트를 불러오는 중입니다."
+      message="뉴스 내용을 분석하고 있습니다."
+    />
+
+    <AppState
+      v-else-if="errorMessage && !report"
+      class="report-detail-state"
+      type="error"
+      title="리포트를 불러오지 못했습니다."
+      :message="errorMessage"
+      action-text="다시 시도"
+      action-variant="danger"
+      @action="loadDetail({ force: true })"
+    />
+
+    <div v-else-if="report" class="report-detail-layout">
+      <div v-if="refreshing" class="report-refresh-status" role="status">
+        최신 리포트를 확인하는 중...
+      </div>
+
+      <AppAlert v-if="errorMessage" class="report-detail-refresh-error" variant="warning">
+        <span>{{ errorMessage }}</span>
+        <AppButton variant="outline" size="sm" @click="loadDetail({ force: true })">
+          다시 시도
+        </AppButton>
+      </AppAlert>
+
+      <div ref="reportCard" class="report-detail-card-shell">
+        <AppCard class="report-detail-card" padding="lg">
+          <div class="report-detail-card-content">
             <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
               <span class="badge rounded-pill text-bg-light">{{ report.category }}</span>
             </div>
 
-            <h1 class="h3 fw-bold mb-2">{{ report.title }}</h1>
+            <h2 class="h3 fw-bold mb-2">{{ report.title }}</h2>
             <p class="text-secondary mb-4">{{ report.source }} · {{ formattedDate }}</p>
 
             <template v-if="hasReport">
@@ -245,42 +337,115 @@ watch(newsId, () => {
               />
             </template>
 
-            <div v-else class="text-center py-5 not-ready-panel">
-              <i class="bi bi-hourglass-split fs-1 text-secondary d-block mb-3" aria-hidden="true"></i>
-              <p class="text-secondary mb-0">아직 리포트가 준비되지 않았습니다.</p>
-            </div>
+            <AppState
+              v-else
+              class="not-ready-panel"
+              type="empty"
+              title="아직 리포트가 준비되지 않았습니다."
+              message="AI 분석이 완료되면 이곳에서 상세 내용을 확인할 수 있습니다."
+              compact
+            />
           </div>
-        </div>
+        </AppCard>
       </div>
-
-      <!-- 데스크톱 전용 우측 용어 설명 패널. 본문 위에 겹치는 tooltip 대신, 스크롤을 따라
-           함께 움직이다가(sticky) 본문을 가리지 않는 여백 영역에 고정된다. -->
     </div>
+
+    <AppState
+      v-else
+      class="report-detail-state"
+      type="empty"
+      title="리포트를 찾을 수 없습니다."
+      message="목록으로 돌아가 다른 리포트를 선택해 주세요."
+    />
 
     <Teleport to="body">
       <div
         v-if="hoveredTerm"
         ref="termPopover"
-        class="term-popover-card card border-0 shadow d-none d-lg-block"
+        class="term-popover-card d-none d-lg-block"
         :style="termPopoverStyle"
       >
-        <div class="card-body p-4">
+        <AppCard padding="md">
           <TermInfoPanel :term="hoveredTerm" />
-        </div>
+        </AppCard>
       </div>
     </Teleport>
 
-    <!-- 모바일/태블릿 fallback: 우측 여백이 없어 패널을 고정 배치할 수 없으므로, 용어를
-         탭했을 때만 화면 하단에 카드로 띄운다. 닫기 버튼으로 명시적으로 닫는다(hover가 없어서). -->
     <div v-if="clickedTerm" class="term-mobile-card d-lg-none">
-      <TermInfoPanel :term="clickedTerm" closable @close="closeMobileTermCard" />
+      <AppCard padding="md">
+        <TermInfoPanel :term="clickedTerm" closable @close="closeMobileTermCard" />
+      </AppCard>
     </div>
   </section>
 </template>
 
 <style scoped>
+.report-detail-view {
+  width: 100%;
+  padding: var(--wallo-space-6) var(--wallo-space-4);
+}
+
+.report-back-link {
+  display: inline-flex;
+  width: 42px;
+  height: 42px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--wallo-color-border);
+  border-radius: var(--wallo-radius-md);
+  color: var(--wallo-color-text-muted);
+  background: var(--wallo-color-surface);
+  font-size: 1.1rem;
+  text-decoration: none;
+  transition:
+    border-color 160ms ease,
+    color 160ms ease,
+    background-color 160ms ease;
+}
+
+.report-back-link:hover,
+.report-back-link:focus-visible {
+  border-color: var(--wallo-color-primary);
+  color: var(--wallo-color-primary);
+  background: var(--wallo-color-surface-soft);
+}
+
+.report-detail-state {
+  min-height: 320px;
+}
+
+.report-detail-layout {
+  width: min(100%, 980px);
+  margin: 0 auto;
+}
+
+.report-refresh-status,
+.report-detail-refresh-error {
+  margin-bottom: var(--wallo-space-4);
+}
+
+.report-refresh-status {
+  color: var(--wallo-color-text-muted);
+  font-size: 0.875rem;
+}
+
+.report-detail-refresh-error {
+  align-items: center;
+}
+
+.report-detail-refresh-error :deep(.app-alert__message) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--wallo-space-3);
+}
+
+.report-detail-card-shell {
+  min-width: 0;
+}
+
 .report-detail-card {
-  border-radius: 20px;
+  width: 100%;
 }
 
 .summary-points {
@@ -298,7 +463,6 @@ watch(newsId, () => {
 .term-popover-card {
   position: fixed;
   z-index: 1080;
-  border-radius: 20px;
 }
 
 .term-mobile-card {
@@ -310,8 +474,20 @@ watch(newsId, () => {
   max-height: 45vh;
   overflow-y: auto;
   padding: 1rem 1.25rem;
-  background-color: var(--bs-body-bg);
-  border-top: 1px solid var(--bs-border-color);
-  box-shadow: 0 -0.5rem 1.5rem rgba(0, 0, 0, 0.12);
+  background: var(--wallo-color-surface);
+  border-top: 1px solid var(--wallo-color-border);
+  box-shadow: var(--wallo-shadow-modal);
+}
+
+@media (max-width: 576px) {
+  .report-detail-view {
+    padding-right: var(--wallo-space-3);
+    padding-left: var(--wallo-space-3);
+  }
+
+  .report-detail-refresh-error :deep(.app-alert__message) {
+    align-items: stretch;
+    flex-direction: column;
+  }
 }
 </style>
