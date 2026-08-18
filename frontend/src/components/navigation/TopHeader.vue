@@ -5,12 +5,14 @@ import { RouterLink, useRouter } from "vue-router"
 import { generateNextDayMissions, getTodayMissions } from "@/api/missionApi"
 import AuthenticatedImage from "@/components/common/AuthenticatedImage.vue"
 import { useUserStore } from "@/stores/userStore"
+import { useToastStore } from "@/stores/toastStore"
 import { formatNumber } from "@/commonUtils/formatters"
 import AppButton from "@/components/ui/AppButton.vue"
 
 // public 폴더의 이미지는 루트 절대 경로로 참조함.
 const pointWCoin = "/images/profiles/point-w-coin.svg"
 const userStore = useUserStore()
+const toastStore = useToastStore()
 const router = useRouter()
 const { nickname, profileImageUrl, pointBalance, isLoading } = storeToRefs(userStore)
 const missions = ref([])
@@ -27,6 +29,10 @@ let missionPollingTimer = null
 let missionPollingAttempts = 0
 const MISSION_POLL_INTERVAL_MS = 2500
 const MAX_MISSION_POLL_ATTEMPTS = 48
+const MISSION_GENERATION_FAILED_STATUS = "GENERATION_FAILED"
+const MISSION_RATE_LIMIT_MESSAGE = "AI 사용량 제한으로 잠시 후 다시 생성됩니다."
+const missionFailureNotified = ref(false)
+const missionFailureReason = ref(null)
 
 // 포인트 숫자에 천 단위 구분 기호를 적용함
 const formattedPointBalance = computed(() => formatNumber(pointBalance.value))
@@ -48,8 +54,12 @@ const totalMissionReward = computed(() =>
 
 onMounted(() => {
   userStore.fetchUserProfile()
-  loadTodayMissions()
   window.addEventListener("wallo:mission-updated", handleMissionUpdated)
+  void loadTodayMissions().then(() => {
+    if (missionStatus.value === MISSION_GENERATION_FAILED_STATUS) {
+      startMissionPolling()
+    }
+  })
 })
 
 onBeforeUnmount(() => {
@@ -73,10 +83,30 @@ const loadTodayMissions = async (notifyError = true) => {
     const response = await getTodayMissions()
     missionStatus.value = response.status || "READY"
     missions.value = response.missions
+    missionFailureReason.value = response.failureReason || null
+    if (missionStatus.value === MISSION_GENERATION_FAILED_STATUS) {
+      if (!missionFailureNotified.value) {
+        toastStore.show(
+          response.failureReason === "RATE_LIMIT"
+            ? MISSION_RATE_LIMIT_MESSAGE
+            : "오늘의 미션을 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+        )
+        missionFailureNotified.value = true
+      }
+    } else {
+      missionFailureNotified.value = false
+    }
   } catch (error) {
-    missionStatus.value = "ERROR"
+    const isRateLimited = error.status === 429
+    missionStatus.value = isRateLimited ? MISSION_GENERATION_FAILED_STATUS : "ERROR"
     missions.value = []
-    if (notifyError) {
+    missionFailureReason.value = isRateLimited ? "RATE_LIMIT" : null
+    if (isRateLimited) {
+      if (!missionFailureNotified.value) {
+        toastStore.show(MISSION_RATE_LIMIT_MESSAGE)
+        missionFailureNotified.value = true
+      }
+    } else if (notifyError) {
       alert(error.message || "오늘의 미션을 불러오지 못했습니다.")
     }
   } finally {
@@ -92,7 +122,7 @@ const startMissionPolling = () => {
     await loadTodayMissions(false)
 
     if (
-      missionStatus.value !== "WAITING_ANALYSIS" ||
+      !["WAITING_ANALYSIS", MISSION_GENERATION_FAILED_STATUS].includes(missionStatus.value) ||
       missionPollingAttempts >= MAX_MISSION_POLL_ATTEMPTS
     ) {
       stopMissionPolling()
@@ -102,7 +132,7 @@ const startMissionPolling = () => {
 
 const handleMissionUpdated = async () => {
   await loadTodayMissions()
-  if (missionStatus.value === "WAITING_ANALYSIS") {
+  if (["WAITING_ANALYSIS", MISSION_GENERATION_FAILED_STATUS].includes(missionStatus.value)) {
     startMissionPolling()
   }
 }
@@ -120,11 +150,15 @@ const generateNextDay = async () => {
     }
   } catch (error) {
     missionStatus.value = "ERROR"
-    alert(
-      error.status === 404
-        ? "백엔드의 mission.dev-api.enabled 설정을 true로 변경해 주세요."
-        : error.message,
-    )
+    if (error.status === 429) {
+      toastStore.show(MISSION_RATE_LIMIT_MESSAGE)
+    } else {
+      alert(
+        error.status === 404
+          ? "백엔드의 mission.dev-api.enabled 설정을 true로 변경해 주세요."
+          : error.message,
+      )
+    }
   } finally {
     isMissionDevLoading.value = false
   }
@@ -218,6 +252,11 @@ const handleLogout = async () => {
               <i class="bi bi-bar-chart-line me-1" aria-hidden="true"></i>
               {{ isMissionPolling ? "오늘의 미션을 생성하는 중..." : "소비분석 하러가기" }}
             </AppButton>
+          </div>
+          <div v-else-if="missionStatus === MISSION_GENERATION_FAILED_STATUS" class="mission-empty">
+            {{ missionFailureReason === "RATE_LIMIT"
+              ? MISSION_RATE_LIMIT_MESSAGE
+              : "오늘의 미션을 생성하지 못했습니다. 잠시 후 다시 시도해 주세요." }}
           </div>
           <div v-else-if="!missions.length" class="mission-empty">오늘 배정된 미션이 없습니다.</div>
           <div v-else class="mission-list">

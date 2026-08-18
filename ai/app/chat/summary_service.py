@@ -3,6 +3,7 @@ import json
 from groq import Groq
 
 from app.chat.schemas import SummarizeConversationRequest
+from app.core.ai_timing import timed_groq_completion
 from app.core.config import get_groq_model
 
 
@@ -19,15 +20,21 @@ def summarize_conversation(client: Groq, request: SummarizeConversationRequest) 
         "existing_summary": request.existing_summary or "",
         "new_messages": [message.model_dump() for message in request.messages],
     }
-    completion = client.chat.completions.create(
-        model=get_groq_model(),
-        messages=[
-            {"role": "system", "content": SUMMARY_SYSTEM_PROMPT},
-            {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
-        ],
-        max_completion_tokens=500,
-    )
-    summary = completion.choices[0].message.content or ""
-    if not summary.strip():
-        raise RuntimeError("대화 요약을 생성하지 못했습니다.")
-    return summary.strip()
+    model = get_groq_model()
+    with timed_groq_completion(
+        client,
+        operation="conversation.summary",
+        model=model,
+        requested_completion_tokens=500,
+    ) as timing:
+        completion = timing.create(
+            messages=[
+                {"role": "system", "content": SUMMARY_SYSTEM_PROMPT},
+                {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
+            ],
+            max_completion_tokens=500,
+        )
+        summary = completion.choices[0].message.content or ""
+        if not summary.strip():
+            raise RuntimeError("대화 요약을 생성하지 못했습니다.")
+        return summary.strip()

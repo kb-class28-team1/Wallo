@@ -5,6 +5,7 @@ from unittest.mock import Mock, patch
 
 from app.agents.goal.models import (
     GoalDraft,
+    GoalField,
     GoalInterviewAction,
     GoalPriority,
     GoalType,
@@ -66,6 +67,52 @@ def test_financial_goal_tool_starts_structured_goal_interview():
     assert response.goal_interview.active is True
     assert response.goal_interview.draft.goal_type == GoalType.TRAVEL
     assert response.answer == "유럽 여행 자금을 언제까지 마련하고 싶으세요?"
+    assert client.chat.completions.create.call_count == 2
+
+
+def test_partial_goal_tool_response_continues_with_next_question():
+    client = Mock()
+    routing_call = SimpleNamespace(
+        function=SimpleNamespace(
+            name="set_financial_goal",
+            arguments=json.dumps({"request": "비상금 목표"}),
+        )
+    )
+    extraction_call = SimpleNamespace(
+        function=SimpleNamespace(
+            name="extract_financial_goal",
+            arguments=json.dumps({
+                "title": "비상금 마련",
+                "goal_type": "EMERGENCY_FUND",
+                "target_amount": None,
+                "target_date": None,
+                "motivation": None,
+                "priority": None,
+                "current_amount": None,
+                "assumptions": [],
+                "next_field": "targetAmount",
+                "next_question": "목표 금액을 알려주실 수 있나요?",
+            }, ensure_ascii=False),
+        )
+    )
+    client.chat.completions.create.side_effect = [
+        completion(SimpleNamespace(content=None, tool_calls=[routing_call])),
+        completion(SimpleNamespace(content=None, tool_calls=[extraction_call])),
+    ]
+
+    response = ChatService(client).chat(
+        ChatRequest(message="비상금을 마련하고 싶어"),
+    )
+
+    assert response.goal_interview is not None
+    assert response.goal_interview.active is True
+    assert response.goal_interview.draft.title == "비상금 마련"
+    assert response.goal_interview.draft.missing_fields == [
+        GoalField.TARGET_AMOUNT,
+        GoalField.TARGET_DATE,
+        GoalField.CURRENT_AMOUNT,
+    ]
+    assert response.answer == "목표 금액을 알려주실 수 있나요?"
     assert client.chat.completions.create.call_count == 2
 
 
@@ -157,6 +204,23 @@ def test_ui_confirmation_phrase_is_confirmed_without_another_llm_call():
     assert response.goal_interview.draft.state == InterviewState.COMPLETED
     assert response.goal_interview.draft.confirmed is True
     assert client.chat.completions.create.call_count == 1
+
+
+def test_completed_goal_does_not_start_another_ai_call():
+    client = Mock()
+    completed_draft = complete_draft(InterviewState.COMPLETED).model_copy(
+        update={"confirmed": True},
+    )
+
+    response = ChatService(client).chat(
+        ChatRequest(message="확정해줘", goal_draft=completed_draft),
+    )
+
+    assert response.goal_interview is None
+    assert response.answer == (
+        "이미 확정된 목표입니다. 대시보드에서 목표와 로드맵을 확인해 주세요."
+    )
+    client.chat.completions.create.assert_not_called()
 
 
 def test_confirmation_generates_and_saves_goal_roadmap():

@@ -166,6 +166,15 @@ public class ConversationMessageService {
             Long currentUserId,
             SendConversationMessageRequest request
     ) {
+        return sendMessage(conversationId, currentUserId, request, null);
+    }
+
+    public SendConversationMessageResponse sendMessage(
+            Long conversationId,
+            Long currentUserId,
+            SendConversationMessageRequest request,
+            String requestId
+    ) {
         validateRequest(currentUserId, request);
         conversationService.validateOwnership(
                 conversationId,
@@ -188,9 +197,10 @@ public class ConversationMessageService {
                                 .toList()
                 );
         long summaryStartedAt = System.nanoTime();
-        String summary = refreshSummary(conversationId, memory, storedMessages);
+        String summary = refreshSummary(conversationId, memory, storedMessages, requestId);
         LOGGER.info(String.format(
-                "[WALLO_TIMING] conversation.summary conversationId=%d elapsedMs=%d",
+                "[WALLO_TIMING] conversation.summary requestId=%s conversationId=%d elapsedMs=%d",
+                requestId,
                 conversationId,
                 elapsedMillis(summaryStartedAt)
         ));
@@ -210,21 +220,22 @@ public class ConversationMessageService {
         );
         boolean consumptionAnalysisRequest = isConsumptionAnalysisRequest(content);
         long chatStartedAt = System.nanoTime();
-        ChatResponse aiResponse = chatService.chat(
-                new ChatRequest(
-                        content,
-                        isFirstMessage && !consumptionAnalysisRequest && !goalSettingRequest,
-                        summary,
-                        history
-                )
-                        .withChatMode(chatMode)
-                        .withGoalDraft(goalDraft)
-                        .withGoalAlreadyExists(goalAlreadyExists)
-                        .withPreviousConsumptionPeriod(previousConsumptionPeriod),
-                currentUserId
-        );
+        ChatRequest aiRequest = new ChatRequest(
+                content,
+                isFirstMessage && !consumptionAnalysisRequest && !goalSettingRequest,
+                summary,
+                history
+        )
+                .withChatMode(chatMode)
+                .withGoalDraft(goalDraft)
+                .withGoalAlreadyExists(goalAlreadyExists)
+                .withPreviousConsumptionPeriod(previousConsumptionPeriod);
+        ChatResponse aiResponse = requestId == null
+                ? chatService.chat(aiRequest, currentUserId)
+                : chatService.chat(aiRequest, currentUserId, requestId);
         LOGGER.info(String.format(
-                "[WALLO_TIMING] conversation.chat conversationId=%d elapsedMs=%d",
+                "[WALLO_TIMING] conversation.chat requestId=%s conversationId=%d elapsedMs=%d",
+                requestId,
                 conversationId,
                 elapsedMillis(chatStartedAt)
         ));
@@ -235,7 +246,8 @@ public class ConversationMessageService {
                 aiResponse.goalInterview()
         );
         LOGGER.info(String.format(
-                "[WALLO_TIMING] conversation.goalPersistence conversationId=%d elapsedMs=%d action=%s",
+                "[WALLO_TIMING] conversation.goalPersistence requestId=%s conversationId=%d elapsedMs=%d action=%s",
+                requestId,
                 conversationId,
                 elapsedMillis(goalPersistenceStartedAt),
                 aiResponse.goalInterview() == null ? null : aiResponse.goalInterview().getAction()
@@ -290,7 +302,8 @@ public class ConversationMessageService {
         }
 
         LOGGER.info(String.format(
-                "[WALLO_TIMING] conversation.total conversationId=%d userId=%d elapsedMs=%d goalSetting=%s",
+                "[WALLO_TIMING] conversation.total requestId=%s conversationId=%d userId=%d elapsedMs=%d goalSetting=%s",
+                requestId,
                 conversationId,
                 currentUserId,
                 elapsedMillis(requestStartedAt),
@@ -333,7 +346,8 @@ public class ConversationMessageService {
     private String refreshSummary(
             Long conversationId,
             Conversation memory,
-            List<ChatMessage> messages
+            List<ChatMessage> messages,
+            String requestId
     ) {
         String existingSummary = memory == null ? null : memory.getSummary();
         Long summarizedMessageId = memory == null
@@ -355,9 +369,11 @@ public class ConversationMessageService {
         List<ChatHistoryMessage> summaryTargets = unsummarizedMessages.stream()
                 .map(this::toHistoryMessage)
                 .collect(Collectors.toList());
-        SummarizeConversationResponse response = chatService.summarize(
-                new SummarizeConversationRequest(existingSummary, summaryTargets)
-        );
+        SummarizeConversationRequest summaryRequest =
+                new SummarizeConversationRequest(existingSummary, summaryTargets);
+        SummarizeConversationResponse response = requestId == null
+                ? chatService.summarize(summaryRequest)
+                : chatService.summarize(summaryRequest, requestId);
         Long lastSummarizedMessageId = unsummarizedMessages
                 .get(unsummarizedMessages.size() - 1)
                 .getMessageId();

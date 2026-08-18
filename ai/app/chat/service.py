@@ -89,9 +89,14 @@ class ChatService:
     def _continue_goal_interview(
         self,
         request: ChatRequest,
-    ) -> tuple[str, GoalInterviewResponse]:
+    ) -> tuple[str, GoalInterviewResponse | None]:
         draft = request.goal_draft
         assert draft is not None
+        if draft.confirmed or draft.state == InterviewState.COMPLETED:
+            return (
+                "이미 확정된 목표입니다. 대시보드에서 목표와 로드맵을 확인해 주세요.",
+                None,
+            )
         normalized_message = self._normalize_message(request.message)
         if self._is_cancellation(normalized_message):
             cancelled = draft.model_copy(

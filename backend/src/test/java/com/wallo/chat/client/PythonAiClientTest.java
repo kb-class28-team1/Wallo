@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 
@@ -100,6 +101,31 @@ class PythonAiClientTest {
         Map<?, ?> summary = (Map<?, ?>) response.assetAnalysis().get("summary");
         assertEquals(100_000_000L, ((Number) summary.get("totalAssetsKrw")).longValue());
         assertEquals(90_000_000L, ((Number) summary.get("netAssetsKrw")).longValue());
+        server.verify();
+    }
+
+    @Test
+    void forwardsRequestIdToAiServer() {
+        ObjectMapper objectMapper = objectMapper();
+        RestTemplate restTemplate = PythonAiClient.createRestTemplate(objectMapper);
+        MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
+        server.expect(requestTo("http://127.0.0.1:8000/api/chat"))
+                .andExpect(header("X-Request-Id", "goal-confirm-123"))
+                .andRespond(withSuccess(
+                        "{\"answer\":\"로드맵을 만들게요.\"}",
+                        MediaType.APPLICATION_JSON
+                ));
+        PythonAiClient client = new PythonAiClient(
+                restTemplate,
+                "http://127.0.0.1:8000"
+        );
+
+        ChatResponse response = client.chat(
+                new ChatRequest("이대로 확정할게"),
+                "goal-confirm-123"
+        );
+
+        assertEquals("로드맵을 만들게요.", response.answer());
         server.verify();
     }
 
