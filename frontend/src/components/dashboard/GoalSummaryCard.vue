@@ -128,6 +128,7 @@ const formatGoalDate = (date) => {
         title="아직 확정된 금융 목표가 없습니다."
         message="AI 컨설팅에서 목표를 설정해보세요."
         compact
+        hide-icon
       />
 
       <div v-else class="goal-list">
