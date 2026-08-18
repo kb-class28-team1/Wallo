@@ -162,4 +162,22 @@ describe("conversationStore", () => {
     )
     expect(store.isSending).toBe(false)
   })
+
+  it("keeps a message send error for the chat error area instead of alerting", async () => {
+    sendConversationMessage.mockRejectedValue(
+      new Error("현재 AI 사용량 한도에 도달했습니다. 잠시 후 다시 시도해 주세요."),
+    )
+
+    const store = useConversationStore()
+    store.activeConversationId = 11
+
+    const sent = await store.sendMessage(7, "소비를 분석해줘")
+
+    expect(sent).toBe(false)
+    expect(store.lastError).toBe(
+      "현재 AI 사용량 한도에 도달했습니다. 잠시 후 다시 시도해 주세요.",
+    )
+    expect(store.lastErrorStatus).toBeNull()
+    expect(globalThis.alert).not.toHaveBeenCalled()
+  })
 })

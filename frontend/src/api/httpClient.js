@@ -13,13 +13,26 @@ const timingNow = () => (
   typeof performance !== "undefined" ? performance.now() : Date.now()
 )
 
+const getRequestId = (config) => {
+  if (config?._walloRequestId) return config._walloRequestId
+
+  const headers = config?.headers
+  if (!headers) return null
+  if (typeof headers.get === "function") {
+    return headers.get("X-Request-Id") || headers.get("x-request-id") || null
+  }
+  return headers["X-Request-Id"] || headers["x-request-id"] || null
+}
+
 const logRequestStart = (config) => {
   if (!isGoalFlowRequest(config?.url)) return
 
   config._walloTimingStartedAt = timingNow()
+  config._walloRequestId = getRequestId(config)
   console.info(`${TIMING_LOG_PREFIX} request.start`, {
     method: config.method?.toUpperCase(),
     url: config.url,
+    requestId: config._walloRequestId,
   })
 }
 
@@ -31,6 +44,7 @@ const logRequestEnd = (config, { status, failed = false } = {}) => {
     method: config.method?.toUpperCase(),
     url: config.url,
     status,
+    requestId: config._walloRequestId || getRequestId(config),
     elapsedMs: Math.round(timingNow() - startedAt),
   })
 }

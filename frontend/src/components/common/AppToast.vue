@@ -1,158 +1,78 @@
 <script setup>
-import { onBeforeUnmount, watch } from "vue"
-import AppAlert from "@/components/ui/AppAlert.vue"
+import { storeToRefs } from "pinia"
+import { useToastStore } from "@/stores/toastStore"
 
-const props = defineProps({
-  visible: {
-    type: Boolean,
-    default: false,
-  },
-  variant: {
-    type: String,
-    default: "info",
-    validator: (value) => ["info", "success", "warning", "danger", "neutral"].includes(value),
-  },
-  title: {
-    type: String,
-    default: "",
-  },
-  message: {
-    type: String,
-    default: "",
-  },
-  duration: {
-    type: Number,
-    default: 0,
-    validator: (value) => value >= 0,
-  },
-  dismissible: {
-    type: Boolean,
-    default: true,
-  },
-  pauseOnHover: {
-    type: Boolean,
-    default: true,
-  },
-  placement: {
-    type: String,
-    default: "top-end",
-    validator: (value) => ["top-end", "top-center", "bottom-end", "bottom-center"].includes(value),
-  },
-  role: {
-    type: String,
-    default: "status",
-  },
-  closeLabel: {
-    type: String,
-    default: "닫기",
-  },
-})
-
-const emit = defineEmits(["close"])
-let closeTimer = null
-
-function clearCloseTimer() {
-  if (!closeTimer) return
-  clearTimeout(closeTimer)
-  closeTimer = null
-}
-
-function scheduleClose() {
-  clearCloseTimer()
-  if (!props.visible || props.duration <= 0) return
-  closeTimer = setTimeout(() => emit("close"), props.duration)
-}
-
-function handleMouseEnter() {
-  if (props.pauseOnHover) clearCloseTimer()
-}
-
-function handleMouseLeave() {
-  if (props.pauseOnHover) scheduleClose()
-}
-
-watch(() => [props.visible, props.duration], scheduleClose, { immediate: true })
-onBeforeUnmount(clearCloseTimer)
+const toastStore = useToastStore()
+const { toasts } = storeToRefs(toastStore)
 </script>
 
 <template>
-  <Transition name="app-toast">
+  <div class="wallo-toast-container" aria-live="polite" aria-atomic="true">
     <div
-      v-if="visible"
-      class="app-toast"
-      :class="`app-toast--${placement}`"
-      @mouseenter="handleMouseEnter"
-      @mouseleave="handleMouseLeave"
+      v-for="toast in toasts"
+      :key="toast.id"
+      class="wallo-toast"
+      :class="`wallo-toast-${toast.variant}`"
+      role="alert"
     >
-      <AppAlert
-        :variant="variant"
-        :title="title"
-        :dismissible="dismissible"
-        :close-label="closeLabel"
-        :role="role"
-        @close="emit('close')"
+      <span class="wallo-toast-message">{{ toast.message }}</span>
+      <button
+        type="button"
+        class="wallo-toast-close"
+        aria-label="알림 닫기"
+        @click="toastStore.remove(toast.id)"
       >
-        <slot>{{ message }}</slot>
-      </AppAlert>
+        ×
+      </button>
     </div>
-  </Transition>
+  </div>
 </template>
 
 <style scoped>
-.app-toast {
+.wallo-toast-container {
   position: fixed;
-  z-index: 1500;
-  width: min(420px, calc(100vw - var(--wallo-space-6)));
+  top: 24px;
+  right: 24px;
+  z-index: 1600;
+  display: flex;
+  width: min(420px, calc(100vw - 32px));
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.wallo-toast {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  color: #fff;
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
   pointer-events: auto;
 }
 
-.app-toast--top-end {
-  top: var(--wallo-space-5);
-  right: var(--wallo-space-5);
+.wallo-toast-danger {
+  background: #b42318;
 }
 
-.app-toast--top-center {
-  top: var(--wallo-space-5);
-  left: 50%;
-  transform: translateX(-50%);
+.wallo-toast-success {
+  background: #147d4d;
 }
 
-.app-toast--bottom-end {
-  right: var(--wallo-space-5);
-  bottom: var(--wallo-space-5);
+.wallo-toast-message {
+  line-height: 1.45;
+  white-space: pre-line;
 }
 
-.app-toast--bottom-center {
-  bottom: var(--wallo-space-5);
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.app-toast :deep(.app-alert) {
-  width: 100%;
-  box-shadow: var(--wallo-shadow-card);
-}
-
-.app-toast-enter-active,
-.app-toast-leave-active {
-  transition: opacity 160ms ease;
-}
-
-.app-toast-enter-from,
-.app-toast-leave-to {
-  opacity: 0;
-}
-
-@media (max-width: 576px) {
-  .app-toast {
-    right: var(--wallo-space-3);
-    left: var(--wallo-space-3);
-    width: auto;
-  }
-
-  .app-toast--top-center,
-  .app-toast--bottom-center {
-    transform: none;
-  }
+.wallo-toast-close {
+  flex: 0 0 auto;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  font-size: 1.35rem;
+  line-height: 1;
 }
 </style>

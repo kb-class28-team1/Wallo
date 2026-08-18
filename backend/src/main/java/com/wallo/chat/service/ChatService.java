@@ -39,6 +39,14 @@ public class ChatService {
     }
 
     public ChatResponse chat(ChatRequest request, long currentUserId) {
+        return chat(request, currentUserId, null);
+    }
+
+    public ChatResponse chat(
+            ChatRequest request,
+            long currentUserId,
+            String requestId
+    ) {
         if (request == null
                 || request.message() == null
                 || request.message().isBlank()) {
@@ -63,7 +71,9 @@ public class ChatService {
             aiRequest = aiRequest.withConsumptionContext(
                     consumptionAnalysisContextService.getContext(currentUserId));
         }
-        ChatResponse response = pythonAiClient.chat(aiRequest);
+        ChatResponse response = requestId == null
+                ? pythonAiClient.chat(aiRequest)
+                : pythonAiClient.chat(aiRequest, requestId);
         return response;
     }
 
@@ -74,9 +84,18 @@ public class ChatService {
     }
 
     public SummarizeConversationResponse summarize(SummarizeConversationRequest request) {
+        return summarize(request, null);
+    }
+
+    public SummarizeConversationResponse summarize(
+            SummarizeConversationRequest request,
+            String requestId
+    ) {
         if (request == null || request.messages() == null || request.messages().isEmpty()) {
             throw new IllegalArgumentException("요약할 대화가 필요합니다.");
         }
-        return pythonAiClient.summarize(request);
+        return requestId == null
+                ? pythonAiClient.summarize(request)
+                : pythonAiClient.summarize(request, requestId);
     }
 }

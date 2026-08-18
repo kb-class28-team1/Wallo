@@ -6,6 +6,9 @@ import com.wallo.chat.dto.ChatResponse;
 import com.wallo.chat.dto.SummarizeConversationRequest;
 import com.wallo.chat.dto.SummarizeConversationResponse;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -53,10 +56,19 @@ public class PythonAiClient {
     }
 
     public SummarizeConversationResponse summarize(SummarizeConversationRequest request) {
+        return summarize(request, null);
+    }
+
+    public SummarizeConversationResponse summarize(
+            SummarizeConversationRequest request,
+            String requestId
+    ) {
         long startedAt = System.nanoTime();
         try {
             ResponseEntity<SummarizeConversationResponse> response = restTemplate.postForEntity(
-                    summarizeUri, request, SummarizeConversationResponse.class);
+                    summarizeUri,
+                    requestEntity(request, requestId),
+                    SummarizeConversationResponse.class);
             if (response.getBody() == null
                     || response.getBody().summary() == null
                     || response.getBody().summary().isBlank()) {
@@ -76,18 +88,23 @@ public class PythonAiClient {
             throw new AiServerException("AI 서버의 대화 요약 응답 처리에 실패했습니다.", exception);
         } finally {
             LOGGER.info(String.format(
-                    "[WALLO_TIMING] ai.summarize elapsedMs=%d",
+                    "[WALLO_TIMING] ai.summarize requestId=%s elapsedMs=%d",
+                    requestId,
                     elapsedMillis(startedAt)
             ));
         }
     }
 
     public ChatResponse chat(ChatRequest chatRequest) {
+        return chat(chatRequest, null);
+    }
+
+    public ChatResponse chat(ChatRequest chatRequest, String requestId) {
         long startedAt = System.nanoTime();
         try {
             ResponseEntity<ChatResponse> response = restTemplate.postForEntity(
                     chatUri,
-                    chatRequest,
+                    requestEntity(chatRequest, requestId),
                     ChatResponse.class
             );
 
@@ -112,10 +129,20 @@ public class PythonAiClient {
             throw new AiServerException("AI 서버 응답 처리에 실패했습니다.", exception);
         } finally {
             LOGGER.info(String.format(
-                    "[WALLO_TIMING] ai.chat elapsedMs=%d",
+                    "[WALLO_TIMING] ai.chat requestId=%s elapsedMs=%d",
+                    requestId,
                     elapsedMillis(startedAt)
             ));
         }
+    }
+
+    private <T> HttpEntity<T> requestEntity(T body, String requestId) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        if (requestId != null && !requestId.isBlank()) {
+            headers.set("X-Request-Id", requestId);
+        }
+        return new HttpEntity<>(body, headers);
     }
 
     private long elapsedMillis(long startedAt) {

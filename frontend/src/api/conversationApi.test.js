@@ -17,11 +17,15 @@ describe("conversationApi", () => {
       sendConversationMessage(12, 7, "새 목표를 만들고 싶어요", "GOAL_SETTING"),
     ).resolves.toEqual(response)
 
-    expect(httpClient.post).toHaveBeenCalledWith("/api/conversations/12/messages", {
-      userId: 7,
-      message: "새 목표를 만들고 싶어요",
-      chatMode: "GOAL_SETTING",
-    })
+    expect(httpClient.post).toHaveBeenCalledWith(
+      "/api/conversations/12/messages",
+      {
+        userId: 7,
+        message: "새 목표를 만들고 싶어요",
+        chatMode: "GOAL_SETTING",
+      },
+      { headers: { "X-Request-Id": expect.any(String) } },
+    )
   })
 
   it("omits chat mode for regular messages", async () => {
@@ -29,9 +33,34 @@ describe("conversationApi", () => {
 
     await sendConversationMessage(12, 7, "안녕하세요")
 
-    expect(httpClient.post).toHaveBeenCalledWith("/api/conversations/12/messages", {
-      userId: 7,
-      message: "안녕하세요",
-    })
+    expect(httpClient.post).toHaveBeenCalledWith(
+      "/api/conversations/12/messages",
+      {
+        userId: 7,
+        message: "안녕하세요",
+      },
+      { headers: { "X-Request-Id": expect.any(String) } },
+    )
+  })
+
+  it("forwards a request ID through the chat request header", async () => {
+    httpClient.post.mockResolvedValue({ data: { answer: "로드맵을 만들게요." } })
+
+    await sendConversationMessage(
+      12,
+      7,
+      "이대로 확정할게",
+      null,
+      "goal-confirm-123",
+    )
+
+    expect(httpClient.post).toHaveBeenCalledWith(
+      "/api/conversations/12/messages",
+      {
+        userId: 7,
+        message: "이대로 확정할게",
+      },
+      { headers: { "X-Request-Id": "goal-confirm-123" } },
+    )
   })
 })

@@ -6,7 +6,13 @@ from app.agents.goal.models import GoalDraft
 
 EXTRACTION_SYSTEM_PROMPT = """
 당신은 금융 목표 인터뷰에서 사용자의 답변을 구조화하는 정보 추출기입니다.
-반드시 JSON 객체만 반환하고 설명 문장을 덧붙이지 마세요.
+
+출력 규칙:
+- 허용된 함수는 extract_financial_goal 하나입니다.
+- 반드시 extract_financial_goal 함수를 호출하세요.
+- 구조화된 값은 함수 호출의 arguments에만 담으세요.
+- 함수 호출 대신 일반 텍스트나 Markdown을 반환하지 마세요.
+- 다른 함수나 도구를 호출하지 마세요.
 
 허용 필드:
 - title: 구체적인 목표명

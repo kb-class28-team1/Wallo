@@ -3,7 +3,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.agents.roadmap.generator import generate_goal_roadmap
+from app.agents.roadmap.generator import (
+    ROADMAP_MAX_COMPLETION_TOKENS,
+    generate_goal_roadmap,
+)
 from app.agents.roadmap.models import RoadmapGoal
 
 
@@ -55,7 +58,8 @@ def test_generates_and_validates_structured_roadmap():
     assert roadmap.steps[-1].target_amount == 10_000_000
     assert roadmap.steps[0].title == "1단계 목표"
     assert roadmap.steps[0].monthly_contribution == 500_000
-    assert completions.kwargs["max_completion_tokens"] == 4000
+    assert completions.kwargs["max_completion_tokens"] == ROADMAP_MAX_COMPLETION_TOKENS
+    assert '"motivation"' not in completions.kwargs["messages"][1]["content"]
 
 
 def test_rejects_roadmap_whose_last_step_does_not_match_goal():
