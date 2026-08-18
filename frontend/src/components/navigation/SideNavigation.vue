@@ -12,15 +12,15 @@ const thinkingPenguin = "/images/profiles/thinking-penguin.svg"
 const brandLogoSource = ref(brandPenguin)
 
 const primaryMenus = [
-  { icon: "🏠", label: "대시보드", to: "/dashboard" },
-  { icon: "💳", label: "자산", to: "/assets" },
-  { icon: "🤖", label: "AI 컨설팅", to: "/ai-consulting" },
+  { icon: "bi bi-house-fill", label: "대시보드", to: "/dashboard" },
+  { icon: "bi bi-bank", label: "자산관리", to: "/assets" },
+  { icon: "bi bi-robot", label: "AI 컨설팅", to: "/ai-consulting" },
 ]
 
 const utilityMenus = [
-  { icon: "🛍️", label: "포인트 샵", to: "/point-shop" },
-  { icon: "📇", label: "금융 리포트", to: "/reports" },
-  { icon: "⚙️", label: "설정", to: "/users/profile" },
+  { icon: "bi bi-cart3", label: "포인트 샵", to: "/point-shop" },
+  { icon: "bi bi-newspaper", label: "금융 리포트", to: "/reports" },
+  { icon: "bi bi-gear", label: "설정", to: "/users/profile" },
 ]
 
 const savingsTips = [
@@ -83,6 +83,8 @@ onBeforeUnmount(() => window.clearTimeout(dailyTipTimer))
 
 const route = useRoute()
 const router = useRouter()
+// 자산관리 하위 메뉴 열림 여부를 관리함
+const isAssetOpen = ref(false)
 // 챌린지 하위 메뉴 열림 여부를 관리함
 const isChallengeOpen = ref(false)
 const isChallengeChecking = ref(false)
@@ -97,11 +99,23 @@ const isChallengeRoute = computed(
     route.path === "/users/me/challenge-dashboard" ||
     route.path === "/my-feeds",
 )
+const isAssetRoute = computed(
+  () => route.path === "/assets" || route.path.startsWith("/assets/"),
+)
+const assetGroupClass = computed(() => ({
+  "asset-group-active": isAssetRoute.value,
+}))
+const assetCollapseIconClass = computed(() => ({
+  "collapse-icon-open": isAssetOpen.value,
+}))
+const monthlyReportClass = computed(() => ({
+  "submenu-link-active": route.path === "/assets/expenses",
+}))
 const challengeGroupClass = computed(() => ({
   "challenge-group-active": isChallengeRoute.value,
 }))
-const collapseMarkClass = computed(() => ({
-  "collapse-mark-open": isChallengeOpen.value,
+const collapseIconClass = computed(() => ({
+  "collapse-icon-open": isChallengeOpen.value,
 }))
 const weeklyRankingClass = computed(() => ({
   "submenu-link-active": route.path === "/challenges/rankings/weekly",
@@ -126,6 +140,21 @@ watch(
   },
   { immediate: true },
 )
+
+// 자산 관련 페이지에서는 새로고침 후에도 하위 메뉴가 펼쳐짐
+watch(
+  isAssetRoute,
+  (isActive) => {
+    if (isActive) {
+      isAssetOpen.value = true
+    }
+  },
+  { immediate: true },
+)
+
+const toggleAsset = () => {
+  isAssetOpen.value = !isAssetOpen.value
+}
 
 const toggleChallenge = () => {
   isChallengeOpen.value = !isChallengeOpen.value
@@ -215,30 +244,77 @@ const moveToMyFeeds = () => {
 
     <nav class="sidebar-nav d-flex flex-column">
       <div class="menu-group d-flex flex-column">
-        <RouterLink
-          v-for="menu in primaryMenus"
-          :key="menu.to"
-          :to="menu.to"
-          class="menu-item menu-link d-flex align-items-center"
-        >
-          <span class="menu-icon" aria-hidden="true">{{ menu.icon }}</span>
-          <span>{{ menu.label }}</span>
-        </RouterLink>
+        <template v-for="menu in primaryMenus" :key="menu.to">
+          <RouterLink
+            v-if="menu.to !== '/assets'"
+            :to="menu.to"
+            class="menu-item menu-link d-flex align-items-center"
+          >
+            <span class="menu-icon" aria-hidden="true">
+              <i :class="menu.icon"></i>
+            </span>
+            <span>{{ menu.label }}</span>
+          </RouterLink>
+
+          <div v-else class="asset-group" :class="assetGroupClass">
+            <div class="asset-heading d-flex align-items-center">
+              <RouterLink
+                to="/assets"
+                class="menu-item menu-link asset-title d-flex flex-grow-1 align-items-center"
+              >
+                <span class="menu-icon" aria-hidden="true">
+                  <i :class="menu.icon"></i>
+                </span>
+                <span>{{ menu.label }}</span>
+              </RouterLink>
+
+              <AppButton
+                class="collapse-toggle asset-collapse-toggle d-flex align-items-center justify-content-end"
+                variant="ghost"
+                size="sm"
+                :aria-expanded="isAssetOpen"
+                aria-controls="asset-submenu"
+                aria-label="자산관리 하위 메뉴 열기 및 닫기"
+                @click="toggleAsset"
+              >
+                <i
+                  class="bi bi-chevron-down collapse-icon ms-auto"
+                  :class="assetCollapseIconClass"
+                  aria-hidden="true"
+                ></i>
+              </AppButton>
+            </div>
+
+            <Transition name="submenu">
+              <div v-if="isAssetOpen" id="asset-submenu" class="submenu d-flex flex-column">
+                <RouterLink
+                  to="/assets/expenses"
+                  class="submenu-item submenu-link asset-monthly-report d-flex align-items-center"
+                  :class="monthlyReportClass"
+                >
+                  <span class="submenu-dot" aria-hidden="true"></span>
+                  월별 리포트
+                </RouterLink>
+              </div>
+            </Transition>
+          </div>
+        </template>
       </div>
 
       <div class="challenge-group" :class="challengeGroupClass">
         <div class="challenge-heading d-flex align-items-center">
-          <AppButton
+          <button
+            type="button"
             class="menu-item challenge-title d-flex flex-grow-1 align-items-center"
-            variant="ghost"
-            size="sm"
             :aria-expanded="isChallengeOpen"
             aria-controls="challenge-submenu"
             @click="toggleChallenge"
           >
-            <template #leading><span class="menu-icon" aria-hidden="true">💰</span></template>
+            <span class="menu-icon" aria-hidden="true">
+              <i class="bi bi-cash-coin"></i>
+            </span>
             절약 챌린지
-          </AppButton>
+          </button>
 
           <AppButton
             class="collapse-toggle d-flex align-items-center justify-content-end"
@@ -249,11 +325,11 @@ const moveToMyFeeds = () => {
             aria-label="절약 챌린지 하위 메뉴 열기 및 닫기"
             @click="toggleChallenge"
           >
-            <span
-              class="collapse-mark ms-auto"
-              :class="collapseMarkClass"
+            <i
+              class="bi bi-chevron-down collapse-icon ms-auto"
+              :class="collapseIconClass"
               aria-hidden="true"
-            ></span>
+            ></i>
           </AppButton>
         </div>
 
@@ -317,7 +393,9 @@ const moveToMyFeeds = () => {
           :to="menu.to"
           class="menu-item menu-link d-flex align-items-center"
         >
-          <span class="menu-icon" aria-hidden="true">{{ menu.icon }}</span>
+          <span class="menu-icon" aria-hidden="true">
+            <i :class="menu.icon"></i>
+          </span>
           <span>{{ menu.label }}</span>
         </RouterLink>
       </div>
@@ -419,33 +497,44 @@ const moveToMyFeeds = () => {
   line-height: 1;
 }
 
+.asset-heading {
+  min-height: 26px;
+}
+
+.asset-title {
+  min-height: 26px;
+}
+
+.asset-title:hover,
+.asset-group-active .asset-title {
+  color: #5f50d2;
+  font-weight: 700;
+}
+
+.asset-title:focus-visible {
+  border-radius: 4px;
+  outline: 2px solid #7062de;
+  outline-offset: 4px;
+}
+
 .challenge-group {
   margin-top: 20px;
 }
 
 .challenge-title {
+  justify-content: flex-start;
+  min-height: 26px;
   padding: 0;
   border: 0;
   color: inherit;
   background: transparent;
+  font: inherit;
   font-family: inherit;
   font-size: inherit;
   font-weight: 600;
   letter-spacing: inherit;
   text-align: left;
   cursor: pointer;
-}
-
-.challenge-title.app-button {
-  justify-content: flex-start;
-  min-height: 26px;
-  padding: 0;
-  border: 0;
-}
-
-.challenge-title :deep(.app-button__label) {
-  display: inline-flex;
-  align-items: center;
 }
 
 .challenge-title:hover,
@@ -476,18 +565,18 @@ const moveToMyFeeds = () => {
   padding: 0;
 }
 
-.collapse-mark {
-  width: 11px;
-  height: 11px;
+.collapse-icon {
+  display: inline-block;
   margin-right: 3px;
-  border-right: 2px solid #8f96ba;
-  border-bottom: 2px solid #8f96ba;
-  transform: rotate(45deg) translate(-2px, -2px);
+  color: #8f96ba;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
   transition: transform 0.2s ease;
 }
 
-.collapse-mark-open {
-  transform: rotate(225deg) translate(-2px, -2px);
+.collapse-icon-open {
+  transform: rotate(180deg);
 }
 
 .submenu {
