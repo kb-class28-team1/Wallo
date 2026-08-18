@@ -5,7 +5,6 @@ import { useUserStore } from "@/stores/userStore"
 import { getAccessToken } from "@/api/authToken"
 import { refreshAccessToken } from "@/api/authApi"
 import { formatWon } from "@/commonUtils/formatters"
-import arrowPaperPlaneUrl from "@/assets/arrow_paper_plane.svg"
 import AppDialog from "@/components/common/AppDialog.vue"
 import AuthenticatedImage from "@/components/common/AuthenticatedImage.vue"
 import AppAlert from "@/components/ui/AppAlert.vue"
@@ -856,7 +855,8 @@ onBeforeUnmount(() => {
                 @click="leaveCurrentChallenge"
               >
                 <template #leading>
-                  <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+                  <i class="bi bi-door-open" aria-hidden="true"></i>
+                  <i class="bi bi-door-open-fill" aria-hidden="true"></i>
                 </template>
               </AppButton>
             </div>
@@ -934,7 +934,7 @@ onBeforeUnmount(() => {
                   title="언급하기"
                   @click.stop="mentionFeedFromCard(feed)"
                 >
-                  <img :src="arrowPaperPlaneUrl" alt="" />
+                  <i class="bi bi-send" aria-hidden="true"></i>
                   언급하기
                 </button>
                 <button
@@ -1302,7 +1302,7 @@ onBeforeUnmount(() => {
   color: #939bad;
   font-size: 0.67rem;
 }
-.feed-leave-button {
+.feed-leave-button.app-button {
   display: inline-flex !important;
   visibility: visible !important;
   position: static;
@@ -1322,9 +1322,21 @@ onBeforeUnmount(() => {
     background 0.2s ease,
     border-color 0.2s ease;
 }
-.feed-leave-button:hover:not(:disabled) {
-  color: #f05252;
-  background: #fff0ef;
+.feed-leave-button :deep(.app-button__label) {
+  display: none;
+}
+.feed-leave-button :deep(.bi-door-open-fill) {
+  display: none;
+}
+.feed-leave-button.app-button:hover:not(:disabled) {
+  color: #ff6b6b;
+  background: transparent;
+}
+.feed-leave-button.app-button:hover:not(:disabled) :deep(.bi-door-open) {
+  display: none;
+}
+.feed-leave-button.app-button:hover:not(:disabled) :deep(.bi-door-open-fill) {
+  display: inline-block;
 }
 .feed-leave-button:disabled {
   cursor: wait;
@@ -1599,11 +1611,11 @@ onBeforeUnmount(() => {
   border-radius: 0;
   font-size: 0;
 }
-.mention-feed-button img {
-  width: 24px;
-  height: 24px;
+.mention-feed-button i {
+  display: inline-block;
+  font-size: 18px;
+  line-height: 1;
   transform: translateY(2px);
-  filter: brightness(0) invert(1);
 }
 .mention-feed-button:hover {
   color: #dcd7ff;
