@@ -5,6 +5,7 @@ import com.wallo.mission.dto.TodayMissionResponse;
 import com.wallo.mission.service.DailyMissionService;
 import com.wallo.mission.dto.MissionVerificationDto;
 import com.wallo.mission.service.MissionVerificationService;
+import com.wallo.mission.service.MissionCompletionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -20,19 +21,28 @@ public class MissionController {
     private final DailyMissionService dailyMissionService;
     private final CurrentUserProvider currentUserProvider;
     private final MissionVerificationService verificationService;
+    private final MissionCompletionService completionService;
 
     @Autowired
     public MissionController(DailyMissionService dailyMissionService,
                              CurrentUserProvider currentUserProvider,
-                             MissionVerificationService verificationService) {
+                             MissionVerificationService verificationService,
+                             MissionCompletionService completionService) {
         this.dailyMissionService = dailyMissionService;
         this.currentUserProvider = currentUserProvider;
         this.verificationService = verificationService;
+        this.completionService = completionService;
+    }
+
+    public MissionController(DailyMissionService dailyMissionService,
+                             CurrentUserProvider currentUserProvider,
+                             MissionVerificationService verificationService) {
+        this(dailyMissionService, currentUserProvider, verificationService, null);
     }
 
     public MissionController(DailyMissionService dailyMissionService,
                              CurrentUserProvider currentUserProvider) {
-        this(dailyMissionService, currentUserProvider, null);
+        this(dailyMissionService, currentUserProvider, null, null);
     }
 
     @GetMapping("/today")
@@ -48,5 +58,19 @@ public class MissionController {
         Long userId = currentUserProvider.getCurrentUserId();
         return ResponseEntity.ok(verificationService.verify(
                 userId, dailyMissionId, feedId));
+    }
+
+    @PostMapping("/{dailyMissionId}/self-check")
+    public ResponseEntity<MissionVerificationDto.Response> selfCheck(
+            @PathVariable Long dailyMissionId) {
+        return ResponseEntity.ok(completionService.selfCheck(
+                currentUserProvider.getCurrentUserId(), dailyMissionId));
+    }
+
+    @PostMapping("/{dailyMissionId}/transaction/verify")
+    public ResponseEntity<MissionVerificationDto.Response> verifyTransaction(
+            @PathVariable Long dailyMissionId) {
+        return ResponseEntity.ok(completionService.verifyTransaction(
+                currentUserProvider.getCurrentUserId(), dailyMissionId));
     }
 }

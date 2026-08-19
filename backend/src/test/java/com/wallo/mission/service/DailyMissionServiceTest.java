@@ -1,190 +1,34 @@
 package com.wallo.mission.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.wallo.mission.domain.DailyMission;
-import com.wallo.mission.domain.Mission;
-import com.wallo.mission.domain.MissionCycle;
-import com.wallo.mission.dto.MissionGenerationDto;
-import com.wallo.mission.dto.TodayMissionResponse;
 import com.wallo.mission.mapper.MissionMapper;
-import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-import static org.mockito.Mockito.mock;
+import org.mockito.Mockito;
 
-import com.wallo.chat.client.AiRateLimitException;
 class DailyMissionServiceTest {
-    @Mock private MissionMapper mapper;
-    private DailyMissionService service;
-    private final LocalDate today = LocalDate.of(2026, 8, 17);
-
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
-        Clock clock = Clock.fixed(Instant.parse("2026-08-16T15:00:00Z"),
+    @Test
+    void returnsMissionsStoredForRequestedDateAndExpiresOlderOnes() {
+        MissionMapper mapper = Mockito.mock(MissionMapper.class);
+        LocalDate date = LocalDate.of(2026, 8, 19);
+        DailyMission mission = new DailyMission();
+        mission.setDailyMissionId(1L);
+        mission.setStatus("ASSIGNED");
+        when(mapper.findDailyMissions(7L, date)).thenReturn(List.of(mission));
+        Clock clock = Clock.fixed(Instant.parse("2026-08-19T03:00:00Z"),
                 ZoneId.of("Asia/Seoul"));
-        service = new DailyMissionService(mapper, new MissionCycleCalculator(),
-                clock, new SecureRandom(new byte[]{1, 2, 3}));
-    }
 
-    @Test
-    void assignsThreeDistinctMissionsAndReturnsThem() {
-        MissionCycle cycle = activeCycle();
-        when(mapper.findCycleForUpdate(7L, today)).thenReturn(cycle);
-        when(mapper.findMissionsByCycleId(10L)).thenReturn(missions(30));
-        when(mapper.findDailyMissions(7L, today))
-                .thenReturn(List.of(), List.of(), dailyMissions());
+        var result = new DailyMissionService(mapper, clock).getOrAssign(7L, date);
 
-        TodayMissionResponse response = service.getOrAssignToday(7L);
-
-        assertEquals(3, response.missions().size());
-        ArgumentCaptor<DailyMission> captor = ArgumentCaptor.forClass(DailyMission.class);
-        verify(mapper, times(3)).insertDailyMission(captor.capture());
-        assertEquals(3, new HashSet<>(captor.getAllValues().stream()
-                .map(DailyMission::getMissionId).toList()).size());
-        assertEquals(List.of(1, 2, 3), captor.getAllValues().stream()
-                .map(DailyMission::getDisplayOrder).toList());
-    }
-
-    @Test
-    void repeatedLookupReturnsExistingAssignmentsWithoutDrawingAgain() {
-        when(mapper.findDailyMissions(7L, today)).thenReturn(dailyMissions());
-
-        TodayMissionResponse response = service.getOrAssignToday(7L);
-
-        assertEquals(3, response.missions().size());
-        verify(mapper, never()).findCycleForUpdate(any(), any());
-        verify(mapper, never()).insertDailyMission(any());
-    }
-
-    @Test
-    void returnsEmptyWhenActiveCycleDoesNotExist() {
-        when(mapper.findDailyMissions(7L, today)).thenReturn(List.of());
-        when(mapper.findCycleForUpdate(7L, today)).thenReturn(null);
-
-        TodayMissionResponse response = service.getOrAssignToday(7L);
-
-        assertTrue(response.missions().isEmpty());
-        verify(mapper, never()).insertDailyMission(any());
-    }
-
-    @Test
-    void returnsEmptyMissionsWhileConsumptionAnalysisIsWaiting() {
-        MissionGenerationService generationService = mock(MissionGenerationService.class);
-        DailyMissionService waitingService = new DailyMissionService(
-                mapper, new MissionCycleCalculator(),
-                Clock.fixed(Instant.parse("2026-08-16T15:00:00Z"), ZoneId.of("Asia/Seoul")),
-                new SecureRandom(new byte[]{1, 2, 3}), generationService);
-        when(mapper.findDailyMissions(7L, today)).thenReturn(List.of());
-        when(generationService.generateToday(7L, today)).thenReturn(
-                new MissionGenerationDto.Result(
-                        null, 7L, 0, TodayMissionResponse.WAITING_ANALYSIS_STATUS));
-
-        TodayMissionResponse response = waitingService.getOrAssignToday(7L);
-
-        assertEquals(TodayMissionResponse.WAITING_ANALYSIS_STATUS, response.status());
-        assertTrue(response.missions().isEmpty());
-        verify(mapper, never()).insertDailyMission(any());
-    }
-
-    @Test
-    void returnsGenerationFailedStatusWhenMissionAiIsRateLimited() {
-        MissionGenerationService generationService = mock(MissionGenerationService.class);
-        DailyMissionService failedService = new DailyMissionService(
-                mapper, new MissionCycleCalculator(),
-                Clock.fixed(Instant.parse("2026-08-16T15:00:00Z"), ZoneId.of("Asia/Seoul")),
-                new SecureRandom(new byte[]{1, 2, 3}), generationService);
-        when(mapper.findDailyMissions(7L, today)).thenReturn(List.of());
-        when(generationService.generateToday(7L, today)).thenReturn(
-                new MissionGenerationDto.Result(
-                        10L, 7L, 0, TodayMissionResponse.GENERATION_FAILED_STATUS, "RATE_LIMIT"));
-
-        TodayMissionResponse response = failedService.getOrAssignToday(7L);
-
-        assertEquals(TodayMissionResponse.GENERATION_FAILED_STATUS, response.status());
-        assertEquals("RATE_LIMIT", response.failureReason());
-        assertTrue(response.missions().isEmpty());
-    }
-
-    @Test
-    void convertsDirectMissionRateLimitIntoRetryableStatus() {
-        MissionGenerationService generationService = mock(MissionGenerationService.class);
-        DailyMissionService failedService = new DailyMissionService(
-                mapper, new MissionCycleCalculator(),
-                Clock.fixed(Instant.parse("2026-08-16T15:00:00Z"), ZoneId.of("Asia/Seoul")),
-                new SecureRandom(new byte[]{1, 2, 3}), generationService);
-        when(mapper.findDailyMissions(7L, today)).thenReturn(List.of());
-        when(generationService.generateToday(7L, today)).thenThrow(
-                new AiRateLimitException("rate limited", null));
-
-        TodayMissionResponse response = failedService.getOrAssignToday(7L);
-
-        assertEquals(TodayMissionResponse.GENERATION_FAILED_STATUS, response.status());
-        assertEquals("RATE_LIMIT", response.failureReason());
-        verify(generationService).markGenerationFailed(
-                eq(7L), org.mockito.ArgumentMatchers.any(RuntimeException.class));
-    }
-
-    @Test
-    void expiresPreviousAssignedMissionsBeforeTodayLookup() {
-        when(mapper.findDailyMissions(7L, today)).thenReturn(dailyMissions());
-
-        service.getOrAssignToday(7L);
-
-        verify(mapper).expireAssignedMissionsBefore(7L, today);
-    }
-
-    private MissionCycle activeCycle() {
-        MissionCycle cycle = new MissionCycle();
-        cycle.setMissionCycleId(10L);
-        cycle.setUserId(7L);
-        cycle.setCycleStartDate(today);
-        cycle.setCycleEndDate(today.plusDays(13));
-        cycle.setStatus("ACTIVE");
-        return cycle;
-    }
-
-    private List<Mission> missions(int count) {
-        List<Mission> result = new ArrayList<>();
-        for (long index = 1; index <= count; index++) {
-            Mission mission = new Mission();
-            mission.setMissionId(index);
-            mission.setMissionCycleId(10L);
-            result.add(mission);
-        }
-        return result;
-    }
-
-    private List<DailyMission> dailyMissions() {
-        List<DailyMission> result = new ArrayList<>();
-        for (int index = 1; index <= 3; index++) {
-            DailyMission mission = new DailyMission();
-            mission.setDailyMissionId((long) index);
-            mission.setMissionId((long) index);
-            mission.setDisplayOrder(index);
-            mission.setTitle("오늘의 미션 " + index);
-            mission.setStatus("ASSIGNED");
-            result.add(mission);
-        }
-        return result;
+        assertEquals(1, result.missions().size());
+        verify(mapper).expireAssignedMissionsBefore(7L, date);
     }
 }
-

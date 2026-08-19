@@ -11,6 +11,7 @@ import pytest
 from groq import BadRequestError
 
 from app.agents.goal.extractor import (
+    GOAL_EXTRACTION_MAX_COMPLETION_TOKENS,
     GoalExtractionError,
     GoalExtractor,
     explicit_target_date,
@@ -129,6 +130,23 @@ def test_extractor_parses_structured_goal_fields_and_sends_current_draft():
     assert result.target_date == date(2027, 6, 1)
     call = client.chat.completions.create
     assert call is not None
+
+
+def test_extractor_uses_goal_specific_completion_token_cap():
+    create = Mock(return_value=tool_completion('{"goal_type":"TRAVEL"}'))
+    client = SimpleNamespace(
+        chat=SimpleNamespace(
+            completions=SimpleNamespace(create=create),
+        ),
+    )
+
+    GoalExtractor(client).extract(
+        "여행 목표를 세우고 싶어",
+        GoalDraft(),
+        date(2026, 8, 6),
+    )
+
+    assert create.call_args.kwargs["max_completion_tokens"] == GOAL_EXTRACTION_MAX_COMPLETION_TOKENS
 
 
 def test_goal_tool_schema_allows_null_for_optional_fields():

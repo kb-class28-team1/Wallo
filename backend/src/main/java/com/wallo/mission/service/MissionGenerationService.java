@@ -5,16 +5,11 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wallo.chat.client.AiRateLimitException;
 import com.wallo.mission.client.MissionAiClient;
-import com.wallo.mission.domain.Mission;
 import com.wallo.mission.domain.MissionAnalysisSource;
-import com.wallo.mission.domain.MissionCycle;
 import com.wallo.mission.domain.DailyMission;
 import com.wallo.mission.dto.MissionGenerationDto;
 import com.wallo.mission.dto.TodayMissionResponse;
 import com.wallo.mission.mapper.MissionMapper;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -40,7 +35,6 @@ public class MissionGenerationService {
     private static final int MAX_SUMMARY_LIST_ITEMS = 8;
     private static final int MAX_SUMMARY_TEXT_LENGTH = 500;
     private static final long GENERATION_RETRY_DELAY_SECONDS = 5;
-    private static final String FAILED_PROMPT_VERSION = "pending-v1";
     private static final Set<String> ANALYSIS_SUMMARY_FIELDS = Set.of(
             "summary", "message", "focus", "periodType", "periodLabel",
             "analysisPeriod", "comparisonPeriod", "dataSufficiency", "totalChange",
@@ -48,32 +42,29 @@ public class MissionGenerationService {
             "oneOffHighSpending", "repeatingCategories", "recurringPaymentCandidates",
             "positiveImprovements", "patterns", "continuousImprovement");
     private static final Set<String> VERIFICATION_TYPES = Set.of(
-            "MEDIA_AI", "TRANSACTION", "HYBRID", "SELF_CHECK", "MANUAL");
+            "MEDIA_AI", "TRANSACTION", "SELF_CHECK");
 
     private final MissionMapper missionMapper;
     private final MissionAiClient missionAiClient;
     private final ObjectMapper objectMapper;
-    private final MissionCycleCalculator cycleCalculator;
     private final Clock clock;
     private final IntSupplier dailyMissionCount;
     private final Set<Long> generationInProgress = ConcurrentHashMap.newKeySet();
+    private final Map<Long, GenerationFailure> generationFailures = new ConcurrentHashMap<>();
 
     @Autowired
     public MissionGenerationService(MissionMapper missionMapper, MissionAiClient missionAiClient,
-                                    ObjectMapper objectMapper,
-                                    MissionCycleCalculator cycleCalculator, Clock clock) {
-        this(missionMapper, missionAiClient, objectMapper, cycleCalculator, clock,
+                                    ObjectMapper objectMapper, Clock clock) {
+        this(missionMapper, missionAiClient, objectMapper, clock,
                 () -> ThreadLocalRandom.current().nextInt(1, 4));
     }
 
     MissionGenerationService(MissionMapper missionMapper, MissionAiClient missionAiClient,
-                             ObjectMapper objectMapper,
-                             MissionCycleCalculator cycleCalculator, Clock clock,
+                             ObjectMapper objectMapper, Clock clock,
                              IntSupplier dailyMissionCount) {
         this.missionMapper = missionMapper;
         this.missionAiClient = missionAiClient;
         this.objectMapper = objectMapper;
-        this.cycleCalculator = cycleCalculator;
         this.clock = clock;
         this.dailyMissionCount = dailyMissionCount;
     }
@@ -150,32 +141,21 @@ public class MissionGenerationService {
         if (date == null) throw new IllegalArgumentException("date is required.");
         List<DailyMission> assigned = missionMapper.findDailyMissions(userId, date);
         if (assigned != null && !assigned.isEmpty()) {
-            return new MissionGenerationDto.Result(
-                    assigned.get(0).getMissionCycleId(), userId, assigned.size(), "ACTIVE");
+            return new MissionGenerationDto.Result(userId, assigned.size(), "ACTIVE");
         }
-
-        LocalDate start = cycleCalculator.cycleStart(date);
-        MissionCycle cycle = missionMapper.findCycle(userId, start);
-        if (hasRecentGenerationFailure(cycle)) {
+        GenerationFailure failure = generationFailures.get(userId);
+        if (failure != null && !LocalDateTime.now(clock).isAfter(
+                failure.failedAt().plusSeconds(GENERATION_RETRY_DELAY_SECONDS))) {
             return new MissionGenerationDto.Result(
-                    cycle.getMissionCycleId(),
-                    userId,
-                    0,
-                    TodayMissionResponse.GENERATION_FAILED_STATUS,
-                    cycle.getGenerationError()
-            );
+                    userId, 0, TodayMissionResponse.GENERATION_FAILED_STATUS,
+                    failure.reason());
         }
         MissionAnalysisSource source = missionMapper.findLatestAnalysis(userId);
         if (source == null) {
             return new MissionGenerationDto.Result(
-                    cycle == null ? null : cycle.getMissionCycleId(),
-                    userId,
-                    0,
-                    TodayMissionResponse.WAITING_ANALYSIS_STATUS);
+                    userId, 0, TodayMissionResponse.WAITING_ANALYSIS_STATUS);
         }
-        List<String> excludedTitles = cycle == null ? List.of()
-                : missionMapper.findMissionsByCycleId(cycle.getMissionCycleId()).stream()
-                        .map(Mission::getTitle).toList();
+        List<String> excludedTitles = List.of();
         int requestedCount = dailyMissionCount.getAsInt();
         if (requestedCount < 1 || requestedCount > 3) {
             throw new IllegalStateException("Daily mission count must be between 1 and 3.");
@@ -186,39 +166,18 @@ public class MissionGenerationService {
                 requestedCount, excludedTitles));
         validate(response, requestedCount);
 
-        if (cycle == null) {
-            cycle = new MissionCycle();
-            cycle.setUserId(userId);
-            cycle.setCycleStartDate(start);
-            cycle.setCycleEndDate(start.plusDays(13));
-            cycle.setStatus("ACTIVE");
-            cycle.setSourceAnalysisResultId(source.getAnalysisResultId());
-            cycle.setPromptVersion(response.promptVersion());
-            missionMapper.insertCycle(cycle);
-        } else if (cycle.getGenerationError() != null) {
-            missionMapper.updateCycleStatus(cycle.getMissionCycleId(), "ACTIVE", null);
-        }
-
         int displayOrder = 1;
         for (MissionGenerationDto.GeneratedMission generated : response.missions()) {
-            Mission mission = toMission(cycle.getMissionCycleId(), generated);
-            missionMapper.insertMission(mission);
-            DailyMission daily = new DailyMission();
-            daily.setMissionCycleId(cycle.getMissionCycleId());
-            daily.setMissionId(mission.getMissionId());
-            daily.setUserId(userId);
-            daily.setAssignedDate(date);
-            daily.setDisplayOrder(displayOrder++);
-            daily.setStatus("ASSIGNED");
+            DailyMission daily = toDailyMission(userId, date, displayOrder++, generated);
             missionMapper.insertDailyMission(daily);
         }
-        return new MissionGenerationDto.Result(
-                cycle.getMissionCycleId(), userId, response.missions().size(), "ACTIVE");
+        generationFailures.remove(userId);
+        return new MissionGenerationDto.Result(userId, response.missions().size(), "ACTIVE");
     }
 
     private MissionGenerationDto.Result waitingResult(Long userId) {
         return new MissionGenerationDto.Result(
-                null, userId, 0, TodayMissionResponse.WAITING_ANALYSIS_STATUS);
+                userId, 0, TodayMissionResponse.WAITING_ANALYSIS_STATUS);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -230,40 +189,8 @@ public class MissionGenerationService {
         String failureReason = exception instanceof AiRateLimitException
                 ? "RATE_LIMIT"
                 : "GENERATION_FAILED";
-        LocalDate date = LocalDate.now(clock);
-        LocalDate start = cycleCalculator.cycleStart(date);
-        MissionCycle cycle = missionMapper.findCycle(userId, start);
-        if (cycle == null) {
-            MissionAnalysisSource source = missionMapper.findLatestAnalysis(userId);
-            if (source == null) {
-                return;
-            }
-
-            MissionCycle failedCycle = new MissionCycle();
-            failedCycle.setUserId(userId);
-            failedCycle.setCycleStartDate(start);
-            failedCycle.setCycleEndDate(start.plusDays(13));
-            failedCycle.setStatus("FAILED");
-            failedCycle.setSourceAnalysisResultId(source.getAnalysisResultId());
-            failedCycle.setPromptVersion(FAILED_PROMPT_VERSION);
-            failedCycle.setGenerationError(failureReason);
-            failedCycle.setGeneratedAt(LocalDateTime.now(clock));
-            missionMapper.insertCycle(failedCycle);
-            return;
-        }
-
-        String status = "ACTIVE".equals(cycle.getStatus()) ? "ACTIVE" : "FAILED";
-        missionMapper.updateCycleStatus(cycle.getMissionCycleId(), status, failureReason);
-    }
-
-    private boolean hasRecentGenerationFailure(MissionCycle cycle) {
-        if (cycle == null || cycle.getGenerationError() == null
-                || cycle.getGenerationError().isBlank()
-                || cycle.getGeneratedAt() == null) {
-            return false;
-        }
-        return !LocalDateTime.now(clock).isAfter(
-                cycle.getGeneratedAt().plusSeconds(GENERATION_RETRY_DELAY_SECONDS));
+        generationFailures.put(userId,
+                new GenerationFailure(failureReason, LocalDateTime.now(clock)));
     }
 
     private void releaseGenerationLockAfterTransaction(Long userId) {
@@ -338,12 +265,39 @@ public class MissionGenerationService {
             if (!keys.add(normalizedKey(mission))) {
                 throw new IllegalStateException("AI missions must be unique.");
             }
+            validateVerificationRule(mission);
         }
     }
 
-    private Mission toMission(Long cycleId, MissionGenerationDto.GeneratedMission generated) {
-        Mission mission = new Mission();
-        mission.setMissionCycleId(cycleId);
+    private void validateVerificationRule(MissionGenerationDto.GeneratedMission mission) {
+        Map<String, Object> rule = mission.verificationRule();
+        if (rule == null || rule.get("description") == null
+                || isBlank(String.valueOf(rule.get("description")))) {
+            throw new IllegalStateException("AI mission verification rule is required.");
+        }
+        String operator = String.valueOf(rule.get("transactionOperator"));
+        String category = rule.get("transactionCategory") == null
+                ? "" : String.valueOf(rule.get("transactionCategory"));
+        Object amountValue = rule.get("transactionAmount");
+        if ("TRANSACTION".equals(mission.verificationType())) {
+            if (!"SINGLE_MAX".equals(operator) || isBlank(category)
+                    || !(amountValue instanceof Number number) || number.longValue() < 0) {
+                throw new IllegalStateException("Transaction mission rule is invalid.");
+            }
+            return;
+        }
+        if (!"NONE".equals(operator)) {
+            throw new IllegalStateException("Non-transaction mission rule is invalid.");
+        }
+    }
+
+    private DailyMission toDailyMission(Long userId, LocalDate date, int displayOrder,
+                                        MissionGenerationDto.GeneratedMission generated) {
+        DailyMission mission = new DailyMission();
+        mission.setUserId(userId);
+        mission.setAssignedDate(date);
+        mission.setDisplayOrder(displayOrder);
+        mission.setStatus("ASSIGNED");
         mission.setTitle(generated.title().trim());
         mission.setDescription(generated.description().trim());
         mission.setCategory(generated.category().trim().toUpperCase(Locale.ROOT));
@@ -356,25 +310,14 @@ public class MissionGenerationService {
             throw new IllegalStateException("Mission verification rule is invalid.", exception);
         }
         mission.setEvidenceGuide(generated.evidenceGuide());
-        mission.setDeduplicationKey(sha256(normalizedKey(generated)));
         return mission;
     }
+
+    private record GenerationFailure(String reason, LocalDateTime failedAt) {}
 
     private String normalizedKey(MissionGenerationDto.GeneratedMission mission) {
         return mission.title().replaceAll("\\s+", "")
                 .toLowerCase(Locale.ROOT);
-    }
-
-    private String sha256(String value) {
-        try {
-            byte[] digest = MessageDigest.getInstance("SHA-256")
-                    .digest(value.getBytes(StandardCharsets.UTF_8));
-            StringBuilder result = new StringBuilder();
-            for (byte item : digest) result.append(String.format("%02x", item));
-            return result.toString();
-        } catch (NoSuchAlgorithmException exception) {
-            throw new IllegalStateException("SHA-256 is unavailable.", exception);
-        }
     }
 
     private boolean isBlank(String value) { return value == null || value.isBlank(); }

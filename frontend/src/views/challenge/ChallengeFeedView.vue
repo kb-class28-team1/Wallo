@@ -701,7 +701,7 @@ const uploadFeed = async () => {
         verificationResult.decision === "PASS"
           ? `미션을 달성했습니다! +${verificationResult.rewardedPoint}P`
           : verificationResult.decision === "FAIL"
-            ? "미션 달성 근거가 부족해 인증에 실패했습니다."
+            ? verificationResult.reason || "미션 핵심 단어가 분석 결과에 없어 인증에 실패했습니다."
             : "AI 판단이 어려워 검토 중으로 처리했습니다."
       await openDialog({ title: "미션 인증 결과", message: resultMessage })
     } else if (verificationError) {

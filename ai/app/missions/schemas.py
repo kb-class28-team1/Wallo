@@ -21,7 +21,7 @@ class GeneratedMission(BaseModel):
     category: str = Field(min_length=1, max_length=30)
     rewardPoint: Literal[10]
     verificationType: Literal[
-        "MEDIA_AI", "TRANSACTION", "HYBRID", "SELF_CHECK", "MANUAL"
+        "MEDIA_AI", "TRANSACTION", "SELF_CHECK"
     ]
     verificationRule: dict[str, Any]
     evidenceGuide: str = Field(min_length=1, max_length=500)
