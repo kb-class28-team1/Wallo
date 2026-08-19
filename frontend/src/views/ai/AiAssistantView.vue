@@ -1,9 +1,15 @@
 <script setup>
-import { computed, onMounted, ref } from "vue"
+import { computed, onBeforeUnmount, onMounted, ref } from "vue"
 import { useRouter } from "vue-router"
 import { storeToRefs } from "pinia"
 import { useGoalStore } from "@/stores/goalStore"
+import { useProductRecommendationStore } from "@/stores/productRecommendationStore"
 import { useUserStore } from "@/stores/userStore"
+import {
+  completeSelfCheckMission,
+  getTodayMissions,
+  verifyTransactionMission,
+} from "@/api/missionApi"
 import { formatWon } from "@/utils/formatters"
 import {
   getGoalAchievementRate,
@@ -15,9 +21,11 @@ import AppButton from "@/components/ui/AppButton.vue"
 import AppCard from "@/components/ui/AppCard.vue"
 import AppPageHeader from "@/components/ui/AppPageHeader.vue"
 import AppState from "@/components/ui/AppState.vue"
+import ProductRecommendationResult from "@/components/analysis/ProductRecommendationResult.vue"
 
 const router = useRouter()
 const goalStore = useGoalStore()
+const productRecommendationStore = useProductRecommendationStore()
 const userStore = useUserStore()
 const {
   goals,
@@ -29,6 +37,13 @@ const {
   roadmapError,
   isRoadmapProgressSaving,
 } = storeToRefs(goalStore)
+const {
+  productRecommendation,
+  requestMessage,
+  generatedAt,
+  status: productRecommendationStatus,
+  error: productRecommendationError,
+} = storeToRefs(productRecommendationStore)
 const { user } = storeToRefs(userStore)
 
 const walloCharacter = "/images/profiles/thinking-penguin.svg"
@@ -36,10 +51,49 @@ const hasGoal = computed(() => goals.value.length > 0)
 const currentGoal = computed(() => goals.value[0] ?? null)
 const roadmapSlider = ref(null)
 const userId = computed(() => user.value?.id ?? null)
+const missions = ref([])
+const missionStatus = ref("READY")
+const missionError = ref("")
+const isMissionLoading = ref(false)
+let missionDateTimer = null
+const missionActionId = ref(null)
 
 const currentAmount = computed(() => getGoalCurrentAmount(currentGoal.value))
 const targetAmount = computed(() => getGoalTargetAmount(currentGoal.value))
 const achievementRate = computed(() => getGoalAchievementRate(currentGoal.value))
+const completedMissionCount = computed(
+  () => missions.value.filter((mission) => mission.completed).length,
+)
+
+const getMissionVerificationInfo = (mission) => {
+  const verificationType = mission?.verificationType
+  const typeGuides = {
+    MEDIA_AI: {
+      label: "사진·영상 AI 인증",
+      guide: mission?.evidenceGuide || "미션 수행 장면을 촬영해 피드에 등록하세요.",
+    },
+    TRANSACTION: {
+      label: "거래 내역 자동 확인",
+      guide: "연결된 거래 내역을 기준으로 달성 여부를 자동 확인합니다.",
+    },
+    HYBRID: {
+      label: "복합 인증",
+      guide: "사진·영상 인증과 거래 내역을 함께 확인해 달성 여부를 판단합니다.",
+    },
+    SELF_CHECK: {
+      label: "직접 완료 체크",
+      guide: "미션을 실천한 뒤 오늘의 미션에서 완료 여부를 직접 체크하세요.",
+    },
+    MANUAL: {
+      label: "수동 확인",
+      guide: "미션 수행 증빙을 제출하면 확인 후 달성 여부가 결정됩니다.",
+    },
+  }
+  return typeGuides[verificationType] || {
+    label: "달성 방법",
+    guide: mission?.evidenceGuide || "미션 안내에 따라 실천해 주세요.",
+  }
+}
 
 const parseGoalDate = (value) => {
   if (!value) return null
@@ -157,6 +211,53 @@ const loadGoalPage = async ({ force = false } = {}) => {
   })
 }
 
+const loadTodayMissionList = async () => {
+  isMissionLoading.value = true
+  missionError.value = ""
+  try {
+    const response = await getTodayMissions()
+    missions.value = response.missions
+    missionStatus.value = response.status || "READY"
+    const transactionMissions = missions.value.filter(
+      (mission) => mission.verificationType === "TRANSACTION" && !mission.completed,
+    )
+    if (transactionMissions.length) {
+      const results = await Promise.allSettled(
+        transactionMissions.map((mission) => verifyTransactionMission(mission.id)),
+      )
+      if (results.some(
+        (result) => result.status === "fulfilled" && result.value?.decision === "PASS",
+      )) {
+        const refreshed = await getTodayMissions()
+        missions.value = refreshed.missions
+        missionStatus.value = refreshed.status || "READY"
+        window.dispatchEvent(new CustomEvent("wallo:mission-updated", {
+          detail: { missionResponse: refreshed },
+        }))
+      }
+    }
+  } catch (missionLoadError) {
+    missions.value = []
+    missionError.value = missionLoadError.message || "오늘의 미션을 불러오지 못했습니다."
+  } finally {
+    isMissionLoading.value = false
+  }
+}
+
+const applyMissionResponse = (response) => {
+  missions.value = response?.missions || []
+  missionStatus.value = response?.status || "READY"
+  missionError.value = ""
+}
+
+const loadLatestProductRecommendation = ({ force = false } = {}) =>
+  productRecommendationStore.fetchLatest({ force })
+
+const formatRecommendationDate = (value) => {
+  if (!value) return ""
+  return String(value).replace("T", " ").slice(0, 16)
+}
+
 const startGoalSetting = async () => {
   await router.push({
     name: "chat",
@@ -168,7 +269,68 @@ const startAiChat = async () => {
   await router.push({ name: "chat" })
 }
 
-onMounted(() => loadGoalPage({ force: true }))
+const startConsumptionAnalysis = async () => {
+  await router.push({
+    name: "chat",
+    query: { action: "consumption-analysis" },
+  })
+}
+
+const handleMissionUpdated = (event) => {
+  const generatedResponse = event?.detail?.missionResponse
+  if (generatedResponse) {
+    applyMissionResponse(generatedResponse)
+    return
+  }
+  void loadTodayMissionList()
+}
+
+const runMissionAction = async (mission) => {
+  if (mission.completed || missionActionId.value) return
+  if (mission.verificationType !== "SELF_CHECK") return
+  missionActionId.value = mission.id
+  try {
+    await completeSelfCheckMission(mission.id)
+    await loadTodayMissionList()
+    window.dispatchEvent(new CustomEvent("wallo:mission-updated"))
+  } catch (missionActionError) {
+    alert(missionActionError.message || "미션 처리에 실패했습니다.")
+  } finally {
+    missionActionId.value = null
+  }
+}
+
+const scheduleNextMissionDateRefresh = () => {
+  if (missionDateTimer) clearTimeout(missionDateTimer)
+  const now = new Date()
+  const nextDate = new Date(now)
+  nextDate.setHours(24, 0, 0, 250)
+  missionDateTimer = setTimeout(async () => {
+    await loadTodayMissionList()
+    scheduleNextMissionDateRefresh()
+  }, nextDate.getTime() - now.getTime())
+}
+
+const handlePageVisibility = () => {
+  if (document.visibilityState === "visible") void loadTodayMissionList()
+}
+
+onMounted(() => {
+  window.addEventListener("wallo:mission-updated", handleMissionUpdated)
+  window.addEventListener("focus", handlePageVisibility)
+  document.addEventListener("visibilitychange", handlePageVisibility)
+  void loadGoalPage({ force: true })
+  void loadLatestProductRecommendation({ force: true })
+  void loadTodayMissionList()
+  scheduleNextMissionDateRefresh()
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener("wallo:mission-updated", handleMissionUpdated)
+  window.removeEventListener("focus", handlePageVisibility)
+  document.removeEventListener("visibilitychange", handlePageVisibility)
+  if (missionDateTimer) clearTimeout(missionDateTimer)
+})
 </script>
 
 <template>
@@ -221,15 +383,15 @@ onMounted(() => loadGoalPage({ force: true }))
 
     <div v-else-if="!hasGoal" class="empty-dashboard">
       <div class="row g-4 align-items-stretch">
-        <div class="col-xl-8">
-          <AppCard as="article" class="content-card" padding="none">
-            <div class="card-body p-4 p-lg-5">
+        <div class="col-xl-7">
+          <AppCard as="article" class="content-card goal-main-card h-100" padding="none">
+            <div class="card-body p-4">
               <h2 class="section-title h5 fw-bold">
                 나의 목표
                 <i class="bi bi-info-circle ms-1 text-secondary" aria-hidden="true"></i>
               </h2>
 
-              <div class="goal-empty-box mt-4">
+              <div class="goal-empty-box mt-3">
                 <div class="character-wrap" aria-hidden="true">
                   <span class="question-mark">?</span>
                   <img :src="walloCharacter" alt="" />
@@ -245,22 +407,102 @@ onMounted(() => loadGoalPage({ force: true }))
                   <i class="bi bi-arrow-right ms-2" aria-hidden="true"></i>
                 </AppButton>
               </div>
+
+              <div class="goal-coaching-inline mt-3">
+                <div class="goal-coaching-copy">
+                  <span class="goal-coaching-label">
+                    <i class="bi bi-stars" aria-hidden="true"></i>
+                    AI 한줄 코칭
+                  </span>
+                  <p class="mb-0">
+                    목표가 있어야 방향이 생겨요! 작은 목표부터 함께 시작해봐요.
+                  </p>
+                </div>
+                <img :src="walloCharacter" alt="" aria-hidden="true" />
+              </div>
             </div>
           </AppCard>
         </div>
 
-        <div class="col-xl-4">
-          <AppCard as="aside" class="content-card coaching-card" padding="none">
-            <div class="card-body p-4 p-lg-5">
-              <h2 class="section-title h5 fw-bold">AI 한줄 코칭</h2>
-              <div class="coach-bubble mt-4">
-                목표가 있어야 방향이 생겨요!<br />
-                작은 목표부터 함께 시작해봐요.
+        <div class="col-xl-5">
+          <AppCard as="aside" class="content-card mission-card h-100" padding="none">
+            <div class="card-body p-4">
+              <div class="mission-card-heading">
+                <h2 class="section-title h5 fw-bold">오늘의 미션</h2>
+                <strong v-if="missions.length" class="mission-count">
+                  {{ completedMissionCount }}/{{ missions.length }}
+                </strong>
               </div>
-              <div class="coach-character" aria-hidden="true">
-                <span class="sparkle sparkle-one">✦</span>
-                <span class="sparkle sparkle-two">✦</span>
-                <img :src="walloCharacter" alt="" />
+
+              <AppState
+                v-if="isMissionLoading"
+                class="mission-state mt-4"
+                type="loading"
+                compact
+                title="미션을 불러오는 중입니다."
+              />
+              <AppAlert
+                v-else-if="missionError"
+                class="mt-4"
+                variant="danger"
+                :message="missionError"
+              />
+              <div v-else-if="missionStatus === 'WAITING_ANALYSIS'" class="mission-empty mt-4">
+                소비 분석이 완료되면 오늘의 미션이 생성됩니다.
+                <AppButton
+                  class="mt-3"
+                  variant="outline"
+                  size="sm"
+                  block
+                  @click="startConsumptionAnalysis"
+                >
+                  <i class="bi bi-bar-chart-line me-1" aria-hidden="true"></i>
+                  소비분석 하러가기
+                </AppButton>
+              </div>
+              <div v-else-if="!missions.length" class="mission-empty mt-4">
+                오늘 배정된 미션이 없습니다.
+              </div>
+              <div v-else class="mission-panel mt-4">
+                <ul class="mission-list list-unstyled mb-0">
+                  <li
+                    v-for="mission in missions"
+                    :key="mission.id"
+                    class="mission-list-item"
+                    :class="{ completed: mission.completed }"
+                  >
+                    <span class="mission-icon" aria-hidden="true">{{ mission.icon }}</span>
+                    <span class="mission-copy">
+                      <strong :title="mission.title">{{ mission.title }}</strong>
+                      <span class="mission-description" :title="mission.description">
+                        {{ mission.description }}
+                      </span>
+                    </span>
+                    <i
+                      class="mission-check-icon bi"
+                      :class="mission.completed ? 'bi-check-circle-fill' : 'bi-circle'"
+                      :aria-label="mission.completed ? '완료' : '미완료'"
+                    ></i>
+                    <span
+                      class="mission-guide"
+                      :title="getMissionVerificationInfo(mission).guide"
+                    >
+                      <b>{{ getMissionVerificationInfo(mission).label }}</b>
+                      {{ getMissionVerificationInfo(mission).guide }}
+                    </span>
+                    <AppButton
+                      v-if="!mission.completed && mission.verificationType === 'SELF_CHECK'"
+                      class="mission-action-button"
+                      variant="outline"
+                      size="sm"
+                      :disabled="missionActionId === mission.id"
+                      :aria-label="`${mission.title} 완료 처리`"
+                      @click="runMissionAction(mission)"
+                    >
+                      {{ missionActionId === mission.id ? "확인 중..." : "완료하기" }}
+                    </AppButton>
+                  </li>
+                </ul>
               </div>
             </div>
           </AppCard>
@@ -319,9 +561,9 @@ onMounted(() => loadGoalPage({ force: true }))
 
     <div v-else class="goal-dashboard">
       <div class="row g-4 align-items-stretch">
-        <div class="col-xl-8">
-          <AppCard as="article" class="content-card" padding="none">
-            <div class="card-body p-4 p-lg-5">
+        <div class="col-xl-7">
+          <AppCard as="article" class="content-card goal-main-card" padding="none">
+            <div class="card-body p-4">
               <div class="goal-card-heading d-flex align-items-start justify-content-between gap-3">
                 <h2 class="section-title h5 fw-bold">나의 목표</h2>
                 <div class="goal-heading-actions d-flex align-items-center gap-2">
@@ -339,7 +581,7 @@ onMounted(() => loadGoalPage({ force: true }))
                 </div>
               </div>
 
-              <div class="goal-summary mt-4">
+              <div class="goal-summary mt-3">
                 <div class="goal-summary-icon" aria-hidden="true">
                   <i class="bi bi-bullseye"></i>
                 </div>
@@ -353,7 +595,7 @@ onMounted(() => loadGoalPage({ force: true }))
                 </div>
               </div>
 
-              <div class="goal-progress-panel mt-4">
+              <div class="goal-progress-panel mt-3">
                 <div class="d-flex align-items-end justify-content-between gap-3">
                   <div>
                     <span class="small text-secondary">현재 모은 금액</span>
@@ -384,19 +626,100 @@ onMounted(() => loadGoalPage({ force: true }))
                   </div>
                 </div>
               </div>
+
+              <div class="goal-coaching-inline mt-3">
+                <div class="goal-coaching-copy">
+                  <span class="goal-coaching-label">
+                    <i class="bi bi-stars" aria-hidden="true"></i>
+                    AI 한줄 코칭
+                  </span>
+                  <p class="mb-0">{{ coachingMessage }}</p>
+                </div>
+                <img :src="walloCharacter" alt="" aria-hidden="true" />
+              </div>
             </div>
           </AppCard>
         </div>
 
-        <div class="col-xl-4">
-          <AppCard as="aside" class="content-card coaching-card" padding="none">
-            <div class="card-body p-4 p-lg-5">
-              <h2 class="section-title h5 fw-bold">AI 한줄 코칭</h2>
-              <div class="coach-bubble mt-4">{{ coachingMessage }}</div>
-              <div class="coach-character" aria-hidden="true">
-                <span class="sparkle sparkle-one">✦</span>
-                <span class="sparkle sparkle-two">✦</span>
-                <img :src="walloCharacter" alt="" />
+        <div class="col-xl-5">
+          <AppCard as="aside" class="content-card mission-card h-100" padding="none">
+            <div class="card-body p-4">
+              <div class="mission-card-heading">
+                <h2 class="section-title h5 fw-bold">오늘의 미션</h2>
+                <strong v-if="missions.length" class="mission-count">
+                  {{ completedMissionCount }}/{{ missions.length }}
+                </strong>
+              </div>
+
+              <AppState
+                v-if="isMissionLoading"
+                class="mission-state mt-4"
+                type="loading"
+                compact
+                title="미션을 불러오는 중입니다."
+              />
+              <AppAlert
+                v-else-if="missionError"
+                class="mt-4"
+                variant="danger"
+                :message="missionError"
+              />
+              <div v-else-if="missionStatus === 'WAITING_ANALYSIS'" class="mission-empty mt-4">
+                소비 분석이 완료되면 오늘의 미션이 생성됩니다.
+                <AppButton
+                  class="mt-3"
+                  variant="outline"
+                  size="sm"
+                  block
+                  @click="startConsumptionAnalysis"
+                >
+                  <i class="bi bi-bar-chart-line me-1" aria-hidden="true"></i>
+                  소비분석 하러가기
+                </AppButton>
+              </div>
+              <div v-else-if="!missions.length" class="mission-empty mt-4">
+                오늘 배정된 미션이 없습니다.
+              </div>
+              <div v-else class="mission-panel mt-4">
+                <ul class="mission-list list-unstyled mb-0">
+                  <li
+                    v-for="mission in missions"
+                    :key="mission.id"
+                    class="mission-list-item"
+                    :class="{ completed: mission.completed }"
+                  >
+                    <span class="mission-icon" aria-hidden="true">{{ mission.icon }}</span>
+                    <span class="mission-copy">
+                      <strong :title="mission.title">{{ mission.title }}</strong>
+                      <span class="mission-description" :title="mission.description">
+                        {{ mission.description }}
+                      </span>
+                    </span>
+                    <i
+                      class="mission-check-icon bi"
+                      :class="mission.completed ? 'bi-check-circle-fill' : 'bi-circle'"
+                      :aria-label="mission.completed ? '완료' : '미완료'"
+                    ></i>
+                    <span
+                      class="mission-guide"
+                      :title="getMissionVerificationInfo(mission).guide"
+                    >
+                      <b>{{ getMissionVerificationInfo(mission).label }}</b>
+                      {{ getMissionVerificationInfo(mission).guide }}
+                    </span>
+                    <AppButton
+                      v-if="!mission.completed && mission.verificationType === 'SELF_CHECK'"
+                      class="mission-action-button"
+                      variant="outline"
+                      size="sm"
+                      :disabled="missionActionId === mission.id"
+                      :aria-label="`${mission.title} 완료 처리`"
+                      @click="runMissionAction(mission)"
+                    >
+                      {{ missionActionId === mission.id ? "확인 중..." : "완료하기" }}
+                    </AppButton>
+                  </li>
+                </ul>
               </div>
             </div>
           </AppCard>
@@ -553,6 +876,73 @@ onMounted(() => loadGoalPage({ force: true }))
         </div>
       </AppCard>
     </div>
+
+    <AppCard
+      v-if="productRecommendationStatus === 'loading'"
+      class="content-card latest-product-recommendation-card mt-4"
+      padding="none"
+    >
+      <div class="card-body p-4 p-lg-5">
+        <h2 class="section-title h5 fw-bold">최신 상품 추천</h2>
+        <AppState
+          class="latest-product-recommendation-state mt-3"
+          type="loading"
+          compact
+          title="최신 상품 추천을 불러오는 중입니다."
+          message="저장된 추천 결과를 확인하고 있습니다."
+        />
+      </div>
+    </AppCard>
+
+    <AppAlert
+      v-else-if="productRecommendationStatus === 'error'"
+      class="latest-product-recommendation-error mt-4"
+      variant="warning"
+    >
+      <div class="assistant-error-content">
+        <span>{{ productRecommendationError }}</span>
+        <AppButton
+          variant="outline"
+          size="sm"
+          @click="loadLatestProductRecommendation({ force: true })"
+        >
+          다시 시도
+        </AppButton>
+      </div>
+    </AppAlert>
+
+    <AppCard
+      v-else-if="productRecommendationStatus === 'success'"
+      class="content-card latest-product-recommendation-card mt-4"
+      padding="none"
+    >
+      <div class="card-body p-4 p-lg-5">
+        <div class="latest-product-recommendation-heading">
+          <div>
+            <h2 class="section-title h5 fw-bold">최신 상품 추천</h2>
+            <p class="text-secondary mb-0 mt-2">
+              채팅에서 저장된 가장 최근의 상품 추천 결과예요.
+            </p>
+          </div>
+          <div class="latest-product-recommendation-meta">
+            <small v-if="generatedAt" class="latest-product-recommendation-date">
+              {{ formatRecommendationDate(generatedAt) }} 기준
+            </small>
+            <p v-if="requestMessage" class="latest-product-recommendation-request mb-0 mt-3">
+              추천 요청: {{ requestMessage }}
+            </p>
+          </div>
+        </div>
+
+        <ProductRecommendationResult
+        class="mt-4"
+        full-width
+        :show-intro="false"
+        :recommendation="productRecommendation"
+      />
+
+      </div>
+    </AppCard>
   </section>
 </template>
 
@@ -574,6 +964,31 @@ onMounted(() => loadGoalPage({ force: true }))
 .assistant-refresh-status,
 .assistant-refresh-error {
   margin-bottom: var(--wallo-space-3);
+}
+
+.latest-product-recommendation-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.latest-product-recommendation-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+  text-align: right;
+}
+
+.latest-product-recommendation-date,
+.latest-product-recommendation-request {
+  color: #85899b;
+  font-size: 0.78rem;
+}
+
+.latest-product-recommendation-state {
+  min-height: 140px;
 }
 
 .assistant-error-content {
@@ -606,10 +1021,10 @@ onMounted(() => loadGoalPage({ force: true }))
 
 .goal-empty-box {
   display: flex;
-  min-height: 230px;
+  min-height: 170px;
   align-items: center;
   gap: 2rem;
-  padding: 2rem 2.25rem;
+  padding: 1.35rem 1.5rem;
   border: 2px dashed #c9c5ff;
   border-radius: 20px;
   background: linear-gradient(135deg, #fff 0%, #f7f6ff 100%);
@@ -617,14 +1032,13 @@ onMounted(() => loadGoalPage({ force: true }))
 
 .character-wrap {
   position: relative;
-  flex: 0 0 150px;
+  flex: 0 0 112px;
   text-align: center;
 }
 
-.character-wrap img,
-.coach-character img {
-  width: 135px;
-  max-height: 145px;
+.character-wrap img {
+  width: 104px;
+  max-height: 112px;
   object-fit: contain;
 }
 
@@ -633,7 +1047,7 @@ onMounted(() => loadGoalPage({ force: true }))
   top: -24px;
   right: 4px;
   color: #8a7df2;
-  font-size: 3.6rem;
+  font-size: 2.75rem;
   font-weight: 800;
 }
 
@@ -660,52 +1074,242 @@ onMounted(() => loadGoalPage({ force: true }))
   background: linear-gradient(135deg, #695ce6, #5644d8);
 }
 
-.coaching-card {
-  height: 100%;
-}
-
-.coaching-card :deep(.app-card__body),
-.coaching-card .card-body {
+.goal-coaching-inline {
   display: flex;
-  min-height: 0;
-  flex: 1;
-  flex-direction: column;
+  min-height: 78px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 0.85rem 1.15rem;
+  border: 1px solid #dedafd;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #f7f6ff 0%, #eeecff 100%);
 }
 
-.coach-bubble {
-  position: relative;
-  width: fit-content;
-  max-width: 100%;
-  padding: 1.25rem 1.5rem;
-  border-radius: 22px 22px 8px 22px;
-  background: #f1f0ff;
+.goal-coaching-copy {
+  min-width: 0;
+}
+
+.goal-coaching-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.45rem;
+  color: #6555df;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.goal-coaching-copy p {
   color: #424862;
   font-weight: 600;
   line-height: 1.7;
 }
 
-.coach-character {
-  position: relative;
-  align-self: flex-end;
+.goal-coaching-inline img {
+  width: 58px;
+  height: 54px;
   flex: 0 0 auto;
-  margin-top: auto;
+  object-fit: contain;
 }
 
-.sparkle {
+.mission-card :deep(.app-card__body),
+.mission-card .card-body {
+  height: 100%;
+}
+
+.mission-card-heading {
+  display: flex;
+  align-items: center;
+}
+
+.mission-card-heading {
+  align-items: flex-start;
+}
+
+.mission-card-heading {
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.mission-count {
+  display: inline-flex;
+  min-width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #fff;
+  background: linear-gradient(135deg, #7769f5, #5f4fd9);
+  box-shadow: 0 8px 18px rgb(100 83 232 / 20%);
+  font-size: 0.68rem;
+}
+
+.mission-state,
+.mission-empty {
+  border-radius: 16px;
+  background: #f8f8fe;
+}
+
+.mission-empty {
+  padding: 1.5rem 1.25rem;
+  color: #73798d;
+  line-height: 1.65;
+  text-align: center;
+}
+
+.mission-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.mission-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.mission-list-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.55rem 0.8rem;
+  padding: 0.9rem;
+  border: 1px solid #e7e7f2;
+  border-radius: 15px;
+  background: #fcfcff;
+}
+
+.mission-list-item.completed {
+  border-color: #cec9fa;
+  background: #f8f7ff;
+}
+
+.mission-icon {
+  display: inline-flex;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: #eeecff;
+  font-size: 1.2rem;
+}
+
+.mission-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.mission-copy strong {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.mission-description {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #6f7588;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.mission-guide {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  padding: 0.45rem 0.55rem;
+  border-radius: 9px;
+  background: #f3f1ff;
+  color: #555d73;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mission-guide b {
+  margin-right: 0.25rem;
+  color: #6555df;
+  font-size: 0.72rem;
+}
+
+.mission-action-button {
   position: absolute;
-  color: #8b7cf4;
-  font-size: 1.5rem;
+  z-index: 2;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 14px;
+  opacity: 0;
+  color: #fff;
+  background: rgb(101 85 223 / 88%);
+  box-shadow: none;
+  font-weight: 700;
+  pointer-events: none;
+  transition: opacity 160ms ease;
 }
 
-.sparkle-one {
-  top: 12px;
-  left: -22px;
+.mission-list-item > :not(.mission-action-button) {
+  transition: opacity 160ms ease, filter 160ms ease;
 }
 
-.sparkle-two {
-  top: 52px;
-  left: -43px;
-  font-size: 1rem;
+.mission-list-item:has(.mission-action-button):hover > :not(.mission-action-button),
+.mission-list-item:has(.mission-action-button):focus-within > :not(.mission-action-button) {
+  opacity: 0.22;
+  filter: blur(0.6px);
+}
+
+.mission-list-item:hover .mission-action-button,
+.mission-list-item:focus-within .mission-action-button,
+.mission-action-button:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (hover: none) {
+  .mission-action-button {
+    position: static;
+    grid-column: 1 / -1;
+    min-height: 34px;
+    opacity: 1;
+    color: #6555df;
+    background: #f3f1ff;
+    pointer-events: auto;
+  }
+
+  .mission-list-item:has(.mission-action-button):focus-within > :not(.mission-action-button) {
+    opacity: 1;
+    filter: none;
+  }
+}
+
+.mission-list-item.completed .mission-copy strong {
+  color: #8b8fa0;
+  text-decoration: line-through;
+}
+
+.mission-check-icon {
+  margin-top: 0.1rem;
+  color: #aaaebd;
+  font-size: 1.2rem;
+}
+
+.mission-list-item.completed .mission-check-icon {
+  color: #7162eb;
 }
 
 .roadmap-list {
@@ -922,15 +1526,15 @@ onMounted(() => loadGoalPage({ force: true }))
 
 .goal-summary-icon {
   display: inline-flex;
-  width: 72px;
-  height: 72px;
-  flex: 0 0 72px;
+  width: 60px;
+  height: 60px;
+  flex: 0 0 60px;
   align-items: center;
   justify-content: center;
   border-radius: 22px;
   color: #6d5dea;
   background: #eeecff;
-  font-size: 2.1rem;
+  font-size: 1.75rem;
 }
 
 .goal-type {
@@ -940,14 +1544,14 @@ onMounted(() => loadGoalPage({ force: true }))
 }
 
 .goal-progress-panel {
-  padding: 1.4rem 1.5rem;
+  padding: 1rem 1.2rem;
   border-radius: 18px;
   background: #f8f8fe;
 }
 
 .goal-current-amount {
   color: #5f50d8;
-  font-size: 1.55rem;
+  font-size: 1.35rem;
   font-weight: 800;
 }
 
@@ -1047,10 +1651,6 @@ onMounted(() => loadGoalPage({ force: true }))
 }
 
 @media (max-width: 1199.98px) {
-  .coaching-card {
-    min-height: 310px;
-  }
-
   .roadmap-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1087,6 +1687,16 @@ onMounted(() => loadGoalPage({ force: true }))
     width: 100%;
   }
 
+  .goal-coaching-inline {
+    align-items: flex-start;
+    padding: 1.15rem 1.25rem;
+  }
+
+  .goal-coaching-inline img {
+    width: 64px;
+    height: 60px;
+  }
+
   .goal-card-heading {
     flex-direction: column;
   }
@@ -1094,6 +1704,15 @@ onMounted(() => loadGoalPage({ force: true }))
   .goal-heading-actions {
     width: 100%;
     justify-content: space-between;
+  }
+
+  .latest-product-recommendation-heading {
+    flex-direction: column;
+  }
+
+  .latest-product-recommendation-meta {
+    align-items: flex-start;
+    text-align: left;
   }
 
   .roadmap-list {

@@ -52,6 +52,33 @@ describe("conversationStore", () => {
     vi.clearAllMocks()
   })
 
+  it("restores product recommendation cards from a refreshed conversation", async () => {
+    getConversationMessages.mockResolvedValueOnce([
+      {
+        messageId: 101,
+        role: "USER",
+        content: "Recommend a deposit",
+      },
+      {
+        messageId: 102,
+        role: "ASSISTANT",
+        content: "**Recommendation reason**",
+        productRecommendation: {
+          productType: "deposit",
+          products: [{ productName: "Safe Deposit" }],
+        },
+      },
+    ])
+
+    const store = useConversationStore()
+    await store.fetchMessages(7, 11, { force: true })
+
+    expect(store.messages[1].productRecommendation.products).toHaveLength(1)
+    expect(store.messages[1].productRecommendation.products[0].productName)
+      .toBe("Safe Deposit")
+    expect(store.messages[1].content).toBe("**Recommendation reason**")
+  })
+
   it("caches conversations and restores messages with a separate loading state", async () => {
     const store = useConversationStore()
 

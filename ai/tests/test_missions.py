@@ -18,7 +18,12 @@ def _mission(index: int) -> dict:
         "category": "FOOD",
         "rewardPoint": 10,
         "verificationType": "MEDIA_AI",
-        "verificationRule": {"description": "행동 수행 장면인지 확인"},
+        "verificationRule": {
+            "description": "행동 수행 장면인지 확인",
+            "transactionCategory": "",
+            "transactionOperator": "NONE",
+            "transactionAmount": 0,
+        },
         "evidenceGuide": "행동이 보이도록 촬영하세요.",
     }
 
@@ -78,10 +83,10 @@ def test_prompt_output_contract_matches_structured_schema():
     assert contract["promptVersion"] == "personalized-mission-v1"
     assert contract["rewardPoint"] == 10
     assert contract["verificationTypes"] == [
-        "MEDIA_AI", "TRANSACTION", "HYBRID", "SELF_CHECK", "MANUAL",
+        "MEDIA_AI", "TRANSACTION", "SELF_CHECK",
     ]
     assert contract["additionalFieldsAllowed"] is False
-    assert '"verificationRule":{"description":' in MISSION_GENERATION_INSTRUCTIONS
+    assert '"transactionOperator":"NONE"' in MISSION_GENERATION_INSTRUCTIONS
     assert "JSON 이외의 설명" in MISSION_GENERATION_INSTRUCTIONS
 
 
@@ -134,7 +139,9 @@ def test_logs_actual_mission_token_usage(caplog, monkeypatch):
     message = next(
         record.getMessage()
         for record in caplog.records
-        if record.name == "wallo_ai" and "operation=mission.generate" in record.getMessage()
+        if record.name == "wallo_ai"
+        and "[AI_TIMING]" in record.getMessage()
+        and "operation=mission.generate" in record.getMessage()
     )
     assert "promptTokens=2255" in message
     assert "completionTokens=1420" in message
@@ -175,7 +182,9 @@ def test_logs_mission_rate_limit_without_raw_error(caplog):
     message = next(
         record.getMessage()
         for record in caplog.records
-        if record.name == "wallo_ai" and "operation=mission.generate" in record.getMessage()
+        if record.name == "wallo_ai"
+        and "[AI_TIMING]" in record.getMessage()
+        and "operation=mission.generate" in record.getMessage()
     )
     assert "failureReason=RateLimitError" in message
     assert "responseReceived=False" in message

@@ -5,10 +5,12 @@ import logging
 import os
 
 from fastapi import APIRouter, HTTPException
-from groq import Groq, GroqError
+from groq import GroqError
 from pydantic import BaseModel, ValidationError, ValidationInfo, field_validator
 
-from app.core.ai_timing import timed_groq_completion
+from app.clients.groq_client import Groq
+from app.core.ai_guard import ApplicationGuardError
+from app.core.ai_timing import current_request_id, timed_groq_completion
 from app.reports.prompts import FINANCIAL_REPORT_INSTRUCTIONS, build_report_input
 from app.reports.profile_repository import build_report_profile_context, load_report_profile
 
@@ -156,6 +158,7 @@ def generate_financial_report(client: Groq, request: NewsReportGenerateRequest, 
         reasoning_options["reasoning_format"] = "hidden"
         reasoning_options["reasoning_effort"] = "low"
 
+    report_request_id = current_request_id() or f"report-news-{request.newsId}"
     json_validation_retries = 0
 
     while True:
@@ -165,6 +168,7 @@ def generate_financial_report(client: Groq, request: NewsReportGenerateRequest, 
                 operation="report.generate",
                 model=model,
                 requested_completion_tokens=REPORT_MAX_COMPLETION_TOKENS,
+                request_id=report_request_id,
             ) as timing:
                 response = timing.create(
                     messages=[
@@ -187,7 +191,6 @@ def generate_financial_report(client: Groq, request: NewsReportGenerateRequest, 
                 )
             break
         except GroqError as error:
-            status_code = getattr(error, "status_code", None)
             error_code = _error_code(error)
 
             if error_code == "json_validate_failed" and json_validation_retries < JSON_VALIDATION_MAX_RETRIES:
@@ -198,12 +201,6 @@ def generate_financial_report(client: Groq, request: NewsReportGenerateRequest, 
                 )
                 continue
 
-            logger.error(
-                "Groq request details - status: %s, message: %s, body: %s",
-                status_code,
-                str(error),
-                getattr(error, "body", None),
-            )
             logger.error(
                 "Groq 서버 호출 실패 - newsId: %s, 예외: %s",
                 request.newsId, type(error).__name__,
@@ -249,6 +246,8 @@ def generate_report(request: NewsReportGenerateRequest) -> NewsReportGenerateRes
 
     try:
         return generate_financial_report(client, request, get_report_model())
+    except ApplicationGuardError:
+        raise
     except HTTPException:
         raise
     except Exception as error:

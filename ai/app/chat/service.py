@@ -3,7 +3,11 @@ import logging
 
 from groq import Groq
 
-from app.agents.financial.agent import ASSET_ANALYSIS_TOOL, FinancialAgent
+from app.agents.financial.agent import (
+    ASSET_ANALYSIS_TOOL,
+    PRODUCT_RECOMMENDATION_TOOL,
+    FinancialAgent,
+)
 from app.agents.financial.tools.financial_goal import NAME as FINANCIAL_GOAL_TOOL
 from app.agents.goal.agent import GoalAgent
 from app.agents.goal.models import GoalDraft, GoalInterviewAction, InterviewState
@@ -11,7 +15,8 @@ from app.agents.goal.service import calculate_feasibility
 from app.agents.roadmap.generator import generate_goal_roadmap
 from app.agents.roadmap.models import GoalRoadmap, RoadmapGoal
 from app.chat.schemas import ChatRequest, ChatResponse, GoalInterviewResponse
-from app.chat.title_service import generate_conversation_title
+from app.chat.title_service import build_conversation_title
+from app.core.ai_guard import ApplicationGuardError
 
 
 logger = logging.getLogger("wallo_ai")
@@ -26,6 +31,7 @@ class ChatService:
         history = [message.model_dump() for message in request.history]
         consumption_analysis = None
         asset_analysis = None
+        product_recommendation = None
         if request.goal_draft is not None:
             answer, goal_interview = self._continue_goal_interview(request)
         elif self._is_goal_setting_mode(request.chat_mode):
@@ -67,6 +73,11 @@ class ChatService:
                     consumption_analysis = financial_agent.selected_tool_result
                 if financial_agent.selected_tool == ASSET_ANALYSIS_TOOL:
                     asset_analysis = financial_agent.selected_tool_result
+                if (
+                    financial_agent.selected_tool == PRODUCT_RECOMMENDATION_TOOL
+                    and isinstance(financial_agent.selected_tool_result, dict)
+                ):
+                    product_recommendation = financial_agent.selected_tool_result
                 goal_interview = None
                 if financial_agent.selected_tool == FINANCIAL_GOAL_TOOL:
                     if request.goal_already_exists:
@@ -74,7 +85,7 @@ class ChatService:
                     else:
                         answer, goal_interview = self._run_goal_agent(request, None)
         title = (
-            generate_conversation_title(self.client, request.message, answer)
+            build_conversation_title(request.message)
             if request.generate_title
             else None
         )
@@ -84,6 +95,7 @@ class ChatService:
             goal_interview=goal_interview,
             consumption_analysis=consumption_analysis,
             asset_analysis=asset_analysis,
+            product_recommendation=product_recommendation,
         )
 
     def _continue_goal_interview(
@@ -170,6 +182,8 @@ class ChatService:
                 len(roadmap.steps),
             )
             return roadmap, None
+        except ApplicationGuardError:
+            raise
         except Exception as error:
             logger.exception("[AI ROADMAP] generation failed after goal confirmation")
             return None, str(error)[:500]

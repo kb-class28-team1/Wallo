@@ -40,7 +40,6 @@ public record TodayMissionResponse(
 
     public record Item(
             Long dailyMissionId,
-            Long missionId,
             String title,
             String description,
             String category,
@@ -52,7 +51,7 @@ public record TodayMissionResponse(
     ) {
         private static Item from(DailyMission mission) {
             return new Item(
-                    mission.getDailyMissionId(), mission.getMissionId(), mission.getTitle(),
+                    mission.getDailyMissionId(), mission.getTitle(),
                     mission.getDescription(), mission.getCategory(), mission.getRewardPoint(),
                     mission.getVerificationType(),
                     mission.getEvidenceGuide(), mission.getStatus(),

@@ -25,6 +25,39 @@ const analysis = {
 }
 
 describe("ChatMessage", () => {
+  it("renders a product recommendation response as cards with markdown reason", () => {
+    const wrapper = mount(ChatMessage, {
+      props: {
+        message: {
+          id: 4,
+          role: "assistant",
+          content: "**Recommendation reason**\n\n- Matches the requested term",
+          productRecommendation: {
+            productType: "deposit",
+            termMonths: 12,
+            amountKrw: 1000000,
+            products: [
+              {
+                ranking: 1,
+                companyName: "Wallo Bank",
+                productName: "Safe Deposit",
+                baseRatePercent: 2.5,
+                preferentialRatePercent: 3.1,
+              },
+            ],
+          },
+          animate: false,
+        },
+      },
+    })
+
+    expect(wrapper.find(".product-recommendation").exists()).toBe(true)
+    expect(wrapper.text()).toContain("Safe Deposit")
+    expect(wrapper.find(".message-content--markdown").exists()).toBe(false)
+    expect(wrapper.find(".product-recommendation__reason-markdown strong").text())
+      .toBe("Recommendation reason")
+  })
+
   it("소비분석 메시지는 카드만 표시하고 AI 줄글은 숨긴다", () => {
     const wrapper = mount(ChatMessage, {
       props: {

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from "vue"
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import { storeToRefs } from "pinia"
 import { RouterLink, useRouter } from "vue-router"
 import { generateNextDayMissions, getTodayMissions } from "@/api/missionApi"
@@ -50,6 +50,19 @@ const completedMissionReward = computed(() =>
 )
 const totalMissionReward = computed(() =>
   missions.value.reduce((total, mission) => total + Number(mission.rewardPoint || 0), 0),
+)
+
+watch(
+  () => userStore.user?.id,
+  (currentUserId, previousUserId) => {
+    if (currentUserId === previousUserId) return
+    stopMissionPolling()
+    missions.value = []
+    missionStatus.value = "READY"
+    missionFailureReason.value = null
+    missionDevResult.value = null
+    if (currentUserId) void loadTodayMissions(false)
+  },
 )
 
 onMounted(() => {
@@ -130,8 +143,16 @@ const startMissionPolling = () => {
   }, MISSION_POLL_INTERVAL_MS)
 }
 
-const handleMissionUpdated = async () => {
+const handleMissionUpdated = async (event) => {
+  const generatedResponse = event?.detail?.missionResponse
+  if (generatedResponse) {
+    missionStatus.value = generatedResponse.status || "READY"
+    missions.value = generatedResponse.missions || []
+    missionFailureReason.value = generatedResponse.failureReason || null
+    return
+  }
   await loadTodayMissions()
+  await userStore.fetchUserProfile()
   if (["WAITING_ANALYSIS", MISSION_GENERATION_FAILED_STATUS].includes(missionStatus.value)) {
     startMissionPolling()
   }
@@ -148,6 +169,11 @@ const generateNextDay = async () => {
       count: response.missions.length,
       titles: response.missions.map((mission) => mission.title),
     }
+    window.dispatchEvent(
+      new CustomEvent("wallo:mission-updated", {
+        detail: { missionResponse: response },
+      }),
+    )
   } catch (error) {
     missionStatus.value = "ERROR"
     if (error.status === 429) {

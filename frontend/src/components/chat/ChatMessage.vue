@@ -4,6 +4,7 @@ import DOMPurify from "dompurify"
 import { marked } from "marked"
 import AssetAnalysisResult from "@/components/analysis/AssetAnalysisResult.vue"
 import AnalysisResult from "@/components/analysis/AnalysisResult.vue"
+import ProductRecommendationResult from "@/components/analysis/ProductRecommendationResult.vue"
 
 const props = defineProps({
   message: {
@@ -29,7 +30,11 @@ const renderedMarkdown = computed(() =>
 
 const isAnalysisMessage = computed(() =>
   props.message.role === "assistant"
-  && Boolean(props.message.consumptionAnalysis || props.message.assetAnalysis),
+  && Boolean(
+    props.message.consumptionAnalysis
+      || props.message.assetAnalysis
+      || props.message.productRecommendation,
+  ),
 )
 
 const stopTyping = () => {
@@ -87,6 +92,7 @@ watch(
     props.message.animate,
     props.message.consumptionAnalysis,
     props.message.assetAnalysis,
+    props.message.productRecommendation,
   ],
   startTyping,
   { immediate: true },
@@ -104,8 +110,13 @@ onBeforeUnmount(completeTyping)
       <span class="message-label">
         {{ message.role === "assistant" ? "Wallo AI" : "나" }}
       </span>
+      <ProductRecommendationResult
+        v-if="message.role === 'assistant' && message.productRecommendation"
+        :recommendation="message.productRecommendation"
+        :reason="message.content"
+      />
       <AssetAnalysisResult
-        v-if="message.role === 'assistant' && message.assetAnalysis"
+        v-else-if="message.role === 'assistant' && message.assetAnalysis"
         :analysis="message.assetAnalysis"
       />
       <AnalysisResult
