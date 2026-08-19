@@ -42,6 +42,7 @@ describe("AssetOverviewCard", () => {
     expect(wrapper.text()).toContain("2,000,000원")
     expect(wrapper.text()).toContain("대출(부채)")
     expect(wrapper.text()).toContain("500,000원")
+    expect(wrapper.findAll(".asset-balance-summary > div")).toHaveLength(2)
     expect(wrapper.text()).toContain("입출금")
     expect(wrapper.text()).toContain("투자")
     expect(wrapper.text()).toContain("60%")

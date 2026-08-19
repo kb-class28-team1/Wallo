@@ -5,7 +5,7 @@ import { ArcElement, Chart as ChartJS, Legend, Tooltip } from "chart.js"
 import AppCard from "@/components/ui/AppCard.vue"
 import AppState from "@/components/ui/AppState.vue"
 import { getExpenseCategoryLabel } from "@/features/financial/financialCategories"
-import { formatWon } from "@/commonUtils/formatters"
+import { formatWon } from "@/utils/formatters"
 
 ChartJS.register(ArcElement, Tooltip, Legend)
 
@@ -117,7 +117,7 @@ const expenseCategoryRate = (amount) => {
 
 <style scoped>
 .expense-summary-card {
-  max-width: 540px;
+  width: 100%;
   border-radius: var(--wallo-radius-xl);
   background: var(--wallo-color-surface);
 }

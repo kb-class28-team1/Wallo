@@ -1,7 +1,7 @@
 import { computed, ref } from "vue";
 import { defineStore } from "pinia";
 import { getCategoryBudgets, putCategoryBudgets } from "@/api/assetApi";
-import { getApiErrorMessage } from "@/commonUtils/apiError";
+import { getApiErrorMessage } from "@/utils/apiError";
 
 const CATEGORY_BUDGET_STALE_TIME = 60 * 1000;
 

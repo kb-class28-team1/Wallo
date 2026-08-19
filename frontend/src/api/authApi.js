@@ -1,5 +1,5 @@
 import httpClient from "./httpClient"
-import { getApiErrorCode, getApiErrorMessage } from "@/commonUtils/apiError"
+import { getApiErrorCode, getApiErrorMessage } from "@/utils/apiError"
 import { clearAccessToken, setAccessToken } from "./authToken"
 
 const createAuthError = (error, fallbackMessage) => {
