@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from "vue"
 import { storeToRefs } from "pinia"
-import { getApiErrorMessage } from "@/commonUtils/apiError"
+import { getApiErrorMessage } from "@/utils/apiError"
 import AuthenticatedImage from "@/components/common/AuthenticatedImage.vue"
 import AppAlert from "@/components/ui/AppAlert.vue"
 import AppButton from "@/components/ui/AppButton.vue"

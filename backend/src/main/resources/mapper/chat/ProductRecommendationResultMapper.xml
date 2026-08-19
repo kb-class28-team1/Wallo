@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wallo.chat.mapper.ProductRecommendationResultMapper">
+
+    <insert id="insert"
+            parameterType="com.wallo.chat.dto.ProductRecommendationResultDto$SaveCommand">
+        INSERT INTO PRODUCT_RECOMMENDATION_RESULTS (
+            user_id,
+            assistant_message_id,
+            request_message,
+            recommendation_result,
+            ai_response
+        ) VALUES (
+            #{userId},
+            #{assistantMessageId},
+            #{requestMessage},
+            #{recommendationResultJson},
+            #{aiResponse}
+        )
+    </insert>
+
+    <select id="findByAssistantMessageIds"
+            resultType="com.wallo.chat.dto.ProductRecommendationResultDto$StoredResult">
+        SELECT assistant_message_id AS assistantMessageId,
+               recommendation_result AS recommendationResultJson
+        FROM PRODUCT_RECOMMENDATION_RESULTS
+        WHERE assistant_message_id IN
+        <foreach collection="assistantMessageIds" item="messageId" open="(" separator="," close=")">
+            #{messageId}
+        </foreach>
+    </select>
+
+    <select id="findLatestByUserId"
+            resultType="com.wallo.chat.dto.ProductRecommendationResultDto$LatestStoredResult">
+        SELECT assistant_message_id AS assistantMessageId,
+               request_message AS requestMessage,
+               recommendation_result AS recommendationResultJson,
+               ai_response AS aiResponse,
+               generated_at AS generatedAt
+        FROM PRODUCT_RECOMMENDATION_RESULTS
+        WHERE user_id = #{userId}
+        ORDER BY generated_at DESC, recommendation_result_id DESC
+        LIMIT 1
+    </select>
+
+</mapper>

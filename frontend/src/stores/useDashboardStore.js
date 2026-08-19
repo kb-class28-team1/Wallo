@@ -2,7 +2,7 @@ import { computed, ref } from "vue";
 import { defineStore } from "pinia";
 import { getBudgets, getExpenses, putBudget } from "@/api/assetApi";
 import { useAssetStore } from "@/stores/assetStore";
-import { getApiErrorMessage } from "@/commonUtils/apiError";
+import { getApiErrorMessage } from "@/utils/apiError";
 
 const DASHBOARD_STALE_TIME = 30 * 1000;
 

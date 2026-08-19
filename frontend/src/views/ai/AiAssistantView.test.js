@@ -3,6 +3,7 @@ import { createPinia, setActivePinia } from "pinia"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import AiAssistantView from "./AiAssistantView.vue"
 import { getGoalRoadmap, getGoals } from "@/api/goalApi"
+import { getLatestProductRecommendation } from "@/api/productRecommendationApi"
 
 const push = vi.fn()
 
@@ -18,12 +19,17 @@ vi.mock("@/api/goalApi", () => ({
   updateGoalRoadmapStep: vi.fn(),
 }))
 
+vi.mock("@/api/productRecommendationApi", () => ({
+  getLatestProductRecommendation: vi.fn(),
+}))
+
 describe("AiAssistantView", () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
     getGoals.mockResolvedValue({ data: [] })
     getGoalRoadmap.mockResolvedValue({ data: null })
+    getLatestProductRecommendation.mockResolvedValue({ data: null })
   })
 
   it("shows the goal empty state and roadmap introduction when no goal exists", async () => {
@@ -102,11 +108,63 @@ describe("AiAssistantView", () => {
     expect(wrapper.text()).toContain("2,500,000원")
     expect(wrapper.text()).toContain("25%")
     expect(wrapper.text()).toContain("최종 목표 달성")
+    expect(wrapper.text()).not.toContain("AI가 생성한 맞춤 계획")
+    expect(wrapper.find(".goal-roadmap-card").exists()).toBe(true)
+    expect(wrapper.findAll(".roadmap-navigation-button")).toHaveLength(2)
     expect(wrapper.text()).toContain("이번 달 실천 가이드")
     expect(wrapper.text()).not.toContain("목표를 확인했어요")
     expect(wrapper.find(".goal-chat-button").classes()).toContain("app-button")
 
     await wrapper.find(".goal-chat-button").trigger("click")
     expect(push).toHaveBeenCalledWith({ name: "chat" })
+  })
+
+  it("shows the latest product recommendation when one is available", async () => {
+    getLatestProductRecommendation.mockResolvedValue({
+      data: {
+        assistantMessageId: 3,
+        requestMessage: "12개월 예금 100만원 추천",
+        productRecommendation: {
+          dataMode: "finlife_csv",
+          productType: "예금",
+          termMonths: 12,
+          amountKrw: 1000000,
+          products: [
+            {
+              ranking: 1,
+              companyName: "Wallo Bank",
+              productName: "안심 정기예금",
+              baseRatePercent: 2.5,
+              preferentialRatePercent: 3.1,
+              estimatedAfterTaxInterestKrw: 26200,
+              estimatedMaturityAmountKrw: 1026200,
+              disclosureMonth: "202608",
+              collectedAt: "2026-08-19T10:00:00",
+            },
+          ],
+        },
+        aiResponse: "기본금리와 우대조건을 함께 고려해 추천했어요.",
+        generatedAt: "2026-08-19T10:01:00",
+      },
+    })
+
+    const wrapper = mount(AiAssistantView)
+    await flushPromises()
+    await vi.waitFor(() => {
+      expect(wrapper.find(".latest-product-recommendation-card").exists()).toBe(true)
+    })
+
+    expect(getLatestProductRecommendation).toHaveBeenCalledTimes(1)
+    expect(wrapper.text()).toContain("안심 정기예금")
+    expect(wrapper.find(".product-recommendation--full-width").exists()).toBe(true)
+    expect(wrapper.find(".latest-product-recommendation-card .product-recommendation__intro").exists())
+      .toBe(false)
+    const recommendationMeta = wrapper.find(".latest-product-recommendation-meta")
+    const date = recommendationMeta.find(".latest-product-recommendation-date")
+    const request = recommendationMeta.find(".latest-product-recommendation-request")
+    expect(recommendationMeta.element.children[0]).toBe(date.element)
+    expect(recommendationMeta.element.children[1]).toBe(request.element)
+    expect(wrapper.text()).not.toContain("기본금리와 우대조건을 함께 고려해 추천했어요.")
+    expect(wrapper.text()).toContain("Wallo Bank")
   })
 })

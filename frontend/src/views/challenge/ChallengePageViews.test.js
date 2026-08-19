@@ -224,6 +224,12 @@ describe("challenge page views", () => {
     expect(firstWrapper.find(".feed-header").classes()).toContain("app-page-header")
     expect(firstWrapper.find(".saving-total").classes()).toContain("app-card")
     expect(firstWrapper.findAll(".feed-tabs .app-button")).toHaveLength(2)
+    expect(firstWrapper.find(".feed-leave-button .bi-door-open").exists()).toBe(true)
+    expect(firstWrapper.find(".feed-leave-button .bi-door-open-fill").exists()).toBe(true)
+    expect(firstWrapper.find(".feed-leave-button .bi-box-arrow-right").exists()).toBe(false)
+    expect(firstWrapper.find(".mention-feed-button .bi-send").exists()).toBe(true)
+    expect(firstWrapper.find(".mention-feed-button img").exists()).toBe(false)
+    expect(firstWrapper.find('.chat-form button[aria-label="메시지 전송"] .bi-send').exists()).toBe(true)
 
     firstWrapper.unmount()
 

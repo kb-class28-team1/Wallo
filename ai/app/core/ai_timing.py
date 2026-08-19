@@ -1,4 +1,7 @@
+import json
 import logging
+import re
+import threading
 from contextlib import contextmanager
 from contextvars import ContextVar
 from time import perf_counter
@@ -9,6 +12,17 @@ LOGGER = logging.getLogger("wallo_ai")
 _REQUEST_ID: ContextVar[str | None] = ContextVar(
     "wallo_request_id",
     default=None,
+)
+_IN_FLIGHT_LOCK = threading.Lock()
+_IN_FLIGHT_REQUESTS = 0
+_TPM_USAGE_PATTERN = re.compile(
+    r"tokens per minute \(TPM\):\s*Limit\s+(?P<limit>\d+),\s*"
+    r"Used\s+(?P<used>\d+),\s*Requested\s+(?P<requested>\d+)",
+    re.IGNORECASE,
+)
+_RETRY_AFTER_MESSAGE_PATTERN = re.compile(
+    r"try again in\s+(?P<seconds>[0-9]+(?:\.[0-9]+)?)s",
+    re.IGNORECASE,
 )
 
 
@@ -30,6 +44,148 @@ def request_id_context(request_id: str | None):
 
 def current_request_id() -> str | None:
     return _REQUEST_ID.get()
+
+
+def _serialized_size(value: Any) -> tuple[int, int]:
+    try:
+        serialized = json.dumps(
+            value,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            default=str,
+        )
+    except (TypeError, ValueError):
+        serialized = str(value)
+    return len(serialized), len(serialized.encode("utf-8"))
+
+
+def _content_length(message: Any) -> int:
+    if not isinstance(message, dict):
+        return _serialized_size(message)[0]
+    content = message.get("content")
+    if isinstance(content, str):
+        return len(content)
+    return _serialized_size(content)[0]
+
+
+def _request_shape(request_options: dict[str, Any]) -> dict[str, int]:
+    messages = request_options.get("messages") or []
+    tools = request_options.get("tools") or []
+    message_chars, message_bytes = _serialized_size(messages)
+    tool_chars, tool_bytes = _serialized_size(tools)
+    return {
+        "message_count": len(messages) if isinstance(messages, list) else 0,
+        "message_content_chars": sum(_content_length(message) for message in messages),
+        "message_json_chars": message_chars,
+        "message_json_bytes": message_bytes,
+        "tool_count": len(tools) if isinstance(tools, list) else 0,
+        "tool_json_chars": tool_chars,
+        "tool_json_bytes": tool_bytes,
+    }
+
+
+def _begin_groq_request() -> int:
+    global _IN_FLIGHT_REQUESTS
+    with _IN_FLIGHT_LOCK:
+        _IN_FLIGHT_REQUESTS += 1
+        return _IN_FLIGHT_REQUESTS
+
+
+def _end_groq_request() -> None:
+    global _IN_FLIGHT_REQUESTS
+    with _IN_FLIGHT_LOCK:
+        _IN_FLIGHT_REQUESTS = max(0, _IN_FLIGHT_REQUESTS - 1)
+
+
+def _header_value(headers: Any, name: str) -> Any:
+    if headers is None:
+        return None
+    try:
+        return headers.get(name)
+    except AttributeError:
+        return None
+
+
+def _provider_error_details(
+    error: Exception,
+) -> tuple[int | None, str | None, str | None, str]:
+    response = getattr(error, "response", None)
+    status_code = getattr(error, "status_code", None) or getattr(
+        response,
+        "status_code",
+        None,
+    )
+    body = getattr(error, "body", None)
+    error_body = body.get("error") if isinstance(body, dict) else None
+    if not isinstance(error_body, dict):
+        error_body = {}
+    message = error_body.get("message")
+    return (
+        status_code,
+        error_body.get("type"),
+        error_body.get("code"),
+        message if isinstance(message, str) else "",
+    )
+
+
+def _log_provider_error(
+    error: Exception,
+    *,
+    operation: str,
+    request_id: str | None,
+) -> None:
+    response = getattr(error, "response", None)
+    headers = getattr(response, "headers", None)
+    status_code, error_type, error_code, provider_message = _provider_error_details(error)
+    retry_after = _header_value(headers, "retry-after")
+    if retry_after is None and provider_message:
+        retry_match = _RETRY_AFTER_MESSAGE_PATTERN.search(provider_message)
+        retry_after = retry_match.group("seconds") if retry_match else None
+
+    quota_match = _TPM_USAGE_PATTERN.search(provider_message)
+    quota_values = {
+        "limit": quota_match.group("limit") if quota_match else None,
+        "used": quota_match.group("used") if quota_match else None,
+        "requested": quota_match.group("requested") if quota_match else None,
+    }
+    log_fields = (
+        operation,
+        normalize_request_id(request_id),
+        status_code,
+        error_type,
+        error_code,
+        retry_after,
+        quota_values["limit"],
+        quota_values["used"],
+        quota_values["requested"],
+        _header_value(headers, "x-ratelimit-limit-tokens"),
+        _header_value(headers, "x-ratelimit-remaining-tokens"),
+        _header_value(headers, "x-ratelimit-reset-tokens"),
+        _header_value(headers, "x-ratelimit-limit-requests"),
+        _header_value(headers, "x-ratelimit-remaining-requests"),
+        _header_value(headers, "x-ratelimit-reset-requests"),
+    )
+    if status_code == 429 or error_code == "rate_limit_exceeded":
+        LOGGER.warning(
+            "[AI_RATE_LIMIT] operation=%s requestId=%s status=%s "
+            "errorType=%s errorCode=%s retryAfter=%s "
+            "providerLimitTokens=%s providerUsedTokens=%s "
+            "providerRequestedTokens=%s limitTokens=%s remainingTokens=%s "
+            "resetTokens=%s limitRequests=%s remainingRequests=%s "
+            "resetRequests=%s",
+            *log_fields,
+        )
+        return
+
+    LOGGER.warning(
+        "[AI_PROVIDER_ERROR] operation=%s requestId=%s status=%s "
+        "errorType=%s errorCode=%s",
+        operation,
+        normalize_request_id(request_id),
+        status_code,
+        error_type,
+        error_code,
+    )
 
 
 class GroqCompletionTimer:
@@ -91,6 +247,26 @@ class GroqCompletionTimer:
             requested = request_options.get("max_completion_tokens")
             if isinstance(requested, int) and not isinstance(requested, bool):
                 self.requested_completion_tokens = requested
+        shape = _request_shape(request_options)
+        in_flight = _begin_groq_request()
+        LOGGER.info(
+            "[AI_REQUEST] operation=%s requestId=%s model=%s inFlight=%d "
+            "messageCount=%d messageContentChars=%d messageJsonChars=%d "
+            "messageJsonBytes=%d toolCount=%d toolJsonChars=%d toolJsonBytes=%d "
+            "requestedCompletionTokens=%s",
+            self.operation,
+            normalize_request_id(self.request_id),
+            self.model,
+            in_flight,
+            shape["message_count"],
+            shape["message_content_chars"],
+            shape["message_json_chars"],
+            shape["message_json_bytes"],
+            shape["tool_count"],
+            shape["tool_json_chars"],
+            shape["tool_json_bytes"],
+            self.requested_completion_tokens,
+        )
         try:
             self.completion = self.client.chat.completions.create(
                 model=self.model,
@@ -100,7 +276,14 @@ class GroqCompletionTimer:
             return self.completion
         except Exception as error:
             self.failure_reason = type(error).__name__
+            _log_provider_error(
+                error,
+                operation=self.operation,
+                request_id=self.request_id,
+            )
             raise
+        finally:
+            _end_groq_request()
 
     def mark_fallback(self, reason: str) -> None:
         self.fallback_used = True

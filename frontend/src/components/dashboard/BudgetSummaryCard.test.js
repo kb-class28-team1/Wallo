@@ -28,7 +28,7 @@ describe("BudgetSummaryCard", () => {
     expect(wrapper.emitted("open-budget-settings")).toHaveLength(1)
   })
 
-  it("offers the shared button when a budget is not configured", async () => {
+  it("renders the shared empty state when a budget is not configured", async () => {
     const wrapper = mount(BudgetSummaryCard, {
       props: {
         budget: null,
@@ -36,13 +36,17 @@ describe("BudgetSummaryCard", () => {
     })
 
     expect(wrapper.find(".budget-summary-card").classes()).toContain("app-card")
-    expect(wrapper.find(".budget-empty-state").text()).toContain(
-      "예산이 없습니다. 예산을 설정해주세요.",
+    expect(wrapper.find(".budget-state").classes()).toContain("app-state")
+    expect(wrapper.find(".budget-state").attributes("data-state")).toBe("empty")
+    expect(wrapper.find(".budget-state .app-state__title").text()).toBe(
+      "아직 설정된 예산이 없습니다.",
     )
-    expect(wrapper.find(".budget-empty-state .app-button").text()).toBe("설정하기")
+    expect(wrapper.find(".budget-state .app-state__message").text()).toBe("예산을 설정해주세요")
+    expect(wrapper.find(".budget-state .app-state__icon").exists()).toBe(false)
+    expect(wrapper.find(".dashboard-action-button").text()).toBe("설정하기")
     expect(wrapper.find('[role="progressbar"]').exists()).toBe(false)
 
-    await wrapper.find(".budget-empty-state .app-button").trigger("click")
+    await wrapper.find(".dashboard-action-button").trigger("click")
 
     expect(wrapper.emitted("open-budget-settings")).toHaveLength(1)
   })

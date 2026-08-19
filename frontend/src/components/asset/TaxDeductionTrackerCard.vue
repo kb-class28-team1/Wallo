@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from "vue"
 import { storeToRefs } from "pinia"
 import { ANNUAL_SALARY_LOOKUP_STATUS, useReportStore } from "@/stores/assetReportStore.js"
-import { formatNumber, formatWon } from "@/commonUtils/formatters"
+import { formatNumber, formatWon } from "@/utils/formatters"
 import AppAlert from "@/components/ui/AppAlert.vue"
 import AppButton from "@/components/ui/AppButton.vue"
 import AppCard from "@/components/ui/AppCard.vue"

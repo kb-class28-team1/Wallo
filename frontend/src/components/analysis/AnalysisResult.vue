@@ -1,12 +1,12 @@
 <script setup>
 import { computed } from "vue"
-import BudgetGauge from "./blocks/BudgetGauge.vue"
-import CategoryOverview from "./blocks/CategoryOverview.vue"
-import InsufficientDataNotice from "./blocks/InsufficientDataNotice.vue"
-import PositiveSignalList from "./blocks/PositiveSignalList.vue"
-import RecurringPatternCard from "./blocks/RecurringPatternCard.vue"
-import SpendingSignalList from "./blocks/SpendingSignalList.vue"
-import SummaryMetrics from "./blocks/SummaryMetrics.vue"
+import BudgetGauge from "./BudgetGauge.vue"
+import CategoryOverview from "./CategoryOverview.vue"
+import InsufficientDataNotice from "./InsufficientDataNotice.vue"
+import PositiveSignalList from "./PositiveSignalList.vue"
+import RecurringPatternCard from "./RecurringPatternCard.vue"
+import SpendingSignalList from "./SpendingSignalList.vue"
+import SummaryMetrics from "./SummaryMetrics.vue"
 import { formatWon } from "@/types/consumptionAnalysis"
 
 const props = defineProps({ analysis: { type: Object, required: true } })

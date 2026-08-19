@@ -38,16 +38,4 @@
         </foreach>
     </select>
 
-    <select id="findLatestSince"
-            resultType="com.wallo.chat.dto.ConsumptionAnalysisResultDto$RecentResult">
-        SELECT analysis_result_id AS analysisResultId,
-               calculated_result AS calculatedResultJson,
-               ai_response AS aiResponse
-        FROM CONSUMPTION_ANALYSIS_RESULTS
-        WHERE user_id = #{userId}
-          AND generated_at &gt;= #{cutoff}
-        ORDER BY generated_at DESC, analysis_result_id DESC
-        LIMIT 1
-    </select>
-
 </mapper>

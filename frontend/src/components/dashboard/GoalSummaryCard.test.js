@@ -116,6 +116,7 @@ describe("GoalSummaryCard", () => {
     expect(wrapper.find(".goal-state").exists()).toBe(true)
     expect(wrapper.find(".goal-state").classes()).toContain("app-state")
     expect(wrapper.find(".goal-state").attributes("data-state")).toBe("empty")
+    expect(wrapper.find(".goal-state .app-state__icon").exists()).toBe(false)
   })
 
   it("shows the selected account without exposing an edit control", () => {

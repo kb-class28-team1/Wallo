@@ -6,7 +6,7 @@ import { generateNextDayMissions, getTodayMissions } from "@/api/missionApi"
 import AuthenticatedImage from "@/components/common/AuthenticatedImage.vue"
 import { useUserStore } from "@/stores/userStore"
 import { useToastStore } from "@/stores/toastStore"
-import { formatNumber } from "@/commonUtils/formatters"
+import { formatNumber } from "@/utils/formatters"
 import AppButton from "@/components/ui/AppButton.vue"
 
 // public 폴더의 이미지는 루트 절대 경로로 참조함.
@@ -346,7 +346,16 @@ const handleLogout = async () => {
           :disabled="isLoading"
           @click="handleLogout"
         >
-          <template #leading><span aria-hidden="true">[→</span></template>
+          <template #leading>
+            <i
+              class="bi bi-door-open"
+              aria-hidden="true"
+            ></i>
+            <i
+              class="bi bi-door-open-fill"
+              aria-hidden="true"
+            ></i>
+          </template>
         </AppButton>
       </div>
     </div>
@@ -671,6 +680,22 @@ const handleLogout = async () => {
   border: 0;
   color: #5d62c8;
   font-size: 29px;
+}
+
+.logout-button.app-button:hover:not(:disabled) {
+  background: transparent;
+}
+
+.logout-button :deep(.bi-door-open-fill) {
+  display: none;
+}
+
+.logout-button.app-button:hover:not(:disabled) :deep(.bi-door-open) {
+  display: none;
+}
+
+.logout-button.app-button:hover:not(:disabled) :deep(.bi-door-open-fill) {
+  display: inline-block;
 }
 
 .logout-button :deep(.app-button__label) {
