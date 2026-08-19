@@ -806,7 +806,6 @@ onBeforeUnmount(() => {
       <AppPageHeader
         class="feed-header"
         :title="challengeName"
-        description="함께 남긴 절약 기록을 확인하고 응원해 보세요."
         compact
       />
 

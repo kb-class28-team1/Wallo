@@ -78,7 +78,7 @@ onMounted(loadAssets)
 
 <template>
   <section class="asset-view">
-    <AppPageHeader title="자산관리" description="연결된 계좌와 투자 자산을 한곳에서 확인하세요.">
+    <AppPageHeader title="자산관리">
       <template #actions>
         <AppButton
           class="asset-sync-button"

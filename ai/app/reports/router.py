@@ -5,9 +5,11 @@ import logging
 import os
 
 from fastapi import APIRouter, HTTPException
-from groq import Groq, GroqError
+from groq import GroqError
 from pydantic import BaseModel, ValidationError, ValidationInfo, field_validator
 
+from app.clients.groq_client import Groq
+from app.core.ai_guard import ApplicationGuardError
 from app.core.ai_timing import current_request_id, timed_groq_completion
 from app.reports.prompts import FINANCIAL_REPORT_INSTRUCTIONS, build_report_input
 from app.reports.profile_repository import build_report_profile_context, load_report_profile
@@ -244,6 +246,8 @@ def generate_report(request: NewsReportGenerateRequest) -> NewsReportGenerateRes
 
     try:
         return generate_financial_report(client, request, get_report_model())
+    except ApplicationGuardError:
+        raise
     except HTTPException:
         raise
     except Exception as error:
