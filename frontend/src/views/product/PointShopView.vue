@@ -1,12 +1,12 @@
 <script setup>
 import { computed, onMounted, ref } from "vue"
+import QRCode from "qrcode"
 import { useRouter } from "vue-router"
 import {
   deleteUsedInventoryItem,
   getPointShop,
   openRandomBox,
   openRandomBoxes,
-  useInventoryItem as useInventoryItemApi,
 } from "@/api/pointShopApi"
 import { useUserStore } from "@/stores/userStore"
 import {
@@ -78,6 +78,11 @@ const inventoryDetailModal = ref({
   open: false,
   item: null,
 })
+const inventoryQrModal = ref({
+  open: false,
+  item: null,
+  dataUrl: "",
+})
 
 const formattedPoint = computed(
   () => `${Number(shopPointBalance.value ?? userStore.pointBalance ?? 0).toLocaleString("ko-KR")}P`,
@@ -123,6 +128,21 @@ const closeInventoryDetail = () => {
   inventoryDetailModal.value.open = false
 }
 
+const closeInventoryQr = () => {
+  inventoryQrModal.value = {
+    open: false,
+    item: null,
+    dataUrl: "",
+  }
+}
+
+const createQrToken = (itemId) => {
+  const randomValue =
+    globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+
+  return `WALLO-SIMULATED-COUPON:${itemId}:${randomValue}`
+}
+
 const handleUseInventoryItem = async () => {
   const item = inventoryDetailModal.value.item
   if (!item || item.used) {
@@ -130,14 +150,24 @@ const handleUseInventoryItem = async () => {
   }
 
   try {
-    await useInventoryItemApi(item.id)
+    const dataUrl = await QRCode.toDataURL(createQrToken(item.id), {
+      width: 240,
+      margin: 2,
+      errorCorrectionLevel: "M",
+      color: {
+        dark: "#27304f",
+        light: "#ffffff",
+      },
+    })
+
     closeInventoryDetail()
-    if (router.currentRoute.value.name !== "point-shop") {
-      await router.push({ name: "point-shop" })
+    inventoryQrModal.value = {
+      open: true,
+      item,
+      dataUrl,
     }
-    await refreshPointData()
   } catch (error) {
-    alert(error.message || "기프티콘을 사용 처리하지 못했습니다.")
+    alert(error.message || "QR 코드를 생성하지 못했습니다.")
   }
 }
 
@@ -693,6 +723,29 @@ onMounted(() => {
           <dd>{{ inventoryDetailModal.item?.used ? "사용 완료" : "사용 가능" }}</dd>
         </div>
       </dl>
+    </AppDialog>
+
+    <AppDialog
+      :visible="inventoryQrModal.open"
+      :title="`${inventoryQrModal.item?.name || '기프티콘'} QR`"
+      message="매장에서 사용할 때 이 QR을 보여주세요."
+      confirm-text="닫기"
+      :show-cancel="false"
+      size="sm"
+      @close="closeInventoryQr"
+      @confirm="closeInventoryQr"
+    >
+      <div class="inventory-qr-content">
+        <div class="inventory-qr-frame">
+          <img
+            :src="inventoryQrModal.dataUrl"
+            :alt="`${inventoryQrModal.item?.name || '기프티콘'} 임의 QR 코드`"
+          />
+        </div>
+        <p class="inventory-qr-notice">
+          현재는 테스트용 임의 QR입니다. QR을 닫아도 쿠폰은 사용 완료 처리되지 않습니다.
+        </p>
+      </div>
     </AppDialog>
 
     <Transition name="reward-modal">
@@ -1967,6 +2020,40 @@ onMounted(() => {
 .inventory-detail-meta dd {
   color: #4f5878;
   font-weight: 800;
+}
+
+.inventory-qr-content {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  padding-top: 4px;
+}
+
+.inventory-qr-frame {
+  display: grid;
+  width: min(100%, 260px);
+  aspect-ratio: 1;
+  place-items: center;
+  padding: 10px;
+  border: 1px solid #ebe9ff;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgb(74 64 175 / 8%);
+}
+
+.inventory-qr-frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.inventory-qr-notice {
+  margin: 0;
+  color: #8992ae;
+  font-size: 12px;
+  line-height: 1.55;
+  text-align: center;
 }
 
 .inventory-detail-actions {
