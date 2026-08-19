@@ -7,7 +7,7 @@ import {
   getExpenseCategoryMeta,
   normalizeExpenseCategory,
 } from "@/features/financial/financialCategories";
-import { formatWon } from "@/commonUtils/formatters";
+import { formatWon } from "@/utils/formatters";
 
 ChartJS.register(ArcElement, Tooltip);
 

@@ -67,4 +67,55 @@ describe("SideNavigation", () => {
 
     wrapper.unmount()
   })
+
+  it("adds a collapsible monthly report menu under asset management", async () => {
+    mocks.route.path = "/dashboard"
+    mocks.route.name = "dashboard"
+
+    const wrapper = mount(SideNavigation, {
+      global: {
+        stubs: {
+          AppDialog: { template: "<div />" },
+        },
+      },
+    })
+
+    expect(wrapper.find(".asset-group").exists()).toBe(true)
+    expect(wrapper.find("#asset-submenu").exists()).toBe(false)
+    expect(wrapper.find(".asset-collapse-toggle .bi-chevron-down").exists()).toBe(true)
+    expect(wrapper.find(".asset-collapse-toggle").attributes("aria-expanded")).toBe("false")
+
+    await wrapper.find(".asset-collapse-toggle").trigger("click")
+
+    expect(wrapper.find("#asset-submenu").exists()).toBe(true)
+    expect(wrapper.find(".asset-monthly-report").text()).toContain("월별 리포트")
+
+    await wrapper.find(".asset-collapse-toggle").trigger("click")
+
+    expect(wrapper.find("#asset-submenu").exists()).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it("keeps the asset submenu open and highlights monthly reports on its route", async () => {
+    mocks.route.path = "/assets/expenses"
+    mocks.route.name = "expenses"
+
+    const wrapper = mount(SideNavigation, {
+      global: {
+        stubs: {
+          AppDialog: { template: "<div />" },
+        },
+      },
+    })
+
+    await flushPromises()
+
+    expect(wrapper.find(".asset-group").classes()).toContain("asset-group-active")
+    expect(wrapper.find("#asset-submenu").exists()).toBe(true)
+    expect(wrapper.find(".asset-monthly-report").classes()).toContain("submenu-link-active")
+    expect(wrapper.find(".asset-collapse-toggle").attributes("aria-expanded")).toBe("true")
+
+    wrapper.unmount()
+  })
 })

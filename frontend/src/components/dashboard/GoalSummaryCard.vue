@@ -4,8 +4,8 @@ import AppAlert from "@/components/ui/AppAlert.vue"
 import AppButton from "@/components/ui/AppButton.vue"
 import AppCard from "@/components/ui/AppCard.vue"
 import AppState from "@/components/ui/AppState.vue"
-import { formatWon } from "@/commonUtils/formatters"
-import { getGoalAchievementRate, getGoalCurrentAmount } from "@/commonUtils/goalProgress"
+import { formatWon } from "@/utils/formatters"
+import { getGoalAchievementRate, getGoalCurrentAmount } from "@/utils/goalProgress"
 
 const props = defineProps({
   goals: {
@@ -128,6 +128,7 @@ const formatGoalDate = (date) => {
         title="아직 확정된 금융 목표가 없습니다."
         message="AI 컨설팅에서 목표를 설정해보세요."
         compact
+        hide-icon
       />
 
       <div v-else class="goal-list">

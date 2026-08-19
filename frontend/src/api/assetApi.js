@@ -1,5 +1,5 @@
 import httpClient from "@/api/httpClient";
-import { getApiErrorCode, getApiErrorMessage } from "@/commonUtils/apiError";
+import { getApiErrorCode, getApiErrorMessage } from "@/utils/apiError";
 
 const formatDate = (date) => {
   const year = date.getFullYear();

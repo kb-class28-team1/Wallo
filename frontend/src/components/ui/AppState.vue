@@ -28,6 +28,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  hideIcon: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const emit = defineEmits(["action"])
@@ -63,7 +67,7 @@ const resolvedActionVariant = computed(() => {
     :role="type === 'error' ? 'alert' : 'status'"
     aria-live="polite"
   >
-    <div class="app-state__icon" aria-hidden="true">
+    <div v-if="!hideIcon" class="app-state__icon" aria-hidden="true">
       <slot name="icon">
         <span v-if="type === 'loading'" class="app-state__spinner"></span>
         <i v-else-if="type === 'error'" class="bi bi-exclamation-circle"></i>
@@ -101,8 +105,7 @@ const resolvedActionVariant = computed(() => {
   color: var(--wallo-color-text);
   text-align: center;
   background: var(--wallo-color-surface);
-  border: 1px solid var(--wallo-color-border);
-  border-radius: var(--wallo-radius-lg);
+
 }
 
 .app-state--compact {
@@ -119,13 +122,11 @@ const resolvedActionVariant = computed(() => {
   height: 44px;
   color: var(--wallo-color-primary);
   font-size: 1.8rem;
-  background: rgb(112 98 222 / 10%);
   border-radius: var(--wallo-radius-pill);
 }
 
 .app-state--error .app-state__icon {
   color: var(--wallo-color-danger);
-  background: rgb(220 53 69 / 10%);
 }
 
 .app-state__spinner {

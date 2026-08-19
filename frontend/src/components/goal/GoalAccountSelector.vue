@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from "vue";
-import { formatWon } from "@/commonUtils/formatters";
+import { formatWon } from "@/utils/formatters";
 
 const props = defineProps({
   accounts: {
