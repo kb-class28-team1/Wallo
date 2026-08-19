@@ -210,6 +210,7 @@ class GroqCompletionTimer:
         )
         self.started_at: float | None = None
         self.completion: Any = None
+        self.response_headers: Any = None
         self.failure_reason: str | None = None
         self.fallback_used = False
         self.fallback_reason: str | None = None
@@ -231,6 +232,7 @@ class GroqCompletionTimer:
             request_id=self.request_id,
             started_at=self.started_at or start_timer(),
             completion=self.completion,
+            response_headers=self.response_headers,
             requested_completion_tokens=self.requested_completion_tokens,
             retry_count=get_groq_retry_count(self.client),
             rate_limited=was_groq_rate_limited(self.client),
@@ -268,10 +270,30 @@ class GroqCompletionTimer:
             self.requested_completion_tokens,
         )
         try:
-            self.completion = self.client.chat.completions.create(
-                model=self.model,
-                **request_options,
+            completions = self.client.chat.completions
+            raw_completions = getattr(completions, "with_raw_response", None)
+            raw_create = getattr(raw_completions, "create", None)
+            raw_response_descriptor = getattr(
+                type(completions),
+                "with_raw_response",
+                None,
             )
+            if raw_response_descriptor is not None and callable(raw_create):
+                raw_response = raw_create(
+                    model=self.model,
+                    **request_options,
+                )
+                self.response_headers = getattr(raw_response, "headers", None)
+                parse = getattr(raw_response, "parse", None)
+                if not callable(parse):
+                    raise TypeError("Groq raw response does not support parse()")
+                self.completion = parse()
+            else:
+                self.completion = completions.create(
+                    model=self.model,
+                    **request_options,
+                )
+                self.response_headers = getattr(self.completion, "headers", None)
             self.success = True
             return self.completion
         except Exception as error:
@@ -318,6 +340,7 @@ def log_groq_completion_timing(
     started_at: float,
     request_id: str | None = None,
     completion: Any = None,
+    response_headers: Any = None,
     requested_completion_tokens: int | None = None,
     retry_count: int | None = None,
     rate_limited: bool | None = None,
@@ -330,10 +353,15 @@ def log_groq_completion_timing(
     usage = getattr(completion, "usage", None)
     choices = getattr(completion, "choices", None) or []
     first_choice = choices[0] if choices else None
+    prompt_tokens_details = _usage_value(usage, "prompt_tokens_details")
+    completion_tokens_details = _usage_value(usage, "completion_tokens_details")
 
     LOGGER.info(
         "[AI_TIMING] operation=%s requestId=%s model=%s elapsedMs=%d "
         "promptTokens=%s completionTokens=%s totalTokens=%s "
+        "cachedPromptTokens=%s reasoningTokens=%s "
+        "limitTokens=%s remainingTokens=%s resetTokens=%s "
+        "limitRequests=%s remainingRequests=%s resetRequests=%s "
         "requestedCompletionTokens=%s finishReason=%s responseReceived=%s "
         "retryCount=%s rateLimited=%s fallbackUsed=%s fallbackReason=%s "
         "failureReason=%s success=%s",
@@ -344,6 +372,14 @@ def log_groq_completion_timing(
         _usage_value(usage, "prompt_tokens"),
         _usage_value(usage, "completion_tokens"),
         _usage_value(usage, "total_tokens"),
+        _usage_value(prompt_tokens_details, "cached_tokens"),
+        _usage_value(completion_tokens_details, "reasoning_tokens"),
+        _header_value(response_headers, "x-ratelimit-limit-tokens"),
+        _header_value(response_headers, "x-ratelimit-remaining-tokens"),
+        _header_value(response_headers, "x-ratelimit-reset-tokens"),
+        _header_value(response_headers, "x-ratelimit-limit-requests"),
+        _header_value(response_headers, "x-ratelimit-remaining-requests"),
+        _header_value(response_headers, "x-ratelimit-reset-requests"),
         requested_completion_tokens,
         getattr(first_choice, "finish_reason", None),
         completion is not None,

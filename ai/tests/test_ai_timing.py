@@ -66,6 +66,67 @@ def test_timed_groq_completion_logs_actual_usage(caplog):
     assert "success=True" in message
 
 
+def test_timed_groq_completion_logs_success_headers_and_usage_details(caplog):
+    caplog.set_level(logging.INFO, logger="wallo_ai")
+    completion = SimpleNamespace(
+        usage=SimpleNamespace(
+            prompt_tokens=11,
+            completion_tokens=7,
+            total_tokens=18,
+            prompt_tokens_details=SimpleNamespace(cached_tokens=4),
+            completion_tokens_details=SimpleNamespace(reasoning_tokens=3),
+        ),
+        choices=[SimpleNamespace(finish_reason="stop")],
+    )
+    headers = {
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-tokens": "7970",
+        "x-ratelimit-reset-tokens": "2.5s",
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-remaining-requests": "999",
+        "x-ratelimit-reset-requests": "1m",
+    }
+
+    class RawResponse:
+        def __init__(self):
+            self.headers = headers
+
+        def parse(self):
+            return completion
+
+    class Completions:
+        @property
+        def with_raw_response(self):
+            return SimpleNamespace(create=lambda **kwargs: RawResponse())
+
+    client = SimpleNamespace(
+        chat=SimpleNamespace(completions=Completions())
+    )
+
+    with timed_groq_completion(
+        client,
+        operation="test.success-headers",
+        model="test-model",
+    ) as timing:
+        result = timing.create(messages=[])
+
+    assert result is completion
+    message = next(
+        record.getMessage()
+        for record in caplog.records
+        if "operation=test.success-headers" in record.getMessage()
+        and "[AI_TIMING]" in record.getMessage()
+    )
+    assert "cachedPromptTokens=4" in message
+    assert "reasoningTokens=3" in message
+    assert "limitTokens=8000" in message
+    assert "remainingTokens=7970" in message
+    assert "resetTokens=2.5s" in message
+    assert "limitRequests=1000" in message
+    assert "remainingRequests=999" in message
+    assert "resetRequests=1m" in message
+
+
 def test_timed_groq_completion_inherits_request_id(caplog):
     caplog.set_level(logging.INFO, logger="wallo_ai")
     completion = SimpleNamespace(
