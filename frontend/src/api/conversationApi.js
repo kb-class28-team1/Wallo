@@ -1,5 +1,5 @@
 import httpClient from "./httpClient"
-import { getApiErrorMessage } from "@/commonUtils/apiError"
+import { getApiErrorMessage } from "@/utils/apiError"
 
 const toApiError = (error, fallbackMessage) => {
   const apiError = new Error(getApiErrorMessage(error, fallbackMessage))

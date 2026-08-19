@@ -4,7 +4,7 @@ import {
   getTaxSettlement,
   updateAnnualSalary,
 } from "@/api/assetApi";
-import { getApiErrorCode, getApiErrorMessage } from "@/commonUtils/apiError";
+import { getApiErrorCode, getApiErrorMessage } from "@/utils/apiError";
 
 const REPORT_STALE_TIME = 5 * 60 * 1000;
 const requestStateByStore = new WeakMap();

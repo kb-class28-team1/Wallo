@@ -4,12 +4,12 @@ import { useRouter } from "vue-router"
 import { storeToRefs } from "pinia"
 import { useGoalStore } from "@/stores/goalStore"
 import { useUserStore } from "@/stores/userStore"
-import { formatWon } from "@/commonUtils/formatters"
+import { formatWon } from "@/utils/formatters"
 import {
   getGoalAchievementRate,
   getGoalCurrentAmount,
   getGoalTargetAmount,
-} from "@/commonUtils/goalProgress"
+} from "@/utils/goalProgress"
 import AppAlert from "@/components/ui/AppAlert.vue"
 import AppButton from "@/components/ui/AppButton.vue"
 import AppCard from "@/components/ui/AppCard.vue"
@@ -404,36 +404,33 @@ onMounted(() => loadGoalPage({ force: true }))
         </div>
       </div>
 
-      <AppCard as="article" class="content-card mt-4" padding="none">
+      <AppCard as="article" class="content-card goal-roadmap-card mt-4" padding="none">
         <div class="card-body p-4 p-lg-5">
           <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
             <h2 class="section-title h5 fw-bold">목표 달성을 위한 로드맵</h2>
-            <div class="d-flex align-items-center gap-2">
-              <span class="small text-secondary">AI가 생성한 맞춤 계획</span>
-              <div
-                v-if="goalRoadmapSteps.length > 1"
-                class="roadmap-navigation"
-                aria-label="로드맵 이동"
+            <div
+              v-if="goalRoadmapSteps.length > 1"
+              class="roadmap-navigation"
+              aria-label="로드맵 이동"
+            >
+              <AppButton
+                class="roadmap-navigation-button"
+                variant="ghost"
+                size="sm"
+                aria-label="이전 로드맵 단계 보기"
+                @click="scrollRoadmap(-1)"
               >
-                <AppButton
-                  class="roadmap-navigation-button"
-                  variant="ghost"
-                  size="sm"
-                  aria-label="이전 로드맵 단계 보기"
-                  @click="scrollRoadmap(-1)"
-                >
-                  <i class="bi bi-chevron-left" aria-hidden="true"></i>
-                </AppButton>
-                <AppButton
-                  class="roadmap-navigation-button"
-                  variant="ghost"
-                  size="sm"
-                  aria-label="다음 로드맵 단계 보기"
-                  @click="scrollRoadmap(1)"
-                >
-                  <i class="bi bi-chevron-right" aria-hidden="true"></i>
-                </AppButton>
-              </div>
+                <i class="bi bi-chevron-left" aria-hidden="true"></i>
+              </AppButton>
+              <AppButton
+                class="roadmap-navigation-button"
+                variant="ghost"
+                size="sm"
+                aria-label="다음 로드맵 단계 보기"
+                @click="scrollRoadmap(1)"
+              >
+                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+              </AppButton>
             </div>
           </div>
 
@@ -664,9 +661,16 @@ onMounted(() => loadGoalPage({ force: true }))
   background: linear-gradient(135deg, #695ce6, #5644d8);
 }
 
+.coaching-card {
+  height: 100%;
+}
+
+.coaching-card :deep(.app-card__body),
 .coaching-card .card-body {
-  position: relative;
-  min-height: 100%;
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
 }
 
 .coach-bubble {
@@ -682,9 +686,10 @@ onMounted(() => loadGoalPage({ force: true }))
 }
 
 .coach-character {
-  position: absolute;
-  right: 1.75rem;
-  bottom: 1.5rem;
+  position: relative;
+  align-self: flex-end;
+  flex: 0 0 auto;
+  margin-top: auto;
 }
 
 .sparkle {
@@ -712,7 +717,7 @@ onMounted(() => loadGoalPage({ force: true }))
 
 .goal-roadmap-list {
   display: flex;
-  gap: 1.5rem;
+  gap: 2.25rem;
   overflow-x: auto;
   padding: 0.85rem 0.5rem 1.25rem;
   scroll-behavior: smooth;
@@ -729,32 +734,61 @@ onMounted(() => loadGoalPage({ force: true }))
 }
 
 .goal-roadmap-list .roadmap-arrow {
-  right: -1.35rem;
+  right: -1.8rem;
+  font-size: 1.35rem;
+}
+
+.goal-roadmap-card {
+  position: relative;
+}
+
+.goal-roadmap-card .card-body {
+  position: relative;
 }
 
 .roadmap-navigation {
-  display: inline-flex;
-  gap: 0.4rem;
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  display: block;
+  pointer-events: none;
 }
 
 .roadmap-navigation-button {
+  position: absolute;
+  top: 50%;
   display: inline-flex;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 52px;
   align-items: center;
   justify-content: center;
   padding: 0;
-  border: 1px solid #dcd8fb;
-  border-radius: 50%;
+  border: 0;
+  border-radius: var(--wallo-radius-md);
   color: #6555df;
-  background: #fff;
+  background: transparent;
+  pointer-events: auto;
+  transform: translateY(-50%);
+}
+
+.roadmap-navigation-button :deep(.bi) {
+  font-size: 1.75rem;
+  font-weight: 700;
+  -webkit-text-stroke: 0.35px currentColor;
 }
 
 .roadmap-navigation-button:hover,
 .roadmap-navigation-button:focus-visible {
-  border-color: #7567e9;
-  color: #fff;
-  background: #7567e9;
+  color: #7567e9;
+  background: rgb(112 98 222 / 8%);
+}
+
+.roadmap-navigation-button:first-child {
+  left: 0.75rem;
+}
+
+.roadmap-navigation-button:last-child {
+  right: 0.75rem;
 }
 
 .roadmap-item {

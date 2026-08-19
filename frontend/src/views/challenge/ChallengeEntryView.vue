@@ -3,8 +3,10 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { createChallenge, getCurrentChallenge, joinChallenge } from '@/api/challengeApi'
 import AppDialog from '@/components/common/AppDialog.vue'
+import { useToastStore } from '@/stores/toastStore'
 
 const router = useRouter()
+const toastStore = useToastStore()
 
 const isLoading = ref(true)
 const isSubmitting = ref(false)
@@ -66,15 +68,11 @@ const submitCreate = async () => {
     const createdChallenge = await createChallenge({
       name,
     })
-    showDialog(
-      '챌린지가 만들어졌습니다.',
-      {
-        name: 'challenge-feed',
-        params: { challengeId: createdChallenge.id },
-      },
-      '/images/profiles/challenge-make-complete.svg',
-      '챌린지가 만들어진 모습을 보여주는 펭귄과 로봇 이미지',
-    )
+    toastStore.show('챌린지가 만들어졌습니다.', { variant: 'success' })
+    await router.push({
+      name: 'challenge-feed',
+      params: { challengeId: createdChallenge.id },
+    })
   } catch (error) {
     showDialog(error.message)
   } finally {
