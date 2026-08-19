@@ -13,7 +13,10 @@ from app.health.router import router as health_router
 from app.reports.router import router as financial_report_router
 from app.missions.router import router as mission_router
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s:%(name)s:%(message)s",
+)
 logger = logging.getLogger("wallo_ai")
 
 
