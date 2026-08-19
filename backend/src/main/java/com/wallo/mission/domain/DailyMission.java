@@ -5,8 +5,6 @@ import java.time.LocalDateTime;
 
 public class DailyMission {
     private Long dailyMissionId;
-    private Long missionCycleId;
-    private Long missionId;
     private Long userId;
     private LocalDate assignedDate;
     private Integer displayOrder;
@@ -22,10 +20,6 @@ public class DailyMission {
 
     public Long getDailyMissionId() { return dailyMissionId; }
     public void setDailyMissionId(Long dailyMissionId) { this.dailyMissionId = dailyMissionId; }
-    public Long getMissionCycleId() { return missionCycleId; }
-    public void setMissionCycleId(Long missionCycleId) { this.missionCycleId = missionCycleId; }
-    public Long getMissionId() { return missionId; }
-    public void setMissionId(Long missionId) { this.missionId = missionId; }
     public Long getUserId() { return userId; }
     public void setUserId(Long userId) { this.userId = userId; }
     public LocalDate getAssignedDate() { return assignedDate; }
