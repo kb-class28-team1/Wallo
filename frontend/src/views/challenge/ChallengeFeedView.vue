@@ -2252,11 +2252,11 @@ textarea {
 /* Dashboard-style visual treatment for the challenge feed. */
 .feed-page {
   padding: 22px;
-  border: 1px solid #dcecff;
+  border: 1px solid #d8e5fa;
   border-radius: 30px;
   background:
-    radial-gradient(circle at 8% 0%, #dceeff 0, transparent 32%),
-    linear-gradient(145deg, #edf7ff 0%, #f8fbff 48%, #ffffff 100%);
+    radial-gradient(circle at 8% 0%, #dbeaff 0, transparent 32%),
+    linear-gradient(145deg, #f2f7ff 0%, #fbfdff 48%, #ffffff 100%);
 }
 
 .feed-header {
@@ -2264,20 +2264,20 @@ textarea {
   box-sizing: border-box;
   margin-bottom: 18px;
   padding: 23px 26px;
-  border: 1px solid #d8e8f8;
+  border: 1px solid #dde7f7;
   border-radius: 23px;
   background: rgb(255 255 255 / 82%);
-  box-shadow: 0 12px 28px rgb(76 132 190 / 8%);
+  box-shadow: 0 12px 28px rgb(88 117 170 / 10%);
 }
 
 .feed-header :deep(.app-page-header__title) {
-  color: #152b48;
+  color: #1b2d50;
   font-size: clamp(1.55rem, 2.5vw, 2.15rem);
   letter-spacing: -0.05em;
 }
 
 .feed-header :deep(.app-page-header__description) {
-  color: #7188a5;
+  color: #7b8eae;
   font-size: 0.82rem;
 }
 
@@ -2297,29 +2297,29 @@ textarea {
 .feed-toolbar {
   padding: 9px;
   margin-bottom: 16px;
-  border: 1px solid #dceafa;
+  border: 1px solid #dfe8f7;
   border-radius: 17px;
   background: rgb(255 255 255 / 88%);
-  box-shadow: 0 8px 20px rgb(78 132 184 / 7%);
+  box-shadow: 0 8px 20px rgb(88 117 170 / 8%);
 }
 
 .feed-tabs {
-  background: #e7f1fb;
+  background: #eef2fb;
 }
 
 .feed-tabs button {
-  color: #7890aa;
+  color: #8292ae;
 }
 
 .feed-tabs button.active {
-  background: linear-gradient(135deg, #4f8ee8, #6e7be8);
-  box-shadow: 0 5px 12px rgb(79 142 232 / 22%);
+  background: linear-gradient(135deg, #668cf0, #8c78e7);
+  box-shadow: 0 5px 12px rgb(102 140 240 / 24%);
 }
 
 .feed-invite-panel button {
-  color: #397bd2;
-  background: #edf6ff;
-  border-color: #c9e0fb;
+  color: #4775c4;
+  background: #f0f5ff;
+  border-color: #cfdef8;
 }
 
 .feed-leave-button.app-button {
@@ -2330,12 +2330,12 @@ textarea {
   padding: 22px 24px;
   border: 0;
   border-radius: 22px;
-  background: linear-gradient(135deg, #5d94e9, #7f82ee);
-  box-shadow: 0 14px 26px rgb(83 128 224 / 24%);
+  background: linear-gradient(135deg, #7098ed, #8a79e6);
+  box-shadow: 0 14px 26px rgb(112 152 237 / 24%);
 }
 
 .saving-total small {
-  color: #e6f2ff;
+  color: #edf2ff;
   font-size: 0.75rem;
 }
 
@@ -2346,41 +2346,41 @@ textarea {
 }
 
 .empty-feed {
-  border-color: #cfe2f6;
+  border-color: #d7e6f8;
   background: rgb(255 255 255 / 85%);
-  box-shadow: 0 12px 28px rgb(76 132 190 / 7%);
+  box-shadow: 0 12px 28px rgb(88 117 170 / 8%);
 }
 
 .feed-card {
-  border: 1px solid #d7e5f3;
+  border: 1px solid #dce6f3;
   border-radius: 23px;
   background: #fff;
-  box-shadow: 0 14px 28px rgb(64 105 151 / 12%);
+  box-shadow: 0 14px 28px rgb(75 100 143 / 12%);
 }
 
 .feed-card header {
   padding: 17px 20px;
-  color: #203654;
+  color: #273b61;
   border-bottom: 1px solid #eef4fa;
 }
 
 .feed-card header img {
-  box-shadow: 0 0 0 4px #edf6ff;
+  box-shadow: 0 0 0 4px #f1f5ff;
 }
 
 .feed-card header small {
-  color: #7890ab;
+  color: #7d8ead;
 }
 
 .saving-badge {
-  color: #3b76cb;
-  background: #eaf3ff;
+  color: #456fca;
+  background: #edf3ff;
 }
 
 .feed-media-wrap,
 .feed-media,
 .feed-media-wrap > video {
-  background: #eaf4ff;
+  background: #eef5ff;
 }
 
 .feed-like-row {
@@ -2418,39 +2418,39 @@ textarea {
 }
 
 .feed-card footer {
-  color: #253b59;
+  color: #273b61;
   background: #fff;
 }
 
 .feed-card footer span {
-  color: #7c91aa;
+  color: #8292ae;
 }
 
 .chat-room {
-  color: #253b59;
-  border: 1px solid #d7e7f7;
+  color: #273b61;
+  border: 1px solid #dce7f7;
   border-radius: 22px;
   background: #fff;
-  box-shadow: 0 14px 28px rgb(64 105 151 / 10%);
+  box-shadow: 0 14px 28px rgb(75 100 143 / 10%);
 }
 
 .chat-room > header {
   padding: 19px;
-  border-bottom-color: #dceaf7;
-  background: #eaf5ff;
+  border-bottom-color: #dfe8f7;
+  background: #f0f5ff;
 }
 
 .chat-room h2 {
-  color: #203654;
+  color: #273b61;
 }
 
 .chat-room header small {
-  color: #7890ab;
+  color: #7d8ead;
 }
 
 .messages {
-  background: #fbfdff;
-  scrollbar-color: #b9d1e9 transparent;
+  background: #fcfdff;
+  scrollbar-color: #c5d5ee transparent;
 }
 
 .message-author {
@@ -2462,29 +2462,29 @@ textarea {
 }
 
 .message-bubble {
-  color: #3b5270;
-  background: #edf5fc;
+  color: #435878;
+  background: #f0f5fc;
 }
 
 .message.mine .message-bubble {
   color: #fff;
-  background: #668fe0;
+  background: #718fe8;
 }
 
 .chat-form {
-  background: #edf6ff;
+  background: #f0f5ff;
 }
 
 .chat-form textarea {
-  color: #29415f;
+  color: #30486e;
   background: #fff;
-  border: 1px solid #d8e6f3;
+  border: 1px solid #dce6f5;
 }
 
 .chat-form button,
 .floating-add {
-  background: linear-gradient(135deg, #4f8ee8, #6f7ee8);
-  box-shadow: 0 10px 22px rgb(79 142 232 / 24%);
+  background: linear-gradient(135deg, #668cf0, #8c78e7);
+  box-shadow: 0 10px 22px rgb(102 140 240 / 24%);
 }
 
 @media (max-width: 1200px) {
