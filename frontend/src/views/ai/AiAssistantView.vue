@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from "vue"
 import { useRouter } from "vue-router"
 import { storeToRefs } from "pinia"
 import { useGoalStore } from "@/stores/goalStore"
+import { useProductRecommendationStore } from "@/stores/productRecommendationStore"
 import { useUserStore } from "@/stores/userStore"
 import { formatWon } from "@/utils/formatters"
 import {
@@ -15,9 +16,11 @@ import AppButton from "@/components/ui/AppButton.vue"
 import AppCard from "@/components/ui/AppCard.vue"
 import AppPageHeader from "@/components/ui/AppPageHeader.vue"
 import AppState from "@/components/ui/AppState.vue"
+import ProductRecommendationResult from "@/components/analysis/ProductRecommendationResult.vue"
 
 const router = useRouter()
 const goalStore = useGoalStore()
+const productRecommendationStore = useProductRecommendationStore()
 const userStore = useUserStore()
 const {
   goals,
@@ -29,6 +32,14 @@ const {
   roadmapError,
   isRoadmapProgressSaving,
 } = storeToRefs(goalStore)
+const {
+  productRecommendation,
+  recommendationReason,
+  requestMessage,
+  generatedAt,
+  status: productRecommendationStatus,
+  error: productRecommendationError,
+} = storeToRefs(productRecommendationStore)
 const { user } = storeToRefs(userStore)
 
 const walloCharacter = "/images/profiles/thinking-penguin.svg"
@@ -157,6 +168,14 @@ const loadGoalPage = async ({ force = false } = {}) => {
   })
 }
 
+const loadLatestProductRecommendation = ({ force = false } = {}) =>
+  productRecommendationStore.fetchLatest({ force })
+
+const formatRecommendationDate = (value) => {
+  if (!value) return ""
+  return String(value).replace("T", " ").slice(0, 16)
+}
+
 const startGoalSetting = async () => {
   await router.push({
     name: "chat",
@@ -168,7 +187,10 @@ const startAiChat = async () => {
   await router.push({ name: "chat" })
 }
 
-onMounted(() => loadGoalPage({ force: true }))
+onMounted(() => {
+  void loadGoalPage({ force: true })
+  void loadLatestProductRecommendation({ force: true })
+})
 </script>
 
 <template>
@@ -554,6 +576,70 @@ onMounted(() => loadGoalPage({ force: true }))
         </div>
       </AppCard>
     </div>
+
+    <AppCard
+      v-if="productRecommendationStatus === 'loading'"
+      class="content-card latest-product-recommendation-card mt-4"
+      padding="none"
+    >
+      <div class="card-body p-4 p-lg-5">
+        <h2 class="section-title h5 fw-bold">최신 상품 추천</h2>
+        <AppState
+          class="latest-product-recommendation-state mt-3"
+          type="loading"
+          compact
+          title="최신 상품 추천을 불러오는 중입니다."
+          message="저장된 추천 결과를 확인하고 있습니다."
+        />
+      </div>
+    </AppCard>
+
+    <AppAlert
+      v-else-if="productRecommendationStatus === 'error'"
+      class="latest-product-recommendation-error mt-4"
+      variant="warning"
+    >
+      <div class="assistant-error-content">
+        <span>{{ productRecommendationError }}</span>
+        <AppButton
+          variant="outline"
+          size="sm"
+          @click="loadLatestProductRecommendation({ force: true })"
+        >
+          다시 시도
+        </AppButton>
+      </div>
+    </AppAlert>
+
+    <AppCard
+      v-else-if="productRecommendationStatus === 'success'"
+      class="content-card latest-product-recommendation-card mt-4"
+      padding="none"
+    >
+      <div class="card-body p-4 p-lg-5">
+        <div class="latest-product-recommendation-heading">
+          <div>
+            <h2 class="section-title h5 fw-bold">최신 상품 추천</h2>
+            <p class="text-secondary mb-0 mt-2">
+              채팅에서 저장된 가장 최근의 상품 추천 결과예요.
+            </p>
+          </div>
+          <small v-if="generatedAt" class="latest-product-recommendation-date">
+            {{ formatRecommendationDate(generatedAt) }} 기준
+          </small>
+        </div>
+
+        <ProductRecommendationResult
+          class="mt-4"
+          :recommendation="productRecommendation"
+          :reason="recommendationReason"
+        />
+
+        <p v-if="requestMessage" class="latest-product-recommendation-request mb-0 mt-3">
+          추천 요청: {{ requestMessage }}
+        </p>
+      </div>
+    </AppCard>
   </section>
 </template>
 
@@ -575,6 +661,23 @@ onMounted(() => loadGoalPage({ force: true }))
 .assistant-refresh-status,
 .assistant-refresh-error {
   margin-bottom: var(--wallo-space-3);
+}
+
+.latest-product-recommendation-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.latest-product-recommendation-date,
+.latest-product-recommendation-request {
+  color: #85899b;
+  font-size: 0.78rem;
+}
+
+.latest-product-recommendation-state {
+  min-height: 140px;
 }
 
 .assistant-error-content {
@@ -1095,6 +1198,10 @@ onMounted(() => loadGoalPage({ force: true }))
   .goal-heading-actions {
     width: 100%;
     justify-content: space-between;
+  }
+
+  .latest-product-recommendation-heading {
+    flex-direction: column;
   }
 
   .roadmap-list {

@@ -10,4 +10,8 @@ public interface ProductRecommendationResultMapper {
     List<ProductRecommendationResultDto.StoredResult> findByAssistantMessageIds(
             @Param("assistantMessageIds") List<Long> assistantMessageIds
     );
+
+    ProductRecommendationResultDto.LatestStoredResult findLatestByUserId(
+            @Param("userId") long userId
+    );
 }

@@ -32,4 +32,17 @@
         </foreach>
     </select>
 
+    <select id="findLatestByUserId"
+            resultType="com.wallo.chat.dto.ProductRecommendationResultDto$LatestStoredResult">
+        SELECT assistant_message_id AS assistantMessageId,
+               request_message AS requestMessage,
+               recommendation_result AS recommendationResultJson,
+               ai_response AS aiResponse,
+               generated_at AS generatedAt
+        FROM PRODUCT_RECOMMENDATION_RESULTS
+        WHERE user_id = #{userId}
+        ORDER BY generated_at DESC, recommendation_result_id DESC
+        LIMIT 1
+    </select>
+
 </mapper>

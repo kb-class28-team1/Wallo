@@ -61,16 +61,40 @@ public class ProductRecommendationResultService {
         Map<Long, Map<String, Object>> result = new LinkedHashMap<>();
         for (ProductRecommendationResultDto.StoredResult stored
                 : mapper.findByAssistantMessageIds(assistantMessageIds)) {
-            try {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> recommendation = objectMapper.readValue(
-                        stored.getRecommendationResultJson(), Map.class);
-                result.put(stored.getAssistantMessageId(), recommendation);
-            } catch (JsonProcessingException exception) {
-                throw new IllegalStateException(
-                        "저장된 상품 추천 결과를 읽지 못했습니다.", exception);
-            }
+            result.put(
+                    stored.getAssistantMessageId(),
+                    parseRecommendationResult(stored.getRecommendationResultJson())
+            );
         }
         return result;
+    }
+
+    @Transactional(readOnly = true)
+    public ProductRecommendationResultDto.LatestResponse findLatestByUserId(long userId) {
+        ProductRecommendationResultDto.LatestStoredResult stored =
+                mapper.findLatestByUserId(userId);
+        if (stored == null) {
+            return null;
+        }
+
+        return new ProductRecommendationResultDto.LatestResponse(
+                stored.getAssistantMessageId(),
+                stored.getRequestMessage(),
+                parseRecommendationResult(stored.getRecommendationResultJson()),
+                stored.getAiResponse(),
+                stored.getGeneratedAt()
+        );
+    }
+
+    private Map<String, Object> parseRecommendationResult(String recommendationResultJson) {
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> recommendation = objectMapper.readValue(
+                    recommendationResultJson, Map.class);
+            return recommendation;
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException(
+                    "저장된 상품 추천 결과를 읽지 못했습니다.", exception);
+        }
     }
 }
