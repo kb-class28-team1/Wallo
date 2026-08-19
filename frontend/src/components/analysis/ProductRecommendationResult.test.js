@@ -15,6 +15,40 @@ const recommendation = {
 }
 
 describe("ProductRecommendationResult", () => {
+  it("renders at most three recommended products", () => {
+    const wrapper = mount(ProductRecommendationResult, {
+      props: {
+        recommendation: {
+          ...recommendation,
+          products: Array.from({ length: 4 }, (_, index) => ({
+            ...recommendation.products[0],
+            productName: `Product ${index + 1}`,
+          })),
+        },
+      },
+    })
+
+    expect(wrapper.findAll(".product-card")).toHaveLength(3)
+    expect(wrapper.text()).toContain("Product 1")
+    expect(wrapper.text()).toContain("Product 3")
+    expect(wrapper.text()).not.toContain("Product 4")
+  })
+
+  it("shows an empty state when no product matches", () => {
+    const wrapper = mount(ProductRecommendationResult, {
+      props: {
+        recommendation: {
+          productType: "deposit",
+          products: [],
+        },
+      },
+    })
+
+    expect(wrapper.find(".product-recommendation__empty").exists()).toBe(true)
+    expect(wrapper.find(".product-recommendation__empty").attributes("role")).toBe("status")
+    expect(wrapper.findAll(".product-card")).toHaveLength(0)
+  })
+
   it("renders the AI recommendation reason as sanitized markdown", () => {
     const wrapper = mount(ProductRecommendationResult, {
       props: {
