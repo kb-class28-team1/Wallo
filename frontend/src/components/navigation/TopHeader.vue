@@ -368,7 +368,7 @@ const handleMissionFocusOut = (event) => {
   z-index: 1020;
   top: 0;
   right: 0;
-  left: 273px;
+  left: var(--wallo-sidebar-width);
   height: 68px;
   min-height: 68px;
   padding: 0 32px;
