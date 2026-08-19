@@ -5,9 +5,10 @@ import logging
 import os
 
 from fastapi import APIRouter, HTTPException
-from groq import Groq, GroqError
+from groq import GroqError
 from pydantic import BaseModel, ValidationError, ValidationInfo, field_validator
 
+from app.clients.groq_client import Groq
 from app.core.ai_guard import ApplicationGuardError
 from app.core.ai_timing import current_request_id, timed_groq_completion
 from app.reports.prompts import FINANCIAL_REPORT_INSTRUCTIONS, build_report_input

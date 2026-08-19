@@ -12,6 +12,15 @@ MAX_ALLOWED_GROQ_RETRIES = 1
 DEFAULT_GROQ_MAX_RETRY_DELAY_SECONDS = 5.0
 MIN_ALLOWED_GROQ_MAX_RETRY_DELAY_SECONDS = 1.0
 MAX_ALLOWED_GROQ_MAX_RETRY_DELAY_SECONDS = 10.0
+DEFAULT_GROQ_CIRCUIT_BREAKER_FAILURE_THRESHOLD = 3
+MIN_ALLOWED_GROQ_CIRCUIT_BREAKER_FAILURE_THRESHOLD = 2
+MAX_ALLOWED_GROQ_CIRCUIT_BREAKER_FAILURE_THRESHOLD = 10
+DEFAULT_GROQ_CIRCUIT_BREAKER_WINDOW_SECONDS = 30.0
+MIN_ALLOWED_GROQ_CIRCUIT_BREAKER_WINDOW_SECONDS = 1.0
+MAX_ALLOWED_GROQ_CIRCUIT_BREAKER_WINDOW_SECONDS = 300.0
+DEFAULT_GROQ_CIRCUIT_BREAKER_OPEN_SECONDS = 30.0
+MIN_ALLOWED_GROQ_CIRCUIT_BREAKER_OPEN_SECONDS = 1.0
+MAX_ALLOWED_GROQ_CIRCUIT_BREAKER_OPEN_SECONDS = 600.0
 DEFAULT_GROQ_TIMEOUT_SECONDS = 30.0
 MIN_ALLOWED_GROQ_TIMEOUT_SECONDS = 1.0
 MAX_ALLOWED_GROQ_TIMEOUT_SECONDS = 60.0
@@ -68,6 +77,51 @@ def get_groq_max_retry_delay_seconds() -> float:
             "GROQ_MAX_RETRY_DELAY_SECONDS는 1 이상 10 이하의 숫자여야 합니다."
         )
     return delay_seconds
+
+
+def get_groq_circuit_breaker_failure_threshold() -> int:
+    return _get_bounded_int(
+        "GROQ_CIRCUIT_BREAKER_FAILURE_THRESHOLD",
+        DEFAULT_GROQ_CIRCUIT_BREAKER_FAILURE_THRESHOLD,
+        MIN_ALLOWED_GROQ_CIRCUIT_BREAKER_FAILURE_THRESHOLD,
+        MAX_ALLOWED_GROQ_CIRCUIT_BREAKER_FAILURE_THRESHOLD,
+    )
+
+
+def _get_bounded_float(
+    variable_name: str,
+    default: float,
+    minimum: float,
+    maximum: float,
+) -> float:
+    raw_value = os.getenv(variable_name, str(default))
+    try:
+        value = float(raw_value)
+    except ValueError as error:
+        raise RuntimeError(f"{variable_name} must be a number") from error
+    if not math.isfinite(value) or not minimum <= value <= maximum:
+        raise RuntimeError(
+            f"{variable_name} must be between {minimum} and {maximum}"
+        )
+    return value
+
+
+def get_groq_circuit_breaker_window_seconds() -> float:
+    return _get_bounded_float(
+        "GROQ_CIRCUIT_BREAKER_WINDOW_SECONDS",
+        DEFAULT_GROQ_CIRCUIT_BREAKER_WINDOW_SECONDS,
+        MIN_ALLOWED_GROQ_CIRCUIT_BREAKER_WINDOW_SECONDS,
+        MAX_ALLOWED_GROQ_CIRCUIT_BREAKER_WINDOW_SECONDS,
+    )
+
+
+def get_groq_circuit_breaker_open_seconds() -> float:
+    return _get_bounded_float(
+        "GROQ_CIRCUIT_BREAKER_OPEN_SECONDS",
+        DEFAULT_GROQ_CIRCUIT_BREAKER_OPEN_SECONDS,
+        MIN_ALLOWED_GROQ_CIRCUIT_BREAKER_OPEN_SECONDS,
+        MAX_ALLOWED_GROQ_CIRCUIT_BREAKER_OPEN_SECONDS,
+    )
 
 
 def get_groq_timeout_seconds() -> float:

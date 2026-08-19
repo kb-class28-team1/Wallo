@@ -5,11 +5,18 @@ import httpx
 import pytest
 
 from app.clients import groq_client
-from app.clients.groq_client import Groq
+from app.clients.groq_client import Groq, RateLimitCircuitBreaker
+from app.core.ai_guard import ProviderCircuitOpenError
 from app.core.config import (
+    DEFAULT_GROQ_CIRCUIT_BREAKER_FAILURE_THRESHOLD,
+    DEFAULT_GROQ_CIRCUIT_BREAKER_OPEN_SECONDS,
+    DEFAULT_GROQ_CIRCUIT_BREAKER_WINDOW_SECONDS,
     DEFAULT_GROQ_MAX_RETRIES,
     DEFAULT_GROQ_MAX_RETRY_DELAY_SECONDS,
     DEFAULT_GROQ_TIMEOUT_SECONDS,
+    get_groq_circuit_breaker_failure_threshold,
+    get_groq_circuit_breaker_open_seconds,
+    get_groq_circuit_breaker_window_seconds,
     get_groq_max_retries,
     get_groq_max_retry_delay_seconds,
     get_groq_timeout_seconds,
@@ -19,8 +26,10 @@ from app.core.config import (
 @pytest.fixture(autouse=True)
 def clear_groq_client_cache():
     groq_client._get_cached_groq_client.cache_clear()
+    groq_client.reset_rate_limit_circuit_breaker()
     yield
     groq_client._get_cached_groq_client.cache_clear()
+    groq_client.reset_rate_limit_circuit_breaker()
 
 
 def test_groq_client_uses_bounded_retry_and_timeout_settings(monkeypatch):
@@ -60,6 +69,31 @@ def test_groq_settings_have_latency_safe_defaults(monkeypatch):
         == 5.0
     )
     assert get_groq_timeout_seconds() == DEFAULT_GROQ_TIMEOUT_SECONDS == 30.0
+    assert (
+        get_groq_circuit_breaker_failure_threshold()
+        == DEFAULT_GROQ_CIRCUIT_BREAKER_FAILURE_THRESHOLD
+        == 3
+    )
+    assert (
+        get_groq_circuit_breaker_window_seconds()
+        == DEFAULT_GROQ_CIRCUIT_BREAKER_WINDOW_SECONDS
+        == 30.0
+    )
+    assert (
+        get_groq_circuit_breaker_open_seconds()
+        == DEFAULT_GROQ_CIRCUIT_BREAKER_OPEN_SECONDS
+        == 30.0
+    )
+
+
+def test_circuit_breaker_settings_are_configurable(monkeypatch):
+    monkeypatch.setenv("GROQ_CIRCUIT_BREAKER_FAILURE_THRESHOLD", "4")
+    monkeypatch.setenv("GROQ_CIRCUIT_BREAKER_WINDOW_SECONDS", "45")
+    monkeypatch.setenv("GROQ_CIRCUIT_BREAKER_OPEN_SECONDS", "90")
+
+    assert get_groq_circuit_breaker_failure_threshold() == 4
+    assert get_groq_circuit_breaker_window_seconds() == 45.0
+    assert get_groq_circuit_breaker_open_seconds() == 90.0
 
 
 @pytest.mark.parametrize(
@@ -112,6 +146,62 @@ def _bare_client(max_retry_delay_seconds: float = 5.0) -> Groq:
     client._retry_state = threading.local()
     client.reset_retry_tracking()
     return client
+
+
+def test_rate_limit_circuit_breaker_opens_after_repeated_failures_and_recovers():
+    now = [0.0]
+    breaker = RateLimitCircuitBreaker(
+        failure_threshold=2,
+        failure_window_seconds=10.0,
+        open_seconds=20.0,
+        clock=lambda: now[0],
+    )
+
+    assert breaker.record_rate_limit(8.0) is False
+    now[0] = 1.0
+    assert breaker.record_rate_limit(8.0) is True
+
+    with pytest.raises(ProviderCircuitOpenError) as error_info:
+        breaker.before_request()
+
+    assert error_info.value.retry_after_seconds == pytest.approx(20.0)
+    now[0] = 21.0
+    breaker.before_request()
+
+
+def test_groq_request_is_blocked_when_rate_limit_circuit_is_open(monkeypatch):
+    now = [0.0]
+    breaker = RateLimitCircuitBreaker(
+        failure_threshold=2,
+        failure_window_seconds=10.0,
+        open_seconds=20.0,
+        clock=lambda: now[0],
+    )
+    breaker.record_rate_limit()
+    breaker.record_rate_limit()
+    monkeypatch.setattr(groq_client, "_RATE_LIMIT_CIRCUIT_BREAKER", breaker)
+    client = _bare_client()
+
+    with patch.object(groq_client.GroqSdk, "request") as sdk_request:
+        with pytest.raises(ProviderCircuitOpenError):
+            client.request(object(), object())
+
+    sdk_request.assert_not_called()
+
+
+def test_repeated_429_opens_circuit_before_another_sdk_retry(monkeypatch):
+    now = [0.0]
+    breaker = RateLimitCircuitBreaker(
+        failure_threshold=2,
+        failure_window_seconds=10.0,
+        open_seconds=20.0,
+        clock=lambda: now[0],
+    )
+    breaker.record_rate_limit()
+    monkeypatch.setattr(groq_client, "_RATE_LIMIT_CIRCUIT_BREAKER", breaker)
+    client = _bare_client()
+
+    assert client._should_retry(_rate_limit_response("1")) is False
 
 
 def test_provider_retry_after_above_fallback_cap_allows_dynamic_retry():

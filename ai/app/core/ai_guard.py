@@ -23,6 +23,18 @@ class ApplicationGuardError(Exception):
     retry_after_seconds = 1.0
 
 
+class ProviderCircuitOpenError(ApplicationGuardError):
+    error_code = "AI_PROVIDER_CIRCUIT_OPEN"
+
+    def __init__(self, retry_after_seconds: float):
+        self.retry_after_seconds = max(0.0, retry_after_seconds)
+        retry_after = max(1, math.ceil(self.retry_after_seconds))
+        super().__init__(
+            "AI provider circuit breaker is open; "
+            f"retry after {retry_after} seconds"
+        )
+
+
 class ApplicationTokenBudgetExceeded(ApplicationGuardError):
     error_code = "AI_TOKEN_BUDGET_EXCEEDED"
 
