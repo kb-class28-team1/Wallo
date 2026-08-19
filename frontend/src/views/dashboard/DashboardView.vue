@@ -160,7 +160,7 @@ onBeforeUnmount(() => {
     />
 
     <div v-else>
-      <AppPageHeader title="대시보드" description="자산과 소비 현황을 확인하세요.">
+      <AppPageHeader title="대시보드">
         <template #actions>
           <span v-if="isDashboardRefreshing" class="dashboard-refresh-status" role="status">
             <span
@@ -203,6 +203,10 @@ onBeforeUnmount(() => {
   width: 100%;
 }
 
+.dashboard-page :deep(.app-page-header) {
+  margin-bottom: var(--wallo-space-4);
+}
+
 .dashboard-state {
   min-height: 280px;
   display: flex;
@@ -225,17 +229,17 @@ onBeforeUnmount(() => {
 .dashboard-card-grid {
   display: grid;
   grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
-  gap: var(--wallo-space-6);
+  gap: var(--wallo-space-5);
   max-width: var(--wallo-content-max-width);
-  margin-top: var(--wallo-space-6);
+  margin-top: 0;
 }
 
 .dashboard-summary-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--wallo-space-6);
+  gap: var(--wallo-space-5);
   max-width: var(--wallo-content-max-width);
-  margin-top: var(--wallo-space-6);
+  margin-top: var(--wallo-space-5);
 }
 
 @media (max-width: 991.98px) {

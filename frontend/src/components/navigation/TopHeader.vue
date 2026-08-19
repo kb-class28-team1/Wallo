@@ -220,14 +220,6 @@ const handleMissionFocusOut = (event) => {
   scheduleMissionMenuClose()
 }
 
-const handleLogout = async () => {
-  try {
-    await userStore.logout()
-    await router.replace("/login")
-  } catch (error) {
-    alert(error.message || "로그아웃에 실패했습니다.")
-  }
-}
 </script>
 
 <template>
@@ -337,6 +329,18 @@ const handleLogout = async () => {
       </div>
 
       <div class="user-summary d-flex align-items-center">
+        <!-- 보유 포인트를 누르면 포인트 샵으로 이동함 -->
+        <RouterLink
+          to="/point-shop"
+          class="point-badge d-inline-flex align-items-center"
+          aria-label="포인트 샵으로 이동"
+        >
+          <img :src="pointWCoin" class="point-icon" alt="" aria-hidden="true" />
+          {{ formattedPointBalance }} P
+        </RouterLink>
+
+        <span class="user-summary-divider" aria-hidden="true"></span>
+
         <!-- 프로필 이미지와 이름을 누르면 설정 페이지로 이동함 -->
         <RouterLink
           to="/users/profile"
@@ -353,36 +357,6 @@ const handleLogout = async () => {
             {{ displayedNickname }}
           </span>
         </RouterLink>
-
-        <!-- 보유 포인트를 누르면 포인트 샵으로 이동함 -->
-        <RouterLink
-          to="/point-shop"
-          class="point-badge d-inline-flex align-items-center"
-          aria-label="포인트 샵으로 이동"
-        >
-          <img :src="pointWCoin" class="point-icon" alt="" aria-hidden="true" />
-          {{ formattedPointBalance }} P
-        </RouterLink>
-
-        <AppButton
-          class="logout-button"
-          variant="ghost"
-          size="sm"
-          aria-label="로그아웃"
-          :disabled="isLoading"
-          @click="handleLogout"
-        >
-          <template #leading>
-            <i
-              class="bi bi-door-open"
-              aria-hidden="true"
-            ></i>
-            <i
-              class="bi bi-door-open-fill"
-              aria-hidden="true"
-            ></i>
-          </template>
-        </AppButton>
       </div>
     </div>
   </header>
@@ -406,12 +380,18 @@ const handleLogout = async () => {
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  max-width: 1180px;
-  padding: 0 16px;
+  max-width: var(--wallo-content-max-width);
+  padding: 0;
 }
 
 .user-summary {
   gap: 14px;
+}
+
+.user-summary-divider {
+  width: 2px;
+  height: 32px;
+  background: #d8dbea;
 }
 
 .mission-menu {
@@ -644,8 +624,8 @@ const handleLogout = async () => {
 }
 
 .profile-image {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   object-fit: cover;
   background: #ffffff;
 }
@@ -654,7 +634,7 @@ const handleLogout = async () => {
   max-width: 220px;
   overflow: hidden;
   color: #111111;
-  font-size: 22px;
+  font-size: 16px;
   font-weight: 500;
   line-height: 1.2;
   text-overflow: ellipsis;
@@ -685,47 +665,6 @@ const handleLogout = async () => {
   border-color: #7565ed;
   color: #fff;
   background: #7565ed;
-}
-
-.logout-button {
-  display: inline-flex;
-  padding: 0 0 0 6px;
-  border: 0;
-  color: #5d62c8;
-  background: transparent;
-  font-family: inherit;
-  font-size: 29px;
-  line-height: 1;
-  cursor: pointer;
-  text-decoration: none;
-}
-
-.logout-button.app-button {
-  min-height: 0;
-  padding: 0 0 0 6px;
-  border: 0;
-  color: #5d62c8;
-  font-size: 29px;
-}
-
-.logout-button.app-button:hover:not(:disabled) {
-  background: transparent;
-}
-
-.logout-button :deep(.bi-door-open-fill) {
-  display: none;
-}
-
-.logout-button.app-button:hover:not(:disabled) :deep(.bi-door-open) {
-  display: none;
-}
-
-.logout-button.app-button:hover:not(:disabled) :deep(.bi-door-open-fill) {
-  display: inline-block;
-}
-
-.logout-button :deep(.app-button__label) {
-  display: none;
 }
 
 @media (max-width: 991.98px) {
@@ -764,7 +703,7 @@ const handleLogout = async () => {
 
   .user-name {
     max-width: 110px;
-    font-size: 18px;
+    font-size: 16px;
   }
 }
 </style>

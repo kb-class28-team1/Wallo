@@ -94,12 +94,12 @@ const budgetRemaining = computed(
 .budget-card-body {
   display: flex;
   flex-direction: column;
-  min-height: 328px;
-  padding: var(--wallo-space-6);
+  min-height: 312px;
+  padding: var(--wallo-space-5) var(--wallo-space-6);
 }
 
 .budget-content {
-  margin-top: 28px;
+  margin-top: 24px;
 }
 
 .budget-balance-label,

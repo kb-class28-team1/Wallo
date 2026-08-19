@@ -128,12 +128,12 @@ const chartOptions = {
 }
 
 .asset-card-body {
-  min-height: 328px;
-  padding: var(--wallo-space-6);
+  min-height: 312px;
+  padding: var(--wallo-space-5) var(--wallo-space-6);
 }
 
 .asset-card-content {
-  min-height: 244px;
+  min-height: 232px;
 }
 
 .asset-label,
@@ -154,11 +154,11 @@ const chartOptions = {
 }
 
 .asset-change-positive {
-  color: var(--wallo-color-finance-increase);
+  color: #2d61d5;
 }
 
 .asset-change-negative {
-  color: var(--wallo-color-finance-decrease);
+  color: var(--wallo-color-finance-increase);
 }
 
 .dashboard-action-button {
@@ -182,7 +182,7 @@ const chartOptions = {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  min-height: 244px;
+  min-height: 232px;
 }
 
 .asset-status-action {
@@ -190,13 +190,13 @@ const chartOptions = {
 }
 
 .asset-trend-chart {
-  height: 178px;
+  height: 170px;
   margin-top: auto;
 }
 
 .asset-trend-empty {
   display: flex;
-  min-height: 178px;
+  min-height: 170px;
   align-items: center;
   justify-content: center;
 }

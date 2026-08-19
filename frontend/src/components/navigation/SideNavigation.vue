@@ -5,22 +5,20 @@ import { getCurrentChallenge } from "@/api/challengeApi"
 import AppDialog from "@/components/common/AppDialog.vue"
 import AppButton from "@/components/ui/AppButton.vue"
 import AppCard from "@/components/ui/AppCard.vue"
+import { useUserStore } from "@/stores/userStore"
 
 // public 폴더의 이미지는 루트 절대 경로로 참조함.
-const brandPenguin = "/images/profiles/penguin-coins.svg"
 const thinkingPenguin = "/images/profiles/thinking-penguin.svg"
-const brandLogoSource = ref(brandPenguin)
 
 const primaryMenus = [
   { icon: "bi bi-house-fill", label: "대시보드", to: "/dashboard" },
-  { icon: "bi bi-bank", label: "자산관리", to: "/assets" },
+  { icon: "bi bi-bar-chart-line", label: "자산관리", to: "/assets" },
   { icon: "bi bi-robot", label: "AI 컨설팅", to: "/ai-consulting" },
 ]
 
 const utilityMenus = [
-  { icon: "bi bi-cart3", label: "포인트 샵", to: "/point-shop" },
+  { icon: "bi bi-gift", label: "포인트 샵", to: "/point-shop" },
   { icon: "bi bi-newspaper", label: "금융 리포트", to: "/reports" },
-  { icon: "bi bi-gear", label: "설정", to: "/users/profile" },
 ]
 
 const savingsTips = [
@@ -83,6 +81,7 @@ onBeforeUnmount(() => window.clearTimeout(dailyTipTimer))
 
 const route = useRoute()
 const router = useRouter()
+const userStore = useUserStore()
 // 자산관리 하위 메뉴 열림 여부를 관리함
 const isAssetOpen = ref(false)
 // 챌린지 하위 메뉴 열림 여부를 관리함
@@ -160,11 +159,6 @@ const toggleChallenge = () => {
   isChallengeOpen.value = !isChallengeOpen.value
 }
 
-// 로고 이미지 로드 실패 시 기존 캐릭터 이미지를 기본 이미지로 사용함
-const useDefaultBrandLogo = () => {
-  brandLogoSource.value = thinkingPenguin
-}
-
 const showChallengeDialog = (message) => {
   dialogMessage.value = message
   dialogVisible.value = true
@@ -229,6 +223,15 @@ const moveToMyChallenge = () => {
 const moveToMyFeeds = () => {
   moveToChallengeMemberPage("/my-feeds")
 }
+
+const handleLogout = async () => {
+  try {
+    await userStore.logout()
+    await router.replace("/login")
+  } catch (error) {
+    alert(error.message || "로그아웃에 실패했습니다.")
+  }
+}
 </script>
 
 <template>
@@ -236,10 +239,9 @@ const moveToMyFeeds = () => {
     <RouterLink
       to="/dashboard"
       class="brand d-flex align-items-center"
-      aria-label="왈로 대시보드로 이동"
+      aria-label="Wallo 대시보드로 이동"
     >
-      <img :src="brandLogoSource" class="brand-icon" alt="왈로 로고" @error="useDefaultBrandLogo" />
-      <span class="brand-name">왈로</span>
+      <span class="brand-name">Wallo</span>
     </RouterLink>
 
     <nav class="sidebar-nav d-flex flex-column">
@@ -401,12 +403,37 @@ const moveToMyFeeds = () => {
       </div>
     </nav>
 
-    <AppCard as="div" class="sidebar-card mt-auto text-center" padding="none">
-      <img :src="thinkingPenguin" class="sidebar-card-image" alt="생각하는 왈로 캐릭터" />
-      <p class="sidebar-card-text mb-0" :title="dailySavingsTip" aria-live="polite">
-        {{ dailySavingsTip }}
-      </p>
-    </AppCard>
+    <div class="sidebar-footer mt-auto">
+      <div class="sidebar-footer-divider" aria-hidden="true"></div>
+
+      <RouterLink
+        to="/users/profile"
+        class="menu-item menu-link d-flex align-items-center"
+      >
+        <span class="menu-icon" aria-hidden="true"><i class="bi bi-gear"></i></span>
+        <span>설정</span>
+      </RouterLink>
+
+      <AppButton
+        class="sidebar-logout menu-item d-flex align-items-center"
+        variant="ghost"
+        size="sm"
+        aria-label="로그아웃"
+        @click="handleLogout"
+      >
+        <template #leading>
+          <span class="menu-icon" aria-hidden="true"><i class="bi bi-box-arrow-right"></i></span>
+        </template>
+        로그아웃
+      </AppButton>
+
+      <AppCard as="div" class="sidebar-card text-center" padding="none">
+        <img :src="thinkingPenguin" class="sidebar-card-image" alt="생각하는 왈로 캐릭터" />
+        <p class="sidebar-card-text mb-0" :title="dailySavingsTip" aria-live="polite">
+          {{ dailySavingsTip }}
+        </p>
+      </AppCard>
+    </div>
   </aside>
   <AppDialog
     :visible="dialogVisible"
@@ -434,28 +461,20 @@ const moveToMyFeeds = () => {
 }
 
 .brand {
-  gap: 19px;
   color: inherit;
   text-decoration: none;
 }
 
-.brand-icon {
-  display: block;
-  width: 37px;
-  height: 40px;
-  object-fit: contain;
-}
-
 .brand-name {
   color: #1e2941;
-  font-size: 29px;
+  font-size: 32px;
   font-weight: 800;
   letter-spacing: -1.5px;
 }
 
 .sidebar-nav {
   margin-top: 48px;
-  font-size: 19px;
+  font-size: 17.5px;
   font-weight: 600;
   letter-spacing: -0.6px;
 }
@@ -588,7 +607,7 @@ const moveToMyFeeds = () => {
 .submenu-item {
   gap: 18px;
   min-height: 28px;
-  font-size: 14.6px;
+  font-size: 14px;
 }
 
 .submenu-item.app-button {
@@ -667,6 +686,39 @@ const moveToMyFeeds = () => {
 .utility-group {
   gap: 20px;
   margin-top: 20px;
+}
+
+.sidebar-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-top: 20px;
+  font-size: 17.5px;
+}
+
+.sidebar-footer-divider {
+  width: 100%;
+  height: 1px;
+  background: #e4e7f0;
+}
+
+.sidebar-logout.app-button {
+  justify-content: flex-start;
+  gap: 0;
+  min-height: 26px;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+  font-weight: 600;
+}
+
+.sidebar-logout.app-button:hover:not(:disabled) {
+  color: #6b5bd2;
+  background: transparent;
+}
+
+.sidebar-logout :deep(.menu-icon) {
+  color: #e35d6a;
 }
 
 .sidebar-card {

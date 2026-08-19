@@ -250,11 +250,11 @@ const formatGoalDate = (date) => {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
-  padding: 36px 42px;
+  padding: 28px 36px;
 }
 
 .goal-card-header {
-  margin-bottom: 2rem !important;
+  margin-bottom: 1.5rem !important;
 }
 
 .dashboard-action-button {
@@ -363,11 +363,11 @@ const formatGoalDate = (date) => {
 }
 
 .goal-progress-summary {
-  margin-bottom: 2rem !important;
+  margin-bottom: 1.5rem !important;
 }
 
 .goal-account-summary {
-  margin-top: 1.5rem;
+  margin-top: 1.25rem;
 }
 
 .goal-account-label {

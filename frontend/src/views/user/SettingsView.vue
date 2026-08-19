@@ -16,7 +16,7 @@ const isActiveTab = (tabName) => route.name === tabName
 
 <template>
   <section class="settings-view">
-    <AppPageHeader title="설정" description="프로필과 연결된 자산을 관리하세요." />
+    <AppPageHeader title="설정" />
 
     <AppCard class="settings-navigation" variant="soft" padding="none">
       <nav class="settings-tabs" aria-label="설정 메뉴">

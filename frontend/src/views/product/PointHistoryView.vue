@@ -165,7 +165,6 @@ onMounted(loadHistory)
     <AppPageHeader
       class="page-heading"
       title="포인트 내역"
-      description="내가 얻고 사용한 포인트를 한눈에 확인해보세요."
     >
       <template #leading>
         <RouterLink to="/point-shop" class="page-back-button" aria-label="포인트 샵으로 이동">
