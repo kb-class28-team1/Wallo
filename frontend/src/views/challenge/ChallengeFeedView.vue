@@ -1517,7 +1517,7 @@ onBeforeUnmount(() => {
 }
 .feed-media-wrap {
   position: relative;
-  background: #09122d;
+  background: #eaf4ff;
 }
 .feed-media,
 .feed-media-wrap > video {
@@ -1525,7 +1525,7 @@ onBeforeUnmount(() => {
   width: 100%;
   max-height: 560px;
   object-fit: contain;
-  background: #09122d;
+  background: #eaf4ff;
 }
 .feed-like-row {
   position: absolute;
@@ -2380,7 +2380,7 @@ textarea {
 .feed-media-wrap,
 .feed-media,
 .feed-media-wrap > video {
-  background: #09122d;
+  background: #eaf4ff;
 }
 
 .feed-like-row {
