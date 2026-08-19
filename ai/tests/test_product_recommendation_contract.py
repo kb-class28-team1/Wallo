@@ -119,5 +119,5 @@ def test_product_recommendation_allocates_enough_tokens_for_complete_summary():
 
     assert answer == "Complete recommendation reason."
     final_call = client.chat.completions.create.call_args_list[1].kwargs
-    assert final_call["max_completion_tokens"] == 1600
+    assert final_call["max_completion_tokens"] == 1000
     assert final_call["reasoning_effort"] == "low"
