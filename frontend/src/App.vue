@@ -17,7 +17,10 @@ useModalEnter()
     <SideNavigation />
     <div class="app-shell-body d-flex flex-grow-1 flex-column">
       <TopHeader />
-      <main class="page-content flex-grow-1">
+      <main
+        class="page-content flex-grow-1"
+        :class="{ 'page-content--challenge-entry': route.name === 'current-challenge' }"
+      >
         <div class="page-view">
           <RouterView />
         </div>
@@ -58,6 +61,14 @@ useModalEnter()
   .page-content {
     padding-right: var(--wallo-page-gutter-mobile);
     padding-left: var(--wallo-page-gutter-mobile);
+  }
+}
+
+@media (min-width: 992px) {
+  .page-content--challenge-entry {
+    min-height: 0;
+    padding-top: calc(var(--wallo-header-height) + 8px);
+    padding-bottom: 0;
   }
 }
 </style>

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import PointHistoryView from "./PointHistoryView.vue"
 import PointShopView from "./PointShopView.vue"
 import { getPointHistory } from "@/api/pointHistoryApi"
+import QRCode from "qrcode"
 import {
   deleteUsedInventoryItem,
   getPointShop,
@@ -30,6 +31,12 @@ vi.mock("vue-router", () => ({
 
 vi.mock("@/api/pointHistoryApi", () => ({
   getPointHistory: vi.fn(),
+}))
+
+vi.mock("qrcode", () => ({
+  default: {
+    toDataURL: vi.fn(),
+  },
 }))
 
 vi.mock("@/api/pointShopApi", () => ({
@@ -111,6 +118,7 @@ describe("point views", () => {
     openRandomBoxes.mockResolvedValue({ data: {} })
     deleteUsedInventoryItem.mockResolvedValue({})
     useInventoryItem.mockResolvedValue({})
+    QRCode.toDataURL.mockResolvedValue("data:image/png;base64,test-qr")
     mocks.routerBack.mockReset()
     mocks.routerPush.mockReset()
     vi.stubGlobal("alert", vi.fn())
@@ -193,6 +201,21 @@ describe("point views", () => {
     expect(wrapper.find(".app-dialog-confirm").text()).toContain("사용하기")
     await wrapper.get(".app-dialog-cancel").trigger("click")
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+
+    await wrapper.get(".inventory-item").trigger("click")
+    await wrapper.get(".app-dialog-confirm").trigger("click")
+    await flushPromises()
+
+    expect(useInventoryItem).not.toHaveBeenCalled()
+    expect(QRCode.toDataURL).toHaveBeenCalledWith(
+      expect.stringMatching(/^WALLO-SIMULATED-COUPON:10:/),
+      expect.objectContaining({ width: 240, errorCorrectionLevel: "M" }),
+    )
+    expect(wrapper.text()).toContain("테스트용 임의 QR")
+    expect(wrapper.find('img[alt="아메리카노 기프티콘 임의 QR 코드"]').exists()).toBe(true)
+
+    await wrapper.get(".app-dialog-confirm").trigger("click")
+    expect(wrapper.text()).not.toContain("테스트용 임의 QR")
 
     await wrapper.get(".open-box-button").trigger("click")
     await flushPromises()
