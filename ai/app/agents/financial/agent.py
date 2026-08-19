@@ -14,6 +14,12 @@ from app.agents.financial.tools.registry import (
     execute_tool,
     select_route_tool_schemas,
 )
+from app.agents.financial.history import (
+    BoundedConversationContext,
+    HISTORY_TOKEN_BUDGET,
+    SUMMARY_TOKEN_BUDGET,
+    build_bounded_context,
+)
 from app.agents.goal.context import FinancialContext
 from app.core.config import get_groq_model
 from app.core.ai_timing import current_request_id, timed_groq_completion
@@ -133,6 +139,7 @@ def _log_financial_context(
     tool_status: str | None = None,
     tool_result: dict[str, Any] | None = None,
     tool_result_json: str | None = None,
+    context: BoundedConversationContext | None = None,
 ) -> None:
     data = tool_result.get("data") if isinstance(tool_result, dict) else None
     products = data.get("products") if isinstance(data, dict) else None
@@ -143,16 +150,35 @@ def _log_financial_context(
         if tool_result_json is not None
         else 0
     )
+    history_input_count = context.source_history_count if context else len(history)
+    history_dropped_count = context.history_dropped_count if context else 0
+    history_content_truncated = (
+        context.history_content_truncated if context else False
+    )
+    summary_estimated_tokens = context.summary_estimated_tokens if context else 0
+    summary_truncated = context.summary_truncated if context else False
     logger.info(
         "[AI_CONTEXT] stage=%s requestId=%s historyCount=%d "
-        "historyContentChars=%d summaryChars=%d userMessageChars=%d "
+        "historyInputCount=%d historyDroppedCount=%d "
+        "historyContentChars=%d historyEstimatedTokens=%d "
+        "historyBudgetTokens=%d historyContentTruncated=%s "
+        "summaryChars=%d summaryEstimatedTokens=%d summaryBudgetTokens=%d "
+        "summaryTruncated=%s userMessageChars=%d "
         "messageCount=%d tool=%s toolStatus=%s toolResultChars=%d "
         "toolResultBytes=%d productCount=%d",
         stage,
         current_request_id(),
         len(history),
+        history_input_count,
+        history_dropped_count,
         _message_content_chars(history),
+        context.history_estimated_tokens if context else 0,
+        HISTORY_TOKEN_BUDGET,
+        history_content_truncated,
         len(summary.strip()) if isinstance(summary, str) else 0,
+        summary_estimated_tokens,
+        SUMMARY_TOKEN_BUDGET,
+        summary_truncated,
         len(user_message),
         message_count,
         tool_name,
@@ -181,6 +207,9 @@ class FinancialAgent:
     ) -> str:
         self.selected_tool = None
         self.selected_tool_result = None
+        context = build_bounded_context(history, summary)
+        history = context.history
+        summary = context.summary
         messages: list[dict[str, Any]] = [
             {"role": "system", "content": SYSTEM_PROMPT},
         ]
@@ -201,6 +230,7 @@ class FinancialAgent:
             summary=summary,
             user_message=user_message,
             message_count=len(messages),
+            context=context,
         )
         if is_spending_request(user_message, previous_consumption_period):
             arguments = build_spending_arguments(
@@ -310,6 +340,7 @@ class FinancialAgent:
             tool_status=tool_result.status,
             tool_result=tool_payload,
             tool_result_json=tool_content,
+            context=context,
         )
         if self.selected_tool == ASSET_ANALYSIS_TOOL:
             messages.insert(1, {
