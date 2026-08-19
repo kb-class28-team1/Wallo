@@ -21,9 +21,12 @@ const isRewarding = ref(false)
 const { startDate, endDate, rankings, myRanking, initialLoading, refreshing, errorMessage } =
   storeToRefs(challengeStore)
 
-// 상위 카드가 시안처럼 2위, 1위, 3위 순서로 배치되도록 DB 조회 결과를 정렬함
-const topRankings = computed(() =>
-  [2, 1, 3].map((rank) => rankings.value.find((ranking) => ranking.rank === rank)).filter(Boolean),
+// 인원수와 상관없이 시상대 슬롯을 2위, 1위, 3위 위치로 고정함
+const podiumSlots = computed(() =>
+  [2, 1, 3].map((rank) => ({
+    rank,
+    ranking: rankings.value.find((item) => item.rank === rank) || null,
+  })),
 )
 
 // 상위 3명을 제외한 4위 이후 DB 조회 결과를 숫자 순위로 모두 표시함
@@ -162,24 +165,26 @@ onMounted(() => {
 
     <div v-else class="ranking-layout">
       <div class="ranking-main">
-        <div class="podium-grid mb-3" :class="`podium-count-${topRankings.length}`">
+        <div class="podium-grid mb-3 podium-count-3">
           <article
-            v-for="ranking in topRankings"
-            :key="ranking.rank"
+            v-for="slot in podiumSlots"
+            :key="slot.rank"
             class="podium-card"
-            :class="`rank-${ranking.rank}`"
+            :class="[`rank-${slot.rank}`, { 'podium-card-placeholder': !slot.ranking }]"
           >
-            <span class="rank-badge">{{ ranking.rank }}</span>
-            <span v-if="ranking.rank === 1" class="trophy" aria-hidden="true">🏆</span>
-            <div class="profile-circle">
-              <AuthenticatedImage
-                :src="profileImage(ranking.profileImageUrl)"
-                :alt="`${ranking.nickname} 프로필 이미지`"
-              />
-            </div>
-            <strong class="podium-nickname">{{ ranking.nickname }}</strong>
-            <strong class="podium-saving">{{ formatWon(ranking.savingAmount) }}</strong>
-            <span class="podium-streak">🔥 {{ ranking.streakDays }}일 연속</span>
+            <template v-if="slot.ranking">
+              <span class="rank-badge">{{ slot.rank }}</span>
+              <span v-if="slot.rank === 1" class="trophy" aria-hidden="true">🏆</span>
+              <div class="profile-circle">
+                <AuthenticatedImage
+                  :src="profileImage(slot.ranking.profileImageUrl)"
+                  :alt="`${slot.ranking.nickname} 프로필 이미지`"
+                />
+              </div>
+              <strong class="podium-nickname">{{ slot.ranking.nickname }}</strong>
+              <strong class="podium-saving">{{ formatWon(slot.ranking.savingAmount) }}</strong>
+              <span class="podium-streak">🔥 {{ slot.ranking.streakDays }}일 연속</span>
+            </template>
           </article>
         </div>
 
@@ -770,5 +775,234 @@ onMounted(() => {
   .ranking-row {
     min-width: 650px;
   }
+}
+
+/* Dashboard-style visual treatment for the weekly ranking. */
+.ranking-page {
+  padding: 22px;
+  border: 1px solid #dcecff;
+  border-radius: 30px;
+  background:
+    radial-gradient(circle at 92% 0%, #dceeff 0, transparent 30%),
+    linear-gradient(145deg, #edf7ff 0%, #f8fbff 48%, #ffffff 100%);
+}
+
+.ranking-heading {
+  box-sizing: border-box;
+  padding: 23px 26px;
+  border: 1px solid #d8e8f8;
+  border-radius: 23px;
+  background: rgb(255 255 255 / 84%);
+  box-shadow: 0 12px 28px rgb(76 132 190 / 8%);
+}
+
+.ranking-heading :deep(.app-page-header__title) {
+  color: #152b48;
+  font-size: clamp(1.55rem, 2.5vw, 2.15rem);
+  letter-spacing: -0.05em;
+}
+
+.ranking-heading :deep(.app-page-header__description) {
+  color: #7188a5;
+}
+
+.test-reward-button {
+  color: #397bd2;
+  background: #edf6ff;
+  border-color: #c9e0fb;
+}
+
+.ranking-layout {
+  grid-template-columns: minmax(0, 1fr) 290px;
+  gap: 20px;
+}
+
+.podium-grid {
+  padding: 34px 16px 26px;
+  border: 1px solid #d6e7f7;
+  border-radius: 23px;
+  background: rgb(255 255 255 / 73%);
+  box-shadow: 0 12px 28px rgb(76 132 190 / 8%);
+}
+
+.ranking-table-card,
+.side-card {
+  border: 1px solid #d7e7f7;
+  background: #fff;
+  box-shadow: 0 12px 26px rgb(64 105 151 / 9%);
+}
+
+.ranking-table-card {
+  padding: 10px 18px 12px;
+}
+
+.ranking-table-header {
+  color: #7c92ad;
+}
+
+.ranking-item {
+  border-top-color: #edf3f8;
+  color: #7188a2;
+}
+
+.ranking-item strong,
+.ranking-item strong.rank-number {
+  color: #213957;
+}
+
+.ranking-user img {
+  background: #edf6ff;
+}
+
+.ranking-notice {
+  color: #58718e;
+  background: #eaf5ff;
+}
+
+.side-card {
+  padding: 20px 18px;
+  border-radius: 20px;
+}
+
+.side-card h2 {
+  color: #203654;
+}
+
+.my-rank-user {
+  border-bottom-color: #eaf1f7;
+}
+
+.my-rank-badge {
+  color: #397bd2;
+  background: #eaf4ff;
+}
+
+.my-rank-stats span,
+.record-list li,
+.reward-list li {
+  color: #7b90aa;
+}
+
+.my-rank-stats strong,
+.record-list strong,
+.reward-list strong {
+  color: #213957;
+}
+
+.record-list li,
+.reward-list li {
+  border-top-color: #edf3f8;
+}
+
+@media (max-width: 1100px) {
+  .ranking-page {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .ranking-page {
+    padding: 10px;
+    border-radius: 20px;
+  }
+
+  .ranking-heading {
+    padding: 18px;
+    border-radius: 18px;
+  }
+}
+
+/* Replace the paper podium with the shared light-blue dashboard theme. */
+.podium-grid::before {
+  display: none;
+}
+
+.podium-card,
+.podium-card.rank-1,
+.podium-card.rank-2,
+.podium-card.rank-3 {
+  border: 1px solid #c9e0f7;
+  border-radius: 22px;
+  background: linear-gradient(180deg, #e4f1ff 0%, #ffffff 100%);
+  box-shadow: 0 12px 24px rgb(71 124 181 / 12%);
+  clip-path: none;
+  filter: none;
+  transform: none;
+}
+
+.podium-card.rank-1 {
+  background: linear-gradient(180deg, #d8e8ff 0%, #ffffff 100%);
+  border-color: #86b4ed;
+  box-shadow: 0 16px 30px rgb(71 124 181 / 18%);
+}
+
+.podium-card.rank-2 {
+  background: linear-gradient(180deg, #dff7f5 0%, #ffffff 100%);
+  border-color: #8bd4d0;
+}
+
+.podium-card.rank-3 {
+  background: linear-gradient(180deg, #eee7ff 0%, #ffffff 100%);
+  border-color: #b7a1ed;
+}
+
+.podium-card-placeholder {
+  visibility: hidden;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.rank-badge,
+.rank-1 .rank-badge,
+.rank-3 .rank-badge {
+  border: 0;
+  color: #1f426a;
+  box-shadow: 0 5px 12px rgb(71 124 181 / 18%);
+  transform: none;
+}
+
+.rank-badge {
+  background: #a9d2fa;
+}
+
+.rank-1 .rank-badge {
+  background: #4f8ee8;
+  color: #fff;
+}
+
+.rank-2 .rank-badge {
+  background: #56bdb8;
+  color: #fff;
+}
+
+.rank-3 .rank-badge {
+  background: #9774df;
+  color: #fff;
+}
+
+.trophy {
+  filter: drop-shadow(0 4px 6px rgb(71 124 181 / 20%));
+}
+
+.podium-card.rank-1 {
+  --ranking-accent: #1d4d83;
+}
+
+.podium-card.rank-2 {
+  --ranking-accent: #247a77;
+}
+
+.podium-card.rank-3 {
+  --ranking-accent: #674aa0;
+}
+
+.podium-card .podium-nickname,
+.podium-card .podium-saving {
+  color: var(--ranking-accent);
+}
+
+.podium-streak {
+  color: #d8784e;
 }
 </style>
