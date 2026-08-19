@@ -4,7 +4,7 @@ import {
   BUDGET_CATEGORY_CODES,
   getExpenseCategoryMeta,
 } from "@/features/financial/financialCategories"
-import { formatNumber, formatWon } from "@/commonUtils/formatters"
+import { formatNumber, formatWon } from "@/utils/formatters"
 import AppDialog from "@/components/common/AppDialog.vue"
 
 const props = defineProps({

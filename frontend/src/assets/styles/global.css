@@ -202,8 +202,14 @@ textarea {
 .connection-form-panel {
   display: flex;
   justify-content: center;
-  padding: 72px 48px 64px;
   background: var(--wallo-color-surface);
+}
+
+.connection-form-panel > .app-card__body {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding: 72px 48px 64px;
 }
 
 .connection-form-inner {
@@ -390,6 +396,10 @@ textarea {
   }
 
   .connection-form-panel {
+    padding: 0;
+  }
+
+  .connection-form-panel > .app-card__body {
     padding: 48px 28px 64px;
   }
 }

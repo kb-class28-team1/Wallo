@@ -14,6 +14,7 @@ import GoalInterviewCard from "@/components/chat/GoalInterviewCard.vue"
 import GoalAccountSelector from "@/components/goal/GoalAccountSelector.vue"
 import { useConversationStore } from "@/stores/conversationStore"
 import { useGoalStore } from "@/stores/goalStore"
+import { useToastStore } from "@/stores/toastStore"
 import { useUserStore } from "@/stores/userStore"
 
 const WELCOME_MESSAGE = {
@@ -25,7 +26,7 @@ const GOAL_SETTING_START_QUERY = "goal-setting"
 const GOAL_SETTING_TITLE = "목표 설정"
 const GOAL_CHAT_DELETE_BLOCK_MESSAGE =
   "목표 설정이 완료된 채팅은 계좌 변경에 필요하므로 삭제할 수 없습니다."
-const GOAL_COMPLETION_DIALOG_MESSAGE =
+const GOAL_COMPLETION_TOAST_MESSAGE =
   "목표 설정 및 로드맵이 완성되었습니다!\nAI 컨설팅 페이지에서 나의 목표와 로드맵을 확인해보세요."
 const TIMING_LOG_PREFIX = "[WALLO_TIMING]"
 
@@ -42,6 +43,7 @@ const logTiming = (event, details = {}) => {
 
 const conversationStore = useConversationStore()
 const goalStore = useGoalStore()
+const toastStore = useToastStore()
 const userStore = useUserStore()
 const route = useRoute()
 const router = useRouter()
@@ -77,7 +79,6 @@ const isGoalSettingEntry = ref(false)
 const isGoalSettingStarting = ref(false)
 const isMissingGoalConversation = ref(false)
 const isGoalCompletionChecking = ref(false)
-const isGoalCompletionDialogVisible = ref(false)
 const isGoalRoadmapReady = ref(false)
 const isGoalAccountConfigured = ref(false)
 const userId = computed(() => user.value?.id ?? null)
@@ -112,19 +113,19 @@ const displayMessages = computed(() => {
 })
 
 const resetGoalCompletionFlow = () => {
-  isGoalCompletionDialogVisible.value = false
   isGoalRoadmapReady.value = false
   isGoalAccountConfigured.value = false
 }
 
-const showGoalCompletionDialogIfReady = () => {
+const showGoalCompletionToastIfReady = async () => {
   if (!isGoalRoadmapReady.value || !isGoalAccountConfigured.value) {
     return
   }
 
   isGoalRoadmapReady.value = false
   isGoalAccountConfigured.value = false
-  isGoalCompletionDialogVisible.value = true
+  toastStore.show(GOAL_COMPLETION_TOAST_MESSAGE, { variant: "success" })
+  await openAiConsulting()
 }
 
 watch(
@@ -311,7 +312,7 @@ const handleAccountSelect = async (accountId) => {
     })
     await goalStore.fetchAvailableAccounts({ notifyError: false })
     isGoalAccountConfigured.value = true
-    showGoalCompletionDialogIfReady()
+    await showGoalCompletionToastIfReady()
     logTiming("goal.account.end", {
       goalId,
       status: "completed",
@@ -361,7 +362,7 @@ const confirmGoal = async () => {
     })
     if (roadmap?.generationStatus === "COMPLETED") {
       isGoalRoadmapReady.value = true
-      showGoalCompletionDialogIfReady()
+      await showGoalCompletionToastIfReady()
       logTiming("goal.confirm.end", {
         requestId,
         goalId,
@@ -392,12 +393,7 @@ const cancelGoal = async () => {
   await sendMessage("그만할래")
 }
 
-const closeGoalCompletionDialog = () => {
-  isGoalCompletionDialogVisible.value = false
-}
-
 const openAiConsulting = async () => {
-  isGoalCompletionDialogVisible.value = false
   try {
     await router.push({ name: "ai-consulting" })
   } catch (error) {
@@ -752,15 +748,6 @@ onMounted(async () => {
       @confirm="handleDeleteDialogConfirm"
     />
 
-    <AppDialog
-      :visible="isGoalCompletionDialogVisible"
-      title="목표 설정 완료"
-      :message="GOAL_COMPLETION_DIALOG_MESSAGE"
-      confirm-text="확인하기"
-      :show-cancel="false"
-      @close="closeGoalCompletionDialog"
-      @confirm="openAiConsulting"
-    />
   </main>
 </template>
 
