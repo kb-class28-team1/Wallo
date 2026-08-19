@@ -20,6 +20,7 @@ from app.agents.financial.history import (
     SUMMARY_TOKEN_BUDGET,
     build_bounded_context,
 )
+from app.agents.financial.tool_payload import compact_tool_result_for_prompt
 from app.agents.goal.context import FinancialContext
 from app.core.config import get_groq_model
 from app.core.ai_timing import current_request_id, timed_groq_completion
@@ -139,6 +140,7 @@ def _log_financial_context(
     tool_status: str | None = None,
     tool_result: dict[str, Any] | None = None,
     tool_result_json: str | None = None,
+    tool_result_original_json: str | None = None,
     context: BoundedConversationContext | None = None,
 ) -> None:
     data = tool_result.get("data") if isinstance(tool_result, dict) else None
@@ -149,6 +151,21 @@ def _log_financial_context(
         len(tool_result_json.encode("utf-8"))
         if tool_result_json is not None
         else 0
+    )
+    tool_result_original_chars = (
+        len(tool_result_original_json)
+        if tool_result_original_json is not None
+        else tool_result_chars
+    )
+    tool_result_original_bytes = (
+        len(tool_result_original_json.encode("utf-8"))
+        if tool_result_original_json is not None
+        else tool_result_bytes
+    )
+    tool_result_reduction_percent = (
+        round((1 - tool_result_bytes / tool_result_original_bytes) * 100, 1)
+        if tool_result_original_bytes
+        else 0.0
     )
     history_input_count = context.source_history_count if context else len(history)
     history_dropped_count = context.history_dropped_count if context else 0
@@ -165,7 +182,9 @@ def _log_financial_context(
         "summaryChars=%d summaryEstimatedTokens=%d summaryBudgetTokens=%d "
         "summaryTruncated=%s userMessageChars=%d "
         "messageCount=%d tool=%s toolStatus=%s toolResultChars=%d "
-        "toolResultBytes=%d productCount=%d",
+        "toolResultBytes=%d toolResultOriginalChars=%d "
+        "toolResultOriginalBytes=%d toolResultReductionPercent=%.1f "
+        "productCount=%d",
         stage,
         current_request_id(),
         len(history),
@@ -185,6 +204,9 @@ def _log_financial_context(
         tool_status,
         tool_result_chars,
         tool_result_bytes,
+        tool_result_original_chars,
+        tool_result_original_bytes,
+        tool_result_reduction_percent,
         product_count,
     )
 
@@ -242,12 +264,13 @@ class FinancialAgent:
             self.selected_tool = SPENDING_ANALYSIS_TOOL
             if tool_result.status == "success" and isinstance(tool_result.data, dict):
                 self.selected_tool_result = tool_result.data
+            tool_payload = compact_tool_result_for_prompt(tool_result)
             messages.insert(len(messages) - 1, {
                 "role": "system",
                 "content": (
                     "다음은 coach_spending 도구가 계산한 결과입니다. 수치를 다시 계산하거나 "
                     "추측하지 말고 사용자의 질문에 맞춰 설명하세요.\n"
-                    + json.dumps(tool_result.to_dict(), ensure_ascii=False)
+                    + json.dumps(tool_payload, ensure_ascii=False)
                 ),
             })
             with timed_groq_completion(
@@ -298,7 +321,11 @@ class FinancialAgent:
             consumption_context,
         )
         logger.info("[AI TOOL] selected=%s status=%s", tool_call.function.name, tool_result.status)
-        tool_payload = tool_result.to_dict()
+        tool_result_original_content = json.dumps(
+            tool_result.to_dict(),
+            ensure_ascii=False,
+        )
+        tool_payload = compact_tool_result_for_prompt(tool_result)
         tool_content = json.dumps(tool_payload, ensure_ascii=False)
         if tool_result.status == "success" and isinstance(tool_result.data, dict):
             self.selected_tool_result = tool_result.data
@@ -340,6 +367,7 @@ class FinancialAgent:
             tool_status=tool_result.status,
             tool_result=tool_payload,
             tool_result_json=tool_content,
+            tool_result_original_json=tool_result_original_content,
             context=context,
         )
         if self.selected_tool == ASSET_ANALYSIS_TOOL:
