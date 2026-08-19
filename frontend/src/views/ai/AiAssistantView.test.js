@@ -3,6 +3,7 @@ import { createPinia, setActivePinia } from "pinia"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import AiAssistantView from "./AiAssistantView.vue"
 import { getGoalRoadmap, getGoals } from "@/api/goalApi"
+import { getTodayMissions } from "@/api/missionApi"
 
 const push = vi.fn()
 
@@ -18,12 +19,17 @@ vi.mock("@/api/goalApi", () => ({
   updateGoalRoadmapStep: vi.fn(),
 }))
 
+vi.mock("@/api/missionApi", () => ({
+  getTodayMissions: vi.fn().mockResolvedValue({ status: "READY", missions: [] }),
+}))
+
 describe("AiAssistantView", () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
     getGoals.mockResolvedValue({ data: [] })
     getGoalRoadmap.mockResolvedValue({ data: null })
+    getTodayMissions.mockResolvedValue({ status: "READY", missions: [] })
   })
 
   it("shows the goal empty state and roadmap introduction when no goal exists", async () => {
@@ -37,6 +43,26 @@ describe("AiAssistantView", () => {
     expect(wrapper.text()).toContain("목표 달성을 위한 로드맵")
     expect(wrapper.text()).toContain("나에게 맞는 로드맵")
     expect(wrapper.text()).toContain("추천 금융 상품")
+    expect(wrapper.text()).toContain("오늘의 미션")
+  })
+
+  it("shows today's missions in the right-hand dashboard card", async () => {
+    getTodayMissions.mockResolvedValue({
+      status: "READY",
+      missions: [
+        { id: 11, title: "커피 대신 물 마시기", icon: "☕", rewardPoint: 10, completed: true },
+        { id: 12, title: "배달 대신 집밥 먹기", icon: "🍚", rewardPoint: 10, completed: false },
+      ],
+    })
+
+    const wrapper = mount(AiAssistantView)
+    await flushPromises()
+
+    expect(wrapper.find(".mission-card").exists()).toBe(true)
+    expect(wrapper.find(".mission-count").text()).toBe("1/2")
+    expect(wrapper.text()).toContain("10 / 20P")
+    expect(wrapper.findAll(".mission-list-item")).toHaveLength(2)
+    expect(wrapper.findAll(".mission-list-item")[0].classes()).toContain("completed")
   })
 
   it("moves to chat when the goal setting button is selected", async () => {

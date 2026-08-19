@@ -1,9 +1,10 @@
 <script setup>
-import { computed, onMounted, ref } from "vue"
+import { computed, onBeforeUnmount, onMounted, ref } from "vue"
 import { useRouter } from "vue-router"
 import { storeToRefs } from "pinia"
 import { useGoalStore } from "@/stores/goalStore"
 import { useUserStore } from "@/stores/userStore"
+import { getTodayMissions } from "@/api/missionApi"
 import { formatWon } from "@/utils/formatters"
 import {
   getGoalAchievementRate,
@@ -36,10 +37,25 @@ const hasGoal = computed(() => goals.value.length > 0)
 const currentGoal = computed(() => goals.value[0] ?? null)
 const roadmapSlider = ref(null)
 const userId = computed(() => user.value?.id ?? null)
+const missions = ref([])
+const missionStatus = ref("READY")
+const missionError = ref("")
+const isMissionLoading = ref(false)
 
 const currentAmount = computed(() => getGoalCurrentAmount(currentGoal.value))
 const targetAmount = computed(() => getGoalTargetAmount(currentGoal.value))
 const achievementRate = computed(() => getGoalAchievementRate(currentGoal.value))
+const completedMissionCount = computed(
+  () => missions.value.filter((mission) => mission.completed).length,
+)
+const completedMissionReward = computed(() =>
+  missions.value
+    .filter((mission) => mission.completed)
+    .reduce((total, mission) => total + Number(mission.rewardPoint || 0), 0),
+)
+const totalMissionReward = computed(() =>
+  missions.value.reduce((total, mission) => total + Number(mission.rewardPoint || 0), 0),
+)
 
 const parseGoalDate = (value) => {
   if (!value) return null
@@ -157,6 +173,21 @@ const loadGoalPage = async ({ force = false } = {}) => {
   })
 }
 
+const loadTodayMissionList = async () => {
+  isMissionLoading.value = true
+  missionError.value = ""
+  try {
+    const response = await getTodayMissions()
+    missions.value = response.missions
+    missionStatus.value = response.status || "READY"
+  } catch (missionLoadError) {
+    missions.value = []
+    missionError.value = missionLoadError.message || "오늘의 미션을 불러오지 못했습니다."
+  } finally {
+    isMissionLoading.value = false
+  }
+}
+
 const startGoalSetting = async () => {
   await router.push({
     name: "chat",
@@ -168,7 +199,17 @@ const startAiChat = async () => {
   await router.push({ name: "chat" })
 }
 
-onMounted(() => loadGoalPage({ force: true }))
+const handleMissionUpdated = () => void loadTodayMissionList()
+
+onMounted(() => {
+  window.addEventListener("wallo:mission-updated", handleMissionUpdated)
+  void loadGoalPage({ force: true })
+  void loadTodayMissionList()
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener("wallo:mission-updated", handleMissionUpdated)
+})
 </script>
 
 <template>
@@ -246,22 +287,79 @@ onMounted(() => loadGoalPage({ force: true }))
                   <i class="bi bi-arrow-right ms-2" aria-hidden="true"></i>
                 </AppButton>
               </div>
+
+              <div class="goal-coaching-inline mt-4">
+                <div class="goal-coaching-copy">
+                  <span class="goal-coaching-label">
+                    <i class="bi bi-stars" aria-hidden="true"></i>
+                    AI 한줄 코칭
+                  </span>
+                  <p class="mb-0">
+                    목표가 있어야 방향이 생겨요! 작은 목표부터 함께 시작해봐요.
+                  </p>
+                </div>
+                <img :src="walloCharacter" alt="" aria-hidden="true" />
+              </div>
             </div>
           </AppCard>
         </div>
 
         <div class="col-xl-4">
-          <AppCard as="aside" class="content-card coaching-card" padding="none">
+          <AppCard as="aside" class="content-card mission-card h-100" padding="none">
             <div class="card-body p-4 p-lg-5">
-              <h2 class="section-title h5 fw-bold">AI 한줄 코칭</h2>
-              <div class="coach-bubble mt-4">
-                목표가 있어야 방향이 생겨요!<br />
-                작은 목표부터 함께 시작해봐요.
+              <div class="mission-card-heading">
+                <div>
+                  <span class="mission-card-eyebrow">DAILY CHALLENGE</span>
+                  <h2 class="section-title h5 fw-bold mt-1">오늘의 미션</h2>
+                </div>
+                <strong v-if="missions.length" class="mission-count">
+                  {{ completedMissionCount }}/{{ missions.length }}
+                </strong>
               </div>
-              <div class="coach-character" aria-hidden="true">
-                <span class="sparkle sparkle-one">✦</span>
-                <span class="sparkle sparkle-two">✦</span>
-                <img :src="walloCharacter" alt="" />
+
+              <AppState
+                v-if="isMissionLoading"
+                class="mission-state mt-4"
+                type="loading"
+                compact
+                title="미션을 불러오는 중입니다."
+              />
+              <AppAlert
+                v-else-if="missionError"
+                class="mt-4"
+                variant="danger"
+                :message="missionError"
+              />
+              <div v-else-if="missionStatus === 'WAITING_ANALYSIS'" class="mission-empty mt-4">
+                소비 분석이 완료되면 오늘의 미션이 생성됩니다.
+              </div>
+              <div v-else-if="!missions.length" class="mission-empty mt-4">
+                오늘 배정된 미션이 없습니다.
+              </div>
+              <div v-else class="mission-panel mt-4">
+                <div class="mission-reward-progress">
+                  <span>획득 포인트</span>
+                  <strong>{{ completedMissionReward }} / {{ totalMissionReward }}P</strong>
+                </div>
+                <ul class="mission-list list-unstyled mb-0">
+                  <li
+                    v-for="mission in missions"
+                    :key="mission.id"
+                    class="mission-list-item"
+                    :class="{ completed: mission.completed }"
+                  >
+                    <span class="mission-icon" aria-hidden="true">{{ mission.icon }}</span>
+                    <span class="mission-copy">
+                      <strong>{{ mission.title }}</strong>
+                      <small>+{{ mission.rewardPoint }}P</small>
+                    </span>
+                    <i
+                      class="mission-check-icon bi"
+                      :class="mission.completed ? 'bi-check-circle-fill' : 'bi-circle'"
+                      :aria-label="mission.completed ? '완료' : '미완료'"
+                    ></i>
+                  </li>
+                </ul>
               </div>
             </div>
           </AppCard>
@@ -385,19 +483,77 @@ onMounted(() => loadGoalPage({ force: true }))
                   </div>
                 </div>
               </div>
+
+              <div class="goal-coaching-inline mt-4">
+                <div class="goal-coaching-copy">
+                  <span class="goal-coaching-label">
+                    <i class="bi bi-stars" aria-hidden="true"></i>
+                    AI 한줄 코칭
+                  </span>
+                  <p class="mb-0">{{ coachingMessage }}</p>
+                </div>
+                <img :src="walloCharacter" alt="" aria-hidden="true" />
+              </div>
             </div>
           </AppCard>
         </div>
 
         <div class="col-xl-4">
-          <AppCard as="aside" class="content-card coaching-card" padding="none">
+          <AppCard as="aside" class="content-card mission-card h-100" padding="none">
             <div class="card-body p-4 p-lg-5">
-              <h2 class="section-title h5 fw-bold">AI 한줄 코칭</h2>
-              <div class="coach-bubble mt-4">{{ coachingMessage }}</div>
-              <div class="coach-character" aria-hidden="true">
-                <span class="sparkle sparkle-one">✦</span>
-                <span class="sparkle sparkle-two">✦</span>
-                <img :src="walloCharacter" alt="" />
+              <div class="mission-card-heading">
+                <div>
+                  <span class="mission-card-eyebrow">DAILY CHALLENGE</span>
+                  <h2 class="section-title h5 fw-bold mt-1">오늘의 미션</h2>
+                </div>
+                <strong v-if="missions.length" class="mission-count">
+                  {{ completedMissionCount }}/{{ missions.length }}
+                </strong>
+              </div>
+
+              <AppState
+                v-if="isMissionLoading"
+                class="mission-state mt-4"
+                type="loading"
+                compact
+                title="미션을 불러오는 중입니다."
+              />
+              <AppAlert
+                v-else-if="missionError"
+                class="mt-4"
+                variant="danger"
+                :message="missionError"
+              />
+              <div v-else-if="missionStatus === 'WAITING_ANALYSIS'" class="mission-empty mt-4">
+                소비 분석이 완료되면 오늘의 미션이 생성됩니다.
+              </div>
+              <div v-else-if="!missions.length" class="mission-empty mt-4">
+                오늘 배정된 미션이 없습니다.
+              </div>
+              <div v-else class="mission-panel mt-4">
+                <div class="mission-reward-progress">
+                  <span>획득 포인트</span>
+                  <strong>{{ completedMissionReward }} / {{ totalMissionReward }}P</strong>
+                </div>
+                <ul class="mission-list list-unstyled mb-0">
+                  <li
+                    v-for="mission in missions"
+                    :key="mission.id"
+                    class="mission-list-item"
+                    :class="{ completed: mission.completed }"
+                  >
+                    <span class="mission-icon" aria-hidden="true">{{ mission.icon }}</span>
+                    <span class="mission-copy">
+                      <strong>{{ mission.title }}</strong>
+                      <small>+{{ mission.rewardPoint }}P</small>
+                    </span>
+                    <i
+                      class="mission-check-icon bi"
+                      :class="mission.completed ? 'bi-check-circle-fill' : 'bi-circle'"
+                      :aria-label="mission.completed ? '완료' : '미완료'"
+                    ></i>
+                  </li>
+                </ul>
               </div>
             </div>
           </AppCard>
@@ -622,8 +778,7 @@ onMounted(() => loadGoalPage({ force: true }))
   text-align: center;
 }
 
-.character-wrap img,
-.coach-character img {
+.character-wrap img {
   width: 135px;
   max-height: 145px;
   object-fit: contain;
@@ -661,52 +816,178 @@ onMounted(() => loadGoalPage({ force: true }))
   background: linear-gradient(135deg, #695ce6, #5644d8);
 }
 
-.coaching-card {
-  height: 100%;
-}
-
-.coaching-card :deep(.app-card__body),
-.coaching-card .card-body {
+.goal-coaching-inline {
   display: flex;
-  min-height: 0;
-  flex: 1;
-  flex-direction: column;
+  min-height: 104px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid #dedafd;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #f7f6ff 0%, #eeecff 100%);
 }
 
-.coach-bubble {
-  position: relative;
-  width: fit-content;
-  max-width: 100%;
-  padding: 1.25rem 1.5rem;
-  border-radius: 22px 22px 8px 22px;
-  background: #f1f0ff;
+.goal-coaching-copy {
+  min-width: 0;
+}
+
+.goal-coaching-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.45rem;
+  color: #6555df;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.goal-coaching-copy p {
   color: #424862;
   font-weight: 600;
   line-height: 1.7;
 }
 
-.coach-character {
-  position: relative;
-  align-self: flex-end;
+.goal-coaching-inline img {
+  width: 78px;
+  height: 72px;
   flex: 0 0 auto;
-  margin-top: auto;
+  object-fit: contain;
 }
 
-.sparkle {
-  position: absolute;
-  color: #8b7cf4;
-  font-size: 1.5rem;
+.mission-card :deep(.app-card__body),
+.mission-card .card-body {
+  height: 100%;
 }
 
-.sparkle-one {
-  top: 12px;
-  left: -22px;
+.mission-card-heading,
+.mission-reward-progress,
+.mission-list-item {
+  display: flex;
+  align-items: center;
 }
 
-.sparkle-two {
-  top: 52px;
-  left: -43px;
-  font-size: 1rem;
+.mission-card-heading,
+.mission-reward-progress {
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.mission-card-eyebrow {
+  color: #7567e9;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.mission-count {
+  display: inline-flex;
+  min-width: 48px;
+  height: 48px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #fff;
+  background: linear-gradient(135deg, #7769f5, #5f4fd9);
+  box-shadow: 0 8px 18px rgb(100 83 232 / 20%);
+  font-size: 0.9rem;
+}
+
+.mission-state,
+.mission-empty {
+  border-radius: 16px;
+  background: #f8f8fe;
+}
+
+.mission-empty {
+  padding: 1.5rem 1.25rem;
+  color: #73798d;
+  line-height: 1.65;
+  text-align: center;
+}
+
+.mission-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.mission-reward-progress {
+  padding: 0.8rem 1rem;
+  border-radius: 14px;
+  color: #6f7588;
+  background: #f3f1ff;
+  font-size: 0.82rem;
+}
+
+.mission-reward-progress strong {
+  color: #6555df;
+}
+
+.mission-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.mission-list-item {
+  gap: 0.8rem;
+  padding: 0.9rem;
+  border: 1px solid #e7e7f2;
+  border-radius: 15px;
+  background: #fcfcff;
+}
+
+.mission-list-item.completed {
+  border-color: #cec9fa;
+  background: #f8f7ff;
+}
+
+.mission-icon {
+  display: inline-flex;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: #eeecff;
+  font-size: 1.2rem;
+}
+
+.mission-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.mission-copy strong {
+  overflow: hidden;
+  font-size: 0.9rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mission-copy small {
+  color: #7567e9;
+  font-weight: 700;
+}
+
+.mission-list-item.completed .mission-copy strong {
+  color: #8b8fa0;
+  text-decoration: line-through;
+}
+
+.mission-check-icon {
+  flex: 0 0 auto;
+  color: #aaaebd;
+  font-size: 1.2rem;
+}
+
+.mission-list-item.completed .mission-check-icon {
+  color: #7162eb;
 }
 
 .roadmap-list {
@@ -1048,10 +1329,6 @@ onMounted(() => loadGoalPage({ force: true }))
 }
 
 @media (max-width: 1199.98px) {
-  .coaching-card {
-    min-height: 310px;
-  }
-
   .roadmap-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1086,6 +1363,16 @@ onMounted(() => loadGoalPage({ force: true }))
 
   .goal-button {
     width: 100%;
+  }
+
+  .goal-coaching-inline {
+    align-items: flex-start;
+    padding: 1.15rem 1.25rem;
+  }
+
+  .goal-coaching-inline img {
+    width: 64px;
+    height: 60px;
   }
 
   .goal-card-heading {
