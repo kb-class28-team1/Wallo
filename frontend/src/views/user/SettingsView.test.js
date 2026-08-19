@@ -39,7 +39,7 @@ describe("SettingsView", () => {
 
     expect(wrapper.find(".app-page-header").exists()).toBe(true)
     expect(wrapper.find(".app-page-header__title").text()).toBe("설정")
-    expect(wrapper.find(".app-page-header__description").text()).toContain("프로필과 연결된 자산")
+    expect(wrapper.find(".app-page-header__description").exists()).toBe(false)
     expect(wrapper.find(".settings-navigation").classes()).toContain("app-card")
     expect(wrapper.find("nav[aria-label='설정 메뉴']").exists()).toBe(true)
 
