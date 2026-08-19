@@ -15,6 +15,7 @@ from app.core.ai_guard import (
     TokenBucket,
 )
 from app.core.ai_timing import (
+    get_application_ai_guard,
     get_groq_retry_count,
     log_groq_completion_timing,
     request_id_context,
@@ -193,6 +194,9 @@ def test_timed_groq_completion_logs_success_headers_and_usage_details(caplog):
         result = timing.create(messages=[])
 
     assert result is completion
+    guard = get_application_ai_guard()
+    assert guard.bucket.capacity == pytest.approx(8_000)
+    assert guard.bucket.available_tokens == pytest.approx(7_970)
     message = next(
         record.getMessage()
         for record in caplog.records
@@ -331,6 +335,9 @@ def test_timed_groq_completion_logs_provider_rate_limit_details(caplog):
     ) as timing:
         timing.create(messages=[])
 
+    guard = get_application_ai_guard()
+    assert guard.bucket.capacity == pytest.approx(8_000)
+    assert guard.bucket.available_tokens == pytest.approx(2_040)
     message = next(
         record.getMessage()
         for record in caplog.records

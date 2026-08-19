@@ -38,6 +38,16 @@ _RETRY_AFTER_MESSAGE_PATTERN = re.compile(
     r"try again in\s+(?P<seconds>[0-9]+(?:\.[0-9]+)?)s",
     re.IGNORECASE,
 )
+_PROVIDER_DURATION_PATTERN = re.compile(
+    r"(?P<value>[0-9]+(?:\.[0-9]+)?)(?P<unit>ms|s|m|h)",
+    re.IGNORECASE,
+)
+_PROVIDER_DURATION_FACTORS = {
+    "ms": 0.001,
+    "s": 1.0,
+    "m": 60.0,
+    "h": 3600.0,
+}
 
 
 def normalize_request_id(request_id: str | None) -> str | None:
@@ -168,6 +178,98 @@ def _header_value(headers: Any, name: str) -> Any:
         return None
 
 
+def _parse_nonnegative_number(value: Any) -> float | None:
+    if isinstance(value, bool) or value is None:
+        return None
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(parsed) or parsed < 0:
+        return None
+    return parsed
+
+
+def _parse_provider_duration(value: Any) -> float | None:
+    numeric = _parse_nonnegative_number(value)
+    if numeric is not None:
+        return numeric
+    if not isinstance(value, str):
+        return None
+
+    normalized = value.strip().lower()
+    if not normalized:
+        return None
+    matches = list(_PROVIDER_DURATION_PATTERN.finditer(normalized))
+    if not matches:
+        return None
+    compact = re.sub(r"\s+", "", normalized)
+    matched_text = "".join(match.group(0) for match in matches)
+    if matched_text.lower() != compact:
+        return None
+    return sum(
+        float(match.group("value"))
+        * _PROVIDER_DURATION_FACTORS[match.group("unit").lower()]
+        for match in matches
+    )
+
+
+def _provider_token_limits(
+    headers: Any,
+) -> tuple[float, float | None, float | None] | None:
+    limit_tokens = _parse_nonnegative_number(
+        _header_value(headers, "x-ratelimit-limit-tokens")
+    )
+    if limit_tokens is None or limit_tokens <= 0:
+        return None
+    remaining_tokens = _parse_nonnegative_number(
+        _header_value(headers, "x-ratelimit-remaining-tokens")
+    )
+    reset_seconds = _parse_provider_duration(
+        _header_value(headers, "x-ratelimit-reset-tokens")
+    )
+    return limit_tokens, remaining_tokens, reset_seconds
+
+
+def _synchronize_provider_limits(
+    guard: ApplicationAIGuard,
+    headers: Any,
+    *,
+    operation: str,
+    request_id: str | None,
+) -> None:
+    provider_limits = _provider_token_limits(headers)
+    if provider_limits is None:
+        return
+    limit_tokens, remaining_tokens, reset_seconds = provider_limits
+    synchronized = guard.synchronize_provider_limits(
+        limit_tokens=limit_tokens,
+        remaining_tokens=remaining_tokens,
+        reset_seconds=reset_seconds,
+    )
+    if not synchronized:
+        LOGGER.warning(
+            "[AI_GUARD] operation=%s requestId=%s status=provider-sync-skipped",
+            operation,
+            normalize_request_id(request_id),
+        )
+        return
+    LOGGER.info(
+        "[AI_GUARD] operation=%s requestId=%s status=provider-synced "
+        "providerLimitTokens=%.0f providerRemainingTokens=%s "
+        "providerResetSeconds=%s effectiveCapacity=%.0f "
+        "effectiveRefillPerMinute=%.0f availableTokens=%.0f",
+        operation,
+        normalize_request_id(request_id),
+        limit_tokens,
+        None if remaining_tokens is None else round(remaining_tokens),
+        None if reset_seconds is None else round(reset_seconds, 3),
+        guard.bucket.capacity,
+        guard.bucket.refill_tokens_per_second * 60,
+        guard.bucket.available_tokens,
+    )
+
+
 def _provider_error_details(
     error: Exception,
 ) -> tuple[int | None, str | None, str | None, str]:
@@ -280,6 +382,7 @@ class GroqCompletionTimer:
         self.estimated_prompt_tokens: int | None = None
         self.guard_reserved_tokens: int | None = None
         self.guard_lease: ApplicationGuardLease | None = None
+        self.application_guard: ApplicationAIGuard | None = None
 
     def __enter__(self) -> "GroqCompletionTimer":
         reset_groq_retry_tracking(self.client)
@@ -322,7 +425,8 @@ class GroqCompletionTimer:
             + (self.requested_completion_tokens or 0),
         )
         try:
-            self.guard_lease = get_application_ai_guard().reserve(
+            self.application_guard = get_application_ai_guard()
+            self.guard_lease = self.application_guard.reserve(
                 guard_reserved_tokens
             )
             self.guard_reserved_tokens = guard_reserved_tokens
@@ -403,6 +507,10 @@ class GroqCompletionTimer:
             return self.completion
         except Exception as error:
             self.failure_reason = type(error).__name__
+            error_response = getattr(error, "response", None)
+            error_headers = getattr(error_response, "headers", None)
+            if error_headers is not None:
+                self.response_headers = error_headers
             _log_provider_error(
                 error,
                 operation=self.operation,
@@ -428,6 +536,13 @@ class GroqCompletionTimer:
                     self.guard_lease.available_tokens,
                     self.guard_lease.in_flight_requests,
                 )
+                if self.application_guard is not None:
+                    _synchronize_provider_limits(
+                        self.application_guard,
+                        self.response_headers,
+                        operation=self.operation,
+                        request_id=self.request_id,
+                    )
 
     def mark_fallback(self, reason: str) -> None:
         self.fallback_used = True

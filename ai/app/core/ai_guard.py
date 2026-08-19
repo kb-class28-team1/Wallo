@@ -63,12 +63,21 @@ class TokenBucket:
             raise ValueError("refill_tokens_per_second must be positive")
         self.capacity = float(capacity)
         self.refill_tokens_per_second = float(refill_tokens_per_second)
+        self._configured_capacity = self.capacity
+        self._configured_refill_tokens_per_second = self.refill_tokens_per_second
         self._clock = clock
         self._lock = threading.Lock()
         self._tokens = self.capacity
         self._updated_at = self._clock()
+        self._provider_limit_tokens: float | None = None
+        self._provider_remaining_tokens: float | None = None
+        self._provider_reset_at: float | None = None
 
     def _refill_locked(self, now: float) -> None:
+        if self._provider_reset_at is not None and now >= self._provider_reset_at:
+            self._provider_remaining_tokens = self.capacity
+            self._provider_reset_at = None
+
         elapsed = max(0.0, now - self._updated_at)
         if elapsed:
             self._tokens = min(
@@ -82,12 +91,32 @@ class TokenBucket:
         if amount == 0:
             return None
         with self._lock:
-            self._refill_locked(self._clock())
-            if self._tokens >= amount:
+            now = self._clock()
+            self._refill_locked(now)
+            available = self._tokens
+            if self._provider_remaining_tokens is not None:
+                available = min(available, self._provider_remaining_tokens)
+
+            if available >= amount:
                 self._tokens -= amount
+                if self._provider_remaining_tokens is not None:
+                    self._provider_remaining_tokens -= amount
                 return None
-            shortage = amount - self._tokens
-            return shortage / self.refill_tokens_per_second
+
+            local_shortage = max(0.0, amount - self._tokens)
+            retry_after = local_shortage / self.refill_tokens_per_second
+            if self._provider_remaining_tokens is not None:
+                provider_shortage = max(
+                    0.0,
+                    amount - self._provider_remaining_tokens,
+                )
+                if provider_shortage > 0:
+                    provider_retry_after = max(
+                        0.0,
+                        (self._provider_reset_at or now) - now,
+                    )
+                    retry_after = max(retry_after, provider_retry_after)
+            return retry_after
 
     def reconcile(self, reserved_tokens: int | float, actual_tokens: int | None) -> None:
         reserved = max(0.0, float(reserved_tokens))
@@ -99,12 +128,76 @@ class TokenBucket:
                 self._tokens = min(self.capacity, self._tokens + difference)
             else:
                 self._tokens = max(0.0, self._tokens + difference)
+            if self._provider_remaining_tokens is not None:
+                self._provider_remaining_tokens = min(
+                    self.capacity,
+                    max(0.0, self._provider_remaining_tokens + difference),
+                )
+
+    def synchronize_provider_limits(
+        self,
+        *,
+        limit_tokens: int | float,
+        remaining_tokens: int | float | None = None,
+        reset_seconds: int | float | None = None,
+    ) -> bool:
+        """Apply provider token-window state as a local safety ceiling."""
+        try:
+            provider_limit = float(limit_tokens)
+            provider_remaining = (
+                None if remaining_tokens is None else float(remaining_tokens)
+            )
+            provider_reset = (
+                None if reset_seconds is None else float(reset_seconds)
+            )
+        except (TypeError, ValueError):
+            return False
+
+        if not math.isfinite(provider_limit) or provider_limit <= 0:
+            return False
+        if provider_remaining is not None and (
+            not math.isfinite(provider_remaining) or provider_remaining < 0
+        ):
+            return False
+        if provider_reset is not None and (
+            not math.isfinite(provider_reset) or provider_reset < 0
+        ):
+            return False
+
+        with self._lock:
+            now = self._clock()
+            self._refill_locked(now)
+            effective_capacity = min(self._configured_capacity, provider_limit)
+            self.capacity = effective_capacity
+            self.refill_tokens_per_second = min(
+                self._configured_refill_tokens_per_second,
+                provider_limit / 60,
+            )
+            self._provider_limit_tokens = provider_limit
+            self._tokens = min(self._tokens, effective_capacity)
+
+            if provider_remaining is not None:
+                self._tokens = min(effective_capacity, provider_remaining)
+                if provider_reset is not None and provider_reset > 0:
+                    self._provider_remaining_tokens = min(
+                        effective_capacity,
+                        provider_remaining,
+                    )
+                    self._provider_reset_at = now + provider_reset
+                else:
+                    self._provider_remaining_tokens = None
+                    self._provider_reset_at = None
+
+            self._updated_at = now
+        return True
 
     @property
     def available_tokens(self) -> float:
         with self._lock:
             self._refill_locked(self._clock())
-            return self._tokens
+            if self._provider_remaining_tokens is None:
+                return self._tokens
+            return min(self._tokens, self._provider_remaining_tokens)
 
 
 class ApplicationGuardLease:
@@ -178,6 +271,19 @@ class ApplicationAIGuard:
         with self._in_flight_lock:
             self._in_flight = max(0, self._in_flight - 1)
         self._semaphore.release()
+
+    def synchronize_provider_limits(
+        self,
+        *,
+        limit_tokens: int | float,
+        remaining_tokens: int | float | None = None,
+        reset_seconds: int | float | None = None,
+    ) -> bool:
+        return self.bucket.synchronize_provider_limits(
+            limit_tokens=limit_tokens,
+            remaining_tokens=remaining_tokens,
+            reset_seconds=reset_seconds,
+        )
 
     @property
     def in_flight_requests(self) -> int:
