@@ -123,8 +123,8 @@ const expenseCategoryRate = (amount) => {
 }
 
 .expense-card-body {
-  min-height: 310px;
-  padding: var(--wallo-space-6);
+  min-height: 294px;
+  padding: var(--wallo-space-5) var(--wallo-space-6);
 }
 
 .expense-total {
@@ -151,7 +151,7 @@ const expenseCategoryRate = (amount) => {
 
 .expense-doughnut-chart {
   position: relative;
-  height: 190px;
+  height: 180px;
 }
 
 .expense-doughnut-center {

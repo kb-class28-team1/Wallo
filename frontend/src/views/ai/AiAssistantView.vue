@@ -176,7 +176,6 @@ onMounted(() => loadGoalPage({ force: true }))
     <AppPageHeader
       class="assistant-header"
       title="AI 컨설팅"
-      description="AI가 당신의 재무 상황을 분석하고, 목표 달성을 위한 맞춤 로드맵을 제안해드립니다."
     />
 
     <AppAlert
