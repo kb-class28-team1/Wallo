@@ -1,8 +1,18 @@
+import json
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from app.agents.financial.agent import PRODUCT_RECOMMENDATION_TOOL
+from app.agents.base import ToolResult
+from app.agents.financial.agent import (
+    PRODUCT_RECOMMENDATION_TOOL,
+    FinancialAgent,
+)
 from app.chat.schemas import ChatRequest
 from app.chat.service import ChatService
+
+
+def _completion(message):
+    return SimpleNamespace(choices=[SimpleNamespace(message=message)])
 
 
 def test_chat_exposes_successful_product_recommendation_with_alias():
@@ -67,3 +77,47 @@ def test_chat_keeps_text_answer_when_no_product_matches():
     assert response.product_recommendation is None
     assert response.answer == "No product matches those conditions."
     assert response.model_dump(by_alias=True)["productRecommendation"] is None
+
+
+def test_product_recommendation_allocates_enough_tokens_for_complete_summary():
+    tool_call = SimpleNamespace(
+        id="call-product",
+        function=SimpleNamespace(
+            name=PRODUCT_RECOMMENDATION_TOOL,
+            arguments=json.dumps({
+                "request": "Recommend a 12-month saving product",
+                "productType": "saving",
+                "termMonths": 12,
+                "amountKrw": 500_000,
+                "joinPreference": "online",
+            }),
+        ),
+        model_dump=Mock(return_value={
+            "id": "call-product",
+            "type": "function",
+            "function": {
+                "name": PRODUCT_RECOMMENDATION_TOOL,
+                "arguments": "{}",
+            },
+        }),
+    )
+    client = Mock()
+    client.chat.completions.create.side_effect = [
+        _completion(SimpleNamespace(content=None, tool_calls=[tool_call])),
+        _completion(SimpleNamespace(content="Complete recommendation reason.")),
+    ]
+
+    with patch(
+        "app.agents.financial.agent.execute_tool",
+        return_value=ToolResult(
+            status="success",
+            tool=PRODUCT_RECOMMENDATION_TOOL,
+            data={"products": [{"productName": "Safe Saving"}]},
+        ),
+    ):
+        answer = FinancialAgent(client).run("Recommend a saving product")
+
+    assert answer == "Complete recommendation reason."
+    final_call = client.chat.completions.create.call_args_list[1].kwargs
+    assert final_call["max_completion_tokens"] == 1600
+    assert final_call["reasoning_effort"] == "low"
