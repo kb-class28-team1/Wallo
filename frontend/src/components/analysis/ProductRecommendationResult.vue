@@ -1,5 +1,7 @@
 <script setup>
 import { computed } from "vue"
+import DOMPurify from "dompurify"
+import { marked } from "marked"
 import {
   formatCollectedAt,
   formatDisclosureMonth,
@@ -8,6 +10,11 @@ import {
   formatProductTerm,
   normalizeProductRecommendation,
 } from "@/types/productRecommendation"
+
+marked.setOptions({
+  breaks: true,
+  gfm: true,
+})
 
 const props = defineProps({
   recommendation: {
@@ -32,6 +39,9 @@ const normalizedRecommendation = computed(() => normalizeProductRecommendation(
 const products = computed(() => normalizedRecommendation.value.products || [])
 const hasProducts = computed(() => products.value.length > 0)
 const reason = computed(() => props.reason?.trim() || "")
+const renderedReason = computed(() => (
+  reason.value ? DOMPurify.sanitize(marked.parse(reason.value)) : ""
+))
 
 const productType = (product) =>
   product.productType || normalizedRecommendation.value.productType || "금융상품"
@@ -163,7 +173,10 @@ const productKey = (product, index) =>
 
     <div v-if="reason" class="product-recommendation__reason">
       <strong><i class="bi bi-chat-left-text me-1" aria-hidden="true"></i>AI 추천 이유</strong>
-      <p>{{ reason }}</p>
+      <div
+        class="product-recommendation__reason-markdown"
+        v-html="renderedReason"
+      ></div>
     </div>
 
     <div class="alert alert-warning-subtle border rounded-4 mb-0 mt-2" role="note">
@@ -356,11 +369,46 @@ const productKey = (product, index) =>
   font-size: 0.82rem;
 }
 
-.product-recommendation__reason p {
-  margin: 0.35rem 0 0;
-  white-space: pre-wrap;
+.product-recommendation__reason-markdown {
+  margin-top: 0.35rem;
   font-size: 0.84rem;
   line-height: 1.55;
+}
+
+.product-recommendation__reason-markdown :deep(p),
+.product-recommendation__reason-markdown :deep(ul),
+.product-recommendation__reason-markdown :deep(ol),
+.product-recommendation__reason-markdown :deep(blockquote),
+.product-recommendation__reason-markdown :deep(pre) {
+  margin: 0 0 0.55rem;
+}
+
+.product-recommendation__reason-markdown :deep(> :last-child) {
+  margin-bottom: 0;
+}
+
+.product-recommendation__reason-markdown :deep(ul),
+.product-recommendation__reason-markdown :deep(ol) {
+  padding-left: 1.35rem;
+}
+
+.product-recommendation__reason-markdown :deep(li + li) {
+  margin-top: 0.2rem;
+}
+
+.product-recommendation__reason-markdown :deep(code) {
+  padding: 0.1rem 0.3rem;
+  background: #ebe9f8;
+  border-radius: 0.3rem;
+  font-size: 0.9em;
+}
+
+.product-recommendation__reason-markdown :deep(pre) {
+  overflow-x: auto;
+  padding: 0.65rem;
+  color: #f5f5f5;
+  background: #29273a;
+  border-radius: 0.55rem;
 }
 
 @media (max-width: 640px) {
