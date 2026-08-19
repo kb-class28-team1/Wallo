@@ -13,6 +13,8 @@ public class MissionEvidenceTarget {
     private String evidenceGuide;
     private String mediaUrl;
     private String mediaType;
+    private String analysisSummary;
+    private Integer estimatedSavingAmount;
     private Integer rewardPoint;
 
     public Long getDailyMissionId() { return dailyMissionId; }
@@ -35,6 +37,10 @@ public class MissionEvidenceTarget {
     public void setMediaUrl(String value) { this.mediaUrl = value; }
     public String getMediaType() { return mediaType; }
     public void setMediaType(String value) { this.mediaType = value; }
+    public String getAnalysisSummary() { return analysisSummary; }
+    public void setAnalysisSummary(String value) { this.analysisSummary = value; }
+    public Integer getEstimatedSavingAmount() { return estimatedSavingAmount; }
+    public void setEstimatedSavingAmount(Integer value) { this.estimatedSavingAmount = value; }
     public Integer getRewardPoint() { return rewardPoint; }
     public void setRewardPoint(Integer value) { this.rewardPoint = value; }
 }

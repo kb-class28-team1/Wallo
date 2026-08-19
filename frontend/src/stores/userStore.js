@@ -16,6 +16,7 @@ import {
 } from "@/utils/resourceCache"
 import { useConversationStore } from "@/stores/conversationStore"
 import { useGoalStore } from "@/stores/goalStore"
+import { clearDevMissionPreview } from "@/api/missionApi"
 
 const DEFAULT_PROFILE_IMAGE = "/images/profiles/default-profile.svg"
 const PROFILE_CACHE_KEY = "user:profile:current"
@@ -42,6 +43,7 @@ export const useUserStore = defineStore("user", () => {
   const invalidateProfileCache = () => invalidateResource(PROFILE_CACHE_KEY)
 
   const resetSessionStores = () => {
+    clearDevMissionPreview()
     useGoalStore().reset()
     useConversationStore().reset()
   }
