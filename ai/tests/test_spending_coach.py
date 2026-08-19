@@ -237,7 +237,7 @@ def test_spending_analysis_uses_expanded_final_output_tokens():
     assert agent.selected_tool_result is not None
     assert agent.selected_tool_result["dataSufficiency"]["sufficient"] is False
     assert client.chat.completions.create.call_count == 1
-    assert client.chat.completions.create.call_args.kwargs["max_completion_tokens"] == 1600
+    assert client.chat.completions.create.call_args.kwargs["max_completion_tokens"] == 1000
 
 
 def test_spending_intent_covers_indirect_consumption_questions():

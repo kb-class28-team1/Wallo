@@ -118,6 +118,7 @@ class GenerateAnswerTest(unittest.TestCase):
         self.assertNotIn("tools", route_call)
         self.assertNotIn("tool_choice", route_call)
         self.assertEqual("low", route_call["reasoning_effort"])
+        self.assertEqual(256, route_call["max_completion_tokens"])
 
     def test_dispatches_selected_tool_and_returns_final_answer(self):
         client = Mock()
@@ -170,7 +171,7 @@ class GenerateAnswerTest(unittest.TestCase):
         self.assertEqual("demo_json", tool_result["data"]["dataMode"])
         self.assertEqual(7, tool_result["data"]["profileId"])
         final_call = client.chat.completions.create.call_args_list[1].kwargs
-        self.assertEqual(1600, final_call["max_completion_tokens"])
+        self.assertEqual(1000, final_call["max_completion_tokens"])
         self.assertEqual("low", final_call["reasoning_effort"])
 
     def test_reuses_cached_asset_report_for_same_profile(self):

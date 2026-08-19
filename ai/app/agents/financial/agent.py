@@ -34,10 +34,14 @@ logger = logging.getLogger("wallo_ai")
 ASSET_ANALYSIS_TOOL = "analyze_assets"
 PRODUCT_RECOMMENDATION_TOOL = "recommend_financial_products"
 SPENDING_ANALYSIS_TOOL = "coach_spending"
-DEFAULT_FINAL_COMPLETION_TOKENS = 500
-ASSET_ANALYSIS_FINAL_COMPLETION_TOKENS = 1600
+# Direct replies only need a short answer; tool selection keeps the existing
+# budget because the baseline included a tool-call response that ended by length.
+ROUTE_DIRECT_COMPLETION_TOKENS = 256
+ROUTE_TOOL_COMPLETION_TOKENS = 500
+DEFAULT_FINAL_COMPLETION_TOKENS = 400
+ASSET_ANALYSIS_FINAL_COMPLETION_TOKENS = 1000
 PRODUCT_RECOMMENDATION_FINAL_COMPLETION_TOKENS = 1600
-SPENDING_ANALYSIS_FINAL_COMPLETION_TOKENS = 1600
+SPENDING_ANALYSIS_FINAL_COMPLETION_TOKENS = 1000
 ASSET_ANALYSIS_JSON_INSTRUCTION = """
 analyze_assets 도구가 성공한 경우 최종 답변은 JSON 객체 하나만 반환하세요.
 마크다운, 코드 블록, JSON 앞뒤의 설명은 사용하지 마세요. 금액과 비율은 도구 결과의
@@ -288,10 +292,15 @@ class FinancialAgent:
                     or "소비분석 결과를 정리하지 못했습니다."
                 )
         route_tools = select_route_tool_schemas(user_message)
+        route_completion_tokens = (
+            ROUTE_TOOL_COMPLETION_TOKENS
+            if route_tools
+            else ROUTE_DIRECT_COMPLETION_TOKENS
+        )
         route_options: dict[str, Any] = {
             "messages": messages,
             "reasoning_effort": "low",
-            "max_completion_tokens": 500,
+            "max_completion_tokens": route_completion_tokens,
         }
         if route_tools:
             route_options.update({
@@ -302,7 +311,7 @@ class FinancialAgent:
             self.client,
             operation="chat.route",
             model=self.model,
-            requested_completion_tokens=500,
+            requested_completion_tokens=route_completion_tokens,
         ) as timing:
             completion = timing.create(**route_options)
         assistant_message = completion.choices[0].message

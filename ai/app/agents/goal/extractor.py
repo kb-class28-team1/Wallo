@@ -20,6 +20,7 @@ from app.core.ai_timing import timed_groq_completion
 from app.core.config import get_groq_model
 
 logger = logging.getLogger("wallo_ai")
+GOAL_EXTRACTION_MAX_COMPLETION_TOKENS = 512
 
 
 class GoalExtractionError(ValueError):
@@ -102,7 +103,7 @@ class GoalExtractor:
             self.client,
             operation="goal.extract",
             model=self.model,
-            requested_completion_tokens=900,
+            requested_completion_tokens=GOAL_EXTRACTION_MAX_COMPLETION_TOKENS,
         ) as timing:
             try:
                 completion = timing.create(
@@ -125,7 +126,7 @@ class GoalExtractor:
                     temperature=0,
                     reasoning_effort="low",
                     include_reasoning=False,
-                    max_completion_tokens=900,
+                    max_completion_tokens=GOAL_EXTRACTION_MAX_COMPLETION_TOKENS,
                 )
                 tool_calls = completion.choices[0].message.tool_calls
                 if not tool_calls:
