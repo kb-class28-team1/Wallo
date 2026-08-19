@@ -596,6 +596,8 @@ onMounted(loadCurrentChallenge)
   grid-template-columns: minmax(280px, 0.8fr) minmax(460px, 1.2fr);
   gap: 70px;
   align-items: center;
+  min-height: calc(100vh - var(--wallo-header-height));
+  box-sizing: border-box;
   padding: 0px 18px;
 }
 
@@ -754,6 +756,7 @@ onMounted(loadCurrentChallenge)
 
 @media (max-width: 991.98px) {
   .not-joined-page {
+    min-height: auto;
     grid-template-columns: 1fr;
     gap: 28px;
   }

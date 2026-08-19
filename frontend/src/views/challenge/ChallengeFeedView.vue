@@ -9,7 +9,6 @@ import AppDialog from "@/components/common/AppDialog.vue"
 import AuthenticatedImage from "@/components/common/AuthenticatedImage.vue"
 import AppAlert from "@/components/ui/AppAlert.vue"
 import AppButton from "@/components/ui/AppButton.vue"
-import AppCard from "@/components/ui/AppCard.vue"
 import AppState from "@/components/ui/AppState.vue"
 import { leaveChallenge as leaveChallengeRequest } from "@/api/challengeApi"
 import { getTodayMissions, verifyMissionWithFeed } from "@/api/missionApi"
@@ -55,6 +54,7 @@ const todayMissions = ref([])
 const isMissionLoading = ref(false)
 const likingFeedId = ref(null)
 const likeBursts = ref([])
+const pageHeartBursts = ref([])
 const unmutedFeedIds = ref(new Set())
 const deletingFeedId = ref(null)
 const chatInput = ref("")
@@ -77,6 +77,8 @@ let chatReconnectAttempts = 0
 let shouldReconnectChat = true
 let likeBurstSequence = 0
 const likeBurstTimers = new Set()
+const pageHeartMilestones = new Map()
+let pageHeartCelebrationTimer = null
 let dialogResolver = null
 
 const FEED_STALE_TIME = 30 * 1000
@@ -428,6 +430,28 @@ const closeModal = () => {
   })
   if (fileInput.value) fileInput.value.value = ""
 }
+const triggerPageHeartCelebration = (milestone) => {
+  const progress = Math.min(Math.max((milestone - 50) / 950, 0), 1)
+  const heartCount = Math.round(8 + progress * 20)
+  const baseSize = 14 + progress * 18
+  const durationMs = 1600 + Math.round(progress * 350)
+  const celebrationId = Date.now()
+  pageHeartBursts.value = Array.from({ length: heartCount }, (_, index) => ({
+    id: `${celebrationId}-${index}`,
+    left: 7 + ((index * 31) % 87),
+    delay: (index * 47) % 300,
+    size: Math.round(baseSize + ((index * 13) % 8)),
+    drift: ((index * 53) % 81) - 40,
+    rotate: ((index * 29) % 51) - 25,
+    duration: durationMs,
+    rise: 45 + Math.round(progress * 20),
+  }))
+  if (pageHeartCelebrationTimer) window.clearTimeout(pageHeartCelebrationTimer)
+  pageHeartCelebrationTimer = window.setTimeout(() => {
+    pageHeartBursts.value = []
+    pageHeartCelebrationTimer = null
+  }, durationMs + 520)
+}
 const addLike = async (feed) => {
   if (likingFeedId.value !== null) return
   likingFeedId.value = feed.id
@@ -435,6 +459,15 @@ const addLike = async (feed) => {
     const result = await addFeedLike(challengeId.value, feed.id)
     feed.likeCount = result.likeCount
     invalidateFeedCaches()
+    const likeCount = Number(feed.likeCount)
+    const milestone = Math.floor(likeCount / 10) * 10
+    if (
+      likeCount >= 50 && likeCount <= 1000 && likeCount % 50 === 0 &&
+      pageHeartMilestones.get(feed.id) !== milestone
+    ) {
+      pageHeartMilestones.set(feed.id, milestone)
+      triggerPageHeartCelebration(milestone)
+    }
     const id = ++likeBurstSequence
     likeBursts.value.push({
       id,
@@ -762,12 +795,31 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   disconnectChatSocket()
   likeBurstTimers.forEach((timer) => window.clearTimeout(timer))
+  if (pageHeartCelebrationTimer) window.clearTimeout(pageHeartCelebrationTimer)
   if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
 })
 </script>
 
 <template>
   <section class="feed-page">
+    <div v-if="pageHeartBursts.length" class="page-heart-celebration" aria-hidden="true">
+      <span
+        v-for="heart in pageHeartBursts"
+        :key="heart.id"
+        class="page-heart"
+        :style="{
+          '--heart-left': `${heart.left}%`,
+          '--heart-delay': `${heart.delay}ms`,
+          '--heart-size': `${heart.size}px`,
+          '--heart-drift': `${heart.drift}px`,
+          '--heart-rotate': `${heart.rotate}deg`,
+          '--heart-duration': `${heart.duration}ms`,
+          '--heart-rise': `${heart.rise}vh`,
+        }"
+      >
+        <i class="bi bi-heart-fill" aria-hidden="true"></i>
+      </span>
+    </div>
     <AppAlert
       v-if="refreshing"
       class="feed-refresh-status"
@@ -822,9 +874,9 @@ onBeforeUnmount(() => {
               </div>
             </div>
           </div>
-          <AppCard as="div" class="saving-total" variant="accent" padding="none">
+          <div class="saving-total">
             <small>누적 절약 금액</small><strong>{{ formatWon(mySavingTotal) }}</strong>
-          </AppCard>
+          </div>
         </div>
         <div class="feed-header-bottom">
           <nav class="feed-tabs">
@@ -1341,11 +1393,11 @@ onBeforeUnmount(() => {
   opacity: 0.6;
 }
 .saving-total {
-  width: 100%;
+  width: max-content;
   box-sizing: border-box;
-  padding: 18px 22px;
-  background: #f0edff;
-  border-radius: 16px;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
 }
 .saving-total small,
 .saving-total strong {
@@ -1423,7 +1475,7 @@ onBeforeUnmount(() => {
   background: #f0edff;
   border: 1px solid #dcd6ff;
   border-radius: 10px;
-  font-size: 0.78rem;
+  font-size: calc(0.78rem + 1px);
   font-weight: 800;
   white-space: nowrap;
 }
@@ -1554,7 +1606,7 @@ onBeforeUnmount(() => {
 .like-burst-layer {
   position: absolute;
   inset: 0;
-  z-index: 2;
+  z-index: 5;
   overflow: hidden;
   pointer-events: none;
 }
@@ -1562,12 +1614,38 @@ onBeforeUnmount(() => {
   position: absolute;
   left: 24px;
   bottom: 28px;
+  display: inline-grid;
+  width: 1.25rem;
+  height: 1.25rem;
+  place-items: center;
   color: #ff6387;
-  font-size: 2rem;
+  font-size: 1.15rem;
   line-height: 1;
   opacity: 0;
   text-shadow: 0 3px 12px #ff638766;
   animation: like-heart-rise 950ms ease-out forwards;
+}
+.page-heart-celebration {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  overflow: hidden;
+  pointer-events: none;
+}
+.page-heart {
+  position: absolute;
+  left: var(--heart-left);
+  bottom: 24%;
+  color: #ff6387;
+  font-size: var(--heart-size);
+  line-height: 1;
+  opacity: 0;
+  text-shadow: 0 2px 7px #ff638744;
+  animation: page-heart-pop var(--heart-duration) ease-out var(--heart-delay) forwards;
+}
+.page-heart i {
+  display: block;
+  font-style: normal;
 }
 .like-button {
   order: 1;
@@ -1622,7 +1700,7 @@ onBeforeUnmount(() => {
 @keyframes like-heart-rise {
   0% {
     opacity: 0;
-    transform: translate3d(0, 12px, 0) scale(0.45) rotate(-10deg);
+    transform: translate3d(0, 12px, 0) scale(0.65) rotate(-10deg);
   }
   16% {
     opacity: 1;
@@ -1630,7 +1708,27 @@ onBeforeUnmount(() => {
   }
   100% {
     opacity: 0;
-    transform: translate3d(var(--like-drift), -150px, 0) scale(1.25) rotate(12deg);
+    transform: translate3d(var(--like-drift), -150px, 0) scale(1.05) rotate(12deg);
+  }
+}
+@keyframes page-heart-pop {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0) scale(0.45) rotate(0deg);
+  }
+  18% {
+    opacity: 0.72;
+    transform: translate3d(0, 0, 0) scale(0.88) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(
+        var(--heart-drift),
+        calc(var(--heart-rise) * -1),
+        0
+      )
+      scale(0.72)
+      rotate(var(--heart-rotate));
   }
 }
 .feed-card footer {
@@ -2287,7 +2385,7 @@ textarea {
   min-width: 0;
   flex: 1;
   height: 75px;
-  align-items: flex-start;
+  align-items: center;
   gap: 16px;
 }
 
@@ -2307,7 +2405,7 @@ textarea {
 }
 
 .feed-header-bottom {
-  margin-top: -20px;
+  margin-top: 0;
   margin-bottom: 22px;
 }
 
@@ -2382,20 +2480,22 @@ textarea {
   display: flex;
   position: relative;
   top: 22px;
-  height: 75px;
-  min-height: 75px;
+  height: auto;
+  min-height: 0;
   box-sizing: border-box;
-  width: 110px;
+  width: max-content;
+  min-width: max-content;
   flex-direction: column;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;
   flex-shrink: 0;
-  padding: 6px 8px;
+  padding: 0;
   text-align: left;
   border: 0;
-  border-radius: 11px;
-  background: #f6f8fb;
-  box-shadow: 0 5px 12px rgb(92 122 194 / 16%);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  white-space: nowrap;
 }
 
 .saving-total small {
@@ -2407,6 +2507,7 @@ textarea {
   color: #5f7fdb;
   font-size: 1.525rem;
   letter-spacing: -0.04em;
+  white-space: nowrap;
 }
 
 .empty-feed {
@@ -2630,7 +2731,7 @@ textarea {
   }
 
   .feed-header .saving-total {
-    width: 100%;
+    width: max-content;
     top: 0;
   }
 
