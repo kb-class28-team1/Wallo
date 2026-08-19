@@ -1,3 +1,4 @@
+import logging
 import threading
 from functools import lru_cache
 from typing import Any
@@ -11,6 +12,10 @@ from app.core.config import (
     get_groq_max_retry_delay_seconds,
     get_groq_timeout_seconds,
 )
+from app.core.ai_timing import current_request_id
+
+
+logger = logging.getLogger("wallo_ai")
 
 
 class Groq(GroqSdk):
@@ -37,14 +42,34 @@ class Groq(GroqSdk):
     def _should_retry(self, response: Any) -> bool:
         if getattr(response, "status_code", None) == 429:
             self._retry_state.rate_limited = True
-            retry_after = self._parse_retry_after_header(
-                getattr(response, "headers", None)
+            headers = getattr(response, "headers", None)
+            max_retry_delay_seconds = getattr(
+                self,
+                "_max_retry_delay_seconds",
+                DEFAULT_GROQ_MAX_RETRY_DELAY_SECONDS,
             )
-            if (
+            retry_after = self._parse_retry_after_header(
+                headers
+            )
+            will_retry = not (
                 retry_after is not None
-                and retry_after > self._max_retry_delay_seconds
-            ):
-                return False
+                and retry_after > max_retry_delay_seconds
+            )
+            if will_retry:
+                will_retry = super()._should_retry(response)
+            logger.warning(
+                "[AI_RATE_LIMIT_RETRY] requestId=%s status=429 "
+                "retryAfter=%s limitTokens=%s remainingTokens=%s "
+                "resetTokens=%s willRetry=%s maxRetryDelaySeconds=%s",
+                current_request_id(),
+                headers.get("retry-after") if headers is not None else None,
+                headers.get("x-ratelimit-limit-tokens") if headers is not None else None,
+                headers.get("x-ratelimit-remaining-tokens") if headers is not None else None,
+                headers.get("x-ratelimit-reset-tokens") if headers is not None else None,
+                will_retry,
+                max_retry_delay_seconds,
+            )
+            return will_retry
         return super()._should_retry(response)
 
     def _calculate_retry_timeout(

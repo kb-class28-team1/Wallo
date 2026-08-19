@@ -134,7 +134,8 @@ def test_classify_batch_logs_actual_token_usage(caplog):
     timing_logs = [
         record.getMessage()
         for record in caplog.records
-        if "operation=category.classify_batch" in record.getMessage()
+        if "[AI_TIMING]" in record.getMessage()
+        and "operation=category.classify_batch" in record.getMessage()
     ]
     assert len(timing_logs) == 1
     assert "promptTokens=120" in timing_logs[0]
