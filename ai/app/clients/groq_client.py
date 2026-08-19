@@ -16,6 +16,10 @@ from app.core.ai_timing import current_request_id
 
 
 logger = logging.getLogger("wallo_ai")
+# The SDK honors provider Retry-After values up to 60 seconds. Keep that
+# provider-directed window while using GROQ_MAX_RETRY_DELAY_SECONDS only for
+# exponential-backoff fallback values.
+MAX_PROVIDER_RETRY_AFTER_SECONDS = 60.0
 
 
 class Groq(GroqSdk):
@@ -51,22 +55,28 @@ class Groq(GroqSdk):
             retry_after = self._parse_retry_after_header(
                 headers
             )
-            will_retry = not (
+            retry_after_is_usable = (
                 retry_after is not None
-                and retry_after > max_retry_delay_seconds
+                and 0 <= retry_after <= MAX_PROVIDER_RETRY_AFTER_SECONDS
             )
-            if will_retry:
+            if retry_after is not None and not retry_after_is_usable:
+                will_retry = False
+            elif self.get_retry_count() >= 1:
+                will_retry = False
+            else:
                 will_retry = super()._should_retry(response)
             logger.warning(
                 "[AI_RATE_LIMIT_RETRY] requestId=%s status=429 "
                 "retryAfter=%s limitTokens=%s remainingTokens=%s "
-                "resetTokens=%s willRetry=%s maxRetryDelaySeconds=%s",
+                "resetTokens=%s willRetry=%s retryAfterDynamic=%s "
+                "maxRetryDelaySeconds=%s",
                 current_request_id(),
                 headers.get("retry-after") if headers is not None else None,
                 headers.get("x-ratelimit-limit-tokens") if headers is not None else None,
                 headers.get("x-ratelimit-remaining-tokens") if headers is not None else None,
                 headers.get("x-ratelimit-reset-tokens") if headers is not None else None,
                 will_retry,
+                retry_after_is_usable,
                 max_retry_delay_seconds,
             )
             return will_retry
@@ -78,6 +88,12 @@ class Groq(GroqSdk):
         options: Any,
         response_headers: Any = None,
     ) -> float:
+        retry_after = self._parse_retry_after_header(response_headers)
+        if (
+            retry_after is not None
+            and 0 <= retry_after <= MAX_PROVIDER_RETRY_AFTER_SECONDS
+        ):
+            return retry_after
         timeout = super()._calculate_retry_timeout(
             remaining_retries,
             options,

@@ -114,12 +114,35 @@ def _bare_client(max_retry_delay_seconds: float = 5.0) -> Groq:
     return client
 
 
-def test_long_retry_after_skips_automatic_retry():
+def test_provider_retry_after_above_fallback_cap_allows_dynamic_retry():
     client = _bare_client()
 
-    assert client._should_retry(_rate_limit_response("6")) is False
+    response = _rate_limit_response("8")
+
+    assert client._should_retry(response) is True
     assert client.was_rate_limited() is True
     assert client.get_retry_count() == 0
+
+    timeout = client._calculate_retry_timeout(
+        remaining_retries=1,
+        options=object(),
+        response_headers=response.headers,
+    )
+
+    assert timeout == 8.0
+
+
+def test_retry_after_over_safe_provider_limit_skips_automatic_retry():
+    client = _bare_client()
+
+    assert client._should_retry(_rate_limit_response("61")) is False
+
+
+def test_rate_limit_is_retried_at_most_once():
+    client = _bare_client()
+    client._retry_state.retry_count = 1
+
+    assert client._should_retry(_rate_limit_response("1")) is False
 
 
 def test_short_retry_after_allows_one_bounded_retry():
