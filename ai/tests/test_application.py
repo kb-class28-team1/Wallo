@@ -7,10 +7,18 @@ app.routes를 직접 순회하는 대신 app.openapi()로 실제 노출되는 �
 
 import importlib
 
+import pytest
 from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
-from app.application import app
+from app.application import app, create_app
 from app.chat.router import router as chat_router
+from app.core.ai_guard import (
+    ApplicationConcurrencyLimitExceeded,
+    ApplicationQueueFullError,
+    ApplicationQueueTimeoutError,
+    ApplicationTokenBudgetExceeded,
+)
 
 
 def _registered_paths_with_method(method: str) -> set[str]:
@@ -70,6 +78,87 @@ def test_no_duplicated_api_prefix_in_registered_paths():
     schema = app.openapi()
     for path in schema.get("paths", {}):
         assert "/api/api" not in path
+
+
+def test_application_token_guard_returns_429_with_retry_after():
+    guard_error = ApplicationTokenBudgetExceeded(
+        requested_tokens=100,
+        available_tokens=0,
+        retry_after_seconds=2.5,
+    )
+
+    with patch("app.chat.router.create_groq_client", return_value=object()), patch(
+        "app.chat.router.ChatService.chat",
+        side_effect=guard_error,
+    ):
+        response = TestClient(create_app()).post(
+            "/api/chat",
+            json={"message": "hello"},
+        )
+
+    assert response.status_code == 429
+    assert response.headers["Retry-After"] == "3"
+    assert response.json() == {
+        "detail": (
+            "AI application token budget is temporarily exhausted; "
+            "retry after 3 seconds"
+        ),
+        "errorCode": "AI_TOKEN_BUDGET_EXCEEDED",
+        "retryable": True,
+    }
+
+
+def test_application_concurrency_guard_returns_429():
+    test_app = create_app()
+
+    def reject_request():
+        raise ApplicationConcurrencyLimitExceeded(max_in_flight_requests=2)
+
+    test_app.add_api_route("/test/application-concurrency", reject_request, methods=["GET"])
+
+    response = TestClient(test_app).get("/test/application-concurrency")
+
+    assert response.status_code == 429
+    assert response.headers["Retry-After"] == "1"
+    assert response.json()["errorCode"] == "AI_CONCURRENCY_LIMIT_EXCEEDED"
+
+
+@pytest.mark.parametrize(
+    ("guard_error", "expected_error_code", "expected_retry_after"),
+    [
+        (
+            ApplicationQueueFullError(queue_size=8, max_queue_size=8),
+            "AI_QUEUE_FULL",
+            "1",
+        ),
+        (
+            ApplicationQueueTimeoutError(
+                retry_after_seconds=4.2,
+                waited_seconds=30.0,
+            ),
+            "AI_QUEUE_TIMEOUT",
+            "5",
+        ),
+    ],
+)
+def test_application_queue_errors_return_429_with_retry_after(
+    guard_error,
+    expected_error_code,
+    expected_retry_after,
+):
+    with patch("app.chat.router.create_groq_client", return_value=object()), patch(
+        "app.chat.router.ChatService.chat",
+        side_effect=guard_error,
+    ):
+        response = TestClient(create_app()).post(
+            "/api/chat",
+            json={"message": "hello"},
+        )
+
+    assert response.status_code == 429
+    assert response.headers["Retry-After"] == expected_retry_after
+    assert response.json()["errorCode"] == expected_error_code
+    assert response.json()["retryable"] is True
 import json
 import unittest
 from types import SimpleNamespace
@@ -83,7 +172,7 @@ from app.agents.financial.tools.asset_analysis import (
     execute as execute_asset_analysis,
     load_selected_profiles,
 )
-from app.chat.title_service import generate_conversation_title
+from app.chat.title_service import build_conversation_title
 from app.demo.repository import load_demo_profiles
 from app.demo.service import (
     build_demo_asset_facts,
@@ -114,6 +203,11 @@ class GenerateAnswerTest(unittest.TestCase):
 
         self.assertEqual("안녕하세요!", answer)
         self.assertEqual(1, client.chat.completions.create.call_count)
+        route_call = client.chat.completions.create.call_args.kwargs
+        self.assertNotIn("tools", route_call)
+        self.assertNotIn("tool_choice", route_call)
+        self.assertEqual("low", route_call["reasoning_effort"])
+        self.assertEqual(256, route_call["max_completion_tokens"])
 
     def test_dispatches_selected_tool_and_returns_final_answer(self):
         client = Mock()
@@ -149,6 +243,16 @@ class GenerateAnswerTest(unittest.TestCase):
 
         self.assertEqual("자산 분석 기능을 선택했습니다.", answer)
         self.assertEqual(2, client.chat.completions.create.call_count)
+        route_call = client.chat.completions.create.call_args_list[0].kwargs
+        route_tool_names = {
+            schema["function"]["name"]
+            for schema in route_call["tools"]
+        }
+        self.assertEqual(
+            {"analyze_assets", "generate_financial_report"},
+            route_tool_names,
+        )
+        self.assertEqual("low", route_call["reasoning_effort"])
         second_messages = client.chat.completions.create.call_args_list[1].kwargs["messages"]
         tool_result = json.loads(second_messages[-1]["content"])
         self.assertEqual("analyze_assets", tool_result["tool"])
@@ -156,7 +260,7 @@ class GenerateAnswerTest(unittest.TestCase):
         self.assertEqual("demo_json", tool_result["data"]["dataMode"])
         self.assertEqual(7, tool_result["data"]["profileId"])
         final_call = client.chat.completions.create.call_args_list[1].kwargs
-        self.assertEqual(1600, final_call["max_completion_tokens"])
+        self.assertEqual(1000, final_call["max_completion_tokens"])
         self.assertEqual("low", final_call["reasoning_effort"])
 
     def test_reuses_cached_asset_report_for_same_profile(self):
@@ -190,33 +294,10 @@ class GenerateAnswerTest(unittest.TestCase):
         self.assertEqual(first_answer, second_answer)
         self.assertEqual(3, client.chat.completions.create.call_count)
 
-    def test_generates_title_through_required_tool_call(self):
-        client = Mock()
-        title_call = SimpleNamespace(
-            function=SimpleNamespace(
-                arguments=json.dumps({"title": "3년 전세자금 계획"}),
-            )
-        )
-        client.chat.completions.create.return_value = _completion(
-            SimpleNamespace(content=None, tool_calls=[title_call])
-        )
+    def test_builds_title_without_an_ai_call(self):
+        title = build_conversation_title("3년 뒤 전세 자금을 마련하고 싶어")
 
-        title = generate_conversation_title(
-            client,
-            "3년 뒤 전세 자금을 마련하고 싶어",
-            "매달 필요한 저축 금액을 계산해볼게요.",
-        )
-
-        self.assertEqual("3년 전세자금 계획", title)
-        call_arguments = client.chat.completions.create.call_args.kwargs
-        self.assertEqual(
-            "generate_conversation_title",
-            call_arguments["tool_choice"]["function"]["name"],
-        )
-        self.assertEqual(
-            "generate_conversation_title",
-            call_arguments["tools"][0]["function"]["name"],
-        )
+        self.assertEqual("주거 자금 마련", title)
 
 
 class DemoAssetAnalysisTest(unittest.TestCase):
