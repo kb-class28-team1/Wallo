@@ -156,7 +156,8 @@ describe("AiAssistantView", () => {
 
     expect(getLatestProductRecommendation).toHaveBeenCalledTimes(1)
     expect(wrapper.text()).toContain("안심 정기예금")
-    expect(wrapper.text()).toContain("기본금리와 우대조건을 함께 고려해 추천했어요.")
+    expect(wrapper.find(".product-recommendation--full-width").exists()).toBe(true)
+    expect(wrapper.text()).not.toContain("기본금리와 우대조건을 함께 고려해 추천했어요.")
     expect(wrapper.text()).toContain("Wallo Bank")
   })
 })

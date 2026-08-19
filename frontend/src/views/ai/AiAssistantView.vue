@@ -34,7 +34,6 @@ const {
 } = storeToRefs(goalStore)
 const {
   productRecommendation,
-  recommendationReason,
   requestMessage,
   generatedAt,
   status: productRecommendationStatus,
@@ -631,8 +630,8 @@ onMounted(() => {
 
         <ProductRecommendationResult
           class="mt-4"
+          full-width
           :recommendation="productRecommendation"
-          :reason="recommendationReason"
         />
 
         <p v-if="requestMessage" class="latest-product-recommendation-request mb-0 mt-3">

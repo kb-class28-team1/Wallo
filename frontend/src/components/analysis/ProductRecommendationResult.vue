@@ -25,6 +25,10 @@ const props = defineProps({
     type: String,
     default: "",
   },
+  fullWidth: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const normalizedRecommendation = computed(() => normalizeProductRecommendation(
@@ -59,7 +63,11 @@ const productKey = (product, index) =>
 </script>
 
 <template>
-  <section class="product-recommendation" aria-label="AI 금융상품 추천 결과">
+  <section
+    class="product-recommendation"
+    :class="{ 'product-recommendation--full-width': fullWidth }"
+    aria-label="AI 금융상품 추천 결과"
+  >
     <div class="product-recommendation__intro">
       <span class="product-recommendation__eyebrow">
         <i class="bi bi-stars me-1" aria-hidden="true"></i>
@@ -195,6 +203,11 @@ const productKey = (product, index) =>
   flex-direction: column;
   gap: 0.75rem;
   margin-bottom: 0.75rem;
+}
+
+.product-recommendation--full-width {
+  width: 100%;
+  max-width: none;
 }
 
 .product-recommendation__intro {
