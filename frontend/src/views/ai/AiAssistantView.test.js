@@ -55,6 +55,7 @@ describe("AiAssistantView", () => {
           title: "커피 대신 물 마시기",
           description: "오후에는 커피 대신 물을 마셔보세요.",
           evidenceGuide: "물을 마신 뒤 직접 완료 여부를 확인하세요.",
+          verificationType: "SELF_CHECK",
           icon: "☕",
           rewardPoint: 10,
           completed: true,
@@ -64,6 +65,7 @@ describe("AiAssistantView", () => {
           title: "배달 대신 집밥 먹기",
           description: "오늘 한 끼는 집에 있는 재료로 준비하세요.",
           evidenceGuide: "완성한 음식 사진을 피드에 등록하세요.",
+          verificationType: "MEDIA_AI",
           icon: "🍚",
           rewardPoint: 10,
           completed: false,
@@ -79,7 +81,10 @@ describe("AiAssistantView", () => {
     expect(wrapper.findAll(".mission-list-item")).toHaveLength(2)
     expect(wrapper.findAll(".mission-list-item")[0].classes()).toContain("completed")
     expect(wrapper.text()).toContain("오후에는 커피 대신 물을 마셔보세요.")
-    expect(wrapper.text()).toContain("물을 마신 뒤 직접 완료 여부를 확인하세요.")
+    expect(wrapper.text()).toContain("직접 완료 체크")
+    expect(wrapper.text()).toContain("미션을 실천한 뒤 오늘의 미션에서 완료 여부를 직접 체크하세요.")
+    expect(wrapper.text()).toContain("사진·영상 AI 인증")
+    expect(wrapper.text()).toContain("완성한 음식 사진을 피드에 등록하세요.")
   })
 
   it("reflects missions generated for the next development date", async () => {

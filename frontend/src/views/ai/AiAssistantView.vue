@@ -50,6 +50,36 @@ const completedMissionCount = computed(
   () => missions.value.filter((mission) => mission.completed).length,
 )
 
+const getMissionVerificationInfo = (mission) => {
+  const verificationType = mission?.verificationType
+  const typeGuides = {
+    MEDIA_AI: {
+      label: "사진·영상 AI 인증",
+      guide: mission?.evidenceGuide || "미션 수행 장면을 촬영해 피드에 등록하세요.",
+    },
+    TRANSACTION: {
+      label: "거래 내역 자동 확인",
+      guide: "연결된 거래 내역을 기준으로 달성 여부를 자동 확인합니다.",
+    },
+    HYBRID: {
+      label: "복합 인증",
+      guide: "사진·영상 인증과 거래 내역을 함께 확인해 달성 여부를 판단합니다.",
+    },
+    SELF_CHECK: {
+      label: "직접 완료 체크",
+      guide: "미션을 실천한 뒤 오늘의 미션에서 완료 여부를 직접 체크하세요.",
+    },
+    MANUAL: {
+      label: "수동 확인",
+      guide: "미션 수행 증빙을 제출하면 확인 후 달성 여부가 결정됩니다.",
+    },
+  }
+  return typeGuides[verificationType] || {
+    label: "달성 방법",
+    guide: mission?.evidenceGuide || "미션 안내에 따라 실천해 주세요.",
+  }
+}
+
 const parseGoalDate = (value) => {
   if (!value) return null
   const parsed = new Date(String(value).length === 10 ? `${value}T00:00:00` : value)
@@ -374,16 +404,19 @@ onBeforeUnmount(() => {
                       <span class="mission-description" :title="mission.description">
                         {{ mission.description }}
                       </span>
-                      <span class="mission-guide" :title="mission.evidenceGuide">
-                        <b>달성 방법</b>
-                        {{ mission.evidenceGuide }}
-                      </span>
                     </span>
                     <i
                       class="mission-check-icon bi"
                       :class="mission.completed ? 'bi-check-circle-fill' : 'bi-circle'"
                       :aria-label="mission.completed ? '완료' : '미완료'"
                     ></i>
+                    <span
+                      class="mission-guide"
+                      :title="getMissionVerificationInfo(mission).guide"
+                    >
+                      <b>{{ getMissionVerificationInfo(mission).label }}</b>
+                      {{ getMissionVerificationInfo(mission).guide }}
+                    </span>
                   </li>
                 </ul>
               </div>
@@ -567,16 +600,19 @@ onBeforeUnmount(() => {
                       <span class="mission-description" :title="mission.description">
                         {{ mission.description }}
                       </span>
-                      <span class="mission-guide" :title="mission.evidenceGuide">
-                        <b>달성 방법</b>
-                        {{ mission.evidenceGuide }}
-                      </span>
                     </span>
                     <i
                       class="mission-check-icon bi"
                       :class="mission.completed ? 'bi-check-circle-fill' : 'bi-circle'"
                       :aria-label="mission.completed ? '완료' : '미완료'"
                     ></i>
+                    <span
+                      class="mission-guide"
+                      :title="getMissionVerificationInfo(mission).guide"
+                    >
+                      <b>{{ getMissionVerificationInfo(mission).label }}</b>
+                      {{ getMissionVerificationInfo(mission).guide }}
+                    </span>
                   </li>
                 </ul>
               </div>
@@ -885,8 +921,7 @@ onBeforeUnmount(() => {
   height: 100%;
 }
 
-.mission-card-heading,
-.mission-list-item {
+.mission-card-heading {
   display: flex;
   align-items: center;
 }
@@ -940,8 +975,10 @@ onBeforeUnmount(() => {
 
 .mission-list-item {
   position: relative;
-  align-items: flex-start;
-  gap: 0.8rem;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.55rem 0.8rem;
   padding: 0.9rem;
   border: 1px solid #e7e7f2;
   border-radius: 15px;
@@ -982,8 +1019,7 @@ onBeforeUnmount(() => {
   -webkit-line-clamp: 2;
 }
 
-.mission-description,
-.mission-guide {
+.mission-description {
   display: -webkit-box;
   overflow: hidden;
   color: #6f7588;
@@ -994,11 +1030,16 @@ onBeforeUnmount(() => {
 }
 
 .mission-guide {
-  margin-top: 0.15rem;
+  grid-column: 1 / -1;
+  overflow: hidden;
   padding: 0.45rem 0.55rem;
   border-radius: 9px;
   background: #f3f1ff;
   color: #555d73;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .mission-guide b {
@@ -1013,7 +1054,6 @@ onBeforeUnmount(() => {
 }
 
 .mission-check-icon {
-  flex: 0 0 auto;
   margin-top: 0.1rem;
   color: #aaaebd;
   font-size: 1.2rem;
