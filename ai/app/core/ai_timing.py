@@ -15,6 +15,9 @@ from app.core.ai_guard import (
 )
 from app.core.config import (
     get_ai_max_in_flight_requests,
+    get_ai_queue_enabled,
+    get_ai_queue_max_size,
+    get_ai_queue_max_wait_seconds,
     get_ai_token_bucket_capacity,
     get_ai_token_bucket_refill_per_minute,
 )
@@ -79,6 +82,9 @@ def get_application_ai_guard() -> ApplicationAIGuard:
                     token_capacity=get_ai_token_bucket_capacity(),
                     refill_tokens_per_minute=get_ai_token_bucket_refill_per_minute(),
                     max_in_flight_requests=get_ai_max_in_flight_requests(),
+                    queue_enabled=get_ai_queue_enabled(),
+                    queue_max_size=get_ai_queue_max_size(),
+                    queue_max_wait_seconds=get_ai_queue_max_wait_seconds(),
                 )
     return _APPLICATION_GUARD
 
@@ -237,6 +243,7 @@ def _synchronize_provider_limits(
     *,
     operation: str,
     request_id: str | None,
+    notify_waiters: bool = True,
 ) -> None:
     provider_limits = _provider_token_limits(headers)
     if provider_limits is None:
@@ -246,6 +253,7 @@ def _synchronize_provider_limits(
         limit_tokens=limit_tokens,
         remaining_tokens=remaining_tokens,
         reset_seconds=reset_seconds,
+        notify_waiters=notify_waiters,
     )
     if not synchronized:
         LOGGER.warning(
@@ -435,19 +443,30 @@ class GroqCompletionTimer:
             LOGGER.warning(
                 "[AI_GUARD] operation=%s requestId=%s status=rejected "
                 "reason=%s requestedTokens=%d availableTokens=%.0f "
-                "retryAfterSeconds=%s",
+                "retryAfterSeconds=%s queueWaitMs=%.0f",
                 self.operation,
                 normalize_request_id(self.request_id),
                 type(error).__name__,
                 guard_reserved_tokens,
                 getattr(error, "available_tokens", None) or 0,
                 getattr(error, "retry_after_seconds", None),
+                getattr(error, "waited_seconds", 0.0) * 1000,
             )
             raise
+        if self.guard_lease.queue_wait_seconds > 0:
+            LOGGER.info(
+                "[AI_GUARD] operation=%s requestId=%s status=dequeued "
+                "queuePosition=%d queueWaitMs=%.0f",
+                self.operation,
+                normalize_request_id(self.request_id),
+                self.guard_lease.queue_position,
+                self.guard_lease.queue_wait_seconds * 1000,
+            )
         LOGGER.info(
             "[AI_GUARD] operation=%s requestId=%s status=reserved "
             "estimatedPromptTokens=%d requestedCompletionTokens=%s "
-            "reservedTokens=%d remainingTokens=%.0f inFlight=%d",
+            "reservedTokens=%d remainingTokens=%.0f inFlight=%d "
+            "queuePosition=%d queueWaitMs=%.0f",
             self.operation,
             normalize_request_id(self.request_id),
             self.estimated_prompt_tokens,
@@ -455,6 +474,8 @@ class GroqCompletionTimer:
             guard_reserved_tokens,
             self.guard_lease.available_tokens,
             self.guard_lease.in_flight_requests,
+            self.guard_lease.queue_position,
+            self.guard_lease.queue_wait_seconds * 1000,
         )
         in_flight = _begin_groq_request()
         LOGGER.info(
@@ -524,7 +545,7 @@ class GroqCompletionTimer:
                 actual_tokens = _usage_value(usage, "total_tokens")
                 if not isinstance(actual_tokens, int) or isinstance(actual_tokens, bool):
                     actual_tokens = 0 if self.completion is not None else None
-                self.guard_lease.release(actual_tokens)
+                self.guard_lease.release(actual_tokens, notify_waiters=False)
                 LOGGER.info(
                     "[AI_GUARD] operation=%s requestId=%s status=reconciled "
                     "reservedTokens=%d actualTokens=%s remainingTokens=%.0f "
@@ -537,12 +558,16 @@ class GroqCompletionTimer:
                     self.guard_lease.in_flight_requests,
                 )
                 if self.application_guard is not None:
-                    _synchronize_provider_limits(
-                        self.application_guard,
-                        self.response_headers,
-                        operation=self.operation,
-                        request_id=self.request_id,
-                    )
+                    try:
+                        _synchronize_provider_limits(
+                            self.application_guard,
+                            self.response_headers,
+                            operation=self.operation,
+                            request_id=self.request_id,
+                            notify_waiters=False,
+                        )
+                    finally:
+                        self.application_guard.notify_waiters()
 
     def mark_fallback(self, reason: str) -> None:
         self.fallback_used = True

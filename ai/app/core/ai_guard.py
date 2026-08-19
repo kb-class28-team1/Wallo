@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 import threading
+from collections import deque
 from time import monotonic
 from typing import Callable
 
@@ -73,6 +74,29 @@ class ApplicationConcurrencyLimitExceeded(ApplicationGuardError):
         self.retry_after_seconds = max(0.0, retry_after_seconds)
         super().__init__(
             "AI application concurrency limit reached; please retry shortly"
+        )
+
+
+class ApplicationQueueFullError(ApplicationGuardError):
+    error_code = "AI_QUEUE_FULL"
+
+    def __init__(self, queue_size: int, max_queue_size: int):
+        self.queue_size = queue_size
+        self.max_queue_size = max_queue_size
+        self.retry_after_seconds = 1.0
+        super().__init__("AI request queue is full; please retry shortly")
+
+
+class ApplicationQueueTimeoutError(ApplicationGuardError):
+    error_code = "AI_QUEUE_TIMEOUT"
+
+    def __init__(self, retry_after_seconds: float, waited_seconds: float):
+        self.retry_after_seconds = max(0.0, retry_after_seconds)
+        self.waited_seconds = max(0.0, waited_seconds)
+        retry_after = max(1, math.ceil(self.retry_after_seconds))
+        super().__init__(
+            "AI request queue wait timed out; "
+            f"retry after {retry_after} seconds"
         )
 
 
@@ -230,16 +254,34 @@ class TokenBucket:
 
 
 class ApplicationGuardLease:
-    def __init__(self, guard: "ApplicationAIGuard", reserved_tokens: int):
+    def __init__(
+        self,
+        guard: "ApplicationAIGuard",
+        reserved_tokens: int,
+        *,
+        queue_position: int = 0,
+        queue_wait_seconds: float = 0.0,
+    ):
         self._guard = guard
         self.reserved_tokens = reserved_tokens
+        self.queue_position = queue_position
+        self.queue_wait_seconds = max(0.0, queue_wait_seconds)
         self._released = False
 
-    def release(self, actual_tokens: int | None = None) -> None:
+    def release(
+        self,
+        actual_tokens: int | None = None,
+        *,
+        notify_waiters: bool = True,
+    ) -> None:
         if self._released:
             return
         self._released = True
-        self._guard._release(self.reserved_tokens, actual_tokens)
+        self._guard._release(
+            self.reserved_tokens,
+            actual_tokens,
+            notify_waiters=notify_waiters,
+        )
 
     @property
     def available_tokens(self) -> float:
@@ -259,19 +301,33 @@ class ApplicationAIGuard:
         token_capacity: int,
         refill_tokens_per_minute: int,
         max_in_flight_requests: int,
+        queue_enabled: bool = False,
+        queue_max_size: int = 0,
+        queue_max_wait_seconds: float = 0.0,
         clock: Clock = monotonic,
     ):
         if max_in_flight_requests <= 0:
             raise ValueError("max_in_flight_requests must be positive")
+        if queue_enabled and queue_max_size <= 0:
+            raise ValueError("queue_max_size must be positive when queue is enabled")
+        if queue_enabled and queue_max_wait_seconds <= 0:
+            raise ValueError(
+                "queue_max_wait_seconds must be positive when queue is enabled"
+            )
         self.bucket = TokenBucket(
             token_capacity,
             refill_tokens_per_minute / 60,
             clock=clock,
         )
         self.max_in_flight_requests = max_in_flight_requests
+        self.queue_enabled = queue_enabled
+        self.queue_max_size = queue_max_size
+        self.queue_max_wait_seconds = float(queue_max_wait_seconds)
         self._in_flight = 0
         self._in_flight_lock = threading.Lock()
-        self._semaphore = threading.BoundedSemaphore(max_in_flight_requests)
+        self._condition = threading.Condition(self._in_flight_lock)
+        self._queue_tickets: deque[int] = deque()
+        self._next_queue_ticket = 0
 
     def reserve(self, requested_tokens: int) -> ApplicationGuardLease:
         if requested_tokens > self.bucket.capacity:
@@ -281,25 +337,92 @@ class ApplicationAIGuard:
                 retry_after_seconds=0,
                 capacity_exceeded=True,
             )
-        retry_after = self.bucket.try_consume(requested_tokens)
-        if retry_after is not None:
-            raise ApplicationTokenBudgetExceeded(
-                requested_tokens=requested_tokens,
-                available_tokens=self.bucket.available_tokens,
-                retry_after_seconds=retry_after,
-            )
-        if not self._semaphore.acquire(blocking=False):
-            self.bucket.reconcile(requested_tokens, 0)
-            raise ApplicationConcurrencyLimitExceeded(self.max_in_flight_requests)
-        with self._in_flight_lock:
-            self._in_flight += 1
-        return ApplicationGuardLease(self, requested_tokens)
+        if self.queue_enabled:
+            return self._reserve_with_queue(requested_tokens)
+        return self._reserve_now(requested_tokens)
 
-    def _release(self, reserved_tokens: int, actual_tokens: int | None) -> None:
+    def _reserve_now(self, requested_tokens: int) -> ApplicationGuardLease:
+        with self._condition:
+            if self._in_flight >= self.max_in_flight_requests:
+                raise ApplicationConcurrencyLimitExceeded(self.max_in_flight_requests)
+            retry_after = self.bucket.try_consume(requested_tokens)
+            if retry_after is not None:
+                raise ApplicationTokenBudgetExceeded(
+                    requested_tokens=requested_tokens,
+                    available_tokens=self.bucket.available_tokens,
+                    retry_after_seconds=retry_after,
+                )
+            self._in_flight += 1
+            return ApplicationGuardLease(self, requested_tokens)
+
+    def _reserve_with_queue(self, requested_tokens: int) -> ApplicationGuardLease:
+        wait_started = monotonic()
+        deadline = wait_started + self.queue_max_wait_seconds
+        last_retry_after = 0.0
+        ticket: int | None = None
+        initial_position = 0
+        with self._condition:
+            if len(self._queue_tickets) >= self.queue_max_size:
+                raise ApplicationQueueFullError(
+                    len(self._queue_tickets),
+                    self.queue_max_size,
+                )
+            ticket = self._next_queue_ticket
+            self._next_queue_ticket += 1
+            self._queue_tickets.append(ticket)
+            initial_position = len(self._queue_tickets)
+            try:
+                while True:
+                    is_next = self._queue_tickets[0] == ticket
+                    if is_next and self._in_flight < self.max_in_flight_requests:
+                        retry_after = self.bucket.try_consume(requested_tokens)
+                        if retry_after is None:
+                            self._queue_tickets.popleft()
+                            self._in_flight += 1
+                            self._condition.notify_all()
+                            return ApplicationGuardLease(
+                                self,
+                                requested_tokens,
+                                queue_position=initial_position,
+                                queue_wait_seconds=monotonic() - wait_started,
+                            )
+                        last_retry_after = retry_after
+                    else:
+                        last_retry_after = 0.05
+
+                    remaining = deadline - monotonic()
+                    if remaining <= 0:
+                        raise ApplicationQueueTimeoutError(
+                            retry_after_seconds=last_retry_after,
+                            waited_seconds=monotonic() - wait_started,
+                        )
+                    wait_timeout = min(
+                        remaining,
+                        max(0.01, min(last_retry_after or 0.05, 1.0)),
+                    )
+                    self._condition.wait(wait_timeout)
+            except Exception:
+                if ticket in self._queue_tickets:
+                    self._queue_tickets.remove(ticket)
+                self._condition.notify_all()
+                raise
+
+    def _release(
+        self,
+        reserved_tokens: int,
+        actual_tokens: int | None,
+        *,
+        notify_waiters: bool = True,
+    ) -> None:
         self.bucket.reconcile(reserved_tokens, actual_tokens)
-        with self._in_flight_lock:
+        with self._condition:
             self._in_flight = max(0, self._in_flight - 1)
-        self._semaphore.release()
+            if notify_waiters:
+                self._condition.notify_all()
+
+    def notify_waiters(self) -> None:
+        with self._condition:
+            self._condition.notify_all()
 
     def synchronize_provider_limits(
         self,
@@ -307,14 +430,24 @@ class ApplicationAIGuard:
         limit_tokens: int | float,
         remaining_tokens: int | float | None = None,
         reset_seconds: int | float | None = None,
+        notify_waiters: bool = True,
     ) -> bool:
-        return self.bucket.synchronize_provider_limits(
+        synchronized = self.bucket.synchronize_provider_limits(
             limit_tokens=limit_tokens,
             remaining_tokens=remaining_tokens,
             reset_seconds=reset_seconds,
         )
+        if synchronized and notify_waiters:
+            with self._condition:
+                self._condition.notify_all()
+        return synchronized
 
     @property
     def in_flight_requests(self) -> int:
         with self._in_flight_lock:
             return self._in_flight
+
+    @property
+    def waiting_requests(self) -> int:
+        with self._condition:
+            return len(self._queue_tickets)
