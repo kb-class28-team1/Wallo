@@ -65,7 +65,10 @@ const amountValue = (product) => (
 const formatPreferentialConditions = (value) => (
   String(value || "")
     .trim()
-    .replace(/\s+(?=\d+(?:-\d+)?[.)]\s)/g, "\n")
+    .replace(
+      /\s+(?=(?:\d+(?:-\d+)?[.)]|[\u2460-\u2473])\s)/g,
+      "\n",
+    )
 )
 
 const productKey = (product, index) =>
