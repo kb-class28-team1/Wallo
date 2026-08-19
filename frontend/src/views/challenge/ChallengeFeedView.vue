@@ -41,6 +41,7 @@ const messages = ref([])
 const challengeName = ref("챌린지")
 const inviteCode = ref("")
 const mySavingTotal = ref(0)
+const newlyCreatedFeedId = ref(null)
 const activeTab = ref(String(route.query.scope || "ALL").toUpperCase() === "ME" ? "mine" : "all")
 const initialLoading = ref(true)
 const refreshing = ref(false)
@@ -79,6 +80,7 @@ let likeBurstSequence = 0
 const likeBurstTimers = new Set()
 const pageHeartMilestones = new Map()
 let pageHeartCelebrationTimer = null
+let newFeedAnimationTimer = null
 let dialogResolver = null
 
 const FEED_STALE_TIME = 30 * 1000
@@ -158,7 +160,10 @@ const isMyFeed = (feed) => Number(feed.userId) === Number(userStore.user?.id)
 
 // 내 게시물에서 전달한 feedId와 현재 피드의 id가 같은지 확인함.
 const isFocusedFeed = (feed) => String(feed.id) === focusedFeedId.value
-const getFeedCardClass = (feed) => (isFocusedFeed(feed) ? "focused-feed" : "")
+const getFeedCardClass = (feed) => ({
+  "focused-feed": isFocusedFeed(feed),
+  "new-feed-card": String(feed.id) === String(newlyCreatedFeedId.value),
+})
 const setFocusedFeedElement = (element, feed) => {
   if (isFocusedFeed(feed)) {
     focusedFeedElement.value = element
@@ -684,6 +689,13 @@ const uploadFeed = async () => {
     closeModal()
     invalidatePageCaches()
     await loadPage({ force: true, forceScroll: true })
+    newlyCreatedFeedId.value = createdFeed.id
+    await nextTick()
+    if (newFeedAnimationTimer) window.clearTimeout(newFeedAnimationTimer)
+    newFeedAnimationTimer = window.setTimeout(() => {
+      newlyCreatedFeedId.value = null
+      newFeedAnimationTimer = null
+    }, 700)
     if (verificationResult) {
       const resultMessage =
         verificationResult.decision === "PASS"
@@ -796,6 +808,7 @@ onBeforeUnmount(() => {
   disconnectChatSocket()
   likeBurstTimers.forEach((timer) => window.clearTimeout(timer))
   if (pageHeartCelebrationTimer) window.clearTimeout(pageHeartCelebrationTimer)
+  if (newFeedAnimationTimer) window.clearTimeout(newFeedAnimationTimer)
   if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
 })
 </script>
@@ -1510,6 +1523,9 @@ onBeforeUnmount(() => {
     border-color 180ms ease,
     box-shadow 180ms ease,
     transform 180ms ease;
+}
+.feed-card.new-feed-card {
+  animation: feed-card-enter 650ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 .feed-card.focused-feed {
   border-color: #8d80ff;
@@ -2276,6 +2292,16 @@ textarea {
     box-shadow:
       0 0 0 5px #8d80ff2e,
       0 18px 38px #29315a35;
+  }
+}
+@keyframes feed-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 @media (max-width: 1200px) {
