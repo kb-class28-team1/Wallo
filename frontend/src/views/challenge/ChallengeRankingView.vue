@@ -18,7 +18,7 @@ const userStore = useUserStore()
 const isRewarding = ref(false)
 
 // Pinia의 반응형 상태를 유지한 채 화면에서 사용할 값으로 분리함
-const { startDate, endDate, rankings, myRanking, initialLoading, refreshing, errorMessage } =
+const { rankings, myRanking, initialLoading, refreshing, errorMessage } =
   storeToRefs(challengeStore)
 
 // 인원수와 상관없이 시상대 슬롯을 2위, 1위, 3위 위치로 고정함
@@ -40,20 +40,7 @@ const rankingRewards = computed(() => [
   { medal: "", label: "4~10등", point: 500 },
 ])
 
-const rankingPeriod = computed(() => {
-  if (!startDate.value || !endDate.value) {
-    return ""
-  }
-
-  return `${formatDate(startDate.value)} ~ ${formatDate(endDate.value)} (이번 주)`
-})
-const rankingDescription = computed(() => {
-  const period = rankingPeriod.value
-  return `매주 월요일 00시에 랭킹이 초기화됨${period ? ` · ${period}` : ""}`
-})
-
 const formatPoint = (point) => `${formatNumber(point)}P`
-const formatDate = (date) => date.replaceAll("-", ".")
 
 // DB 프로필 주소가 없거나 이미지 로드에 실패하면 기본 프로필을 표시함
 const profileImage = (url) => url || DEFAULT_PROFILE_IMAGE
@@ -93,7 +80,6 @@ onMounted(() => {
     <AppPageHeader
       class="ranking-heading"
       title="주간 랭킹"
-      :description="rankingDescription"
       compact
     >
       <template #actions>

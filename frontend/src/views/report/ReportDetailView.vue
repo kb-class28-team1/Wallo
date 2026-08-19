@@ -233,12 +233,11 @@ watch(newsId, () => {
     <AppPageHeader
       eyebrow="금융·경제"
       title="금융 리포트 상세"
-      description="뉴스의 핵심 내용과 나에게 미치는 영향을 쉽게 확인하세요."
       compact
     >
       <template #leading>
         <RouterLink to="/reports" class="report-back-link" aria-label="금융 리포트 목록으로 이동">
-          <i class="bi bi-arrow-left" aria-hidden="true"></i>
+          <i class="bi bi-chevron-left" aria-hidden="true"></i>
         </RouterLink>
       </template>
     </AppPageHeader>
@@ -381,42 +380,43 @@ watch(newsId, () => {
 
 <style scoped>
 .report-detail-view {
+  --report-detail-content-offset: calc(38px + var(--wallo-space-4));
   width: 100%;
   padding: var(--wallo-space-6) var(--wallo-space-4);
 }
 
 .report-back-link {
   display: inline-flex;
-  width: 42px;
-  height: 42px;
+  width: 38px;
+  height: 38px;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--wallo-color-border);
-  border-radius: var(--wallo-radius-md);
-  color: var(--wallo-color-text-muted);
-  background: var(--wallo-color-surface);
+  border: 0;
+  border-radius: 12px;
+  color: #555b6e;
+  background: transparent;
   font-size: 1.1rem;
   text-decoration: none;
   transition:
-    border-color 160ms ease,
     color 160ms ease,
     background-color 160ms ease;
 }
 
 .report-back-link:hover,
 .report-back-link:focus-visible {
-  border-color: var(--wallo-color-primary);
-  color: var(--wallo-color-primary);
-  background: var(--wallo-color-surface-soft);
+  color: #6b5bd2;
+  background: #f0edff;
 }
 
 .report-detail-state {
+  width: min(calc(100% - var(--report-detail-content-offset)), 980px);
   min-height: 320px;
+  margin-left: var(--report-detail-content-offset);
 }
 
 .report-detail-layout {
-  width: min(100%, 980px);
-  margin: 0 auto;
+  width: min(calc(100% - var(--report-detail-content-offset)), 980px);
+  margin-left: var(--report-detail-content-offset);
 }
 
 .report-refresh-status,
@@ -481,6 +481,7 @@ watch(newsId, () => {
 
 @media (max-width: 576px) {
   .report-detail-view {
+    --report-detail-content-offset: 0px;
     padding-right: var(--wallo-space-3);
     padding-left: var(--wallo-space-3);
   }

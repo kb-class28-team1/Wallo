@@ -255,7 +255,6 @@ onMounted(loadDashboard)
     <AppPageHeader
       class="page-heading"
       title="내 챌린지"
-      description="절약 기록과 챌린지 성과를 한눈에 확인하세요."
       compact
     />
 
@@ -384,7 +383,7 @@ onMounted(loadDashboard)
           <h2>좋아요 받은 게시물 TOP 3</h2>
           <RouterLink to="/my-feeds" class="view-all-link">
             전체보기
-            <i class="bi bi-chevron-right" aria-hidden="true"></i>
+            <i class="bi bi-arrow-right" aria-hidden="true"></i>
           </RouterLink>
         </div>
 
