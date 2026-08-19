@@ -197,7 +197,7 @@
         WHERE card_transaction.user_id = #{userId}
           AND card_transaction.source_type = 'CARD_APPROVAL'
           AND card_transaction.type = 'EXPENSE'
-          AND UPPER(card.card_type) IN ('CHECK', 'DEBIT', '1')
+          AND UPPER(card.card_type) = 'CHECK'
         ORDER BY card_transaction.transaction_date,
                  card_transaction.transaction_time,
                  card_transaction.transaction_id
