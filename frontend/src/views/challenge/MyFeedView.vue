@@ -285,7 +285,10 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
           </div>
 
           <div class="feed-result">
-            <span class="like-count">♥ {{ formatNumber(feed.likeCount) }}</span>
+            <span class="like-count">
+              <i class="bi bi-heart-fill" aria-hidden="true"></i>
+              {{ formatNumber(feed.likeCount) }}
+            </span>
             <span class="comment-count">💬 {{ formatNumber(feed.commentCount) }}</span>
             <strong>{{ formatWon(feed.savingAmount) }}</strong>
           </div>
