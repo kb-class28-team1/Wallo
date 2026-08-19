@@ -59,7 +59,7 @@ class NewsReportGenerationServiceImplTest {
         // summary는 bullet 목록(List<String>)을 줄바꿈으로 이어붙여 하나의 TEXT 컬럼에 저장한다.
         assertEquals("요약1\n요약2", result.getSummary());
         assertEquals("사건 설명입니다.", result.getEventDescription());
-        assertEquals("대응방안", result.getResponseStrategy());
+        assertEquals(null, result.getResponseStrategy());
         assertEquals(1, termMatchingService.callCount);
     }
 
@@ -128,9 +128,7 @@ class NewsReportGenerationServiceImplTest {
                 new NewsReportAiResponse(List.of("요약1", "요약2"), null, "원인", "사회영향", "사용자영향", "대응방안"),
                 new NewsReportAiResponse(List.of("요약1", "요약2"), "   ", "원인", "사회영향", "사용자영향", "대응방안"),
                 new NewsReportAiResponse(List.of("요약1", "요약2"), "사건 설명입니다.", null, "사회영향", "사용자영향", "대응방안"),
-                new NewsReportAiResponse(List.of("요약1", "요약2"), "사건 설명입니다.", "원인", null, "사용자영향", "대응방안"),
-                new NewsReportAiResponse(List.of("요약1", "요약2"), "사건 설명입니다.", "원인", "사회영향", "   ", "대응방안"),
-                new NewsReportAiResponse(List.of("요약1", "요약2"), "사건 설명입니다.", "원인", "사회영향", "사용자영향", null)
+                new NewsReportAiResponse(List.of("요약1", "요약2"), "사건 설명입니다.", "원인", null, "사용자영향", "대응방안")
         );
 
         for (NewsReportAiResponse incomplete : incompleteResponses) {

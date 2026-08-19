@@ -4,13 +4,16 @@ import com.wallo.common.exception.CustomException;
 import com.wallo.common.exception.ErrorCode;
 import com.wallo.report.domain.News;
 import com.wallo.report.domain.NewsReport;
+import com.wallo.report.domain.NewsReportPersonalization;
 import com.wallo.report.dto.response.MatchedTermResponse;
 import com.wallo.report.dto.response.ReportDetailResponse;
 import com.wallo.report.dto.response.ReportListResponse;
 import com.wallo.report.mapper.NewsMapper;
 import com.wallo.report.mapper.NewsReportMapper;
+import com.wallo.report.mapper.NewsReportPersonalizationMapper;
 import com.wallo.report.term.mapper.NewsTermMapper;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -24,11 +27,19 @@ public class NewsServiceImpl implements NewsService {
     private final NewsMapper newsMapper;
     private final NewsReportMapper newsReportMapper;
     private final NewsTermMapper newsTermMapper;
+    private final NewsReportPersonalizationMapper personalizationMapper;
 
-    public NewsServiceImpl(NewsMapper newsMapper, NewsReportMapper newsReportMapper, NewsTermMapper newsTermMapper) {
+    @Autowired
+    public NewsServiceImpl(NewsMapper newsMapper, NewsReportMapper newsReportMapper, NewsTermMapper newsTermMapper,
+                           NewsReportPersonalizationMapper personalizationMapper) {
         this.newsMapper = newsMapper;
         this.newsReportMapper = newsReportMapper;
         this.newsTermMapper = newsTermMapper;
+        this.personalizationMapper = personalizationMapper;
+    }
+
+    public NewsServiceImpl(NewsMapper newsMapper, NewsReportMapper newsReportMapper, NewsTermMapper newsTermMapper) {
+        this(newsMapper, newsReportMapper, newsTermMapper, null);
     }
 
     /**
@@ -98,12 +109,19 @@ public class NewsServiceImpl implements NewsService {
      */
     @Override
     public ReportDetailResponse getReportDetail(Long newsId) {
+        return getReportDetail(newsId, null);
+    }
+
+    @Override
+    public ReportDetailResponse getReportDetail(Long newsId, Long userId) {
         News news = getNewsByIdOrThrow(newsId);
         NewsReport newsReport = newsReportMapper.findByNewsId(newsId);
+        NewsReportPersonalization personalization = userId == null || personalizationMapper == null ? null
+                : personalizationMapper.findByNewsIdAndUserId(newsId, userId);
         List<MatchedTermResponse> terms = newsTermMapper.findTermsByNewsId(newsId).stream()
                 .map(MatchedTermResponse::from)
                 .collect(Collectors.toList());
-        return ReportDetailResponse.from(news, newsReport, terms);
+        return ReportDetailResponse.from(news, newsReport, personalization, terms);
     }
 
     @Override
