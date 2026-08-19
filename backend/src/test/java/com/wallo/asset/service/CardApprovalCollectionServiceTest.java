@@ -413,7 +413,6 @@ class CardApprovalCollectionServiceTest {
         approval.setResUsedAmount(amount);
         approval.setResUsedDate("20260726");
         approval.setResUsedTime("193000");
-        approval.setResCardType("1");
         return approval;
     }
 }
