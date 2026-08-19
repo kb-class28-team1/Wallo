@@ -114,6 +114,10 @@ class GenerateAnswerTest(unittest.TestCase):
 
         self.assertEqual("안녕하세요!", answer)
         self.assertEqual(1, client.chat.completions.create.call_count)
+        route_call = client.chat.completions.create.call_args.kwargs
+        self.assertNotIn("tools", route_call)
+        self.assertNotIn("tool_choice", route_call)
+        self.assertEqual("low", route_call["reasoning_effort"])
 
     def test_dispatches_selected_tool_and_returns_final_answer(self):
         client = Mock()
@@ -149,6 +153,16 @@ class GenerateAnswerTest(unittest.TestCase):
 
         self.assertEqual("자산 분석 기능을 선택했습니다.", answer)
         self.assertEqual(2, client.chat.completions.create.call_count)
+        route_call = client.chat.completions.create.call_args_list[0].kwargs
+        route_tool_names = {
+            schema["function"]["name"]
+            for schema in route_call["tools"]
+        }
+        self.assertEqual(
+            {"analyze_assets", "generate_financial_report"},
+            route_tool_names,
+        )
+        self.assertEqual("low", route_call["reasoning_effort"])
         second_messages = client.chat.completions.create.call_args_list[1].kwargs["messages"]
         tool_result = json.loads(second_messages[-1]["content"])
         self.assertEqual("analyze_assets", tool_result["tool"])

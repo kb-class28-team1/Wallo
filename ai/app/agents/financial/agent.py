@@ -10,7 +10,10 @@ from app.agents.financial.asset_analysis_cache import (
     get_cached_answer,
 )
 from app.agents.financial.prompts import SYSTEM_PROMPT
-from app.agents.financial.tools.registry import TOOL_SCHEMAS, execute_tool
+from app.agents.financial.tools.registry import (
+    execute_tool,
+    select_route_tool_schemas,
+)
 from app.agents.goal.context import FinancialContext
 from app.core.config import get_groq_model
 from app.core.ai_timing import current_request_id, timed_groq_completion
@@ -231,18 +234,24 @@ class FinancialAgent:
                     final_completion.choices[0].message.content
                     or "소비분석 결과를 정리하지 못했습니다."
                 )
+        route_tools = select_route_tool_schemas(user_message)
+        route_options: dict[str, Any] = {
+            "messages": messages,
+            "reasoning_effort": "low",
+            "max_completion_tokens": 500,
+        }
+        if route_tools:
+            route_options.update({
+                "tools": route_tools,
+                "tool_choice": "auto",
+            })
         with timed_groq_completion(
             self.client,
             operation="chat.route",
             model=self.model,
             requested_completion_tokens=500,
         ) as timing:
-            completion = timing.create(
-                messages=messages,
-                tools=TOOL_SCHEMAS,
-                tool_choice="auto",
-                max_completion_tokens=500,
-            )
+            completion = timing.create(**route_options)
         assistant_message = completion.choices[0].message
         if not assistant_message.tool_calls:
             logger.info("[AI ROUTING] direct_response")

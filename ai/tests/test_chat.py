@@ -6,6 +6,10 @@ from unittest.mock import Mock, patch
 import pytest
 from pydantic import ValidationError
 
+from app.agents.financial.tools.registry import (
+    TOOL_SCHEMAS,
+    select_route_tool_schemas,
+)
 from app.chat.schemas import (
     AccountSubtype,
     ChatRequest,
@@ -170,3 +174,35 @@ def test_chat_generates_title_when_requested():
 
     assert response.title == "3년 전세자금 계획"
     title_mock.assert_called_once_with(client, "전세자금을 모으고 싶어", "저축 계획을 세워볼게요.")
+
+
+def _tool_names(schemas):
+    return {
+        schema["function"]["name"]
+        for schema in schemas
+    }
+
+
+def test_route_tool_selection_uses_only_product_tool_for_product_request():
+    schemas = select_route_tool_schemas("12개월 적금 상품을 추천해줘")
+
+    assert _tool_names(schemas) == {"recommend_financial_products"}
+
+
+def test_route_tool_selection_groups_asset_tools():
+    schemas = select_route_tool_schemas("내 자산과 부채를 분석해줘")
+
+    assert _tool_names(schemas) == {
+        "analyze_assets",
+        "generate_financial_report",
+    }
+
+
+def test_route_tool_selection_omits_tools_for_simple_greeting():
+    assert select_route_tool_schemas("안녕") == []
+
+
+def test_route_tool_selection_keeps_full_set_for_ambiguous_financial_request():
+    schemas = select_route_tool_schemas("월급 관리 방향을 알려줘")
+
+    assert schemas == TOOL_SCHEMAS
