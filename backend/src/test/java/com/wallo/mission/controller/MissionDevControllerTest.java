@@ -29,7 +29,9 @@ class MissionDevControllerTest {
 
         mvc.perform(post("/api/dev/missions/next-day"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.date").value("2026-08-18"));
+                .andExpect(jsonPath("$.date[0]").value(2026))
+                .andExpect(jsonPath("$.date[1]").value(8))
+                .andExpect(jsonPath("$.date[2]").value(18));
         verify(service).generateNextDayForDevelopment(7L);
     }
 

@@ -35,8 +35,15 @@ public class GoalAccountSyncService {
     /** 목표 조회 전에 선택된 계좌가 속한 연결기관의 최신 잔액을 반영한다. */
     @Transactional
     public void syncSelectedAccounts(long userId) {
+        long startedAt = System.nanoTime();
         List<GoalAccountDto.SyncTarget> targets = goalAccountMapper.findSelectedAccountSyncTargets(userId);
+        LOGGER.info(String.format(
+                "[WALLO_TIMING] goalAccountSync.start userId=%d targetCount=%d",
+                userId,
+                targets == null ? 0 : targets.size()
+        ));
         for (GoalAccountDto.SyncTarget target : values(targets)) {
+            long targetStartedAt = System.nanoTime();
             try {
                 CodefDto.Response response = codefClient.connectInstitution(
                         new CodefDto.Request(
@@ -68,8 +75,24 @@ public class GoalAccountSyncService {
                         "goal account sync exception: institution=" + target.getCodefOrganizationCode(),
                         exception
                 );
+            } finally {
+                LOGGER.info(String.format(
+                        "[WALLO_TIMING] goalAccountSync.target userId=%d institution=%s elapsedMs=%d",
+                        userId,
+                        target.getCodefOrganizationCode(),
+                        elapsedMillis(targetStartedAt)
+                ));
             }
         }
+        LOGGER.info(String.format(
+                "[WALLO_TIMING] goalAccountSync.total userId=%d elapsedMs=%d",
+                userId,
+                elapsedMillis(startedAt)
+        ));
+    }
+
+    private long elapsedMillis(long startedAt) {
+        return (System.nanoTime() - startedAt) / 1_000_000;
     }
 
     private Institution toInstitution(GoalAccountDto.SyncTarget target) {

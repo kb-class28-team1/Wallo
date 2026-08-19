@@ -2,6 +2,7 @@ package com.wallo.mission.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
@@ -10,14 +11,17 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.wallo.chat.client.AiRateLimitException;
 import com.wallo.mission.client.MissionAiClient;
 import com.wallo.mission.domain.MissionAnalysisSource;
 import com.wallo.mission.domain.DailyMission;
 import com.wallo.mission.dto.MissionGenerationDto;
+import com.wallo.mission.dto.TodayMissionResponse;
 import com.wallo.mission.mapper.MissionMapper;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
@@ -51,11 +55,23 @@ class MissionGenerationServiceTest {
     @Test
     void previewsThreeEasyMissionsWithoutWritingDatabase() {
         when(aiClient.generate(any())).thenReturn(response(uniqueMissions().subList(0, 3)));
-        MissionGenerationDto.Response response = service.preview(7L);
+        MissionGenerationDto.PreviewResult response = service.preview(7L);
 
+        assertEquals(TodayMissionResponse.READY_STATUS, response.status());
         assertEquals(3, response.missions().size());
         verify(mapper, never()).insertCycle(any());
         verify(mapper, never()).insertMission(any());
+    }
+
+    @Test
+    void previewsWaitingForAnalysisWithoutCallingAi() {
+        when(mapper.findLatestAnalysis(7L)).thenReturn(null);
+
+        MissionGenerationDto.PreviewResult result = service.preview(7L);
+
+        assertEquals(TodayMissionResponse.WAITING_ANALYSIS_STATUS, result.status());
+        assertTrue(result.missions().isEmpty());
+        verify(aiClient, never()).generate(any());
     }
 
     @Test
@@ -118,6 +134,51 @@ class MissionGenerationServiceTest {
     }
 
     @Test
+    void returnsWaitingForAnalysisWhenConsumptionAnalysisIsUnavailable() {
+        when(mapper.findLatestAnalysis(7L)).thenReturn(null);
+
+        MissionGenerationDto.Result result = service.generate(7L, false);
+
+        assertEquals(TodayMissionResponse.WAITING_ANALYSIS_STATUS, result.status());
+        assertEquals(0, result.missionCount());
+        verify(aiClient, never()).generate(any());
+        verify(mapper, never()).insertCycle(any());
+    }
+
+    @Test
+    void recordsRateLimitFailureWithoutPersistingProviderErrorDetails() {
+        when(mapper.findCycle(7L, LocalDate.of(2026, 8, 17))).thenReturn(null);
+
+        service.markGenerationFailed(
+                7L,
+                new AiRateLimitException("provider response contains sensitive details", null));
+
+        ArgumentCaptor<com.wallo.mission.domain.MissionCycle> captor =
+                ArgumentCaptor.forClass(com.wallo.mission.domain.MissionCycle.class);
+        verify(mapper).insertCycle(captor.capture());
+        assertEquals("FAILED", captor.getValue().getStatus());
+        assertEquals("RATE_LIMIT", captor.getValue().getGenerationError());
+        assertEquals("pending-v1", captor.getValue().getPromptVersion());
+    }
+
+    @Test
+    void returnsRecentRateLimitFailureBeforeRetryingTheAiCall() {
+        com.wallo.mission.domain.MissionCycle failedCycle = new com.wallo.mission.domain.MissionCycle();
+        failedCycle.setMissionCycleId(20L);
+        failedCycle.setGenerationError("RATE_LIMIT");
+        failedCycle.setGeneratedAt(LocalDateTime.of(2026, 8, 17, 8, 59, 59));
+        when(mapper.findDailyMissions(7L, LocalDate.of(2026, 8, 17))).thenReturn(List.of());
+        when(mapper.findCycle(7L, LocalDate.of(2026, 8, 17))).thenReturn(failedCycle);
+
+        MissionGenerationDto.Result result = service.generateToday(
+                7L, LocalDate.of(2026, 8, 17));
+
+        assertEquals(TodayMissionResponse.GENERATION_FAILED_STATUS, result.status());
+        assertEquals("RATE_LIMIT", result.failureReason());
+        verify(aiClient, never()).generate(any());
+    }
+
+    @Test
     void sendsOnlyCompactAnalysisSummaryToAi() {
         MissionAnalysisSource source = new MissionAnalysisSource();
         source.setAnalysisResultId(12L);
@@ -138,6 +199,7 @@ class MissionGenerationServiceTest {
                 """);
         when(mapper.findLatestAnalysis(7L)).thenReturn(source);
 
+        when(aiClient.generate(any())).thenReturn(response(uniqueMissions().subList(0, 3)));
         service.preview(7L);
 
         ArgumentCaptor<MissionGenerationDto.Request> captor =

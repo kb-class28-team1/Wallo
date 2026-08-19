@@ -30,10 +30,27 @@ class MissionControllerTest {
 
         mockMvc.perform(get("/api/missions/today"))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("READY"))
                 .andExpect(jsonPath("$.missions.length()").value(1))
                 .andExpect(jsonPath("$.missions[0].title").value("집밥 먹기"))
                 .andExpect(jsonPath("$.missions[0].completed").value(false));
         verify(currentUser).getCurrentUserId();
         verify(service).getOrAssignToday(7L);
+    }
+
+    @Test
+    void returnsWaitingAnalysisStatusWithHttpOk() throws Exception {
+        DailyMissionService service = org.mockito.Mockito.mock(DailyMissionService.class);
+        CurrentUserProvider currentUser = org.mockito.Mockito.mock(CurrentUserProvider.class);
+        when(currentUser.getCurrentUserId()).thenReturn(7L);
+        when(service.getOrAssignToday(7L)).thenReturn(
+                TodayMissionResponse.waitingForAnalysis(LocalDate.of(2026, 8, 17)));
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(
+                new MissionController(service, currentUser)).build();
+
+        mockMvc.perform(get("/api/missions/today"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("WAITING_ANALYSIS"))
+                .andExpect(jsonPath("$.missions").isEmpty());
     }
 }

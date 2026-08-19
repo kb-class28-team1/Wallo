@@ -1,7 +1,10 @@
 import json
+import logging
 from types import SimpleNamespace
 
+import httpx
 import pytest
+from groq import RateLimitError
 
 from app.missions.schemas import MissionGenerateRequest
 from app.missions.service import InvalidMissionResponseError, generate_missions
@@ -20,7 +23,7 @@ def _mission(index: int) -> dict:
     }
 
 
-def _client(payload: dict):
+def _client(payload: dict, usage=None):
     cursor = 0
 
     def create(**kwargs):
@@ -30,8 +33,13 @@ def _client(payload: dict):
         missions = payload["missions"][cursor:cursor + count]
         cursor += count
         response_payload = {**payload, "missions": missions}
-        return SimpleNamespace(choices=[SimpleNamespace(
-            message=SimpleNamespace(content=json.dumps(response_payload)))])
+        return SimpleNamespace(
+            usage=usage,
+            choices=[SimpleNamespace(
+                message=SimpleNamespace(content=json.dumps(response_payload)),
+                finish_reason="stop",
+            )],
+        )
 
     completions = SimpleNamespace(create=create)
     return SimpleNamespace(chat=SimpleNamespace(completions=completions))
@@ -100,6 +108,79 @@ def test_generates_requested_daily_missions():
     )
     assert len(result.missions) == 3
     assert len({mission.title for mission in result.missions}) == 3
+
+
+def test_logs_actual_mission_token_usage(caplog, monkeypatch):
+    monkeypatch.setenv("MISSION_MAX_COMPLETION_TOKENS", "3000")
+    usage = SimpleNamespace(
+        prompt_tokens=2255,
+        completion_tokens=1420,
+        total_tokens=3675,
+    )
+
+    with caplog.at_level(logging.INFO, logger="wallo_ai"):
+        generate_missions(
+            _client(
+                {
+                    "missions": [_mission(i) for i in range(3)],
+                    "promptVersion": "personalized-mission-v1",
+                },
+                usage=usage,
+            ),
+            _request(),
+            "test-model",
+        )
+
+    message = next(
+        record.getMessage()
+        for record in caplog.records
+        if record.name == "wallo_ai" and "operation=mission.generate" in record.getMessage()
+    )
+    assert "promptTokens=2255" in message
+    assert "completionTokens=1420" in message
+    assert "totalTokens=3675" in message
+    assert "requestedCompletionTokens=3000" in message
+    assert "success=True" in message
+
+
+def test_logs_mission_rate_limit_without_raw_error(caplog):
+    response = httpx.Response(
+        429,
+        headers={"retry-after": "32"},
+        request=httpx.Request(
+            "POST",
+            "https://api.groq.com/openai/v1/chat/completions",
+        ),
+    )
+    error = RateLimitError(
+        "sensitive mission request details",
+        response=response,
+        body={"error": {"code": "rate_limit_exceeded"}},
+    )
+
+    class FailingCompletions:
+        def create(self, **kwargs):
+            raise error
+
+    client = SimpleNamespace(
+        chat=SimpleNamespace(completions=FailingCompletions())
+    )
+
+    with (
+        caplog.at_level(logging.INFO, logger="wallo_ai"),
+        pytest.raises(RateLimitError),
+    ):
+        generate_missions(client, _request(), "test-model")
+
+    message = next(
+        record.getMessage()
+        for record in caplog.records
+        if record.name == "wallo_ai" and "operation=mission.generate" in record.getMessage()
+    )
+    assert "failureReason=RateLimitError" in message
+    assert "responseReceived=False" in message
+    assert "success=False" in message
+    assert "sensitive mission request details" not in caplog.text
 
 
 def test_rejects_less_than_requested_daily_missions():

@@ -36,6 +36,7 @@ class ChatRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     message: str = Field(min_length=1)
+    chat_mode: str | None = Field(default=None, alias="chatMode")
     generate_title: bool = Field(default=False, alias="generateTitle")
     summary: str | None = None
     history: list[ChatHistoryMessage] = Field(default_factory=list, max_length=20)

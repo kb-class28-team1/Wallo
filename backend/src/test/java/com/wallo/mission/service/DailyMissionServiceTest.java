@@ -12,6 +12,7 @@ import static org.mockito.Mockito.when;
 import com.wallo.mission.domain.DailyMission;
 import com.wallo.mission.domain.Mission;
 import com.wallo.mission.domain.MissionCycle;
+import com.wallo.mission.dto.MissionGenerationDto;
 import com.wallo.mission.dto.TodayMissionResponse;
 import com.wallo.mission.mapper.MissionMapper;
 import java.security.SecureRandom;
@@ -27,7 +28,9 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import static org.mockito.Mockito.mock;
 
+import com.wallo.chat.client.AiRateLimitException;
 class DailyMissionServiceTest {
     @Mock private MissionMapper mapper;
     private DailyMissionService service;
@@ -81,6 +84,63 @@ class DailyMissionServiceTest {
 
         assertTrue(response.missions().isEmpty());
         verify(mapper, never()).insertDailyMission(any());
+    }
+
+    @Test
+    void returnsEmptyMissionsWhileConsumptionAnalysisIsWaiting() {
+        MissionGenerationService generationService = mock(MissionGenerationService.class);
+        DailyMissionService waitingService = new DailyMissionService(
+                mapper, new MissionCycleCalculator(),
+                Clock.fixed(Instant.parse("2026-08-16T15:00:00Z"), ZoneId.of("Asia/Seoul")),
+                new SecureRandom(new byte[]{1, 2, 3}), generationService);
+        when(mapper.findDailyMissions(7L, today)).thenReturn(List.of());
+        when(generationService.generateToday(7L, today)).thenReturn(
+                new MissionGenerationDto.Result(
+                        null, 7L, 0, TodayMissionResponse.WAITING_ANALYSIS_STATUS));
+
+        TodayMissionResponse response = waitingService.getOrAssignToday(7L);
+
+        assertEquals(TodayMissionResponse.WAITING_ANALYSIS_STATUS, response.status());
+        assertTrue(response.missions().isEmpty());
+        verify(mapper, never()).insertDailyMission(any());
+    }
+
+    @Test
+    void returnsGenerationFailedStatusWhenMissionAiIsRateLimited() {
+        MissionGenerationService generationService = mock(MissionGenerationService.class);
+        DailyMissionService failedService = new DailyMissionService(
+                mapper, new MissionCycleCalculator(),
+                Clock.fixed(Instant.parse("2026-08-16T15:00:00Z"), ZoneId.of("Asia/Seoul")),
+                new SecureRandom(new byte[]{1, 2, 3}), generationService);
+        when(mapper.findDailyMissions(7L, today)).thenReturn(List.of());
+        when(generationService.generateToday(7L, today)).thenReturn(
+                new MissionGenerationDto.Result(
+                        10L, 7L, 0, TodayMissionResponse.GENERATION_FAILED_STATUS, "RATE_LIMIT"));
+
+        TodayMissionResponse response = failedService.getOrAssignToday(7L);
+
+        assertEquals(TodayMissionResponse.GENERATION_FAILED_STATUS, response.status());
+        assertEquals("RATE_LIMIT", response.failureReason());
+        assertTrue(response.missions().isEmpty());
+    }
+
+    @Test
+    void convertsDirectMissionRateLimitIntoRetryableStatus() {
+        MissionGenerationService generationService = mock(MissionGenerationService.class);
+        DailyMissionService failedService = new DailyMissionService(
+                mapper, new MissionCycleCalculator(),
+                Clock.fixed(Instant.parse("2026-08-16T15:00:00Z"), ZoneId.of("Asia/Seoul")),
+                new SecureRandom(new byte[]{1, 2, 3}), generationService);
+        when(mapper.findDailyMissions(7L, today)).thenReturn(List.of());
+        when(generationService.generateToday(7L, today)).thenThrow(
+                new AiRateLimitException("rate limited", null));
+
+        TodayMissionResponse response = failedService.getOrAssignToday(7L);
+
+        assertEquals(TodayMissionResponse.GENERATION_FAILED_STATUS, response.status());
+        assertEquals("RATE_LIMIT", response.failureReason());
+        verify(generationService).markGenerationFailed(
+                eq(7L), org.mockito.ArgumentMatchers.any(RuntimeException.class));
     }
 
     @Test

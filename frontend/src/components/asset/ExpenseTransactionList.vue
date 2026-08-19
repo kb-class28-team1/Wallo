@@ -73,16 +73,28 @@ const displayMerchantName = (merchantName) => {
 
 const formatAmount = (transaction) => {
   const amount = formatNumber(transaction.amount);
-  if (transaction.type === "INCOME") return `+${amount}원`;
-  if (transaction.type === "EXPENSE" || transaction.type === "TRANSFER") return `-${amount}원`;
+  const isIncomingTransfer = transaction.type === "TRANSFER" && transaction.category === "RECEIVE";
+  const isOutgoingTransfer = transaction.type === "TRANSFER" && transaction.category === "SEND";
+
+  if (transaction.type === "INCOME" || isIncomingTransfer) {
+    return `+${amount}원`;
+  }
+  if (transaction.type === "EXPENSE" || isOutgoingTransfer) {
+    return `-${amount}원`;
+  }
   return `${amount}원`;
 };
 
-const typeLabel = (type) => ({
-  EXPENSE: "지출",
-  INCOME: "입금",
-  TRANSFER: "출금 이체",
-}[type] ?? type);
+const typeLabel = (transaction) => {
+  if (transaction.type === "TRANSFER") {
+    return transaction.category === "RECEIVE" ? "받은 돈" : "보낸 돈";
+  }
+
+  return {
+    EXPENSE: "지출",
+    INCOME: "입금",
+  }[transaction.type] ?? transaction.type;
+};
 </script>
 
 <template>
@@ -112,7 +124,7 @@ const typeLabel = (type) => ({
           <strong>{{ displayMerchantName(transaction.merchantName) }}</strong>
           <small>
             {{ formatDate(transaction.date) }} · {{ getExpenseCategoryMeta(transaction.category).label }} ·
-            {{ typeLabel(transaction.type) }}
+            {{ typeLabel(transaction) }}
           </small>
         </span>
         <div class="transaction-actions">

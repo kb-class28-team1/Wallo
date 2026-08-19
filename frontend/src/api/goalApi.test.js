@@ -28,6 +28,14 @@ describe("goalApi", () => {
     expect(httpClient.get).toHaveBeenCalledWith("/api/goals");
   });
 
+  it("requests dashboard goals without triggering account synchronization", async () => {
+    const response = { success: true, data: [{ goalId: 1, title: "Emergency fund" }] };
+    httpClient.get.mockResolvedValue({ data: response });
+
+    await expect(getGoals({ syncAccounts: false })).resolves.toEqual(response);
+    expect(httpClient.get).toHaveBeenCalledWith("/api/goals/summary");
+  });
+
   it("normalizes an API failure into a user-facing error", async () => {
     httpClient.get.mockRejectedValue(new Error("network error"));
 

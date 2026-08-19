@@ -1,5 +1,6 @@
 <script setup>
 import { nextTick, onMounted, ref, watch } from "vue"
+import AppButton from "@/components/ui/AppButton.vue"
 
 const props = defineProps({
   disabled: {
@@ -59,14 +60,15 @@ onMounted(focusInput)
       :disabled="disabled"
       @keydown.enter.exact="handleEnter"
     ></textarea>
-    <button
+    <AppButton
+      class="message-send-button"
       type="submit"
-      class="btn btn-primary px-4"
+      variant="primary"
       :disabled="!inputMessage.trim() || disabled"
       aria-label="메시지 전송"
     >
       전송
-    </button>
+    </AppButton>
   </form>
 </template>
 
@@ -77,9 +79,8 @@ onMounted(focusInput)
   border-radius: 12px;
 }
 
-.message-form button {
-  border-radius: 12px;
-  --bs-btn-bg: #7062de;
-  --bs-btn-border-color: #7062de;
+.message-send-button {
+  min-width: 78px;
+  border-radius: var(--wallo-radius-md);
 }
 </style>

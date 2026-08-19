@@ -26,8 +26,18 @@ public class ExpenseCategoryClassifier {
             String category,
             String source,
             BigDecimal confidence,
-            String classifierVersion
+            String classifierVersion,
+            CategoryFailureReason failureReason
     ) {
+
+        public Result(
+                String category,
+                String source,
+                BigDecimal confidence,
+                String classifierVersion
+        ) {
+            this(category, source, confidence, classifierVersion, null);
+        }
     }
 
     private final List<ExpenseCategoryRule> rules;
@@ -79,7 +89,9 @@ public class ExpenseCategoryClassifier {
                 ? Collections.nCopies(pendingContexts.size(), Optional.empty())
                 : aiRule.classifyBatch(pendingContexts);
         for (int index = 0; index < pendingIndexes.size(); index++) {
-            Optional<Result> result = classified != null && index < classified.size()
+            Optional<Result> result = classified != null
+                    && index < classified.size()
+                    && classified.get(index) != null
                     ? classified.get(index)
                     : Optional.empty();
             results.set(pendingIndexes.get(index), result.orElseGet(this::fallback));
@@ -88,11 +100,16 @@ public class ExpenseCategoryClassifier {
     }
 
     private Result fallback() {
+        return fallback(CategoryFailureReason.NO_MATCH);
+    }
+
+    private Result fallback(CategoryFailureReason reason) {
         return new Result(
                 "ETC",
                 "FALLBACK",
                 BigDecimal.ZERO,
-                "fallback-v1"
+                "fallback-v1",
+                reason
         );
     }
 }
