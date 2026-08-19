@@ -2287,11 +2287,11 @@ textarea {
 }
 
 .feed-sidebar {
-  position: sticky;
-  top: 88px;
-  right: auto;
-  width: auto;
-  height: calc(100vh - 116px);
+  position: fixed;
+  top: 100px;
+  right: max(32px, calc((100vw - 1453px) / 2));
+  width: 330px;
+  height: calc(100vh - 124px);
 }
 
 .feed-toolbar {
