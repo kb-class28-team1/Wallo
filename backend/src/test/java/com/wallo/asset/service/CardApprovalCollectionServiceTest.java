@@ -130,16 +130,22 @@ class CardApprovalCollectionServiceTest {
     }
 
     @Test
-    void initialCollectionUsesPreviousThreeMonths() {
+    void initialCollectionUsesCurrentYearAndSplitsLongQueryRange() {
         when(cardApprovalClient.getApprovals(any())).thenReturn(CodefDto.Response.success(List.of()));
 
         service.collectInitial(7L, 11L, institution);
 
         ArgumentCaptor<CodefDto.CardApprovalRequest> requestCaptor =
                 ArgumentCaptor.forClass(CodefDto.CardApprovalRequest.class);
-        verify(cardApprovalClient).getApprovals(requestCaptor.capture());
-        assertEquals("20260503", requestCaptor.getValue().getStartDate());
-        assertEquals("20260803", requestCaptor.getValue().getEndDate());
+        verify(cardApprovalClient, org.mockito.Mockito.times(3)).getApprovals(requestCaptor.capture());
+        List<CodefDto.CardApprovalRequest> requests = requestCaptor.getAllValues();
+
+        assertEquals("20260101", requests.get(0).getStartDate());
+        assertEquals("20260331", requests.get(0).getEndDate());
+        assertEquals("20260401", requests.get(1).getStartDate());
+        assertEquals("20260630", requests.get(1).getEndDate());
+        assertEquals("20260701", requests.get(2).getStartDate());
+        assertEquals("20260803", requests.get(2).getEndDate());
     }
 
     @Test
