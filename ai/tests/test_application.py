@@ -8,9 +8,14 @@ app.routes를 직접 순회하는 대신 app.openapi()로 실제 노출되는 �
 import importlib
 
 from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
-from app.application import app
+from app.application import app, create_app
 from app.chat.router import router as chat_router
+from app.core.ai_guard import (
+    ApplicationConcurrencyLimitExceeded,
+    ApplicationTokenBudgetExceeded,
+)
 
 
 def _registered_paths_with_method(method: str) -> set[str]:
@@ -70,6 +75,49 @@ def test_no_duplicated_api_prefix_in_registered_paths():
     schema = app.openapi()
     for path in schema.get("paths", {}):
         assert "/api/api" not in path
+
+
+def test_application_token_guard_returns_429_with_retry_after():
+    guard_error = ApplicationTokenBudgetExceeded(
+        requested_tokens=100,
+        available_tokens=0,
+        retry_after_seconds=2.5,
+    )
+
+    with patch("app.chat.router.create_groq_client", return_value=object()), patch(
+        "app.chat.router.ChatService.chat",
+        side_effect=guard_error,
+    ):
+        response = TestClient(create_app()).post(
+            "/api/chat",
+            json={"message": "hello"},
+        )
+
+    assert response.status_code == 429
+    assert response.headers["Retry-After"] == "3"
+    assert response.json() == {
+        "detail": (
+            "AI application token budget is temporarily exhausted; "
+            "retry after 3 seconds"
+        ),
+        "errorCode": "AI_TOKEN_BUDGET_EXCEEDED",
+        "retryable": True,
+    }
+
+
+def test_application_concurrency_guard_returns_429():
+    test_app = create_app()
+
+    def reject_request():
+        raise ApplicationConcurrencyLimitExceeded(max_in_flight_requests=2)
+
+    test_app.add_api_route("/test/application-concurrency", reject_request, methods=["GET"])
+
+    response = TestClient(test_app).get("/test/application-concurrency")
+
+    assert response.status_code == 429
+    assert response.headers["Retry-After"] == "1"
+    assert response.json()["errorCode"] == "AI_CONCURRENCY_LIMIT_EXCEEDED"
 import json
 import unittest
 from types import SimpleNamespace

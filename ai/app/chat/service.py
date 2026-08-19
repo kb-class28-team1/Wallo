@@ -16,6 +16,7 @@ from app.agents.roadmap.generator import generate_goal_roadmap
 from app.agents.roadmap.models import GoalRoadmap, RoadmapGoal
 from app.chat.schemas import ChatRequest, ChatResponse, GoalInterviewResponse
 from app.chat.title_service import build_conversation_title
+from app.core.ai_guard import ApplicationGuardError
 
 
 logger = logging.getLogger("wallo_ai")
@@ -181,6 +182,8 @@ class ChatService:
                 len(roadmap.steps),
             )
             return roadmap, None
+        except ApplicationGuardError:
+            raise
         except Exception as error:
             logger.exception("[AI ROADMAP] generation failed after goal confirmation")
             return None, str(error)[:500]

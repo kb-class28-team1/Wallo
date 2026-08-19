@@ -11,11 +11,21 @@ from typing import Callable
 Clock = Callable[[], float]
 
 
-class ApplicationGuardError(RuntimeError):
-    """Base error for an application-side AI request guard rejection."""
+class ApplicationGuardError(Exception):
+    """Base error for an application-side AI request guard rejection.
+
+    This intentionally does not inherit from RuntimeError. Existing route
+    handlers use RuntimeError for configuration failures and map those to
+    503; guard rejections must reach the shared 429 handler instead.
+    """
+
+    error_code = "AI_GUARD_REJECTED"
+    retry_after_seconds = 1.0
 
 
 class ApplicationTokenBudgetExceeded(ApplicationGuardError):
+    error_code = "AI_TOKEN_BUDGET_EXCEEDED"
+
     def __init__(
         self,
         *,
@@ -40,8 +50,15 @@ class ApplicationTokenBudgetExceeded(ApplicationGuardError):
 
 
 class ApplicationConcurrencyLimitExceeded(ApplicationGuardError):
-    def __init__(self, max_in_flight_requests: int):
+    error_code = "AI_CONCURRENCY_LIMIT_EXCEEDED"
+
+    def __init__(
+        self,
+        max_in_flight_requests: int,
+        retry_after_seconds: float = 1.0,
+    ):
         self.max_in_flight_requests = max_in_flight_requests
+        self.retry_after_seconds = max(0.0, retry_after_seconds)
         super().__init__(
             "AI application concurrency limit reached; please retry shortly"
         )
