@@ -2262,12 +2262,15 @@ textarea {
 .feed-header {
   width: 100%;
   box-sizing: border-box;
+  min-height: 160px;
   margin-bottom: 18px;
   padding: 23px 26px;
   border: 1px solid #dde7f7;
   border-radius: 23px;
   background: rgb(255 255 255 / 82%);
   box-shadow: 0 12px 28px rgb(88 117 170 / 10%);
+  display: flex;
+  align-items: center;
 }
 
 .feed-header :deep(.app-page-header__title) {
