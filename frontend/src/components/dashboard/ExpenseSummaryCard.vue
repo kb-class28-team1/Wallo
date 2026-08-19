@@ -117,7 +117,7 @@ const expenseCategoryRate = (amount) => {
 
 <style scoped>
 .expense-summary-card {
-  max-width: 540px;
+  width: 100%;
   border-radius: var(--wallo-radius-xl);
   background: var(--wallo-color-surface);
 }
