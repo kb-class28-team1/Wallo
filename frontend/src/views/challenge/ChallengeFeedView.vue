@@ -804,9 +804,26 @@ onBeforeUnmount(() => {
     <template v-else>
       <header class="feed-header">
         <div class="feed-header-top">
-          <h1 class="feed-challenge-name">{{ challengeName }}</h1>
+          <div class="feed-title-group">
+            <h1 class="feed-challenge-name">{{ challengeName }}</h1>
+            <div v-if="inviteCode" class="feed-header-actions">
+              <div class="feed-invite-panel">
+                <AppButton
+                  variant="outline"
+                  size="sm"
+                  aria-label="초대 코드 복사"
+                  @click="copyInviteCode"
+                >
+                  <template #leading>
+                    <i class="bi bi-copy" aria-hidden="true"></i>
+                  </template>
+                  초대코드 복사
+                </AppButton>
+              </div>
+            </div>
+          </div>
           <AppCard as="div" class="saving-total" variant="accent" padding="none">
-            <small>나의 누적 절약 금액</small><strong>{{ formatWon(mySavingTotal) }}</strong>
+            <small>누적 절약 금액</small><strong>{{ formatWon(mySavingTotal) }}</strong>
           </AppCard>
         </div>
         <div class="feed-header-bottom">
@@ -828,21 +845,6 @@ onBeforeUnmount(() => {
               내 피드
             </AppButton>
           </nav>
-          <div v-if="inviteCode" class="feed-header-actions">
-            <div class="feed-invite-panel">
-              <AppButton
-                variant="outline"
-                size="sm"
-                aria-label="초대 코드 복사"
-                @click="copyInviteCode"
-              >
-                <template #leading>
-                  <i class="bi bi-copy" aria-hidden="true"></i>
-                </template>
-                초대코드 복사
-              </AppButton>
-            </div>
-          </div>
         </div>
       </header>
 
@@ -1251,7 +1253,7 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .feed-page {
-  min-height: calc(100vh - 130px);
+  min-height: calc(100vh - 124px);
   position: relative;
   color: #202840;
 }
@@ -2244,25 +2246,27 @@ textarea {
 }
 
 /* Dashboard-style visual treatment for the challenge feed. */
+:global(.page-content:has(.feed-page)) {
+  background: #f6f8fb;
+}
+
 .feed-page {
-  padding: 22px;
-  border: 1px solid #d8e5fa;
+  padding: 0 22px 22px;
+  border: 0;
   border-radius: 30px;
-  background:
-    radial-gradient(circle at 8% 0%, #dbeaff 0, transparent 32%),
-    linear-gradient(145deg, #f2f7ff 0%, #fbfdff 48%, #ffffff 100%);
+  background: #f6f8fb;
 }
 
 .feed-header {
   width: calc(100% - 380px);
   box-sizing: border-box;
-  min-height: 160px;
-  margin-bottom: 18px;
-  padding: 23px 26px;
-  border: 1px solid #dde7f7;
-  border-radius: 23px;
-  background: rgb(255 255 255 / 82%);
-  box-shadow: 0 12px 28px rgb(88 117 170 / 10%);
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   display: block;
 }
 
@@ -2275,10 +2279,20 @@ textarea {
 }
 
 .feed-header-top {
+  align-items: center;
+}
+
+.feed-title-group {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  height: 75px;
   align-items: flex-start;
+  gap: 16px;
 }
 
 .feed-challenge-name {
+  flex: 0 1 auto;
   min-width: 0;
   margin: 0;
   overflow: hidden;
@@ -2289,10 +2303,12 @@ textarea {
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-shadow: 0 2px 0 rgb(31 56 95 / 12%);
 }
 
 .feed-header-bottom {
-  margin-top: 18px;
+  margin-top: -20px;
+  margin-bottom: 22px;
 }
 
 .feed-header :deep(.app-page-header__title) {
@@ -2307,16 +2323,16 @@ textarea {
 }
 
 .feed-layout {
-  grid-template-columns: minmax(0, 1fr) minmax(330px, 360px);
-  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) minmax(350px, 380px);
+  gap: 0;
 }
 
 .feed-sidebar {
   position: fixed;
-  top: 100px;
-  right: max(32px, calc((100vw - 1453px) / 2));
-  width: 360px;
-  height: calc(100vh - 124px);
+  top: calc(var(--wallo-page-top-offset) + 22px);
+  right: max(16px, calc((100vw - 1453px) / 2));
+  width: 380px;
+  height: calc(100vh - var(--wallo-page-top-offset) - 46px);
 }
 
 .feed-toolbar {
@@ -2330,6 +2346,7 @@ textarea {
 
 .feed-tabs {
   background: #eef2fb;
+  box-shadow: 0 4px 10px rgb(92 122 194 / 12%);
 }
 
 .feed-tabs button {
@@ -2338,13 +2355,23 @@ textarea {
 
 .feed-tabs button.active {
   background: linear-gradient(135deg, #668cf0, #8c78e7);
-  box-shadow: 0 5px 12px rgb(102 140 240 / 24%);
+  box-shadow: none;
 }
 
 .feed-invite-panel button {
   color: #4775c4;
   background: #f0f5ff;
   border-color: #cfdef8;
+  box-shadow: 0 4px 10px rgb(92 122 194 / 16%);
+}
+
+.feed-header-actions,
+.feed-invite-panel {
+  width: auto;
+}
+
+.feed-invite-panel button {
+  width: auto;
 }
 
 .feed-leave-button.app-button {
@@ -2353,27 +2380,32 @@ textarea {
 
 .saving-total {
   display: flex;
-  min-height: 0;
+  position: relative;
+  top: 22px;
+  height: 75px;
+  min-height: 75px;
   box-sizing: border-box;
-  width: 145px;
+  width: 110px;
   flex-direction: column;
   justify-content: center;
+  align-items: center;
   flex-shrink: 0;
-  padding: 10px 16px;
+  padding: 6px 8px;
+  text-align: left;
   border: 0;
-  border-radius: 22px;
-  background: linear-gradient(135deg, #7098ed, #8a79e6);
-  box-shadow: 0 14px 26px rgb(112 152 237 / 24%);
+  border-radius: 11px;
+  background: #f6f8fb;
+  box-shadow: 0 5px 12px rgb(92 122 194 / 16%);
 }
 
 .saving-total small {
-  color: #edf2ff;
-  font-size: 0.75rem;
+  color: #5f7fdb;
+  font-size: 0.65rem;
 }
 
 .saving-total strong {
-  color: #fff;
-  font-size: 1.65rem;
+  color: #5f7fdb;
+  font-size: 1.525rem;
   letter-spacing: -0.04em;
 }
 
@@ -2462,14 +2494,14 @@ textarea {
   color: #273b61;
   border: 1px solid #dce7f7;
   border-radius: 22px;
-  background: #fff;
+  background: #f6f8fb;
   box-shadow: 0 14px 28px rgb(75 100 143 / 10%);
 }
 
 .chat-room > header {
   padding: 19px;
   border-bottom-color: #dfe8f7;
-  background: #f0f5ff;
+  background: #fff;
   justify-content: space-between;
 }
 
@@ -2502,7 +2534,7 @@ textarea {
 }
 
 .messages {
-  background: #fcfdff;
+  background: #f6f8fb;
   scrollbar-color: #c5d5ee transparent;
 }
 
@@ -2525,19 +2557,34 @@ textarea {
 }
 
 .chat-form {
-  background: #f0f5ff;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 14px 18px;
+  background: #fff;
+  border-radius: 0 0 22px 22px;
 }
 
 .chat-form textarea {
+  min-height: 56px;
+  padding: 15px 18px;
   color: #30486e;
   background: #fff;
   border: 1px solid #dce6f5;
+  border-radius: 24px;
+  font-size: 1rem;
 }
 
 .chat-form button,
 .floating-add {
   background: linear-gradient(135deg, #668cf0, #8c78e7);
   box-shadow: 0 10px 22px rgb(102 140 240 / 24%);
+}
+
+.chat-form button {
+  width: 56px;
+  height: 56px;
+  flex: 0 0 56px;
+  font-size: 1.3rem;
 }
 
 @media (max-width: 1200px) {
@@ -2558,7 +2605,7 @@ textarea {
 
 @media (max-width: 650px) {
   .feed-page {
-    padding: 10px;
+    padding: 0 10px 10px;
     border-radius: 20px;
   }
 
@@ -2573,12 +2620,23 @@ textarea {
     flex-direction: column;
   }
 
+  .feed-title-group {
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+  }
+
   .feed-header .saving-total {
     width: 100%;
+    top: 0;
   }
 
   .feed-header-bottom {
     margin-top: 14px;
+    margin-bottom: 0;
   }
 }
 </style>
