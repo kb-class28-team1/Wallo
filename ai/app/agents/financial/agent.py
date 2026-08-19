@@ -13,7 +13,7 @@ from app.agents.financial.prompts import SYSTEM_PROMPT
 from app.agents.financial.tools.registry import TOOL_SCHEMAS, execute_tool
 from app.agents.goal.context import FinancialContext
 from app.core.config import get_groq_model
-from app.core.ai_timing import timed_groq_completion
+from app.core.ai_timing import current_request_id, timed_groq_completion
 from app.agents.financial.consumption_models import ConsumptionContext
 from app.agents.financial.spending_intent import (
     build_spending_arguments,
@@ -105,6 +105,61 @@ def attach_asset_direction(
         tool_data["direction"] = direction
 
 
+def _message_content_chars(messages: list[dict[str, Any]] | None) -> int:
+    total = 0
+    for message in messages or []:
+        content = message.get("content") if isinstance(message, dict) else message
+        if isinstance(content, str):
+            total += len(content)
+        else:
+            try:
+                total += len(json.dumps(content, ensure_ascii=False, default=str))
+            except (TypeError, ValueError):
+                total += len(str(content))
+    return total
+
+
+def _log_financial_context(
+    *,
+    stage: str,
+    history: list[dict[str, Any]],
+    summary: str | None,
+    user_message: str,
+    message_count: int,
+    tool_name: str | None = None,
+    tool_status: str | None = None,
+    tool_result: dict[str, Any] | None = None,
+    tool_result_json: str | None = None,
+) -> None:
+    data = tool_result.get("data") if isinstance(tool_result, dict) else None
+    products = data.get("products") if isinstance(data, dict) else None
+    product_count = len(products) if isinstance(products, list) else 0
+    tool_result_chars = len(tool_result_json) if tool_result_json is not None else 0
+    tool_result_bytes = (
+        len(tool_result_json.encode("utf-8"))
+        if tool_result_json is not None
+        else 0
+    )
+    logger.info(
+        "[AI_CONTEXT] stage=%s requestId=%s historyCount=%d "
+        "historyContentChars=%d summaryChars=%d userMessageChars=%d "
+        "messageCount=%d tool=%s toolStatus=%s toolResultChars=%d "
+        "toolResultBytes=%d productCount=%d",
+        stage,
+        current_request_id(),
+        len(history),
+        _message_content_chars(history),
+        len(summary.strip()) if isinstance(summary, str) else 0,
+        len(user_message),
+        message_count,
+        tool_name,
+        tool_status,
+        tool_result_chars,
+        tool_result_bytes,
+        product_count,
+    )
+
+
 class FinancialAgent:
     def __init__(self, client: Groq, model: str | None = None):
         self.client = client
@@ -137,6 +192,13 @@ class FinancialAgent:
             })
         messages.extend(history or [])
         messages.append({"role": "user", "content": user_message})
+        _log_financial_context(
+            stage="route",
+            history=history or [],
+            summary=summary,
+            user_message=user_message,
+            message_count=len(messages),
+        )
         if is_spending_request(user_message, previous_consumption_period):
             arguments = build_spending_arguments(
                 user_message, previous_consumption_period
@@ -197,6 +259,8 @@ class FinancialAgent:
             consumption_context,
         )
         logger.info("[AI TOOL] selected=%s status=%s", tool_call.function.name, tool_result.status)
+        tool_payload = tool_result.to_dict()
+        tool_content = json.dumps(tool_payload, ensure_ascii=False)
         if tool_result.status == "success" and isinstance(tool_result.data, dict):
             self.selected_tool_result = tool_result.data
         asset_cache_key = None
@@ -224,9 +288,20 @@ class FinancialAgent:
             {
                 "role": "tool",
                 "tool_call_id": tool_call.id,
-                "content": json.dumps(tool_result.to_dict(), ensure_ascii=False),
+                "content": tool_content,
             },
         ])
+        _log_financial_context(
+            stage="final",
+            history=history or [],
+            summary=summary,
+            user_message=user_message,
+            message_count=len(messages),
+            tool_name=tool_result.tool,
+            tool_status=tool_result.status,
+            tool_result=tool_payload,
+            tool_result_json=tool_content,
+        )
         if self.selected_tool == ASSET_ANALYSIS_TOOL:
             messages.insert(1, {
                 "role": "system",

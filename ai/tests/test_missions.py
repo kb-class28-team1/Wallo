@@ -134,7 +134,9 @@ def test_logs_actual_mission_token_usage(caplog, monkeypatch):
     message = next(
         record.getMessage()
         for record in caplog.records
-        if record.name == "wallo_ai" and "operation=mission.generate" in record.getMessage()
+        if record.name == "wallo_ai"
+        and "[AI_TIMING]" in record.getMessage()
+        and "operation=mission.generate" in record.getMessage()
     )
     assert "promptTokens=2255" in message
     assert "completionTokens=1420" in message
@@ -175,7 +177,9 @@ def test_logs_mission_rate_limit_without_raw_error(caplog):
     message = next(
         record.getMessage()
         for record in caplog.records
-        if record.name == "wallo_ai" and "operation=mission.generate" in record.getMessage()
+        if record.name == "wallo_ai"
+        and "[AI_TIMING]" in record.getMessage()
+        and "operation=mission.generate" in record.getMessage()
     )
     assert "failureReason=RateLimitError" in message
     assert "responseReceived=False" in message
