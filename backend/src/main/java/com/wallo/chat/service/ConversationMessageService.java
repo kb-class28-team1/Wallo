@@ -45,6 +45,7 @@ public class ConversationMessageService {
     private final ConsumptionAnalysisViewAssembler consumptionAnalysisViewAssembler;
     private final AssetAnalysisResultService assetAnalysisResultService;
     private final AssetAnalysisViewAssembler assetAnalysisViewAssembler;
+    private final ProductRecommendationResultService productRecommendationResultService;
     private final MissionGenerationWorker missionGenerationWorker;
 
     @Autowired
@@ -57,6 +58,7 @@ public class ConversationMessageService {
             ConsumptionAnalysisViewAssembler consumptionAnalysisViewAssembler,
             AssetAnalysisResultService assetAnalysisResultService,
             AssetAnalysisViewAssembler assetAnalysisViewAssembler,
+            ProductRecommendationResultService productRecommendationResultService,
             MissionGenerationWorker missionGenerationWorker
     ) {
         this.conversationService = conversationService;
@@ -67,7 +69,33 @@ public class ConversationMessageService {
         this.consumptionAnalysisViewAssembler = consumptionAnalysisViewAssembler;
         this.assetAnalysisResultService = assetAnalysisResultService;
         this.assetAnalysisViewAssembler = assetAnalysisViewAssembler;
+        this.productRecommendationResultService = productRecommendationResultService;
         this.missionGenerationWorker = missionGenerationWorker;
+    }
+
+    public ConversationMessageService(
+            ConversationService conversationService,
+            ChatMessagePersistenceService persistenceService,
+            ChatService chatService,
+            GoalPersistenceService goalPersistenceService,
+            ConsumptionAnalysisResultService consumptionAnalysisResultService,
+            ConsumptionAnalysisViewAssembler consumptionAnalysisViewAssembler,
+            AssetAnalysisResultService assetAnalysisResultService,
+            AssetAnalysisViewAssembler assetAnalysisViewAssembler,
+            MissionGenerationWorker missionGenerationWorker
+    ) {
+        this(
+                conversationService,
+                persistenceService,
+                chatService,
+                goalPersistenceService,
+                consumptionAnalysisResultService,
+                consumptionAnalysisViewAssembler,
+                assetAnalysisResultService,
+                assetAnalysisViewAssembler,
+                null,
+                missionGenerationWorker
+        );
     }
 
     ConversationMessageService(
@@ -82,7 +110,32 @@ public class ConversationMessageService {
     ) {
         this(conversationService, persistenceService, chatService, goalPersistenceService,
                 consumptionAnalysisResultService, consumptionAnalysisViewAssembler,
-                assetAnalysisResultService, assetAnalysisViewAssembler, null);
+                assetAnalysisResultService, assetAnalysisViewAssembler, null, null);
+    }
+
+    ConversationMessageService(
+            ConversationService conversationService,
+            ChatMessagePersistenceService persistenceService,
+            ChatService chatService,
+            GoalPersistenceService goalPersistenceService,
+            ConsumptionAnalysisResultService consumptionAnalysisResultService,
+            ConsumptionAnalysisViewAssembler consumptionAnalysisViewAssembler,
+            AssetAnalysisResultService assetAnalysisResultService,
+            AssetAnalysisViewAssembler assetAnalysisViewAssembler,
+            ProductRecommendationResultService productRecommendationResultService
+    ) {
+        this(
+                conversationService,
+                persistenceService,
+                chatService,
+                goalPersistenceService,
+                consumptionAnalysisResultService,
+                consumptionAnalysisViewAssembler,
+                assetAnalysisResultService,
+                assetAnalysisViewAssembler,
+                productRecommendationResultService,
+                null
+        );
     }
 
     ConversationMessageService(
@@ -97,6 +150,7 @@ public class ConversationMessageService {
         this(conversationService, persistenceService, chatService, goalPersistenceService,
                 consumptionAnalysisResultService, consumptionAnalysisViewAssembler,
                 null, null,
+                null,
                 missionGenerationService == null
                         ? null
                         : new MissionGenerationWorker(missionGenerationService));
@@ -112,7 +166,7 @@ public class ConversationMessageService {
     ) {
         this(conversationService, persistenceService, chatService, goalPersistenceService,
                 consumptionAnalysisResultService, consumptionAnalysisViewAssembler,
-                null, null, null);
+                null, null, null, null);
     }
 
     public List<ChatMessageResponse> getMessages(
@@ -134,11 +188,21 @@ public class ConversationMessageService {
         Map<Long, AssetAnalysisView> assetAnalyses = loadedAssetAnalyses == null
                 ? Map.of()
                 : loadedAssetAnalyses;
+        Map<Long, Map<String, Object>> loadedProductRecommendations =
+                productRecommendationResultService == null
+                        ? Map.of()
+                        : productRecommendationResultService.findByAssistantMessageIds(
+                                assistantMessageIds);
+        Map<Long, Map<String, Object>> productRecommendations =
+                loadedProductRecommendations == null
+                        ? Map.of()
+                        : loadedProductRecommendations;
         return messages.stream()
                 .map(message -> ChatMessageResponse.from(
                         message,
                         analyses.get(message.getMessageId()),
-                        assetAnalyses.get(message.getMessageId())))
+                        assetAnalyses.get(message.getMessageId()),
+                        productRecommendations.get(message.getMessageId())))
                 .collect(Collectors.toList());
     }
 
@@ -285,6 +349,15 @@ public class ConversationMessageService {
             );
         }
         Map<String, Object> productRecommendation = aiResponse.productRecommendation();
+        if (productRecommendationResultService != null) {
+            productRecommendationResultService.save(
+                    currentUserId,
+                    assistantMessage.getMessageId(),
+                    content,
+                    productRecommendation,
+                    aiResponse.answer()
+            );
+        }
         if (isFirstMessage) {
             String title;
             if (consumptionAnalysisRequest) {

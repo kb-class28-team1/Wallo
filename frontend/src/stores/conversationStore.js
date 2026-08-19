@@ -20,6 +20,7 @@ import {
   setCachedResource,
 } from "@/utils/resourceCache"
 import { normalizeAssetAnalysis } from "@/types/assetAnalysis"
+import { normalizeProductRecommendation } from "@/types/productRecommendation"
 
 const CONVERSATION_STALE_TIME = 60 * 1000
 const MESSAGE_STALE_TIME = 30 * 1000
@@ -33,6 +34,7 @@ const toViewMessage = (
   animate = false,
   consumptionAnalysis = null,
   assetAnalysis = null,
+  productRecommendation = null,
 ) => ({
   id: message.messageId,
   role: message.role.toLowerCase(),
@@ -41,6 +43,9 @@ const toViewMessage = (
   animate,
   consumptionAnalysis: message.consumptionAnalysis ?? consumptionAnalysis,
   assetAnalysis: normalizeAssetAnalysis(message.assetAnalysis ?? assetAnalysis),
+  productRecommendation: normalizeProductRecommendation(
+    message.productRecommendation ?? productRecommendation,
+  ),
 })
 
 const toConfirmedGoalInterview = (goal) => ({
@@ -575,6 +580,7 @@ export const useConversationStore = defineStore("conversation", () => {
             true,
             response.consumptionAnalysis ?? null,
             response.assetAnalysis ?? null,
+            response.productRecommendation ?? null,
           ),
         )
       }
