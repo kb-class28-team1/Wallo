@@ -7,6 +7,7 @@ app.routes를 직접 순회하는 대신 app.openapi()로 실제 노출되는 �
 
 import importlib
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -14,6 +15,8 @@ from app.application import app, create_app
 from app.chat.router import router as chat_router
 from app.core.ai_guard import (
     ApplicationConcurrencyLimitExceeded,
+    ApplicationQueueFullError,
+    ApplicationQueueTimeoutError,
     ApplicationTokenBudgetExceeded,
 )
 
@@ -118,6 +121,44 @@ def test_application_concurrency_guard_returns_429():
     assert response.status_code == 429
     assert response.headers["Retry-After"] == "1"
     assert response.json()["errorCode"] == "AI_CONCURRENCY_LIMIT_EXCEEDED"
+
+
+@pytest.mark.parametrize(
+    ("guard_error", "expected_error_code", "expected_retry_after"),
+    [
+        (
+            ApplicationQueueFullError(queue_size=8, max_queue_size=8),
+            "AI_QUEUE_FULL",
+            "1",
+        ),
+        (
+            ApplicationQueueTimeoutError(
+                retry_after_seconds=4.2,
+                waited_seconds=30.0,
+            ),
+            "AI_QUEUE_TIMEOUT",
+            "5",
+        ),
+    ],
+)
+def test_application_queue_errors_return_429_with_retry_after(
+    guard_error,
+    expected_error_code,
+    expected_retry_after,
+):
+    with patch("app.chat.router.create_groq_client", return_value=object()), patch(
+        "app.chat.router.ChatService.chat",
+        side_effect=guard_error,
+    ):
+        response = TestClient(create_app()).post(
+            "/api/chat",
+            json={"message": "hello"},
+        )
+
+    assert response.status_code == 429
+    assert response.headers["Retry-After"] == expected_retry_after
+    assert response.json()["errorCode"] == expected_error_code
+    assert response.json()["retryable"] is True
 import json
 import unittest
 from types import SimpleNamespace

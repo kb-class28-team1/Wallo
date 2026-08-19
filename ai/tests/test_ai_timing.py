@@ -1,5 +1,6 @@
 import logging
 import threading
+import time
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -65,6 +66,67 @@ def test_application_guard_protects_concurrency_and_reconciles_actual_usage():
 
     assert guard.in_flight_requests == 0
     assert guard.bucket.available_tokens == pytest.approx(980, abs=0.1)
+
+
+def test_timed_completion_waits_for_queue_and_logs_wait_metadata(
+    monkeypatch,
+    caplog,
+):
+    import app.core.ai_timing as ai_timing
+
+    caplog.set_level(logging.INFO, logger="wallo_ai")
+    guard = ApplicationAIGuard(
+        token_capacity=100,
+        refill_tokens_per_minute=6_000,
+        max_in_flight_requests=1,
+        queue_enabled=True,
+        queue_max_size=1,
+        queue_max_wait_seconds=1.0,
+    )
+    monkeypatch.setattr(ai_timing, "_APPLICATION_GUARD", guard)
+    active_lease = guard.reserve(100)
+    completion = SimpleNamespace(
+        usage=SimpleNamespace(
+            prompt_tokens=1,
+            completion_tokens=1,
+            total_tokens=2,
+        ),
+        choices=[SimpleNamespace(finish_reason="stop")],
+    )
+
+    class Completions:
+        def create(self, **kwargs):
+            return completion
+
+    client = SimpleNamespace(chat=SimpleNamespace(completions=Completions()))
+    result = {}
+
+    def run_completion():
+        with timed_groq_completion(
+            client,
+            operation="test.queue-wait",
+            model="test-model",
+        ) as timing:
+            result["completion"] = timing.create(
+                messages=[],
+                max_completion_tokens=1,
+            )
+
+    worker = threading.Thread(target=run_completion)
+    worker.start()
+    deadline = time.monotonic() + 1.0
+    while guard.waiting_requests == 0 and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert guard.waiting_requests == 1
+
+    active_lease.release(actual_tokens=0)
+    worker.join(timeout=1.0)
+    assert not worker.is_alive()
+    assert result["completion"] is completion
+    assert "operation=test.queue-wait" in caplog.text
+    assert "status=dequeued" in caplog.text
+    assert "queuePosition=1" in caplog.text
+    assert "queueWaitMs=" in caplog.text
 
 
 def test_timed_completion_blocks_provider_call_when_application_budget_is_exhausted(
