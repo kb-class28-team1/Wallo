@@ -29,6 +29,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  showIntro: {
+    type: Boolean,
+    default: true,
+  },
 })
 
 const normalizedRecommendation = computed(() => normalizeProductRecommendation(
@@ -58,6 +62,12 @@ const amountValue = (product) => (
     : product.depositAmountKrw ?? product.amountKrw
 )
 
+const formatPreferentialConditions = (value) => (
+  String(value || "")
+    .trim()
+    .replace(/\s+(?=\d+(?:-\d+)?[.)]\s)/g, "\n")
+)
+
 const productKey = (product, index) =>
   `${product.companyCode || product.companyName || "company"}-${product.productCode || product.productName || index}`
 </script>
@@ -68,7 +78,7 @@ const productKey = (product, index) =>
     :class="{ 'product-recommendation--full-width': fullWidth }"
     aria-label="AI 금융상품 추천 결과"
   >
-    <div class="product-recommendation__intro">
+    <div v-if="showIntro" class="product-recommendation__intro">
       <span class="product-recommendation__eyebrow">
         <i class="bi bi-stars me-1" aria-hidden="true"></i>
         AI 금융상품 추천
@@ -163,7 +173,7 @@ const productKey = (product, index) =>
 
           <details v-if="product.preferentialConditions" class="product-card__conditions">
             <summary>우대조건 확인</summary>
-            <p>{{ product.preferentialConditions }}</p>
+            <p>{{ formatPreferentialConditions(product.preferentialConditions) }}</p>
           </details>
 
           <div class="product-card__metadata">

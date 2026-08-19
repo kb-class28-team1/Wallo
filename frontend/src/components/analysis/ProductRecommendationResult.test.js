@@ -49,6 +49,26 @@ describe("ProductRecommendationResult", () => {
     expect(wrapper.findAll(".product-card")).toHaveLength(0)
   })
 
+  it("puts numbered preferential conditions on separate lines", () => {
+    const wrapper = mount(ProductRecommendationResult, {
+      props: {
+        recommendation: {
+          productType: "deposit",
+          products: [
+            {
+              ...recommendation.products[0],
+              preferentialConditions: "1. First condition 2. Second condition 2-1. Detail 3. Third condition",
+            },
+          ],
+        },
+      },
+    })
+
+    expect(wrapper.find(".product-card__conditions").exists()).toBe(true)
+    const conditions = wrapper.find(".product-card__conditions p").element.textContent
+    expect(conditions).toBe("1. First condition\n2. Second condition\n2-1. Detail\n3. Third condition")
+  })
+
   it("renders the AI recommendation reason as sanitized markdown", () => {
     const wrapper = mount(ProductRecommendationResult, {
       props: {

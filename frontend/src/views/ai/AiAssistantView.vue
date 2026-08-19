@@ -623,20 +623,23 @@ onMounted(() => {
               채팅에서 저장된 가장 최근의 상품 추천 결과예요.
             </p>
           </div>
-          <small v-if="generatedAt" class="latest-product-recommendation-date">
-            {{ formatRecommendationDate(generatedAt) }} 기준
-          </small>
+          <div class="latest-product-recommendation-meta">
+            <small v-if="generatedAt" class="latest-product-recommendation-date">
+              {{ formatRecommendationDate(generatedAt) }} 기준
+            </small>
+            <p v-if="requestMessage" class="latest-product-recommendation-request mb-0 mt-3">
+              추천 요청: {{ requestMessage }}
+            </p>
+          </div>
         </div>
 
         <ProductRecommendationResult
-          class="mt-4"
-          full-width
-          :recommendation="productRecommendation"
-        />
+        class="mt-4"
+        full-width
+        :show-intro="false"
+        :recommendation="productRecommendation"
+      />
 
-        <p v-if="requestMessage" class="latest-product-recommendation-request mb-0 mt-3">
-          추천 요청: {{ requestMessage }}
-        </p>
       </div>
     </AppCard>
   </section>
@@ -667,6 +670,14 @@ onMounted(() => {
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
+}
+
+.latest-product-recommendation-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+  text-align: right;
 }
 
 .latest-product-recommendation-date,
@@ -1201,6 +1212,11 @@ onMounted(() => {
 
   .latest-product-recommendation-heading {
     flex-direction: column;
+  }
+
+  .latest-product-recommendation-meta {
+    align-items: flex-start;
+    text-align: left;
   }
 
   .roadmap-list {
