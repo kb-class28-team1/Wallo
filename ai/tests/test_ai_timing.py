@@ -1,5 +1,6 @@
 import logging
 import threading
+import time
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -8,7 +9,14 @@ import pytest
 from groq import Groq as GroqSdk, RateLimitError
 
 from app.clients.groq_client import Groq
+from app.core.ai_guard import (
+    ApplicationAIGuard,
+    ApplicationConcurrencyLimitExceeded,
+    ApplicationTokenBudgetExceeded,
+    TokenBucket,
+)
 from app.core.ai_timing import (
+    get_application_ai_guard,
     get_groq_retry_count,
     log_groq_completion_timing,
     request_id_context,
@@ -17,6 +25,143 @@ from app.core.ai_timing import (
     timed_groq_completion,
     was_groq_rate_limited,
 )
+
+
+def test_token_bucket_rejects_burst_and_refills_after_elapsed_time():
+    now = [0.0]
+    bucket = TokenBucket(
+        capacity=100,
+        refill_tokens_per_second=10,
+        clock=lambda: now[0],
+    )
+
+    assert bucket.try_consume(80) is None
+    assert bucket.try_consume(30) == 1.0
+
+    now[0] = 1.0
+    assert bucket.try_consume(30) is None
+
+
+def test_application_guard_protects_concurrency_and_reconciles_actual_usage():
+    small_guard = ApplicationAIGuard(
+        token_capacity=100,
+        refill_tokens_per_minute=6_000,
+        max_in_flight_requests=1,
+    )
+    with pytest.raises(ApplicationTokenBudgetExceeded, match="exceeds"):
+        small_guard.reserve(101)
+
+    guard = ApplicationAIGuard(
+        token_capacity=1_000,
+        refill_tokens_per_minute=60_000,
+        max_in_flight_requests=1,
+    )
+    lease = guard.reserve(100)
+
+    with pytest.raises(ApplicationConcurrencyLimitExceeded):
+        guard.reserve(1)
+
+    assert guard.in_flight_requests == 1
+    lease.release(actual_tokens=20)
+
+    assert guard.in_flight_requests == 0
+    assert guard.bucket.available_tokens == pytest.approx(980, abs=0.1)
+
+
+def test_timed_completion_waits_for_queue_and_logs_wait_metadata(
+    monkeypatch,
+    caplog,
+):
+    import app.core.ai_timing as ai_timing
+
+    caplog.set_level(logging.INFO, logger="wallo_ai")
+    guard = ApplicationAIGuard(
+        token_capacity=100,
+        refill_tokens_per_minute=6_000,
+        max_in_flight_requests=1,
+        queue_enabled=True,
+        queue_max_size=1,
+        queue_max_wait_seconds=1.0,
+    )
+    monkeypatch.setattr(ai_timing, "_APPLICATION_GUARD", guard)
+    active_lease = guard.reserve(100)
+    completion = SimpleNamespace(
+        usage=SimpleNamespace(
+            prompt_tokens=1,
+            completion_tokens=1,
+            total_tokens=2,
+        ),
+        choices=[SimpleNamespace(finish_reason="stop")],
+    )
+
+    class Completions:
+        def create(self, **kwargs):
+            return completion
+
+    client = SimpleNamespace(chat=SimpleNamespace(completions=Completions()))
+    result = {}
+
+    def run_completion():
+        with timed_groq_completion(
+            client,
+            operation="test.queue-wait",
+            model="test-model",
+        ) as timing:
+            result["completion"] = timing.create(
+                messages=[],
+                max_completion_tokens=1,
+            )
+
+    worker = threading.Thread(target=run_completion)
+    worker.start()
+    deadline = time.monotonic() + 1.0
+    while guard.waiting_requests == 0 and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert guard.waiting_requests == 1
+
+    active_lease.release(actual_tokens=0)
+    worker.join(timeout=1.0)
+    assert not worker.is_alive()
+    assert result["completion"] is completion
+    assert "operation=test.queue-wait" in caplog.text
+    assert "status=dequeued" in caplog.text
+    assert "queuePosition=1" in caplog.text
+    assert "queueWaitMs=" in caplog.text
+
+
+def test_timed_completion_blocks_provider_call_when_application_budget_is_exhausted(
+    monkeypatch,
+    caplog,
+):
+    import app.core.ai_timing as ai_timing
+
+    caplog.set_level(logging.INFO, logger="wallo_ai")
+    guard = ApplicationAIGuard(
+        token_capacity=10,
+        refill_tokens_per_minute=600,
+        max_in_flight_requests=1,
+    )
+    monkeypatch.setattr(ai_timing, "_APPLICATION_GUARD", guard)
+
+    class Completions:
+        def create(self, **kwargs):
+            raise AssertionError("provider call should be blocked by the guard")
+
+    client = SimpleNamespace(chat=SimpleNamespace(completions=Completions()))
+
+    with timed_groq_completion(
+        client,
+        operation="test.guard",
+        model="test-model",
+    ) as timing:
+        with pytest.raises(ApplicationTokenBudgetExceeded):
+            timing.create(
+                messages=[{"role": "user", "content": "hello"}],
+                max_completion_tokens=20,
+            )
+
+    assert "[AI_GUARD]" in caplog.text
+    assert "status=rejected" in caplog.text
 
 
 def test_timed_groq_completion_logs_actual_usage(caplog):
@@ -64,6 +209,70 @@ def test_timed_groq_completion_logs_actual_usage(caplog):
     assert "totalTokens=18" in message
     assert "requestedCompletionTokens=123" in message
     assert "success=True" in message
+
+
+def test_timed_groq_completion_logs_success_headers_and_usage_details(caplog):
+    caplog.set_level(logging.INFO, logger="wallo_ai")
+    completion = SimpleNamespace(
+        usage=SimpleNamespace(
+            prompt_tokens=11,
+            completion_tokens=7,
+            total_tokens=18,
+            prompt_tokens_details=SimpleNamespace(cached_tokens=4),
+            completion_tokens_details=SimpleNamespace(reasoning_tokens=3),
+        ),
+        choices=[SimpleNamespace(finish_reason="stop")],
+    )
+    headers = {
+        "x-ratelimit-limit-tokens": "8000",
+        "x-ratelimit-remaining-tokens": "7970",
+        "x-ratelimit-reset-tokens": "2.5s",
+        "x-ratelimit-limit-requests": "1000",
+        "x-ratelimit-remaining-requests": "999",
+        "x-ratelimit-reset-requests": "1m",
+    }
+
+    class RawResponse:
+        def __init__(self):
+            self.headers = headers
+
+        def parse(self):
+            return completion
+
+    class Completions:
+        @property
+        def with_raw_response(self):
+            return SimpleNamespace(create=lambda **kwargs: RawResponse())
+
+    client = SimpleNamespace(
+        chat=SimpleNamespace(completions=Completions())
+    )
+
+    with timed_groq_completion(
+        client,
+        operation="test.success-headers",
+        model="test-model",
+    ) as timing:
+        result = timing.create(messages=[])
+
+    assert result is completion
+    guard = get_application_ai_guard()
+    assert guard.bucket.capacity == pytest.approx(8_000)
+    assert guard.bucket.available_tokens == pytest.approx(7_970)
+    message = next(
+        record.getMessage()
+        for record in caplog.records
+        if "operation=test.success-headers" in record.getMessage()
+        and "[AI_TIMING]" in record.getMessage()
+    )
+    assert "cachedPromptTokens=4" in message
+    assert "reasoningTokens=3" in message
+    assert "limitTokens=8000" in message
+    assert "remainingTokens=7970" in message
+    assert "resetTokens=2.5s" in message
+    assert "limitRequests=1000" in message
+    assert "remainingRequests=999" in message
+    assert "resetRequests=1m" in message
 
 
 def test_timed_groq_completion_inherits_request_id(caplog):
@@ -188,6 +397,9 @@ def test_timed_groq_completion_logs_provider_rate_limit_details(caplog):
     ) as timing:
         timing.create(messages=[])
 
+    guard = get_application_ai_guard()
+    assert guard.bucket.capacity == pytest.approx(8_000)
+    assert guard.bucket.available_tokens == pytest.approx(2_040)
     message = next(
         record.getMessage()
         for record in caplog.records

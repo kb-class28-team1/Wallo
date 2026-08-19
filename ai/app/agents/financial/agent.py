@@ -10,7 +10,17 @@ from app.agents.financial.asset_analysis_cache import (
     get_cached_answer,
 )
 from app.agents.financial.prompts import SYSTEM_PROMPT
-from app.agents.financial.tools.registry import TOOL_SCHEMAS, execute_tool
+from app.agents.financial.tools.registry import (
+    execute_tool,
+    select_route_tool_schemas,
+)
+from app.agents.financial.history import (
+    BoundedConversationContext,
+    HISTORY_TOKEN_BUDGET,
+    SUMMARY_TOKEN_BUDGET,
+    build_bounded_context,
+)
+from app.agents.financial.tool_payload import compact_tool_result_for_prompt
 from app.agents.goal.context import FinancialContext
 from app.core.config import get_groq_model
 from app.core.ai_timing import current_request_id, timed_groq_completion
@@ -24,10 +34,14 @@ logger = logging.getLogger("wallo_ai")
 ASSET_ANALYSIS_TOOL = "analyze_assets"
 PRODUCT_RECOMMENDATION_TOOL = "recommend_financial_products"
 SPENDING_ANALYSIS_TOOL = "coach_spending"
-DEFAULT_FINAL_COMPLETION_TOKENS = 500
-ASSET_ANALYSIS_FINAL_COMPLETION_TOKENS = 1600
-PRODUCT_RECOMMENDATION_FINAL_COMPLETION_TOKENS = 1600
-SPENDING_ANALYSIS_FINAL_COMPLETION_TOKENS = 1600
+# Direct replies only need a short answer; tool selection keeps the existing
+# budget because the baseline included a tool-call response that ended by length.
+ROUTE_DIRECT_COMPLETION_TOKENS = 256
+ROUTE_TOOL_COMPLETION_TOKENS = 500
+DEFAULT_FINAL_COMPLETION_TOKENS = 400
+ASSET_ANALYSIS_FINAL_COMPLETION_TOKENS = 1000
+PRODUCT_RECOMMENDATION_FINAL_COMPLETION_TOKENS = 1000
+SPENDING_ANALYSIS_FINAL_COMPLETION_TOKENS = 1000
 ASSET_ANALYSIS_JSON_INSTRUCTION = """
 analyze_assets 도구가 성공한 경우 최종 답변은 JSON 객체 하나만 반환하세요.
 마크다운, 코드 블록, JSON 앞뒤의 설명은 사용하지 마세요. 금액과 비율은 도구 결과의
@@ -130,6 +144,8 @@ def _log_financial_context(
     tool_status: str | None = None,
     tool_result: dict[str, Any] | None = None,
     tool_result_json: str | None = None,
+    tool_result_original_json: str | None = None,
+    context: BoundedConversationContext | None = None,
 ) -> None:
     data = tool_result.get("data") if isinstance(tool_result, dict) else None
     products = data.get("products") if isinstance(data, dict) else None
@@ -140,22 +156,61 @@ def _log_financial_context(
         if tool_result_json is not None
         else 0
     )
+    tool_result_original_chars = (
+        len(tool_result_original_json)
+        if tool_result_original_json is not None
+        else tool_result_chars
+    )
+    tool_result_original_bytes = (
+        len(tool_result_original_json.encode("utf-8"))
+        if tool_result_original_json is not None
+        else tool_result_bytes
+    )
+    tool_result_reduction_percent = (
+        round((1 - tool_result_bytes / tool_result_original_bytes) * 100, 1)
+        if tool_result_original_bytes
+        else 0.0
+    )
+    history_input_count = context.source_history_count if context else len(history)
+    history_dropped_count = context.history_dropped_count if context else 0
+    history_content_truncated = (
+        context.history_content_truncated if context else False
+    )
+    summary_estimated_tokens = context.summary_estimated_tokens if context else 0
+    summary_truncated = context.summary_truncated if context else False
     logger.info(
         "[AI_CONTEXT] stage=%s requestId=%s historyCount=%d "
-        "historyContentChars=%d summaryChars=%d userMessageChars=%d "
+        "historyInputCount=%d historyDroppedCount=%d "
+        "historyContentChars=%d historyEstimatedTokens=%d "
+        "historyBudgetTokens=%d historyContentTruncated=%s "
+        "summaryChars=%d summaryEstimatedTokens=%d summaryBudgetTokens=%d "
+        "summaryTruncated=%s userMessageChars=%d "
         "messageCount=%d tool=%s toolStatus=%s toolResultChars=%d "
-        "toolResultBytes=%d productCount=%d",
+        "toolResultBytes=%d toolResultOriginalChars=%d "
+        "toolResultOriginalBytes=%d toolResultReductionPercent=%.1f "
+        "productCount=%d",
         stage,
         current_request_id(),
         len(history),
+        history_input_count,
+        history_dropped_count,
         _message_content_chars(history),
+        context.history_estimated_tokens if context else 0,
+        HISTORY_TOKEN_BUDGET,
+        history_content_truncated,
         len(summary.strip()) if isinstance(summary, str) else 0,
+        summary_estimated_tokens,
+        SUMMARY_TOKEN_BUDGET,
+        summary_truncated,
         len(user_message),
         message_count,
         tool_name,
         tool_status,
         tool_result_chars,
         tool_result_bytes,
+        tool_result_original_chars,
+        tool_result_original_bytes,
+        tool_result_reduction_percent,
         product_count,
     )
 
@@ -178,6 +233,9 @@ class FinancialAgent:
     ) -> str:
         self.selected_tool = None
         self.selected_tool_result = None
+        context = build_bounded_context(history, summary)
+        history = context.history
+        summary = context.summary
         messages: list[dict[str, Any]] = [
             {"role": "system", "content": SYSTEM_PROMPT},
         ]
@@ -198,6 +256,7 @@ class FinancialAgent:
             summary=summary,
             user_message=user_message,
             message_count=len(messages),
+            context=context,
         )
         if is_spending_request(user_message, previous_consumption_period):
             arguments = build_spending_arguments(
@@ -209,12 +268,13 @@ class FinancialAgent:
             self.selected_tool = SPENDING_ANALYSIS_TOOL
             if tool_result.status == "success" and isinstance(tool_result.data, dict):
                 self.selected_tool_result = tool_result.data
+            tool_payload = compact_tool_result_for_prompt(tool_result)
             messages.insert(len(messages) - 1, {
                 "role": "system",
                 "content": (
                     "다음은 coach_spending 도구가 계산한 결과입니다. 수치를 다시 계산하거나 "
                     "추측하지 말고 사용자의 질문에 맞춰 설명하세요.\n"
-                    + json.dumps(tool_result.to_dict(), ensure_ascii=False)
+                    + json.dumps(tool_payload, ensure_ascii=False)
                 ),
             })
             with timed_groq_completion(
@@ -231,18 +291,29 @@ class FinancialAgent:
                     final_completion.choices[0].message.content
                     or "소비분석 결과를 정리하지 못했습니다."
                 )
+        route_tools = select_route_tool_schemas(user_message)
+        route_completion_tokens = (
+            ROUTE_TOOL_COMPLETION_TOKENS
+            if route_tools
+            else ROUTE_DIRECT_COMPLETION_TOKENS
+        )
+        route_options: dict[str, Any] = {
+            "messages": messages,
+            "reasoning_effort": "low",
+            "max_completion_tokens": route_completion_tokens,
+        }
+        if route_tools:
+            route_options.update({
+                "tools": route_tools,
+                "tool_choice": "auto",
+            })
         with timed_groq_completion(
             self.client,
             operation="chat.route",
             model=self.model,
-            requested_completion_tokens=500,
+            requested_completion_tokens=route_completion_tokens,
         ) as timing:
-            completion = timing.create(
-                messages=messages,
-                tools=TOOL_SCHEMAS,
-                tool_choice="auto",
-                max_completion_tokens=500,
-            )
+            completion = timing.create(**route_options)
         assistant_message = completion.choices[0].message
         if not assistant_message.tool_calls:
             logger.info("[AI ROUTING] direct_response")
@@ -259,7 +330,11 @@ class FinancialAgent:
             consumption_context,
         )
         logger.info("[AI TOOL] selected=%s status=%s", tool_call.function.name, tool_result.status)
-        tool_payload = tool_result.to_dict()
+        tool_result_original_content = json.dumps(
+            tool_result.to_dict(),
+            ensure_ascii=False,
+        )
+        tool_payload = compact_tool_result_for_prompt(tool_result)
         tool_content = json.dumps(tool_payload, ensure_ascii=False)
         if tool_result.status == "success" and isinstance(tool_result.data, dict):
             self.selected_tool_result = tool_result.data
@@ -301,6 +376,8 @@ class FinancialAgent:
             tool_status=tool_result.status,
             tool_result=tool_payload,
             tool_result_json=tool_content,
+            tool_result_original_json=tool_result_original_content,
+            context=context,
         )
         if self.selected_tool == ASSET_ANALYSIS_TOOL:
             messages.insert(1, {
