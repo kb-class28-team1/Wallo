@@ -168,12 +168,13 @@ def test_chat_generates_title_when_requested():
 
     with (
         patch("app.chat.service.FinancialAgent.run", return_value="저축 계획을 세워볼게요."),
-        patch("app.chat.service.generate_conversation_title", return_value="3년 전세자금 계획") as title_mock,
+        patch("app.chat.service.build_conversation_title", return_value="3년 전세자금 계획") as title_mock,
     ):
         response = service.chat(ChatRequest(message="전세자금을 모으고 싶어", generateTitle=True))
 
     assert response.title == "3년 전세자금 계획"
-    title_mock.assert_called_once_with(client, "전세자금을 모으고 싶어", "저축 계획을 세워볼게요.")
+    title_mock.assert_called_once_with("전세자금을 모으고 싶어")
+    assert client.chat.completions.create.call_count == 0
 
 
 def _tool_names(schemas):

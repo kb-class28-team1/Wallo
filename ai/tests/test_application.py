@@ -83,7 +83,7 @@ from app.agents.financial.tools.asset_analysis import (
     execute as execute_asset_analysis,
     load_selected_profiles,
 )
-from app.chat.title_service import generate_conversation_title
+from app.chat.title_service import build_conversation_title
 from app.demo.repository import load_demo_profiles
 from app.demo.service import (
     build_demo_asset_facts,
@@ -204,33 +204,10 @@ class GenerateAnswerTest(unittest.TestCase):
         self.assertEqual(first_answer, second_answer)
         self.assertEqual(3, client.chat.completions.create.call_count)
 
-    def test_generates_title_through_required_tool_call(self):
-        client = Mock()
-        title_call = SimpleNamespace(
-            function=SimpleNamespace(
-                arguments=json.dumps({"title": "3년 전세자금 계획"}),
-            )
-        )
-        client.chat.completions.create.return_value = _completion(
-            SimpleNamespace(content=None, tool_calls=[title_call])
-        )
+    def test_builds_title_without_an_ai_call(self):
+        title = build_conversation_title("3년 뒤 전세 자금을 마련하고 싶어")
 
-        title = generate_conversation_title(
-            client,
-            "3년 뒤 전세 자금을 마련하고 싶어",
-            "매달 필요한 저축 금액을 계산해볼게요.",
-        )
-
-        self.assertEqual("3년 전세자금 계획", title)
-        call_arguments = client.chat.completions.create.call_args.kwargs
-        self.assertEqual(
-            "generate_conversation_title",
-            call_arguments["tool_choice"]["function"]["name"],
-        )
-        self.assertEqual(
-            "generate_conversation_title",
-            call_arguments["tools"][0]["function"]["name"],
-        )
+        self.assertEqual("주거 자금 마련", title)
 
 
 class DemoAssetAnalysisTest(unittest.TestCase):
