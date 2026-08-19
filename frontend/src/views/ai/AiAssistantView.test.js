@@ -50,8 +50,24 @@ describe("AiAssistantView", () => {
     getTodayMissions.mockResolvedValue({
       status: "READY",
       missions: [
-        { id: 11, title: "커피 대신 물 마시기", icon: "☕", rewardPoint: 10, completed: true },
-        { id: 12, title: "배달 대신 집밥 먹기", icon: "🍚", rewardPoint: 10, completed: false },
+        {
+          id: 11,
+          title: "커피 대신 물 마시기",
+          description: "오후에는 커피 대신 물을 마셔보세요.",
+          evidenceGuide: "물을 마신 뒤 직접 완료 여부를 확인하세요.",
+          icon: "☕",
+          rewardPoint: 10,
+          completed: true,
+        },
+        {
+          id: 12,
+          title: "배달 대신 집밥 먹기",
+          description: "오늘 한 끼는 집에 있는 재료로 준비하세요.",
+          evidenceGuide: "완성한 음식 사진을 피드에 등록하세요.",
+          icon: "🍚",
+          rewardPoint: 10,
+          completed: false,
+        },
       ],
     })
 
@@ -60,9 +76,34 @@ describe("AiAssistantView", () => {
 
     expect(wrapper.find(".mission-card").exists()).toBe(true)
     expect(wrapper.find(".mission-count").text()).toBe("1/2")
-    expect(wrapper.text()).toContain("10 / 20P")
     expect(wrapper.findAll(".mission-list-item")).toHaveLength(2)
     expect(wrapper.findAll(".mission-list-item")[0].classes()).toContain("completed")
+    expect(wrapper.text()).toContain("오후에는 커피 대신 물을 마셔보세요.")
+    expect(wrapper.text()).toContain("물을 마신 뒤 직접 완료 여부를 확인하세요.")
+  })
+
+  it("reflects missions generated for the next development date", async () => {
+    const wrapper = mount(AiAssistantView)
+    await flushPromises()
+
+    window.dispatchEvent(
+      new CustomEvent("wallo:mission-updated", {
+        detail: {
+          missionResponse: {
+            date: "2026-08-20",
+            status: "READY",
+            missions: [
+              { id: 21, title: "다음날 외식 줄이기", icon: "🍚", rewardPoint: 10, completed: false },
+            ],
+          },
+        },
+      }),
+    )
+    await flushPromises()
+
+    expect(wrapper.text()).toContain("다음날 외식 줄이기")
+    expect(wrapper.find(".mission-count").text()).toBe("0/1")
+    wrapper.unmount()
   })
 
   it("moves to chat when the goal setting button is selected", async () => {

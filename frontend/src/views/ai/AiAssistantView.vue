@@ -41,20 +41,13 @@ const missions = ref([])
 const missionStatus = ref("READY")
 const missionError = ref("")
 const isMissionLoading = ref(false)
+let missionDateTimer = null
 
 const currentAmount = computed(() => getGoalCurrentAmount(currentGoal.value))
 const targetAmount = computed(() => getGoalTargetAmount(currentGoal.value))
 const achievementRate = computed(() => getGoalAchievementRate(currentGoal.value))
 const completedMissionCount = computed(
   () => missions.value.filter((mission) => mission.completed).length,
-)
-const completedMissionReward = computed(() =>
-  missions.value
-    .filter((mission) => mission.completed)
-    .reduce((total, mission) => total + Number(mission.rewardPoint || 0), 0),
-)
-const totalMissionReward = computed(() =>
-  missions.value.reduce((total, mission) => total + Number(mission.rewardPoint || 0), 0),
 )
 
 const parseGoalDate = (value) => {
@@ -188,6 +181,12 @@ const loadTodayMissionList = async () => {
   }
 }
 
+const applyMissionResponse = (response) => {
+  missions.value = response?.missions || []
+  missionStatus.value = response?.status || "READY"
+  missionError.value = ""
+}
+
 const startGoalSetting = async () => {
   await router.push({
     name: "chat",
@@ -199,16 +198,44 @@ const startAiChat = async () => {
   await router.push({ name: "chat" })
 }
 
-const handleMissionUpdated = () => void loadTodayMissionList()
+const handleMissionUpdated = (event) => {
+  const generatedResponse = event?.detail?.missionResponse
+  if (generatedResponse) {
+    applyMissionResponse(generatedResponse)
+    return
+  }
+  void loadTodayMissionList()
+}
+
+const scheduleNextMissionDateRefresh = () => {
+  if (missionDateTimer) clearTimeout(missionDateTimer)
+  const now = new Date()
+  const nextDate = new Date(now)
+  nextDate.setHours(24, 0, 0, 250)
+  missionDateTimer = setTimeout(async () => {
+    await loadTodayMissionList()
+    scheduleNextMissionDateRefresh()
+  }, nextDate.getTime() - now.getTime())
+}
+
+const handlePageVisibility = () => {
+  if (document.visibilityState === "visible") void loadTodayMissionList()
+}
 
 onMounted(() => {
   window.addEventListener("wallo:mission-updated", handleMissionUpdated)
+  window.addEventListener("focus", handlePageVisibility)
+  document.addEventListener("visibilitychange", handlePageVisibility)
   void loadGoalPage({ force: true })
   void loadTodayMissionList()
+  scheduleNextMissionDateRefresh()
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener("wallo:mission-updated", handleMissionUpdated)
+  window.removeEventListener("focus", handlePageVisibility)
+  document.removeEventListener("visibilitychange", handlePageVisibility)
+  if (missionDateTimer) clearTimeout(missionDateTimer)
 })
 </script>
 
@@ -263,15 +290,15 @@ onBeforeUnmount(() => {
 
     <div v-else-if="!hasGoal" class="empty-dashboard">
       <div class="row g-4 align-items-stretch">
-        <div class="col-xl-8">
-          <AppCard as="article" class="content-card" padding="none">
-            <div class="card-body p-4 p-lg-5">
+        <div class="col-xl-7">
+          <AppCard as="article" class="content-card goal-main-card" padding="none">
+            <div class="card-body p-4">
               <h2 class="section-title h5 fw-bold">
                 나의 목표
                 <i class="bi bi-info-circle ms-1 text-secondary" aria-hidden="true"></i>
               </h2>
 
-              <div class="goal-empty-box mt-4">
+              <div class="goal-empty-box mt-3">
                 <div class="character-wrap" aria-hidden="true">
                   <span class="question-mark">?</span>
                   <img :src="walloCharacter" alt="" />
@@ -288,7 +315,7 @@ onBeforeUnmount(() => {
                 </AppButton>
               </div>
 
-              <div class="goal-coaching-inline mt-4">
+              <div class="goal-coaching-inline mt-3">
                 <div class="goal-coaching-copy">
                   <span class="goal-coaching-label">
                     <i class="bi bi-stars" aria-hidden="true"></i>
@@ -304,14 +331,11 @@ onBeforeUnmount(() => {
           </AppCard>
         </div>
 
-        <div class="col-xl-4">
+        <div class="col-xl-5">
           <AppCard as="aside" class="content-card mission-card h-100" padding="none">
-            <div class="card-body p-4 p-lg-5">
+            <div class="card-body p-4">
               <div class="mission-card-heading">
-                <div>
-                  <span class="mission-card-eyebrow">DAILY CHALLENGE</span>
-                  <h2 class="section-title h5 fw-bold mt-1">오늘의 미션</h2>
-                </div>
+                <h2 class="section-title h5 fw-bold">오늘의 미션</h2>
                 <strong v-if="missions.length" class="mission-count">
                   {{ completedMissionCount }}/{{ missions.length }}
                 </strong>
@@ -337,10 +361,6 @@ onBeforeUnmount(() => {
                 오늘 배정된 미션이 없습니다.
               </div>
               <div v-else class="mission-panel mt-4">
-                <div class="mission-reward-progress">
-                  <span>획득 포인트</span>
-                  <strong>{{ completedMissionReward }} / {{ totalMissionReward }}P</strong>
-                </div>
                 <ul class="mission-list list-unstyled mb-0">
                   <li
                     v-for="mission in missions"
@@ -350,8 +370,14 @@ onBeforeUnmount(() => {
                   >
                     <span class="mission-icon" aria-hidden="true">{{ mission.icon }}</span>
                     <span class="mission-copy">
-                      <strong>{{ mission.title }}</strong>
-                      <small>+{{ mission.rewardPoint }}P</small>
+                      <strong :title="mission.title">{{ mission.title }}</strong>
+                      <span class="mission-description" :title="mission.description">
+                        {{ mission.description }}
+                      </span>
+                      <span class="mission-guide" :title="mission.evidenceGuide">
+                        <b>달성 방법</b>
+                        {{ mission.evidenceGuide }}
+                      </span>
                     </span>
                     <i
                       class="mission-check-icon bi"
@@ -418,9 +444,9 @@ onBeforeUnmount(() => {
 
     <div v-else class="goal-dashboard">
       <div class="row g-4 align-items-stretch">
-        <div class="col-xl-8">
-          <AppCard as="article" class="content-card" padding="none">
-            <div class="card-body p-4 p-lg-5">
+        <div class="col-xl-7">
+          <AppCard as="article" class="content-card goal-main-card" padding="none">
+            <div class="card-body p-4">
               <div class="goal-card-heading d-flex align-items-start justify-content-between gap-3">
                 <h2 class="section-title h5 fw-bold">나의 목표</h2>
                 <div class="goal-heading-actions d-flex align-items-center gap-2">
@@ -438,7 +464,7 @@ onBeforeUnmount(() => {
                 </div>
               </div>
 
-              <div class="goal-summary mt-4">
+              <div class="goal-summary mt-3">
                 <div class="goal-summary-icon" aria-hidden="true">
                   <i class="bi bi-bullseye"></i>
                 </div>
@@ -452,7 +478,7 @@ onBeforeUnmount(() => {
                 </div>
               </div>
 
-              <div class="goal-progress-panel mt-4">
+              <div class="goal-progress-panel mt-3">
                 <div class="d-flex align-items-end justify-content-between gap-3">
                   <div>
                     <span class="small text-secondary">현재 모은 금액</span>
@@ -484,7 +510,7 @@ onBeforeUnmount(() => {
                 </div>
               </div>
 
-              <div class="goal-coaching-inline mt-4">
+              <div class="goal-coaching-inline mt-3">
                 <div class="goal-coaching-copy">
                   <span class="goal-coaching-label">
                     <i class="bi bi-stars" aria-hidden="true"></i>
@@ -498,14 +524,11 @@ onBeforeUnmount(() => {
           </AppCard>
         </div>
 
-        <div class="col-xl-4">
+        <div class="col-xl-5">
           <AppCard as="aside" class="content-card mission-card h-100" padding="none">
-            <div class="card-body p-4 p-lg-5">
+            <div class="card-body p-4">
               <div class="mission-card-heading">
-                <div>
-                  <span class="mission-card-eyebrow">DAILY CHALLENGE</span>
-                  <h2 class="section-title h5 fw-bold mt-1">오늘의 미션</h2>
-                </div>
+                <h2 class="section-title h5 fw-bold">오늘의 미션</h2>
                 <strong v-if="missions.length" class="mission-count">
                   {{ completedMissionCount }}/{{ missions.length }}
                 </strong>
@@ -531,10 +554,6 @@ onBeforeUnmount(() => {
                 오늘 배정된 미션이 없습니다.
               </div>
               <div v-else class="mission-panel mt-4">
-                <div class="mission-reward-progress">
-                  <span>획득 포인트</span>
-                  <strong>{{ completedMissionReward }} / {{ totalMissionReward }}P</strong>
-                </div>
                 <ul class="mission-list list-unstyled mb-0">
                   <li
                     v-for="mission in missions"
@@ -544,8 +563,14 @@ onBeforeUnmount(() => {
                   >
                     <span class="mission-icon" aria-hidden="true">{{ mission.icon }}</span>
                     <span class="mission-copy">
-                      <strong>{{ mission.title }}</strong>
-                      <small>+{{ mission.rewardPoint }}P</small>
+                      <strong :title="mission.title">{{ mission.title }}</strong>
+                      <span class="mission-description" :title="mission.description">
+                        {{ mission.description }}
+                      </span>
+                      <span class="mission-guide" :title="mission.evidenceGuide">
+                        <b>달성 방법</b>
+                        {{ mission.evidenceGuide }}
+                      </span>
                     </span>
                     <i
                       class="mission-check-icon bi"
@@ -763,10 +788,10 @@ onBeforeUnmount(() => {
 
 .goal-empty-box {
   display: flex;
-  min-height: 230px;
+  min-height: 170px;
   align-items: center;
   gap: 2rem;
-  padding: 2rem 2.25rem;
+  padding: 1.35rem 1.5rem;
   border: 2px dashed #c9c5ff;
   border-radius: 20px;
   background: linear-gradient(135deg, #fff 0%, #f7f6ff 100%);
@@ -774,13 +799,13 @@ onBeforeUnmount(() => {
 
 .character-wrap {
   position: relative;
-  flex: 0 0 150px;
+  flex: 0 0 112px;
   text-align: center;
 }
 
 .character-wrap img {
-  width: 135px;
-  max-height: 145px;
+  width: 104px;
+  max-height: 112px;
   object-fit: contain;
 }
 
@@ -789,7 +814,7 @@ onBeforeUnmount(() => {
   top: -24px;
   right: 4px;
   color: #8a7df2;
-  font-size: 3.6rem;
+  font-size: 2.75rem;
   font-weight: 800;
 }
 
@@ -818,11 +843,11 @@ onBeforeUnmount(() => {
 
 .goal-coaching-inline {
   display: flex;
-  min-height: 104px;
+  min-height: 78px;
   align-items: center;
   justify-content: space-between;
   gap: 1.5rem;
-  padding: 1.25rem 1.5rem;
+  padding: 0.85rem 1.15rem;
   border: 1px solid #dedafd;
   border-radius: 18px;
   background: linear-gradient(135deg, #f7f6ff 0%, #eeecff 100%);
@@ -849,8 +874,8 @@ onBeforeUnmount(() => {
 }
 
 .goal-coaching-inline img {
-  width: 78px;
-  height: 72px;
+  width: 58px;
+  height: 54px;
   flex: 0 0 auto;
   object-fit: contain;
 }
@@ -861,36 +886,31 @@ onBeforeUnmount(() => {
 }
 
 .mission-card-heading,
-.mission-reward-progress,
 .mission-list-item {
   display: flex;
   align-items: center;
 }
 
-.mission-card-heading,
-.mission-reward-progress {
+.mission-card-heading {
+  align-items: flex-start;
+}
+
+.mission-card-heading {
   justify-content: space-between;
   gap: 1rem;
 }
 
-.mission-card-eyebrow {
-  color: #7567e9;
-  font-size: 0.7rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-}
-
 .mission-count {
   display: inline-flex;
-  min-width: 48px;
-  height: 48px;
+  min-width: 30px;
+  height: 30px;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
   color: #fff;
   background: linear-gradient(135deg, #7769f5, #5f4fd9);
   box-shadow: 0 8px 18px rgb(100 83 232 / 20%);
-  font-size: 0.9rem;
+  font-size: 0.68rem;
 }
 
 .mission-state,
@@ -912,18 +932,6 @@ onBeforeUnmount(() => {
   gap: 1rem;
 }
 
-.mission-reward-progress {
-  padding: 0.8rem 1rem;
-  border-radius: 14px;
-  color: #6f7588;
-  background: #f3f1ff;
-  font-size: 0.82rem;
-}
-
-.mission-reward-progress strong {
-  color: #6555df;
-}
-
 .mission-list {
   display: flex;
   flex-direction: column;
@@ -931,6 +939,8 @@ onBeforeUnmount(() => {
 }
 
 .mission-list-item {
+  position: relative;
+  align-items: flex-start;
   gap: 0.8rem;
   padding: 0.9rem;
   border: 1px solid #e7e7f2;
@@ -964,15 +974,37 @@ onBeforeUnmount(() => {
 }
 
 .mission-copy strong {
+  display: -webkit-box;
   overflow: hidden;
   font-size: 0.9rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
-.mission-copy small {
-  color: #7567e9;
-  font-weight: 700;
+.mission-description,
+.mission-guide {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #6f7588;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.mission-guide {
+  margin-top: 0.15rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 9px;
+  background: #f3f1ff;
+  color: #555d73;
+}
+
+.mission-guide b {
+  margin-right: 0.25rem;
+  color: #6555df;
+  font-size: 0.72rem;
 }
 
 .mission-list-item.completed .mission-copy strong {
@@ -982,6 +1014,7 @@ onBeforeUnmount(() => {
 
 .mission-check-icon {
   flex: 0 0 auto;
+  margin-top: 0.1rem;
   color: #aaaebd;
   font-size: 1.2rem;
 }
@@ -1204,15 +1237,15 @@ onBeforeUnmount(() => {
 
 .goal-summary-icon {
   display: inline-flex;
-  width: 72px;
-  height: 72px;
-  flex: 0 0 72px;
+  width: 60px;
+  height: 60px;
+  flex: 0 0 60px;
   align-items: center;
   justify-content: center;
   border-radius: 22px;
   color: #6d5dea;
   background: #eeecff;
-  font-size: 2.1rem;
+  font-size: 1.75rem;
 }
 
 .goal-type {
@@ -1222,14 +1255,14 @@ onBeforeUnmount(() => {
 }
 
 .goal-progress-panel {
-  padding: 1.4rem 1.5rem;
+  padding: 1rem 1.2rem;
   border-radius: 18px;
   background: #f8f8fe;
 }
 
 .goal-current-amount {
   color: #5f50d8;
-  font-size: 1.55rem;
+  font-size: 1.35rem;
   font-weight: 800;
 }
 

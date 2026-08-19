@@ -130,7 +130,14 @@ const startMissionPolling = () => {
   }, MISSION_POLL_INTERVAL_MS)
 }
 
-const handleMissionUpdated = async () => {
+const handleMissionUpdated = async (event) => {
+  const generatedResponse = event?.detail?.missionResponse
+  if (generatedResponse) {
+    missionStatus.value = generatedResponse.status || "READY"
+    missions.value = generatedResponse.missions || []
+    missionFailureReason.value = generatedResponse.failureReason || null
+    return
+  }
   await loadTodayMissions()
   if (["WAITING_ANALYSIS", MISSION_GENERATION_FAILED_STATUS].includes(missionStatus.value)) {
     startMissionPolling()
@@ -148,6 +155,11 @@ const generateNextDay = async () => {
       count: response.missions.length,
       titles: response.missions.map((mission) => mission.title),
     }
+    window.dispatchEvent(
+      new CustomEvent("wallo:mission-updated", {
+        detail: { missionResponse: response },
+      }),
+    )
   } catch (error) {
     missionStatus.value = "ERROR"
     if (error.status === 429) {
