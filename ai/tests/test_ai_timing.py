@@ -8,6 +8,12 @@ import pytest
 from groq import Groq as GroqSdk, RateLimitError
 
 from app.clients.groq_client import Groq
+from app.core.ai_guard import (
+    ApplicationAIGuard,
+    ApplicationConcurrencyLimitExceeded,
+    ApplicationTokenBudgetExceeded,
+    TokenBucket,
+)
 from app.core.ai_timing import (
     get_groq_retry_count,
     log_groq_completion_timing,
@@ -17,6 +23,82 @@ from app.core.ai_timing import (
     timed_groq_completion,
     was_groq_rate_limited,
 )
+
+
+def test_token_bucket_rejects_burst_and_refills_after_elapsed_time():
+    now = [0.0]
+    bucket = TokenBucket(
+        capacity=100,
+        refill_tokens_per_second=10,
+        clock=lambda: now[0],
+    )
+
+    assert bucket.try_consume(80) is None
+    assert bucket.try_consume(30) == 1.0
+
+    now[0] = 1.0
+    assert bucket.try_consume(30) is None
+
+
+def test_application_guard_protects_concurrency_and_reconciles_actual_usage():
+    small_guard = ApplicationAIGuard(
+        token_capacity=100,
+        refill_tokens_per_minute=6_000,
+        max_in_flight_requests=1,
+    )
+    with pytest.raises(ApplicationTokenBudgetExceeded, match="exceeds"):
+        small_guard.reserve(101)
+
+    guard = ApplicationAIGuard(
+        token_capacity=1_000,
+        refill_tokens_per_minute=60_000,
+        max_in_flight_requests=1,
+    )
+    lease = guard.reserve(100)
+
+    with pytest.raises(ApplicationConcurrencyLimitExceeded):
+        guard.reserve(1)
+
+    assert guard.in_flight_requests == 1
+    lease.release(actual_tokens=20)
+
+    assert guard.in_flight_requests == 0
+    assert guard.bucket.available_tokens == pytest.approx(980, abs=0.1)
+
+
+def test_timed_completion_blocks_provider_call_when_application_budget_is_exhausted(
+    monkeypatch,
+    caplog,
+):
+    import app.core.ai_timing as ai_timing
+
+    caplog.set_level(logging.INFO, logger="wallo_ai")
+    guard = ApplicationAIGuard(
+        token_capacity=10,
+        refill_tokens_per_minute=600,
+        max_in_flight_requests=1,
+    )
+    monkeypatch.setattr(ai_timing, "_APPLICATION_GUARD", guard)
+
+    class Completions:
+        def create(self, **kwargs):
+            raise AssertionError("provider call should be blocked by the guard")
+
+    client = SimpleNamespace(chat=SimpleNamespace(completions=Completions()))
+
+    with timed_groq_completion(
+        client,
+        operation="test.guard",
+        model="test-model",
+    ) as timing:
+        with pytest.raises(ApplicationTokenBudgetExceeded):
+            timing.create(
+                messages=[{"role": "user", "content": "hello"}],
+                max_completion_tokens=20,
+            )
+
+    assert "[AI_GUARD]" in caplog.text
+    assert "status=rejected" in caplog.text
 
 
 def test_timed_groq_completion_logs_actual_usage(caplog):

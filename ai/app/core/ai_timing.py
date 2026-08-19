@@ -1,11 +1,23 @@
 import json
 import logging
+import math
 import re
 import threading
 from contextlib import contextmanager
 from contextvars import ContextVar
 from time import perf_counter
 from typing import Any
+
+from app.core.ai_guard import (
+    ApplicationAIGuard,
+    ApplicationGuardError,
+    ApplicationGuardLease,
+)
+from app.core.config import (
+    get_ai_max_in_flight_requests,
+    get_ai_token_bucket_capacity,
+    get_ai_token_bucket_refill_per_minute,
+)
 
 
 LOGGER = logging.getLogger("wallo_ai")
@@ -15,6 +27,8 @@ _REQUEST_ID: ContextVar[str | None] = ContextVar(
 )
 _IN_FLIGHT_LOCK = threading.Lock()
 _IN_FLIGHT_REQUESTS = 0
+_APPLICATION_GUARD_LOCK = threading.Lock()
+_APPLICATION_GUARD: ApplicationAIGuard | None = None
 _TPM_USAGE_PATTERN = re.compile(
     r"tokens per minute \(TPM\):\s*Limit\s+(?P<limit>\d+),\s*"
     r"Used\s+(?P<used>\d+),\s*Requested\s+(?P<requested>\d+)",
@@ -46,6 +60,25 @@ def current_request_id() -> str | None:
     return _REQUEST_ID.get()
 
 
+def get_application_ai_guard() -> ApplicationAIGuard:
+    global _APPLICATION_GUARD
+    if _APPLICATION_GUARD is None:
+        with _APPLICATION_GUARD_LOCK:
+            if _APPLICATION_GUARD is None:
+                _APPLICATION_GUARD = ApplicationAIGuard(
+                    token_capacity=get_ai_token_bucket_capacity(),
+                    refill_tokens_per_minute=get_ai_token_bucket_refill_per_minute(),
+                    max_in_flight_requests=get_ai_max_in_flight_requests(),
+                )
+    return _APPLICATION_GUARD
+
+
+def reset_application_ai_guard() -> None:
+    global _APPLICATION_GUARD
+    with _APPLICATION_GUARD_LOCK:
+        _APPLICATION_GUARD = None
+
+
 def _serialized_size(value: Any) -> tuple[int, int]:
     try:
         serialized = json.dumps(
@@ -57,6 +90,25 @@ def _serialized_size(value: Any) -> tuple[int, int]:
     except (TypeError, ValueError):
         serialized = str(value)
     return len(serialized), len(serialized.encode("utf-8"))
+
+
+def _estimate_text_tokens(text: str) -> int:
+    ascii_characters = sum(ord(character) < 128 for character in text)
+    non_ascii_characters = len(text) - ascii_characters
+    return math.ceil(non_ascii_characters + ascii_characters / 4)
+
+
+def _estimate_serialized_tokens(value: Any) -> int:
+    try:
+        serialized = json.dumps(
+            value,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            default=str,
+        )
+    except (TypeError, ValueError):
+        serialized = str(value)
+    return _estimate_text_tokens(serialized)
 
 
 def _content_length(message: Any) -> int:
@@ -82,6 +134,16 @@ def _request_shape(request_options: dict[str, Any]) -> dict[str, int]:
         "tool_json_chars": tool_chars,
         "tool_json_bytes": tool_bytes,
     }
+
+
+def _estimate_prompt_tokens(request_options: dict[str, Any]) -> int:
+    messages = request_options.get("messages") or []
+    tools = request_options.get("tools") or []
+    return max(
+        1,
+        _estimate_serialized_tokens(messages)
+        + _estimate_serialized_tokens(tools),
+    )
 
 
 def _begin_groq_request() -> int:
@@ -215,6 +277,9 @@ class GroqCompletionTimer:
         self.fallback_used = False
         self.fallback_reason: str | None = None
         self.success = False
+        self.estimated_prompt_tokens: int | None = None
+        self.guard_reserved_tokens: int | None = None
+        self.guard_lease: ApplicationGuardLease | None = None
 
     def __enter__(self) -> "GroqCompletionTimer":
         reset_groq_retry_tracking(self.client)
@@ -250,11 +315,49 @@ class GroqCompletionTimer:
             if isinstance(requested, int) and not isinstance(requested, bool):
                 self.requested_completion_tokens = requested
         shape = _request_shape(request_options)
+        self.estimated_prompt_tokens = _estimate_prompt_tokens(request_options)
+        guard_reserved_tokens = max(
+            1,
+            self.estimated_prompt_tokens
+            + (self.requested_completion_tokens or 0),
+        )
+        try:
+            self.guard_lease = get_application_ai_guard().reserve(
+                guard_reserved_tokens
+            )
+            self.guard_reserved_tokens = guard_reserved_tokens
+        except ApplicationGuardError as error:
+            self.failure_reason = type(error).__name__
+            LOGGER.warning(
+                "[AI_GUARD] operation=%s requestId=%s status=rejected "
+                "reason=%s requestedTokens=%d availableTokens=%.0f "
+                "retryAfterSeconds=%s",
+                self.operation,
+                normalize_request_id(self.request_id),
+                type(error).__name__,
+                guard_reserved_tokens,
+                getattr(error, "available_tokens", None) or 0,
+                getattr(error, "retry_after_seconds", None),
+            )
+            raise
+        LOGGER.info(
+            "[AI_GUARD] operation=%s requestId=%s status=reserved "
+            "estimatedPromptTokens=%d requestedCompletionTokens=%s "
+            "reservedTokens=%d remainingTokens=%.0f inFlight=%d",
+            self.operation,
+            normalize_request_id(self.request_id),
+            self.estimated_prompt_tokens,
+            self.requested_completion_tokens,
+            guard_reserved_tokens,
+            self.guard_lease.available_tokens,
+            self.guard_lease.in_flight_requests,
+        )
         in_flight = _begin_groq_request()
         LOGGER.info(
             "[AI_REQUEST] operation=%s requestId=%s model=%s inFlight=%d "
             "messageCount=%d messageContentChars=%d messageJsonChars=%d "
             "messageJsonBytes=%d toolCount=%d toolJsonChars=%d toolJsonBytes=%d "
+            "estimatedPromptTokens=%d guardReservedTokens=%d "
             "requestedCompletionTokens=%s",
             self.operation,
             normalize_request_id(self.request_id),
@@ -267,6 +370,8 @@ class GroqCompletionTimer:
             shape["tool_count"],
             shape["tool_json_chars"],
             shape["tool_json_bytes"],
+            self.estimated_prompt_tokens,
+            guard_reserved_tokens,
             self.requested_completion_tokens,
         )
         try:
@@ -306,6 +411,23 @@ class GroqCompletionTimer:
             raise
         finally:
             _end_groq_request()
+            if self.guard_lease is not None:
+                usage = getattr(self.completion, "usage", None)
+                actual_tokens = _usage_value(usage, "total_tokens")
+                if not isinstance(actual_tokens, int) or isinstance(actual_tokens, bool):
+                    actual_tokens = 0 if self.completion is not None else None
+                self.guard_lease.release(actual_tokens)
+                LOGGER.info(
+                    "[AI_GUARD] operation=%s requestId=%s status=reconciled "
+                    "reservedTokens=%d actualTokens=%s remainingTokens=%.0f "
+                    "inFlight=%d",
+                    self.operation,
+                    normalize_request_id(self.request_id),
+                    self.guard_reserved_tokens or 0,
+                    actual_tokens,
+                    self.guard_lease.available_tokens,
+                    self.guard_lease.in_flight_requests,
+                )
 
     def mark_fallback(self, reason: str) -> None:
         self.fallback_used = True
