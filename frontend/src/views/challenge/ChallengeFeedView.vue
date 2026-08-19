@@ -923,7 +923,7 @@ onBeforeUnmount(() => {
                   class="like-burst"
                   :style="{ '--like-drift': `${burst.drift}px` }"
                 >
-                  ♥
+                  <i class="bi bi-heart-fill" aria-hidden="true"></i>
                 </span>
               </div>
               <div class="feed-like-row">
@@ -944,7 +944,9 @@ onBeforeUnmount(() => {
                   aria-label="좋아요 추가"
                   @click.stop="addLike(feed)"
                 >
-                  <span aria-hidden="true">♥</span>
+                  <span class="like-icon" aria-hidden="true">
+                    <i class="bi bi-heart-fill"></i>
+                  </span>
                   <strong>{{ feed.likeCount || 0 }}</strong>
                 </button>
               </div>
@@ -2244,6 +2246,268 @@ textarea {
   }
   .feed-owner-actions {
     align-self: flex-end;
+  }
+}
+
+/* Dashboard-style visual treatment for the challenge feed. */
+.feed-page {
+  padding: 22px;
+  border: 1px solid #dcecff;
+  border-radius: 30px;
+  background:
+    radial-gradient(circle at 8% 0%, #dceeff 0, transparent 32%),
+    linear-gradient(145deg, #edf7ff 0%, #f8fbff 48%, #ffffff 100%);
+}
+
+.feed-header {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 18px;
+  padding: 23px 26px;
+  border: 1px solid #d8e8f8;
+  border-radius: 23px;
+  background: rgb(255 255 255 / 82%);
+  box-shadow: 0 12px 28px rgb(76 132 190 / 8%);
+}
+
+.feed-header :deep(.app-page-header__title) {
+  color: #152b48;
+  font-size: clamp(1.55rem, 2.5vw, 2.15rem);
+  letter-spacing: -0.05em;
+}
+
+.feed-header :deep(.app-page-header__description) {
+  color: #7188a5;
+  font-size: 0.82rem;
+}
+
+.feed-layout {
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
+  gap: 20px;
+}
+
+.feed-sidebar {
+  position: sticky;
+  top: 88px;
+  right: auto;
+  width: auto;
+  height: calc(100vh - 116px);
+}
+
+.feed-toolbar {
+  padding: 9px;
+  margin-bottom: 16px;
+  border: 1px solid #dceafa;
+  border-radius: 17px;
+  background: rgb(255 255 255 / 88%);
+  box-shadow: 0 8px 20px rgb(78 132 184 / 7%);
+}
+
+.feed-tabs {
+  background: #e7f1fb;
+}
+
+.feed-tabs button {
+  color: #7890aa;
+}
+
+.feed-tabs button.active {
+  background: linear-gradient(135deg, #4f8ee8, #6e7be8);
+  box-shadow: 0 5px 12px rgb(79 142 232 / 22%);
+}
+
+.feed-invite-panel button {
+  color: #397bd2;
+  background: #edf6ff;
+  border-color: #c9e0fb;
+}
+
+.feed-leave-button.app-button {
+  color: #e26b7d;
+}
+
+.saving-total {
+  padding: 22px 24px;
+  border: 0;
+  border-radius: 22px;
+  background: linear-gradient(135deg, #5d94e9, #7f82ee);
+  box-shadow: 0 14px 26px rgb(83 128 224 / 24%);
+}
+
+.saving-total small {
+  color: #e6f2ff;
+  font-size: 0.75rem;
+}
+
+.saving-total strong {
+  color: #fff;
+  font-size: 1.65rem;
+  letter-spacing: -0.04em;
+}
+
+.empty-feed {
+  border-color: #cfe2f6;
+  background: rgb(255 255 255 / 85%);
+  box-shadow: 0 12px 28px rgb(76 132 190 / 7%);
+}
+
+.feed-card {
+  border: 1px solid #d7e5f3;
+  border-radius: 23px;
+  background: #fff;
+  box-shadow: 0 14px 28px rgb(64 105 151 / 12%);
+}
+
+.feed-card header {
+  padding: 17px 20px;
+  color: #203654;
+  border-bottom: 1px solid #eef4fa;
+}
+
+.feed-card header img {
+  box-shadow: 0 0 0 4px #edf6ff;
+}
+
+.feed-card header small {
+  color: #7890ab;
+}
+
+.saving-badge {
+  color: #3b76cb;
+  background: #eaf3ff;
+}
+
+.feed-media-wrap,
+.feed-media,
+.feed-media-wrap > video {
+  background: #09122d;
+}
+
+.feed-like-row {
+  bottom: 15px;
+}
+
+.like-button {
+  color: #e46682;
+}
+
+.like-button span,
+.like-button strong {
+  color: #e46682;
+}
+
+.like-button .like-icon {
+  display: inline-grid;
+  width: 1.25rem;
+  height: 1.25rem;
+  place-items: center;
+  font-family: "bootstrap-icons" !important;
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.like-button .like-icon i,
+.like-burst i {
+  font-family: "bootstrap-icons" !important;
+  font-style: normal;
+  line-height: 1;
+}
+
+.mention-feed-button {
+  color: #fff;
+}
+
+.feed-card footer {
+  color: #253b59;
+  background: #fff;
+}
+
+.feed-card footer span {
+  color: #7c91aa;
+}
+
+.chat-room {
+  color: #253b59;
+  border: 1px solid #d7e7f7;
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 14px 28px rgb(64 105 151 / 10%);
+}
+
+.chat-room > header {
+  padding: 19px;
+  border-bottom-color: #dceaf7;
+  background: #eaf5ff;
+}
+
+.chat-room h2 {
+  color: #203654;
+}
+
+.chat-room header small {
+  color: #7890ab;
+}
+
+.messages {
+  background: #fbfdff;
+  scrollbar-color: #b9d1e9 transparent;
+}
+
+.message-author {
+  color: #3d91a2;
+}
+
+.message.mine .message-author {
+  color: #b48642;
+}
+
+.message-bubble {
+  color: #3b5270;
+  background: #edf5fc;
+}
+
+.message.mine .message-bubble {
+  color: #fff;
+  background: #668fe0;
+}
+
+.chat-form {
+  background: #edf6ff;
+}
+
+.chat-form textarea {
+  color: #29415f;
+  background: #fff;
+  border: 1px solid #d8e6f3;
+}
+
+.chat-form button,
+.floating-add {
+  background: linear-gradient(135deg, #4f8ee8, #6f7ee8);
+  box-shadow: 0 10px 22px rgb(79 142 232 / 24%);
+}
+
+@media (max-width: 1200px) {
+  .feed-page {
+    padding: 16px;
+  }
+
+  .feed-sidebar {
+    position: static;
+    width: auto;
+    height: auto;
+  }
+}
+
+@media (max-width: 650px) {
+  .feed-page {
+    padding: 10px;
+    border-radius: 20px;
+  }
+
+  .feed-header {
+    padding: 18px;
+    border-radius: 18px;
   }
 }
 </style>
