@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
     name: "my-feeds",
   },
   routerPush: vi.fn(),
+  routerReplace: vi.fn(),
+  logout: vi.fn(),
 }))
 
 vi.mock("vue-router", () => ({
@@ -20,6 +22,13 @@ vi.mock("vue-router", () => ({
   useRoute: () => mocks.route,
   useRouter: () => ({
     push: mocks.routerPush,
+    replace: mocks.routerReplace,
+  }),
+}))
+
+vi.mock("@/stores/userStore", () => ({
+  useUserStore: () => ({
+    logout: mocks.logout,
   }),
 }))
 
@@ -32,11 +41,58 @@ describe("SideNavigation", () => {
     mocks.route.path = "/my-feeds"
     mocks.route.name = "my-feeds"
     mocks.routerPush.mockReset()
+    mocks.routerReplace.mockReset()
+    mocks.logout.mockReset()
+    mocks.logout.mockResolvedValue(undefined)
     getCurrentChallenge.mockResolvedValue({ joined: true, id: 7 })
   })
 
   afterEach(() => {
     vi.clearAllMocks()
+  })
+
+  it("shows the Wallo wordmark without a brand character image", () => {
+    const wrapper = mount(SideNavigation, {
+      global: {
+        stubs: {
+          AppDialog: { template: "<div />" },
+        },
+      },
+    })
+
+    expect(wrapper.find(".brand-name").text()).toBe("Wallo")
+    expect(wrapper.find(".brand img").exists()).toBe(false)
+    expect(wrapper.find(".brand").attributes("aria-label")).toBe("Wallo 대시보드로 이동")
+
+    wrapper.unmount()
+  })
+
+  it("places settings and logout above the sidebar character card", async () => {
+    const wrapper = mount(SideNavigation, {
+      global: {
+        stubs: {
+          AppDialog: { template: "<div />" },
+        },
+      },
+    })
+
+    const footer = wrapper.find(".sidebar-footer")
+    expect(footer.find(".sidebar-footer-divider").exists()).toBe(true)
+    expect(footer.text()).toContain("설정")
+    expect(footer.text()).toContain("로그아웃")
+    expect(footer.find(".sidebar-card").exists()).toBe(true)
+    expect(wrapper.find(".utility-group").text()).not.toContain("설정")
+    expect(wrapper.findAll('a[href="/users/profile"]')).toHaveLength(1)
+    expect(wrapper.find('a[href="/assets"] .bi-bar-chart-line').exists()).toBe(true)
+    expect(wrapper.find('a[href="/point-shop"] .bi-gift').exists()).toBe(true)
+
+    await footer.find(".sidebar-logout").trigger("click")
+    await flushPromises()
+
+    expect(mocks.logout).toHaveBeenCalledOnce()
+    expect(mocks.routerReplace).toHaveBeenCalledWith("/login")
+
+    wrapper.unmount()
   })
 
   it("keeps challenge navigation open and routes to my feeds", async () => {

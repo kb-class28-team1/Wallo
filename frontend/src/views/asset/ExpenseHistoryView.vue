@@ -170,7 +170,6 @@ const hasAnyData = computed(
     expenseData.value.transactions.length > 0,
 )
 
-const summaryDescription = computed(() => `${monthLabel.value}의 수입과 지출 기록을 확인하세요.`)
 
 const selectedDateLabel = computed(() => {
   if (!selectedDate.value) return ""
@@ -494,7 +493,7 @@ onMounted(async () => {
 
 <template>
   <section class="expense-history-view">
-    <AppPageHeader class="page-header" :title="`월별 리포트`" :description="summaryDescription">
+    <AppPageHeader class="page-header" :title="`월별 리포트`">
       <template #leading>
         <RouterLink to="/assets" class="back-button" aria-label="자산 관리로 돌아가기">
           <i class="bi bi-chevron-left" aria-hidden="true"></i>

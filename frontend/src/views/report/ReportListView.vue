@@ -132,7 +132,6 @@ const generateNow = async () => {
     <AppPageHeader
       eyebrow="금융·경제"
       title="금융 리포트"
-      description="AI가 분석한 금융·경제 뉴스를 확인하세요."
     >
       <template #actions>
         <AppButton
