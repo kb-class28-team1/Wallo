@@ -18,7 +18,7 @@ from .schemas import (
 
 
 logger = logging.getLogger("uvicorn.error")
-DEFAULT_MISSION_MAX_COMPLETION_TOKENS = 3000
+DEFAULT_MISSION_MAX_COMPLETION_TOKENS = 800
 MISSION_ITEM_SCHEMA = {
     "type": "object",
     "additionalProperties": False,
