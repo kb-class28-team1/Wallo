@@ -10,7 +10,6 @@ import AuthenticatedImage from "@/components/common/AuthenticatedImage.vue"
 import AppAlert from "@/components/ui/AppAlert.vue"
 import AppButton from "@/components/ui/AppButton.vue"
 import AppCard from "@/components/ui/AppCard.vue"
-import AppPageHeader from "@/components/ui/AppPageHeader.vue"
 import AppState from "@/components/ui/AppState.vue"
 import { leaveChallenge as leaveChallengeRequest } from "@/api/challengeApi"
 import { getTodayMissions, verifyMissionWithFeed } from "@/api/missionApi"
@@ -803,64 +802,52 @@ onBeforeUnmount(() => {
       @action="loadPage({ force: true })"
     />
     <template v-else>
-      <AppPageHeader
-        class="feed-header"
-        :title="challengeName"
-        description="함께 남긴 절약 기록을 확인하고 응원해 보세요."
-        compact
-      />
-
-      <div class="feed-layout">
-        <main class="feed-column">
-          <div class="feed-toolbar">
-            <nav class="feed-tabs">
+      <header class="feed-header">
+        <div class="feed-header-top">
+          <h1 class="feed-challenge-name">{{ challengeName }}</h1>
+          <AppCard as="div" class="saving-total" variant="accent" padding="none">
+            <small>나의 누적 절약 금액</small><strong>{{ formatWon(mySavingTotal) }}</strong>
+          </AppCard>
+        </div>
+        <div class="feed-header-bottom">
+          <nav class="feed-tabs">
+            <AppButton
+              variant="ghost"
+              size="sm"
+              :class="{ active: activeTab === 'all' }"
+              @click="changeTab('all')"
+            >
+              전체 피드
+            </AppButton>
+            <AppButton
+              variant="ghost"
+              size="sm"
+              :class="{ active: activeTab === 'mine' }"
+              @click="changeTab('mine')"
+            >
+              내 피드
+            </AppButton>
+          </nav>
+          <div v-if="inviteCode" class="feed-header-actions">
+            <div class="feed-invite-panel">
               <AppButton
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                :class="{ active: activeTab === 'all' }"
-                @click="changeTab('all')"
-              >
-                전체 피드
-              </AppButton>
-              <AppButton
-                variant="ghost"
-                size="sm"
-                :class="{ active: activeTab === 'mine' }"
-                @click="changeTab('mine')"
-              >
-                내 피드
-              </AppButton>
-            </nav>
-            <div class="feed-header-actions">
-              <div v-if="inviteCode" class="feed-invite-panel">
-                <AppButton
-                  variant="outline"
-                  size="sm"
-                  aria-label="초대 코드 복사"
-                  @click="copyInviteCode"
-                >
-                  <template #leading>
-                    <i class="bi bi-copy" aria-hidden="true"></i>
-                  </template>
-                  초대코드 복사
-                </AppButton>
-              </div>
-              <AppButton
-                class="feed-leave-button"
-                variant="ghost"
-                size="sm"
-                title="챌린지 나가기"
-                aria-label="챌린지 나가기"
-                :disabled="isLeavingChallenge"
-                @click="leaveCurrentChallenge"
+                aria-label="초대 코드 복사"
+                @click="copyInviteCode"
               >
                 <template #leading>
-                  <i class="bi bi-door-open" aria-hidden="true"></i>
-                  <i class="bi bi-door-open-fill" aria-hidden="true"></i>
+                  <i class="bi bi-copy" aria-hidden="true"></i>
                 </template>
+                초대코드 복사
               </AppButton>
             </div>
           </div>
+        </div>
+      </header>
+
+      <div class="feed-layout">
+        <main class="feed-column">
           <div v-if="!feeds.length" class="empty-feed">
             <span>📷</span><strong>아직 등록된 피드가 없어요</strong>
             <p>오른쪽 아래 + 버튼을 눌러 첫 절약 기록을 남겨보세요.</p>
@@ -969,15 +956,23 @@ onBeforeUnmount(() => {
         </main>
 
         <aside class="feed-sidebar">
-          <AppCard as="div" class="saving-total" variant="accent" padding="none">
-            <small>나의 누적 절약 금액</small><strong>{{ formatWon(mySavingTotal) }}</strong>
-          </AppCard>
           <section class="chat-room">
             <header>
-              <span class="online-dot"></span>
-              <div>
+              <div class="chat-room-heading">
+                <span class="online-dot"></span>
                 <h2>{{ roomTitle }}</h2>
               </div>
+              <AppButton
+                class="feed-leave-button"
+                variant="ghost"
+                size="sm"
+                title="챌린지 나가기"
+                aria-label="챌린지 나가기"
+                :disabled="isLeavingChallenge"
+                @click="leaveCurrentChallenge"
+              >
+                나가기
+              </AppButton>
             </header>
             <div ref="messagesElement" class="messages">
               <div
@@ -2268,8 +2263,36 @@ textarea {
   border-radius: 23px;
   background: rgb(255 255 255 / 82%);
   box-shadow: 0 12px 28px rgb(88 117 170 / 10%);
+  display: block;
+}
+
+.feed-header-top,
+.feed-header-bottom {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.feed-header-top {
+  align-items: flex-start;
+}
+
+.feed-challenge-name {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: #1b2d50;
+  font-size: clamp(1.65rem, 2.7vw, 2.25rem);
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feed-header-bottom {
+  margin-top: 18px;
 }
 
 .feed-header :deep(.app-page-header__title) {
@@ -2330,11 +2353,13 @@ textarea {
 
 .saving-total {
   display: flex;
-  min-height: 160px;
+  min-height: 0;
   box-sizing: border-box;
+  width: 145px;
   flex-direction: column;
   justify-content: center;
-  padding: 22px 24px;
+  flex-shrink: 0;
+  padding: 10px 16px;
   border: 0;
   border-radius: 22px;
   background: linear-gradient(135deg, #7098ed, #8a79e6);
@@ -2445,6 +2470,27 @@ textarea {
   padding: 19px;
   border-bottom-color: #dfe8f7;
   background: #f0f5ff;
+  justify-content: space-between;
+}
+
+.chat-room-heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.chat-room .feed-leave-button.app-button {
+  width: auto;
+  height: 36px;
+  padding: 0 4px;
+  color: #f04f5f;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.chat-room .feed-leave-button.app-button :deep(.app-button__label) {
+  display: inline;
 }
 
 .chat-room h2 {
@@ -2519,6 +2565,20 @@ textarea {
   .feed-header {
     padding: 18px;
     border-radius: 18px;
+  }
+
+  .feed-header-top,
+  .feed-header-bottom {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .feed-header .saving-total {
+    width: 100%;
+  }
+
+  .feed-header-bottom {
+    margin-top: 14px;
   }
 }
 </style>
