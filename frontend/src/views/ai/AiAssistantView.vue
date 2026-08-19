@@ -366,7 +366,7 @@ onBeforeUnmount(() => {
     <div v-else-if="!hasGoal" class="empty-dashboard">
       <div class="row g-4 align-items-stretch">
         <div class="col-xl-7">
-          <AppCard as="article" class="content-card goal-main-card" padding="none">
+          <AppCard as="article" class="content-card goal-main-card h-100" padding="none">
             <div class="card-body p-4">
               <h2 class="section-title h5 fw-bold">
                 나의 목표

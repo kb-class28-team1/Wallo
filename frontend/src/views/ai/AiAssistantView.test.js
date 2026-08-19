@@ -47,6 +47,7 @@ describe("AiAssistantView", () => {
 
     expect(wrapper.find(".assistant-header").classes()).toContain("app-page-header")
     expect(wrapper.find(".content-card").classes()).toContain("app-card")
+    expect(wrapper.find(".goal-main-card").classes()).toContain("h-100")
     expect(wrapper.find(".goal-button").classes()).toContain("app-button")
     expect(wrapper.text()).toContain("목표 달성을 위한 로드맵")
     expect(wrapper.text()).toContain("나에게 맞는 로드맵")
