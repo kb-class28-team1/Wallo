@@ -977,7 +977,6 @@ onBeforeUnmount(() => {
               <span class="online-dot"></span>
               <div>
                 <h2>{{ roomTitle }}</h2>
-                <small>피드와 이야기를 함께 나눠요</small>
               </div>
             </header>
             <div ref="messagesElement" class="messages">
@@ -2260,7 +2259,7 @@ textarea {
 }
 
 .feed-header {
-  width: 100%;
+  width: calc(100% - 380px);
   box-sizing: border-box;
   min-height: 160px;
   margin-bottom: 18px;
@@ -2285,7 +2284,7 @@ textarea {
 }
 
 .feed-layout {
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
+  grid-template-columns: minmax(0, 1fr) minmax(330px, 360px);
   gap: 20px;
 }
 
@@ -2293,7 +2292,7 @@ textarea {
   position: fixed;
   top: 100px;
   right: max(32px, calc((100vw - 1453px) / 2));
-  width: 330px;
+  width: 360px;
   height: calc(100vh - 124px);
 }
 
@@ -2330,6 +2329,11 @@ textarea {
 }
 
 .saving-total {
+  display: flex;
+  min-height: 160px;
+  box-sizing: border-box;
+  flex-direction: column;
+  justify-content: center;
   padding: 22px 24px;
   border: 0;
   border-radius: 22px;
@@ -2493,6 +2497,10 @@ textarea {
 @media (max-width: 1200px) {
   .feed-page {
     padding: 16px;
+  }
+
+  .feed-header {
+    width: 100%;
   }
 
   .feed-sidebar {
