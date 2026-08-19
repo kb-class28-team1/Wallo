@@ -9,7 +9,7 @@ import AppCard from "@/components/ui/AppCard.vue"
 import AppPageHeader from "@/components/ui/AppPageHeader.vue"
 import AppState from "@/components/ui/AppState.vue"
 import { useChallengeStore } from "@/stores/challengeStore"
-import { formatNumber, formatWon } from "@/commonUtils/formatters"
+import { formatNumber, formatWon } from "@/utils/formatters"
 import { useUserStore } from "@/stores/userStore"
 
 const DEFAULT_PROFILE_IMAGE = "/images/profiles/default-profile.svg"

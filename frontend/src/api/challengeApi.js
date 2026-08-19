@@ -1,5 +1,5 @@
 import httpClient from "./httpClient"
-import { getApiErrorMessage } from "@/commonUtils/apiError"
+import { getApiErrorMessage } from "@/utils/apiError"
 
 // 현재 참여 중인 챌린지 정보를 조회함
 export const getCurrentChallenge = async () => {

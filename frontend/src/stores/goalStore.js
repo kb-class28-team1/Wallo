@@ -7,7 +7,7 @@ import {
   selectGoalAccount as selectGoalAccountRequest,
   updateGoalRoadmapStep,
 } from "@/api/goalApi";
-import { getApiErrorMessage } from "@/commonUtils/apiError";
+import { getApiErrorMessage } from "@/utils/apiError";
 
 const GOAL_STALE_TIME = 5 * 60 * 1000;
 const ROADMAP_STALE_TIME = 5 * 60 * 1000;

@@ -1,6 +1,6 @@
 import { defineStore } from "pinia"
 import { getAssets, syncAssets as requestAssetSync } from "@/api/assetApi"
-import { getApiErrorMessage } from "@/commonUtils/apiError"
+import { getApiErrorMessage } from "@/utils/apiError"
 
 const ASSET_STALE_TIME = 30 * 1000
 const requestStateByStore = new WeakMap()

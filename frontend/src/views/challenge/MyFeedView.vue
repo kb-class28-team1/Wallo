@@ -3,7 +3,7 @@ import { computed, onMounted } from "vue"
 import { storeToRefs } from "pinia"
 import { useRouter } from "vue-router"
 import { useMyFeedStore } from "@/stores/myFeedStore"
-import { formatNumber, formatWon } from "@/commonUtils/formatters"
+import { formatNumber, formatWon } from "@/utils/formatters"
 import AppAlert from "@/components/ui/AppAlert.vue"
 import AppButton from "@/components/ui/AppButton.vue"
 import AppCard from "@/components/ui/AppCard.vue"
@@ -127,17 +127,14 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
   <section class="my-feed-page">
     <AppPageHeader class="page-heading" title="내 게시물" compact>
       <template #leading>
-        <AppButton
-          class="page-back-button"
-          variant="ghost"
-          size="sm"
+        <button
+          type="button"
+          class="back-button"
           aria-label="내 챌린지로 이동"
           @click="router.push({ name: 'my-challenge' })"
         >
-          <template #leading>
-            <i class="bi bi-chevron-left" aria-hidden="true"></i>
-          </template>
-        </AppButton>
+          <i class="bi bi-chevron-left" aria-hidden="true"></i>
+        </button>
       </template>
     </AppPageHeader>
 
@@ -321,9 +318,8 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
 </template>
 
 <style scoped>
-.page-back-button {
+.back-button {
   display: inline-flex;
-  flex: 0 0 38px;
   width: 38px;
   height: 38px;
   align-items: center;
@@ -331,30 +327,21 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
   padding: 0;
   border: 0;
   border-radius: 12px;
-  background: #f1efff;
-  color: #6b64e8;
+  color: #555b6e;
+  background: transparent;
+  font: inherit;
+  font-size: 1.1rem;
   text-decoration: none;
-  transform: translateX(-8px);
-  transition:
-    background-color 160ms ease,
-    color 160ms ease,
-    transform 160ms ease;
+  cursor: pointer;
 }
 
-.page-back-button:hover,
-.page-back-button:focus-visible {
-  background: #e8e5ff;
-  color: #574fd2;
-  transform: translateX(-8px) translateY(-1px);
+.back-button:hover,
+.back-button:focus {
+  color: #6b5bd2;
+  background: #f0edff;
 }
 
-.page-back-button:focus-visible {
-  outline: 3px solid rgb(107 100 232 / 22%);
-  outline-offset: 2px;
-}
-
-.page-back-button i {
-  font-size: 16px;
+.back-button i {
   line-height: 1;
 }
 
