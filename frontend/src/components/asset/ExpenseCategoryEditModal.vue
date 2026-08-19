@@ -1,9 +1,11 @@
 <script setup>
-import { computed, ref, watch } from "vue";
+import { computed, ref, watch } from "vue"
 import {
   EXPENSE_CATEGORY_META,
   normalizeExpenseCategory,
-} from "@/features/financial/financialCategories";
+} from "@/features/financial/financialCategories"
+import AppDialog from "@/components/common/AppDialog.vue"
+import AppTabs from "@/components/ui/AppTabs.vue"
 
 const props = defineProps({
   visible: {
@@ -26,9 +28,9 @@ const props = defineProps({
     type: String,
     default: "ALL",
   },
-});
+})
 
-const emit = defineEmits(["close", "save"]);
+const emit = defineEmits(["close", "save"])
 
 const CATEGORY_GROUPS = Object.freeze({
   EXPENSE: [
@@ -46,103 +48,107 @@ const CATEGORY_GROUPS = Object.freeze({
     "ETC",
   ],
   INCOME: ["INCOME"],
-  TRANSFER: ["SEND"],
-});
+  TRANSFER: ["SEND", "RECEIVE"],
+})
 
 const TYPE_TABS = Object.freeze([
   { value: "INCOME", label: "수입" },
   { value: "EXPENSE", label: "지출" },
   { value: "TRANSFER", label: "이체" },
-]);
+])
 
-const selectedCategory = ref("");
-const selectedType = ref("EXPENSE");
+const selectedCategory = ref("")
+const selectedType = ref("EXPENSE")
+const typeTabs = computed(() => TYPE_TABS.map((tab) => ({ ...tab, disabled: props.isSaving })))
 
-const isFilterMode = computed(() => props.mode === "filter");
+const isFilterMode = computed(() => props.mode === "filter")
 
 const categoryValues = (type) => [
   ...(isFilterMode.value && type === "EXPENSE" ? ["ALL"] : []),
   ...CATEGORY_GROUPS[type],
-];
+]
 
-const categoryOptions = computed(() => categoryValues(selectedType.value).map((value) => {
-  if (value === "ALL") {
+const categoryOptions = computed(() =>
+  categoryValues(selectedType.value).map((value) => {
+    if (value === "ALL") {
+      return {
+        value,
+        label: "전체",
+        icon: "bi-grid-3x3-gap",
+        colorClass: "gray",
+      }
+    }
+
+    const meta = EXPENSE_CATEGORY_META[value]
     return {
       value,
-      label: "전체",
-      icon: "bi-grid-3x3-gap",
-      colorClass: "gray",
-    };
-  }
+      label: meta.label,
+      icon: meta.icon,
+      colorClass: meta.colorClass,
+    }
+  }),
+)
 
-  const meta = EXPENSE_CATEGORY_META[value];
-  return {
-    value,
-    label: meta.label,
-    icon: meta.icon,
-    colorClass: meta.colorClass,
-  };
-}));
-
-const canSave = computed(() => Boolean(
-  (isFilterMode.value || props.transaction?.transactionId) &&
-  selectedCategory.value &&
-  !props.isSaving,
-));
+const canSave = computed(() =>
+  Boolean(
+    (isFilterMode.value || props.transaction?.transactionId) &&
+    selectedCategory.value &&
+    !props.isSaving,
+  ),
+)
 
 const normalizeTransactionType = (type) => {
-  if (type === "INCOME" || type === "TRANSFER") return type;
-  return "EXPENSE";
-};
+  if (type === "INCOME" || type === "TRANSFER") return type
+  return "EXPENSE"
+}
 
 const selectType = (type) => {
-  selectedType.value = type;
-  const nextOptions = categoryValues(type);
+  selectedType.value = type
+  const nextOptions = categoryValues(type)
   if (!nextOptions.includes(selectedCategory.value)) {
-    selectedCategory.value = nextOptions[0];
+    selectedCategory.value = nextOptions[0]
   }
-};
+}
 
 const initialCategory = (transaction) => {
   if (isFilterMode.value) {
-    return props.initialCategory === "ALL"
-      ? "ALL"
-      : normalizeExpenseCategory(props.initialCategory);
+    return props.initialCategory === "ALL" ? "ALL" : normalizeExpenseCategory(props.initialCategory)
   }
 
-  return normalizeExpenseCategory(transaction?.category);
-};
+  return normalizeExpenseCategory(transaction?.category)
+}
 
 watch(
   [() => props.visible, () => props.transaction, () => props.initialCategory, () => props.mode],
   ([visible, transaction]) => {
     if (visible && transaction) {
-      selectedType.value = normalizeTransactionType(transaction.type);
+      selectedType.value = normalizeTransactionType(transaction.type)
     } else if (visible && isFilterMode.value) {
-      const category = initialCategory(transaction);
-      selectedType.value = category === "INCOME"
-        ? "INCOME"
-        : category === "SEND"
-          ? "TRANSFER"
-          : "EXPENSE";
+      const category = initialCategory(transaction)
+      selectedType.value =
+        category === "INCOME"
+          ? "INCOME"
+          : category === "SEND" || category === "RECEIVE"
+            ? "TRANSFER"
+            : "EXPENSE"
     }
 
     if (visible) {
-      const category = initialCategory(transaction);
+      const category = initialCategory(transaction)
       selectedCategory.value = categoryValues(selectedType.value).includes(category)
         ? category
-        : categoryValues(selectedType.value)[0];
+        : categoryValues(selectedType.value)[0]
     }
   },
   { immediate: true },
-);
+)
 
 const close = () => {
-  if (!props.isSaving) emit("close");
-};
+  if (!props.isSaving) emit("close")
+}
 
 const save = () => {
-  if (!canSave.value) return;
+  if (!canSave.value) return
 
   emit(
     "save",
@@ -152,117 +158,88 @@ const save = () => {
           transactionId: props.transaction.transactionId,
           category: selectedCategory.value,
         },
-  );
-};
+  )
+}
 </script>
 
 <template>
-  <template v-if="visible">
-    <div class="modal-backdrop fade show" @click="close"></div>
-    <div
-      class="modal fade show d-block"
-      tabindex="-1"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="expenseCategoryEditModalTitle"
-      @keydown.esc="close"
-    >
-      <div class="modal-dialog modal-dialog-centered">
-        <form class="modal-content category-edit-modal" @submit.prevent="save">
-          <div class="modal-header">
-            <div>
-              <h2 id="expenseCategoryEditModalTitle" class="modal-title h5 fw-bold mb-1">
-                {{ isFilterMode ? "카테고리 필터" : "카테고리 선택" }}
-              </h2>
-            </div>
-            <button
-              type="button"
-              class="btn-close"
-              aria-label="닫기"
-              :disabled="isSaving"
-              @click="close"
-            ></button>
-          </div>
+  <AppDialog
+    :visible="visible"
+    :title="isFilterMode ? '카테고리 필터' : '카테고리 선택'"
+    size="lg"
+    :confirm-text="isFilterMode ? '적용' : '확인'"
+    confirm-variant="primary"
+    :confirm-disabled="!canSave"
+    :confirm-loading="isSaving"
+    @close="close"
+    @confirm="save"
+  >
+    <div class="category-edit-modal-body">
+      <AppTabs
+        v-model="selectedType"
+        :items="typeTabs"
+        variant="segment"
+        full-width
+        aria-label="거래 유형"
+        @update:model-value="selectType"
+      >
+        <template #tab="{ item }">
+          <span :data-testid="`transaction-type-${item.value}`">{{ item.label }}</span>
+        </template>
+      </AppTabs>
 
-          <div class="modal-body">
-            <div class="category-type-tabs" role="tablist" aria-label="거래 유형">
-              <button
-                v-for="tab in TYPE_TABS"
-                :key="tab.value"
-                type="button"
-                class="category-type-tab"
-                :class="{ active: selectedType === tab.value }"
-                :data-testid="`transaction-type-${tab.value}`"
-                role="tab"
-                :aria-selected="selectedType === tab.value"
-                :disabled="isSaving"
-                @click="selectType(tab.value)"
-              >
-                {{ tab.label }}
-              </button>
-            </div>
-
-            <div
-              class="category-option-grid"
-              role="listbox"
-              aria-label="카테고리 목록"
-            >
-              <button
-                v-for="option in categoryOptions"
-                :key="option.value"
-                type="button"
-                class="category-option"
-                :class="{ selected: selectedCategory === option.value }"
-                :data-testid="`category-option-${option.value}`"
-                role="option"
-                :aria-selected="selectedCategory === option.value"
-                :disabled="isSaving"
-                @click="selectedCategory = option.value"
-              >
-                <span class="category-option-icon" :class="option.colorClass">
-                  <i :class="['bi', option.icon]" aria-hidden="true"></i>
-                </span>
-                <span class="category-option-label">{{ option.label }}</span>
-              </button>
-            </div>
-          </div>
-
-          <div class="modal-footer">
-            <button type="submit" class="btn category-save-button" :disabled="!canSave">
-              <span
-                v-if="isSaving"
-                class="spinner-border spinner-border-sm me-2"
-                aria-hidden="true"
-              ></span>
-              {{ isSaving ? "처리 중..." : isFilterMode ? "적용" : "확인" }}
-            </button>
-          </div>
-        </form>
+      <div class="category-option-grid" role="listbox" aria-label="카테고리 목록">
+        <button
+          v-for="option in categoryOptions"
+          :key="option.value"
+          type="button"
+          class="category-option"
+          :class="{ selected: selectedCategory === option.value }"
+          :data-testid="`category-option-${option.value}`"
+          role="option"
+          :aria-selected="selectedCategory === option.value"
+          :disabled="isSaving"
+          @click="selectedCategory = option.value"
+        >
+          <span class="category-option-icon" :class="option.colorClass">
+            <i :class="['bi', option.icon]" aria-hidden="true"></i>
+          </span>
+          <span class="category-option-label">{{ option.label }}</span>
+        </button>
       </div>
     </div>
-  </template>
+  </AppDialog>
 </template>
 
 <style scoped>
-.category-edit-modal {
-  max-height: calc(100vh - 32px);
-  overflow: hidden;
-  border: 0;
-  border-radius: 24px;
+:deep(.app-dialog--lg) {
+  max-width: 680px;
+  padding: 0;
 }
 
-.category-edit-modal .modal-header,
-.category-edit-modal .modal-footer {
-  border-color: #edf0f5;
+:deep(.app-dialog-header) {
+  padding: var(--wallo-space-5) var(--wallo-space-6);
+  border-bottom: 1px solid var(--wallo-color-border-soft);
 }
 
-.category-edit-modal .modal-body {
+:deep(.app-dialog-body) {
+  max-height: calc(100vh - 240px);
   overflow-y: auto;
-  padding: 20px 28px 28px;
+  margin: 0;
+  padding: var(--wallo-space-5) var(--wallo-space-6);
 }
 
-.category-edit-modal .modal-footer {
-  padding: 16px 28px 24px;
+:deep(.app-dialog-footer) {
+  padding: var(--wallo-space-4) var(--wallo-space-6) var(--wallo-space-5);
+  border-top: 1px solid var(--wallo-color-border-soft);
+}
+
+.category-edit-modal-body {
+  min-width: 0;
+}
+
+.category-edit-modal-body :deep(.app-tabs__list) {
+  margin-bottom: var(--wallo-space-5);
 }
 
 .category-type-tabs {
@@ -316,31 +293,34 @@ const save = () => {
   justify-content: center;
   gap: 10px;
   padding: 14px 8px;
-  border: 2px solid #edf0f5;
-  border-radius: 18px;
-  color: #656b7c;
-  background: #ffffff;
+  border: 2px solid var(--wallo-color-border-soft);
+  border-radius: var(--wallo-radius-lg);
+  color: var(--wallo-color-text-muted);
+  background: var(--wallo-color-surface);
   font: inherit;
   cursor: pointer;
-  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+  transition:
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.16s ease;
 }
 
 .category-option:hover,
 .category-option:focus-visible {
-  border-color: #b9b0f2;
-  box-shadow: 0 8px 18px rgba(80, 67, 170, 0.1);
+  border-color: color-mix(in srgb, var(--wallo-color-primary) 45%, var(--wallo-color-border));
+  box-shadow: var(--wallo-shadow-card);
   transform: translateY(-1px);
 }
 
 .category-option:focus-visible {
-  outline: 2px solid #6b5bd2;
+  outline: 2px solid var(--wallo-color-primary);
   outline-offset: 2px;
 }
 
 .category-option.selected {
-  border-color: #6b5bd2;
-  color: #343044;
-  box-shadow: 0 8px 18px rgba(107, 91, 210, 0.12);
+  border-color: var(--wallo-color-primary);
+  color: var(--wallo-color-text);
+  box-shadow: var(--wallo-shadow-card);
 }
 
 .category-option:disabled {
@@ -358,11 +338,26 @@ const save = () => {
   font-size: 1.35rem;
 }
 
-.category-option-icon.coral { color: #ff796f; background: #fff0ed; }
-.category-option-icon.green { color: #28b98a; background: #eafaf4; }
-.category-option-icon.blue { color: #4f73e8; background: #edf2ff; }
-.category-option-icon.purple { color: #8170ff; background: #f0edff; }
-.category-option-icon.gray { color: #7c8294; background: #f1f3f6; }
+.category-option-icon.coral {
+  color: #ff796f;
+  background: #fff0ed;
+}
+.category-option-icon.green {
+  color: #28b98a;
+  background: #eafaf4;
+}
+.category-option-icon.blue {
+  color: #4f73e8;
+  background: #edf2ff;
+}
+.category-option-icon.purple {
+  color: #8170ff;
+  background: #f0edff;
+}
+.category-option-icon.gray {
+  color: #7c8294;
+  background: #f1f3f6;
+}
 
 .category-option-label {
   overflow: hidden;
@@ -373,36 +368,17 @@ const save = () => {
   white-space: nowrap;
 }
 
-.category-save-button {
-  width: 100%;
-  border: 0;
-  border-radius: 14px;
-  color: #ffffff;
-  background: #10ae76;
-  font-weight: 800;
-}
-
-.category-save-button:hover:not(:disabled),
-.category-save-button:focus-visible {
-  color: #ffffff;
-  background: #0b9765;
-}
-
-.category-save-button:disabled {
-  color: #ffffff;
-  background: #9ad8bf;
-}
-
 @media (max-width: 575.98px) {
-  .category-edit-modal {
-    max-height: 100vh;
-    border-radius: 28px 28px 0 0;
+  :deep(.app-dialog--lg) {
+    max-width: 100%;
+    border-radius: var(--wallo-radius-lg);
   }
 
-  .modal-dialog {
-    align-items: flex-end;
-    min-height: 100%;
-    margin: 0;
+  :deep(.app-dialog-header),
+  :deep(.app-dialog-body),
+  :deep(.app-dialog-footer) {
+    padding-right: var(--wallo-space-4);
+    padding-left: var(--wallo-space-4);
   }
 
   .category-option-grid {

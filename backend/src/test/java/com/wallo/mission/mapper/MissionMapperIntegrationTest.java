@@ -9,6 +9,7 @@ import com.wallo.mission.domain.Mission;
 import com.wallo.mission.domain.MissionCycle;
 import com.wallo.mission.domain.MissionAnalysisSource;
 import com.wallo.mission.domain.MissionVerification;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.time.LocalDate;
 import java.util.List;
@@ -19,6 +20,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mybatis.spring.SqlSessionFactoryBean;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.support.EncodedResource;
 import org.springframework.jdbc.datasource.init.ScriptUtils;
 import com.wallo.test.TestDatabase;
 import com.wallo.pointshop.mapper.PointShopMapper;
@@ -33,7 +35,9 @@ class MissionMapperIntegrationTest {
         DataSource dataSource = TestDatabase.h2("mission_mapper");
         try (Connection connection = dataSource.getConnection()) {
             ScriptUtils.executeSqlScript(connection,
-                    new ClassPathResource("db/h2/mission-mapper-schema.sql"));
+                    new EncodedResource(
+                            new ClassPathResource("db/h2/mission-mapper-schema.sql"),
+                            StandardCharsets.UTF_8));
         }
         SqlSessionFactoryBean factory = new SqlSessionFactoryBean();
         factory.setDataSource(dataSource);
@@ -58,7 +62,8 @@ class MissionMapperIntegrationTest {
         assertNotNull(source);
         assertEquals(7L, source.getUserId());
         org.junit.jupiter.api.Assertions.assertTrue(
-                source.getCalculatedResultJson().contains("카페 소비 증가"));
+                source.getCalculatedResultJson().contains("카페 소비 증가"),
+                source::getCalculatedResultJson);
     }
 
     @Test

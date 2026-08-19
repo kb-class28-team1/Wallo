@@ -3,13 +3,20 @@ import { computed, onMounted, ref } from "vue"
 import { storeToRefs } from "pinia"
 import { getApiErrorMessage } from "@/commonUtils/apiError"
 import AuthenticatedImage from "@/components/common/AuthenticatedImage.vue"
+import AppAlert from "@/components/ui/AppAlert.vue"
+import AppButton from "@/components/ui/AppButton.vue"
+import AppCard from "@/components/ui/AppCard.vue"
+import AppFormField from "@/components/ui/AppFormField.vue"
+import AppState from "@/components/ui/AppState.vue"
 import { useUserStore } from "@/stores/userStore"
 
 const userStore = useUserStore()
 const { user, profileImageUrl } = storeToRefs(userStore)
-const isProfileLoading = ref(false)
+const isProfileLoading = ref(!user.value?.id)
+const isProfileRefreshing = ref(false)
+const hasLoadedProfile = ref(Boolean(user.value?.id))
 const profileError = ref("")
-const nicknameInput = ref("")
+const nicknameInput = ref(user.value?.nickname || "")
 const nicknameError = ref("")
 const nicknameSavedMessage = ref("")
 const isNicknameSaving = ref(false)
@@ -22,20 +29,22 @@ const isProfileImageSaving = ref(false)
 const MAX_PROFILE_IMAGE_SIZE = 5 * 1024 * 1024
 const ALLOWED_PROFILE_IMAGE_TYPES = ["image/jpeg", "image/png"]
 
-const isNicknameDirty = computed(
-  () => nicknameInput.value.trim() !== (user.value?.nickname || ""),
-)
-const displayProfileImageUrl = computed(
-  () => previewImageUrl.value || profileImageUrl.value,
-)
+const isNicknameDirty = computed(() => nicknameInput.value.trim() !== (user.value?.nickname || ""))
+const displayProfileImageUrl = computed(() => previewImageUrl.value || profileImageUrl.value)
 
-const loadProfile = async () => {
-  isProfileLoading.value = true
+const loadProfile = async ({ force = false } = {}) => {
+  const isInitialLoad = !hasLoadedProfile.value
+  const shouldSyncNickname = !isNicknameDirty.value
+  isProfileLoading.value = isInitialLoad
+  isProfileRefreshing.value = !isInitialLoad
   profileError.value = ""
 
   try {
-    const profile = await userStore.fetchProfile()
-    nicknameInput.value = profile?.nickname || ""
+    const profile = await userStore.fetchProfile({ force })
+    if (shouldSyncNickname) {
+      nicknameInput.value = profile?.nickname || ""
+    }
+    hasLoadedProfile.value = true
   } catch (error) {
     if (error.status === 401) {
       // 401은 Axios 전역 인터셉터가 인증 상태 초기화와 로그인 이동을 담당한다.
@@ -48,6 +57,7 @@ const loadProfile = async () => {
     )
   } finally {
     isProfileLoading.value = false
+    isProfileRefreshing.value = false
   }
 }
 
@@ -162,27 +172,57 @@ onMounted(loadProfile)
 </script>
 
 <template>
-  <section class="settings-panel card border-0 shadow-sm" aria-labelledby="profile-settings-title">
-    <div v-if="isProfileLoading" class="profile-state text-center" aria-live="polite">
-      <div class="spinner-border text-primary" role="status">
-        <span class="visually-hidden">프로필 정보를 불러오는 중</span>
+  <AppCard
+    as="section"
+    class="settings-panel"
+    padding="none"
+    aria-labelledby="profile-settings-title"
+  >
+    <div v-if="isProfileRefreshing" class="profile-refresh-status" role="status">
+      최신 프로필 정보를 확인하는 중...
+    </div>
+
+    <AppAlert
+      v-if="profileError && user"
+      class="profile-alert"
+      variant="warning"
+      :show-icon="false"
+    >
+      <div class="d-flex align-items-center justify-content-between gap-3">
+        <span>{{ profileError }}</span>
+        <AppButton variant="outline" size="sm" @click="loadProfile({ force: true })">
+          다시 시도
+        </AppButton>
       </div>
-      <p class="text-secondary mb-0 mt-3">프로필 정보를 불러오고 있습니다.</p>
-    </div>
+    </AppAlert>
 
-    <div v-else-if="profileError" class="profile-state text-center">
-      <i class="bi bi-exclamation-circle text-danger fs-2" aria-hidden="true"></i>
-      <p class="fw-semibold mb-1 mt-3">프로필 정보를 불러오지 못했습니다.</p>
-      <p class="small text-secondary mb-3">{{ profileError }}</p>
-      <button type="button" class="btn btn-outline-danger" @click="loadProfile">
-        다시 시도
-      </button>
-    </div>
+    <AppState
+      v-if="isProfileLoading"
+      class="profile-state"
+      type="loading"
+      title="프로필 정보를 불러오는 중입니다."
+      message="잠시만 기다려 주세요."
+      compact
+    />
 
-    <div v-else class="card-body p-4 p-md-5">
+    <AppState
+      v-else-if="profileError && !user"
+      class="profile-state"
+      type="error"
+      title="프로필 정보를 불러오지 못했습니다."
+      :message="profileError"
+      action-text="다시 시도"
+      action-variant="danger"
+      compact
+      @action="loadProfile({ force: true })"
+    />
+
+    <div v-else class="profile-card-body">
       <h2 id="profile-settings-title" class="h5 fw-bold mb-4">프로필 편집</h2>
 
-      <div class="profile-image-section d-flex flex-column flex-sm-row align-items-sm-center gap-3 mb-4">
+      <div
+        class="profile-image-section d-flex flex-column flex-sm-row align-items-sm-center gap-3 mb-4"
+      >
         <AuthenticatedImage
           :src="displayProfileImageUrl"
           alt="프로필 이미지"
@@ -194,27 +234,26 @@ onMounted(loadProfile)
             JPG, PNG · 5MB 이하<br />랭킹과 챌린지 피드에 함께 노출돼요.
           </p>
           <div class="d-flex flex-wrap gap-2">
-            <button
+            <AppButton
               type="button"
-              class="btn btn-outline-secondary btn-sm"
+              variant="outline"
+              size="sm"
               :disabled="isProfileImageSaving"
+              :loading="isProfileImageSaving"
               @click="chooseProfileImage"
             >
-              <span
-                v-if="isProfileImageSaving"
-                class="spinner-border spinner-border-sm me-1"
-                aria-hidden="true"
-              ></span>
               사진 업로드
-            </button>
-            <button
+            </AppButton>
+            <AppButton
               type="button"
-              class="btn btn-outline-secondary btn-sm"
+              variant="secondary"
+              size="sm"
               :disabled="isProfileImageSaving"
+              :loading="isProfileImageSaving"
               @click="resetProfileImage"
             >
               기본 이미지
-            </button>
+            </AppButton>
           </div>
           <input
             ref="profileImageInput"
@@ -223,109 +262,133 @@ onMounted(loadProfile)
             accept="image/jpeg,image/png"
             @change="handleProfileImageSelected"
           />
-          <div v-if="profileImageError" class="alert alert-danger py-2 mt-3 mb-0" role="alert">
-            {{ profileImageError }}
-          </div>
-          <div
+          <AppAlert
+            v-if="profileImageError"
+            class="profile-message"
+            variant="danger"
+            :message="profileImageError"
+            :show-icon="false"
+          />
+          <AppAlert
             v-else-if="profileImageSavedMessage"
-            class="alert alert-success py-2 mt-3 mb-0"
+            class="profile-message"
+            variant="success"
+            :message="profileImageSavedMessage"
+            :show-icon="false"
             role="status"
-          >
-            {{ profileImageSavedMessage }}
-          </div>
+          />
         </div>
       </div>
 
       <form @submit.prevent="saveNickname">
         <div class="row g-3">
           <div class="col-12 col-md-6">
-            <label for="profile-nickname" class="form-label">닉네임</label>
-            <input
+            <AppFormField
               id="profile-nickname"
               v-model="nicknameInput"
-              type="text"
-              class="form-control"
+              label="닉네임"
+              help-text="챌린지와 피드에 표시되는 이름입니다. 50자 이하로 입력해 주세요."
               maxlength="50"
-              autocomplete="nickname"
               :disabled="isNicknameSaving"
+              autocomplete="nickname"
               @input="clearNicknameMessages"
             />
-            <div class="form-text">챌린지와 피드에 표시되는 이름입니다. 50자 이하로 입력해 주세요.</div>
           </div>
 
           <div class="col-12 col-md-6">
-            <label for="profile-name" class="form-label">이름</label>
-            <input
+            <AppFormField
               id="profile-name"
-              :value="user?.name || ''"
-              type="text"
-              class="form-control profile-readonly-field"
+              label="이름"
+              :model-value="user?.name || ''"
               disabled
+              class="profile-readonly-field"
+              help-text="실명은 수정할 수 없습니다."
             />
-            <div class="form-text">실명은 수정할 수 없습니다.</div>
           </div>
 
           <div class="col-12">
-            <label for="profile-email" class="form-label">이메일</label>
-            <input
+            <AppFormField
               id="profile-email"
-              :value="user?.email || ''"
+              label="이메일"
               type="email"
-              class="form-control profile-readonly-field"
+              :model-value="user?.email || ''"
               disabled
+              class="profile-readonly-field"
+              help-text="이메일은 수정할 수 없습니다."
             />
-            <div class="form-text">이메일은 수정할 수 없습니다.</div>
           </div>
         </div>
 
-        <div v-if="nicknameError" class="alert alert-danger py-2 mt-3 mb-0" role="alert">
-          {{ nicknameError }}
-        </div>
-        <div v-else-if="nicknameSavedMessage" class="alert alert-success py-2 mt-3 mb-0" role="status">
-          {{ nicknameSavedMessage }}
-        </div>
+        <AppAlert
+          v-if="nicknameError"
+          class="profile-message"
+          variant="danger"
+          :message="nicknameError"
+          :show-icon="false"
+        />
+        <AppAlert
+          v-else-if="nicknameSavedMessage"
+          class="profile-message"
+          variant="success"
+          :message="nicknameSavedMessage"
+          :show-icon="false"
+          role="status"
+        />
 
         <div class="settings-actions d-flex flex-column-reverse flex-sm-row gap-2 mt-4 pt-4">
-          <button
+          <AppButton
             type="button"
-            class="btn btn-light flex-fill"
+            variant="secondary"
+            class="flex-fill"
             :disabled="isNicknameSaving"
             @click="resetNickname"
           >
             취소
-          </button>
-          <button
+          </AppButton>
+          <AppButton
             type="submit"
-            class="btn btn-primary flex-fill"
+            variant="primary"
+            class="flex-fill"
             :disabled="isNicknameSaving || !isNicknameDirty"
+            :loading="isNicknameSaving"
           >
-            <span
-              v-if="isNicknameSaving"
-              class="spinner-border spinner-border-sm me-2"
-              aria-hidden="true"
-            ></span>
-            {{ isNicknameSaving ? "저장 중..." : "저장하기" }}
-          </button>
+            저장하기
+          </AppButton>
         </div>
       </form>
     </div>
-  </section>
+  </AppCard>
 </template>
 
 <style scoped>
 .settings-panel {
   min-height: 420px;
-  border-radius: 20px;
-  background: #ffffff;
+  border-radius: var(--wallo-radius-xl);
+}
+
+.profile-card-body {
+  padding: var(--wallo-space-6);
 }
 
 .profile-state {
-  display: flex;
   min-height: 420px;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 32px;
+}
+
+.profile-refresh-status {
+  margin: var(--wallo-space-3);
+  padding: var(--wallo-space-2) var(--wallo-space-3);
+  color: var(--wallo-color-text-muted);
+  border-radius: var(--wallo-radius-md);
+  background: var(--wallo-color-info-bg);
+  font-size: 0.85rem;
+}
+
+.profile-alert {
+  margin: var(--wallo-space-3);
+}
+
+.profile-message {
+  margin-top: var(--wallo-space-3);
 }
 
 .profile-image-section {
@@ -337,18 +400,24 @@ onMounted(loadProfile)
   width: 82px;
   height: 82px;
   object-fit: cover;
-  background: #f0efff;
+  background: var(--wallo-color-info-bg);
 }
 
 .profile-readonly-field:disabled {
-  color: #7f8ba0;
-  background-color: #f8fafc;
-  border-color: #e4e9f1;
+  color: var(--wallo-color-text-muted);
+  background-color: var(--wallo-color-surface-soft);
+  border-color: var(--wallo-color-border-soft);
   opacity: 1;
   cursor: not-allowed;
 }
 
 .settings-actions {
-  border-top: 1px solid #eef0f5;
+  border-top: 1px solid var(--wallo-color-border-soft);
+}
+
+@media (max-width: 767.98px) {
+  .profile-card-body {
+    padding: var(--wallo-space-5);
+  }
 }
 </style>

@@ -3,6 +3,7 @@ package com.wallo.mission.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.wallo.chat.client.AiRateLimitException;
 import com.wallo.mission.client.MissionAiClient;
 import com.wallo.mission.domain.Mission;
 import com.wallo.mission.domain.MissionAnalysisSource;
@@ -16,6 +17,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -27,6 +29,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.IntSupplier;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -36,6 +39,8 @@ public class MissionGenerationService {
     private static final int FIXED_REWARD_POINT = 10;
     private static final int MAX_SUMMARY_LIST_ITEMS = 8;
     private static final int MAX_SUMMARY_TEXT_LENGTH = 500;
+    private static final long GENERATION_RETRY_DELAY_SECONDS = 5;
+    private static final String FAILED_PROMPT_VERSION = "pending-v1";
     private static final Set<String> ANALYSIS_SUMMARY_FIELDS = Set.of(
             "summary", "message", "focus", "periodType", "periodLabel",
             "analysisPeriod", "comparisonPeriod", "dataSufficiency", "totalChange",
@@ -124,11 +129,15 @@ public class MissionGenerationService {
                 && TodayMissionResponse.WAITING_ANALYSIS_STATUS.equals(generationResult.status())) {
             return TodayMissionResponse.waitingForAnalysis(nextDate);
         }
+        if (generationResult != null
+                && TodayMissionResponse.GENERATION_FAILED_STATUS.equals(generationResult.status())) {
+            return TodayMissionResponse.generationFailed(
+                    nextDate, generationResult.failureReason());
+        }
         return TodayMissionResponse.of(
                 nextDate, missionMapper.findDailyMissions(userId, nextDate));
     }
 
-    @Transactional
     public MissionGenerationDto.Result generateToday(Long userId, LocalDate date) {
         if (isGenerationInProgress(userId)) {
             return waitingResult(userId);
@@ -147,6 +156,15 @@ public class MissionGenerationService {
 
         LocalDate start = cycleCalculator.cycleStart(date);
         MissionCycle cycle = missionMapper.findCycle(userId, start);
+        if (hasRecentGenerationFailure(cycle)) {
+            return new MissionGenerationDto.Result(
+                    cycle.getMissionCycleId(),
+                    userId,
+                    0,
+                    TodayMissionResponse.GENERATION_FAILED_STATUS,
+                    cycle.getGenerationError()
+            );
+        }
         MissionAnalysisSource source = missionMapper.findLatestAnalysis(userId);
         if (source == null) {
             return new MissionGenerationDto.Result(
@@ -177,6 +195,8 @@ public class MissionGenerationService {
             cycle.setSourceAnalysisResultId(source.getAnalysisResultId());
             cycle.setPromptVersion(response.promptVersion());
             missionMapper.insertCycle(cycle);
+        } else if (cycle.getGenerationError() != null) {
+            missionMapper.updateCycleStatus(cycle.getMissionCycleId(), "ACTIVE", null);
         }
 
         int displayOrder = 1;
@@ -199,6 +219,51 @@ public class MissionGenerationService {
     private MissionGenerationDto.Result waitingResult(Long userId) {
         return new MissionGenerationDto.Result(
                 null, userId, 0, TodayMissionResponse.WAITING_ANALYSIS_STATUS);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void markGenerationFailed(Long userId, RuntimeException exception) {
+        if (userId == null || userId < 1) {
+            return;
+        }
+
+        String failureReason = exception instanceof AiRateLimitException
+                ? "RATE_LIMIT"
+                : "GENERATION_FAILED";
+        LocalDate date = LocalDate.now(clock);
+        LocalDate start = cycleCalculator.cycleStart(date);
+        MissionCycle cycle = missionMapper.findCycle(userId, start);
+        if (cycle == null) {
+            MissionAnalysisSource source = missionMapper.findLatestAnalysis(userId);
+            if (source == null) {
+                return;
+            }
+
+            MissionCycle failedCycle = new MissionCycle();
+            failedCycle.setUserId(userId);
+            failedCycle.setCycleStartDate(start);
+            failedCycle.setCycleEndDate(start.plusDays(13));
+            failedCycle.setStatus("FAILED");
+            failedCycle.setSourceAnalysisResultId(source.getAnalysisResultId());
+            failedCycle.setPromptVersion(FAILED_PROMPT_VERSION);
+            failedCycle.setGenerationError(failureReason);
+            failedCycle.setGeneratedAt(LocalDateTime.now(clock));
+            missionMapper.insertCycle(failedCycle);
+            return;
+        }
+
+        String status = "ACTIVE".equals(cycle.getStatus()) ? "ACTIVE" : "FAILED";
+        missionMapper.updateCycleStatus(cycle.getMissionCycleId(), status, failureReason);
+    }
+
+    private boolean hasRecentGenerationFailure(MissionCycle cycle) {
+        if (cycle == null || cycle.getGenerationError() == null
+                || cycle.getGenerationError().isBlank()
+                || cycle.getGeneratedAt() == null) {
+            return false;
+        }
+        return !LocalDateTime.now(clock).isAfter(
+                cycle.getGeneratedAt().plusSeconds(GENERATION_RETRY_DELAY_SECONDS));
     }
 
     private void releaseGenerationLockAfterTransaction(Long userId) {

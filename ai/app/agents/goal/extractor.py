@@ -16,6 +16,7 @@ from app.agents.goal.prompts import (
     EXTRACTION_SYSTEM_PROMPT,
     build_extraction_user_prompt,
 )
+from app.core.ai_timing import timed_groq_completion
 from app.core.config import get_groq_model
 
 logger = logging.getLogger("wallo_ai")
@@ -23,6 +24,11 @@ logger = logging.getLogger("wallo_ai")
 
 class GoalExtractionError(ValueError):
     """목표 정보 추출 응답이 계약을 만족하지 않을 때 발생한다."""
+
+
+def nullable_schema(schema: dict[str, object]) -> dict[str, object]:
+    """Groq Tool Schema에서 값이 아직 정해지지 않은 필드를 표현한다."""
+    return {"anyOf": [schema, {"type": "null"}]}
 
 
 class GoalExtractor:
@@ -35,35 +41,44 @@ class GoalExtractor:
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "title": {"type": "string"},
-                    "goal_type": {
+                    "title": nullable_schema({"type": "string"}),
+                    "goal_type": nullable_schema({
                         "type": "string",
                         "enum": [
                             "EMERGENCY_FUND", "TRAVEL", "HOUSING",
                             "EDUCATION", "MARRIAGE", "DEBT_REPAYMENT",
                             "INVESTMENT", "RETIREMENT", "PURCHASE", "OTHER",
                         ],
-                    },
-                    "target_amount": {"type": "integer", "minimum": 1},
-                    "target_date": {"type": "string", "format": "date"},
-                    "motivation": {"type": "string"},
-                    "priority": {
+                    }),
+                    "target_amount": nullable_schema({
+                        "type": "integer",
+                        "minimum": 1,
+                    }),
+                    "target_date": nullable_schema({
+                        "type": "string",
+                        "format": "date",
+                    }),
+                    "motivation": nullable_schema({"type": "string"}),
+                    "priority": nullable_schema({
                         "type": "string",
                         "enum": ["LOW", "MEDIUM", "HIGH"],
-                    },
-                    "current_amount": {"type": "integer", "minimum": 0},
+                    }),
+                    "current_amount": nullable_schema({
+                        "type": "integer",
+                        "minimum": 0,
+                    }),
                     "assumptions": {
                         "type": "array",
                         "items": {"type": "string"},
                     },
-                    "next_field": {
+                    "next_field": nullable_schema({
                         "type": "string",
                         "enum": [
                             "goalType", "targetAmount", "targetDate",
                             "currentAmount",
                         ],
-                    },
-                    "next_question": {"type": "string"},
+                    }),
+                    "next_question": nullable_schema({"type": "string"}),
                 },
                 "additionalProperties": False,
             },
@@ -81,51 +96,80 @@ class GoalExtractor:
         reference_date: date,
     ) -> GoalExtraction:
         last_error: Exception | None = None
-        try:
-            completion = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": EXTRACTION_SYSTEM_PROMPT},
-                    {
-                        "role": "user",
-                        "content": build_extraction_user_prompt(
-                            user_message,
-                            draft,
-                            reference_date,
-                        ),
+        extraction: GoalExtraction | None = None
+        fallback_reason: str | None = None
+        with timed_groq_completion(
+            self.client,
+            operation="goal.extract",
+            model=self.model,
+            requested_completion_tokens=900,
+        ) as timing:
+            try:
+                completion = timing.create(
+                    messages=[
+                        {"role": "system", "content": EXTRACTION_SYSTEM_PROMPT},
+                        {
+                            "role": "user",
+                            "content": build_extraction_user_prompt(
+                                user_message,
+                                draft,
+                                reference_date,
+                            ),
+                        },
+                    ],
+                    tools=[self.TOOL_SCHEMA],
+                    tool_choice={
+                        "type": "function",
+                        "function": {"name": self.TOOL_NAME},
                     },
-                ],
-                tools=[self.TOOL_SCHEMA],
-                tool_choice={
-                    "type": "function",
-                    "function": {"name": self.TOOL_NAME},
-                },
-                temperature=0,
-                reasoning_effort="low",
-                include_reasoning=False,
-                max_completion_tokens=900,
-            )
-            tool_calls = completion.choices[0].message.tool_calls
-            if not tool_calls:
-                raise ValueError("목표 추출 도구 호출이 없습니다.")
-            return GoalExtraction.model_validate_json(
-                tool_calls[0].function.arguments
-            )
-        except RateLimitError as error:
-            last_error = error
-            logger.warning("goal extraction rate limit reached; using fallback")
-        except BadRequestError as error:
-            last_error = error
-            logger.warning("goal tool extraction rejected; using fallback: %s", error)
-        except (AttributeError, IndexError, TypeError, ValueError, ValidationError) as error:
-            last_error = error
-            logger.warning("goal tool extraction failed; using fallback: %s", error)
+                    temperature=0,
+                    reasoning_effort="low",
+                    include_reasoning=False,
+                    max_completion_tokens=900,
+                )
+                tool_calls = completion.choices[0].message.tool_calls
+                if not tool_calls:
+                    raise ValueError("목표 추출 도구 호출이 없습니다.")
+                tool_call = tool_calls[0]
+                function = getattr(tool_call, "function", None)
+                tool_name = getattr(function, "name", None)
+                if tool_name != self.TOOL_NAME:
+                    raise ValueError(
+                        f"허용되지 않은 목표 추출 도구 호출입니다: {tool_name!r}"
+                    )
+                extraction = GoalExtraction.model_validate_json(
+                    function.arguments
+                )
+            except RateLimitError as error:
+                last_error = error
+                fallback_reason = "rate_limit"
+                logger.warning("goal extraction rate limit reached; using fallback")
+            except BadRequestError as error:
+                last_error = error
+                fallback_reason = "bad_request"
+                logger.warning(
+                    "goal tool extraction rejected; using fallback: errorType=%s",
+                    type(error).__name__,
+                )
+            except (AttributeError, IndexError, TypeError, ValueError, ValidationError) as error:
+                last_error = error
+                fallback_reason = type(error).__name__
+                logger.warning(
+                    "goal tool extraction failed; using fallback: errorType=%s",
+                    type(error).__name__,
+                )
 
-        fallback = extract_explicit_goal_facts(user_message, reference_date)
-        if fallback.model_dump(exclude_none=True, exclude={"assumptions"}):
-            logger.warning("using deterministic goal extraction fallback")
-            return fallback
-        raise GoalExtractionError("목표 정보를 구조화하지 못했습니다.") from last_error
+            if extraction is None:
+                fallback = extract_explicit_goal_facts(user_message, reference_date)
+                if fallback.model_dump(exclude_none=True, exclude={"assumptions"}):
+                    logger.warning("using deterministic goal extraction fallback")
+                    timing.mark_fallback(fallback_reason or "deterministic")
+                    extraction = fallback
+                else:
+                    raise GoalExtractionError(
+                        "목표 정보를 구조화하지 못했습니다."
+                    ) from last_error
+            return extraction
 
 
 AMOUNT_PATTERN = re.compile(

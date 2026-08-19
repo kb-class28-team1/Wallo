@@ -17,6 +17,20 @@ class ExpenseCategory(str, Enum):
     ETC = "ETC"
 
 
+class CategoryErrorCode(str, Enum):
+    AI_NOT_CONFIGURED = "AI_NOT_CONFIGURED"
+    AI_UPSTREAM_ERROR = "AI_UPSTREAM_ERROR"
+    AI_TIMEOUT = "AI_TIMEOUT"
+    AI_INVALID_REQUEST = "AI_INVALID_REQUEST"
+    AI_INVALID_RESPONSE = "AI_INVALID_RESPONSE"
+
+
+class CategoryErrorResponse(BaseModel):
+    errorCode: CategoryErrorCode
+    message: str = Field(min_length=1, max_length=300)
+    retryable: bool
+
+
 class CategoryClassificationRequest(BaseModel):
     merchantName: str = Field(min_length=1, max_length=100)
     merchantSector: str | None = Field(default=None, max_length=100)

@@ -1,14 +1,24 @@
 <script setup>
 import { computed, onMounted, ref, watch } from "vue"
 import { getPointHistory } from "@/api/pointHistoryApi"
+import { getCachedResource, getResource, hasInFlightResource } from "@/utils/resourceCache"
+import { useUserStore } from "@/stores/userStore"
+import AppAlert from "@/components/ui/AppAlert.vue"
+import AppButton from "@/components/ui/AppButton.vue"
+import AppCard from "@/components/ui/AppCard.vue"
+import AppPageHeader from "@/components/ui/AppPageHeader.vue"
+import AppState from "@/components/ui/AppState.vue"
 
+const userStore = useUserStore()
 const activeType = ref("ALL")
 const activePeriod = ref("ALL")
 const sort = ref("LATEST")
 const keyword = ref("")
 const page = ref(0)
 const size = ref(20)
-const isLoading = ref(false)
+const initialLoading = ref(true)
+const refreshing = ref(false)
+const hasLoadedHistory = ref(false)
 const errorMessage = ref("")
 const summary = ref({
   totalEarned: 0,
@@ -40,33 +50,75 @@ const formattedSummary = computed(() => ({
 
 const extractPayload = (response) => response?.data?.data || response?.data || response
 
-const loadHistory = async () => {
-  isLoading.value = true
+const pointHistoryCacheKey = () =>
+  [
+    "point-history",
+    userStore.user?.id ?? "current",
+    activeType.value,
+    activePeriod.value,
+    sort.value,
+    keyword.value.trim(),
+    page.value,
+    size.value,
+  ].join(":")
+
+const applyHistory = (payload) => {
+  summary.value = {
+    ...summary.value,
+    ...(payload?.summary || {}),
+  }
+  items.value = Array.isArray(payload?.items) ? payload.items : []
+  totalPages.value = Number(payload?.totalPages || 0)
+  hasLoadedHistory.value = true
+  return payload
+}
+
+const loadHistory = async ({ force = false } = {}) => {
+  const key = pointHistoryCacheKey()
+  const cachedHistory =
+    !force && !hasInFlightResource(key)
+      ? getCachedResource(key, { staleTime: 60 * 1000 })
+      : undefined
+
+  if (cachedHistory !== undefined) {
+    errorMessage.value = ""
+    initialLoading.value = false
+    refreshing.value = false
+    return applyHistory(cachedHistory)
+  }
+
+  const isInitialLoad = !hasLoadedHistory.value
+  initialLoading.value = isInitialLoad
+  refreshing.value = !isInitialLoad
   errorMessage.value = ""
 
   try {
-    const response = await getPointHistory({
-      type: activeType.value,
-      period: activePeriod.value,
-      sort: sort.value,
-      keyword: keyword.value.trim() || undefined,
-      page: page.value,
-      size: size.value,
-    })
-    const payload = extractPayload(response)
-
-    summary.value = {
-      ...summary.value,
-      ...(payload?.summary || {}),
-    }
-    items.value = Array.isArray(payload?.items) ? payload.items : []
-    totalPages.value = Number(payload?.totalPages || 0)
+    const payload = await getResource(
+      key,
+      async () => {
+        const response = await getPointHistory({
+          type: activeType.value,
+          period: activePeriod.value,
+          sort: sort.value,
+          keyword: keyword.value.trim() || undefined,
+          page: page.value,
+          size: size.value,
+        })
+        return extractPayload(response)
+      },
+      { force, staleTime: 60 * 1000 },
+    )
+    return applyHistory(payload)
   } catch (error) {
     errorMessage.value = error.message || "포인트 내역을 불러오지 못했습니다."
-    items.value = []
+    if (isInitialLoad) {
+      items.value = []
+    }
     alert(errorMessage.value)
+    return null
   } finally {
-    isLoading.value = false
+    initialLoading.value = false
+    refreshing.value = false
   }
 }
 
@@ -110,51 +162,49 @@ onMounted(loadHistory)
 
 <template>
   <section class="point-history-page">
-    <header class="page-heading d-flex align-items-start gap-3 mb-4">
-      <RouterLink
-        to="/point-shop"
-        class="page-back-button"
-        aria-label="포인트 샵으로 이동"
-      >
-        <i class="bi bi-chevron-left" aria-hidden="true"></i>
-      </RouterLink>
-      <div>
-        <h1 class="mb-1">포인트 내역</h1>
-        <p class="mb-0">내가 얻고 사용한 포인트를 한눈에 확인해보세요.</p>
-      </div>
-    </header>
+    <AppPageHeader
+      class="page-heading"
+      title="포인트 내역"
+      description="내가 얻고 사용한 포인트를 한눈에 확인해보세요."
+    >
+      <template #leading>
+        <RouterLink to="/point-shop" class="page-back-button" aria-label="포인트 샵으로 이동">
+          <i class="bi bi-chevron-left" aria-hidden="true"></i>
+        </RouterLink>
+      </template>
+    </AppPageHeader>
 
     <div class="summary-grid">
-      <article class="summary-card earned-card">
+      <AppCard as="article" class="summary-card earned-card" padding="none">
         <span>총 적립 포인트</span>
         <strong>{{ formattedSummary.totalEarned }}</strong>
-      </article>
-      <article class="summary-card used-card">
+      </AppCard>
+      <AppCard as="article" class="summary-card used-card" padding="none">
         <span>총 사용 포인트</span>
         <strong>{{ formattedSummary.totalUsed }}</strong>
-      </article>
-      <article class="summary-card balance-card">
+      </AppCard>
+      <AppCard as="article" class="summary-card balance-card" padding="none">
         <span>남은 포인트</span>
         <strong>{{ formattedSummary.balance }}</strong>
-      </article>
-      <article class="summary-card monthly-card">
+      </AppCard>
+      <AppCard as="article" class="summary-card monthly-card" padding="none">
         <span>이번 달 변동</span>
         <strong>{{ formattedSummary.monthlyChange }}</strong>
-      </article>
+      </AppCard>
     </div>
 
-    <section class="filter-panel" aria-label="포인트 내역 필터">
+    <AppCard as="section" class="filter-panel" padding="none" aria-label="포인트 내역 필터">
       <div class="filter-tabs">
-        <button
+        <AppButton
           v-for="tab in tabs"
           :key="tab.value"
-          type="button"
           class="filter-tab"
-          :class="{ active: activeType === tab.value }"
+          size="sm"
+          :variant="activeType === tab.value ? 'primary' : 'outline'"
           @click="activeType = tab.value"
         >
           {{ tab.label }}
-        </button>
+        </AppButton>
       </div>
 
       <label class="filter-field">
@@ -168,16 +218,16 @@ onMounted(loadHistory)
       <div class="period-field">
         <span>기간</span>
         <div class="period-buttons">
-          <button
+          <AppButton
             v-for="period in periods"
             :key="period.value"
-            type="button"
             class="period-button"
-            :class="{ active: activePeriod === period.value }"
+            size="sm"
+            :variant="activePeriod === period.value ? 'primary' : 'outline'"
             @click="activePeriod = period.value"
           >
             {{ period.label }}
-          </button>
+          </AppButton>
         </div>
       </div>
 
@@ -191,24 +241,58 @@ onMounted(loadHistory)
             class="form-control"
             placeholder="내역 검색"
           />
-          <button type="submit" class="btn search-button" aria-label="검색">
+          <AppButton
+            type="submit"
+            class="search-button"
+            variant="secondary"
+            size="sm"
+            aria-label="검색"
+          >
             <i class="bi bi-search" aria-hidden="true"></i>
-          </button>
+          </AppButton>
         </div>
       </form>
-    </section>
+    </AppCard>
 
-    <div v-if="isLoading" class="state-message" role="status">
-      포인트 내역을 불러오는 중입니다...
-    </div>
+    <AppState
+      v-if="initialLoading"
+      class="state-message"
+      type="loading"
+      title="포인트 내역을 불러오는 중입니다."
+      message="잠시만 기다려 주세요."
+    />
 
-    <div v-else-if="errorMessage" class="state-message error-state" role="alert">
-      <span>{{ errorMessage }}</span>
-      <button type="button" class="btn retry-button" @click="loadHistory">다시 시도</button>
-    </div>
+    <AppAlert
+      v-else-if="errorMessage && !hasLoadedHistory"
+      class="state-message error-state"
+      variant="danger"
+    >
+      <div class="point-state-content">
+        <span>{{ errorMessage }}</span>
+        <AppButton variant="outline" size="sm" @click="loadHistory({ force: true })">
+          다시 시도
+        </AppButton>
+      </div>
+    </AppAlert>
 
     <section v-else class="history-list-section">
-      <div v-if="items.length" class="history-list">
+      <AppAlert
+        v-if="refreshing"
+        class="state-message"
+        variant="neutral"
+        role="status"
+        :show-icon="false"
+        message="최신 포인트 내역을 확인하는 중입니다..."
+      />
+      <AppAlert v-if="errorMessage" class="state-message error-state" variant="danger">
+        <div class="point-state-content">
+          <span>{{ errorMessage }}</span>
+          <AppButton variant="outline" size="sm" @click="loadHistory({ force: true })">
+            다시 시도
+          </AppButton>
+        </div>
+      </AppAlert>
+      <AppCard v-if="items.length" as="div" class="history-list" padding="none">
         <article v-for="item in items" :key="item.id" class="history-item">
           <div class="history-icon" :class="item.type === 'EARN' ? 'earn-icon' : 'use-icon'">
             <i
@@ -229,66 +313,82 @@ onMounted(loadHistory)
             {{ item.status }}
           </span>
         </article>
-      </div>
+      </AppCard>
 
-      <div v-else class="empty-state">
-        <i class="bi bi-receipt" aria-hidden="true"></i>
-        <strong>포인트 내역이 없습니다.</strong>
-        <span>조건을 바꾸거나 포인트를 사용해보세요.</span>
-      </div>
+      <AppState
+        v-else
+        class="empty-state"
+        type="empty"
+        title="포인트 내역이 없습니다."
+        message="조건을 바꾸거나 포인트를 사용해보세요."
+      >
+        <template #icon>
+          <i class="bi bi-receipt" aria-hidden="true"></i>
+        </template>
+      </AppState>
 
       <nav v-if="totalPages > 1" class="pagination-wrap" aria-label="포인트 내역 페이지">
-        <button type="button" class="page-button" :disabled="page === 0" @click="movePage(page - 1)">
-          <i class="bi bi-chevron-left" aria-hidden="true"></i>
-        </button>
-        <span>{{ page + 1 }} / {{ totalPages }}</span>
-        <button
-          type="button"
+        <AppButton
           class="page-button"
+          variant="secondary"
+          size="sm"
+          :disabled="page === 0"
+          @click="movePage(page - 1)"
+        >
+          <i class="bi bi-chevron-left" aria-hidden="true"></i>
+        </AppButton>
+        <span>{{ page + 1 }} / {{ totalPages }}</span>
+        <AppButton
+          class="page-button"
+          variant="secondary"
+          size="sm"
           :disabled="page + 1 >= totalPages"
           @click="movePage(page + 1)"
         >
           <i class="bi bi-chevron-right" aria-hidden="true"></i>
-        </button>
+        </AppButton>
       </nav>
     </section>
   </section>
 </template>
 
 <style scoped>
- .page-back-button {
-   display: inline-flex;
-   flex: 0 0 38px;
-   width: 38px;
-   height: 38px;
-   align-items: center;
-   justify-content: center;
-   padding: 0;
-   border: 0;
-   border-radius: 12px;
-   background: #f1efff;
-   color: #6b64e8;
-   text-decoration: none;
-   transform: translateX(-8px);
-   transition: background-color 160ms ease, color 160ms ease, transform 160ms ease;
- }
+.page-back-button {
+  display: inline-flex;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: #f1efff;
+  color: #6b64e8;
+  text-decoration: none;
+  transform: translateX(-8px);
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
 
- .page-back-button:hover,
- .page-back-button:focus-visible {
-   background: #e8e5ff;
-   color: #574fd2;
-   transform: translateX(-8px) translateY(-1px);
- }
+.page-back-button:hover,
+.page-back-button:focus-visible {
+  background: #e8e5ff;
+  color: #574fd2;
+  transform: translateX(-8px) translateY(-1px);
+}
 
- .page-back-button:focus-visible {
-   outline: 3px solid rgb(107 100 232 / 22%);
-   outline-offset: 2px;
- }
+.page-back-button:focus-visible {
+  outline: 3px solid rgb(107 100 232 / 22%);
+  outline-offset: 2px;
+}
 
- .page-back-button i {
-   font-size: 16px;
-   line-height: 1;
- }
+.page-back-button i {
+  font-size: 16px;
+  line-height: 1;
+}
 
 .point-history-page {
   width: 100%;
@@ -302,14 +402,23 @@ onMounted(loadHistory)
   justify-content: flex-start;
 }
 
-.page-heading h1 {
+.page-heading :deep(.app-page-header__title) {
   font-size: 28px;
   font-weight: 800;
 }
 
-.page-heading p {
+.page-heading :deep(.app-page-header__description) {
   color: #8c95b0;
   font-size: 13px;
+}
+
+.point-state-content {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
 }
 
 .summary-grid {

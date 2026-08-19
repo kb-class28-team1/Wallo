@@ -3,6 +3,8 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import { RouterLink, useRoute, useRouter } from "vue-router"
 import { getCurrentChallenge } from "@/api/challengeApi"
 import AppDialog from "@/components/common/AppDialog.vue"
+import AppButton from "@/components/ui/AppButton.vue"
+import AppCard from "@/components/ui/AppCard.vue"
 
 // public 폴더의 이미지는 루트 절대 경로로 참조함.
 const brandPenguin = "/images/profiles/penguin-coins.svg"
@@ -92,7 +94,8 @@ const isChallengeRoute = computed(
   () =>
     route.path === "/challenges/current" ||
     route.path.startsWith("/challenges/") ||
-    route.path === "/users/me/challenge-dashboard",
+    route.path === "/users/me/challenge-dashboard" ||
+    route.path === "/my-feeds",
 )
 const challengeGroupClass = computed(() => ({
   "challenge-group-active": isChallengeRoute.value,
@@ -108,6 +111,9 @@ const challengeFeedClass = computed(() => ({
 }))
 const myChallengeClass = computed(() => ({
   "submenu-link-active": route.path === "/users/me/challenge-dashboard",
+}))
+const myFeedsClass = computed(() => ({
+  "submenu-link-active": route.path === "/my-feeds",
 }))
 
 // 챌린지 관련 페이지에서는 새로고침 후에도 하위 메뉴가 펼쳐짐
@@ -190,6 +196,10 @@ const moveToChallengeFeed = async () => {
 const moveToMyChallenge = () => {
   moveToChallengeMemberPage("/users/me/challenge-dashboard")
 }
+
+const moveToMyFeeds = () => {
+  moveToChallengeMemberPage("/my-feeds")
+}
 </script>
 
 <template>
@@ -218,20 +228,22 @@ const moveToMyChallenge = () => {
 
       <div class="challenge-group" :class="challengeGroupClass">
         <div class="challenge-heading d-flex align-items-center">
-          <button
-            type="button"
+          <AppButton
             class="menu-item challenge-title d-flex flex-grow-1 align-items-center"
+            variant="ghost"
+            size="sm"
             :aria-expanded="isChallengeOpen"
             aria-controls="challenge-submenu"
             @click="toggleChallenge"
           >
-            <span class="menu-icon" aria-hidden="true">💰</span>
-            <span>절약 챌린지</span>
-          </button>
+            <template #leading><span class="menu-icon" aria-hidden="true">💰</span></template>
+            절약 챌린지
+          </AppButton>
 
-          <button
-            type="button"
+          <AppButton
             class="collapse-toggle d-flex align-items-center justify-content-end"
+            variant="ghost"
+            size="sm"
             :aria-expanded="isChallengeOpen"
             aria-controls="challenge-submenu"
             aria-label="절약 챌린지 하위 메뉴 열기 및 닫기"
@@ -242,43 +254,58 @@ const moveToMyChallenge = () => {
               :class="collapseMarkClass"
               aria-hidden="true"
             ></span>
-          </button>
+          </AppButton>
         </div>
 
         <Transition name="submenu">
           <div v-if="isChallengeOpen" id="challenge-submenu" class="submenu d-flex flex-column">
-            <button
-              type="button"
+            <AppButton
               class="submenu-item submenu-link d-flex align-items-center"
+              variant="ghost"
+              size="sm"
               :class="challengeFeedClass"
               :disabled="isChallengeChecking"
               @click="moveToChallengeFeed"
             >
-              <span class="submenu-dot" aria-hidden="true"></span>
-              <span>피드 목록</span>
-            </button>
+              <template #leading><span class="submenu-dot" aria-hidden="true"></span></template>
+              피드 목록
+            </AppButton>
 
-            <button
-              type="button"
+            <AppButton
               class="submenu-item submenu-link d-flex align-items-center"
+              variant="ghost"
+              size="sm"
               :class="weeklyRankingClass"
               :disabled="isChallengeChecking"
               @click="moveToWeeklyRanking"
             >
-              <span class="submenu-dot" aria-hidden="true"></span>
-              <span>주간랭킹</span>
-            </button>
+              <template #leading><span class="submenu-dot" aria-hidden="true"></span></template>
+              주간랭킹
+            </AppButton>
 
-            <button
-              type="button"
+            <AppButton
               class="submenu-item submenu-link d-flex align-items-center"
+              variant="ghost"
+              size="sm"
               :class="myChallengeClass"
               :disabled="isChallengeChecking"
               @click="moveToMyChallenge"
             >
-              <span class="submenu-dot" aria-hidden="true"></span>
-              <span>내 챌린지</span>
-            </button>
+              <template #leading><span class="submenu-dot" aria-hidden="true"></span></template>
+              내 챌린지
+            </AppButton>
+
+            <AppButton
+              class="submenu-item submenu-link d-flex align-items-center"
+              variant="ghost"
+              size="sm"
+              :class="myFeedsClass"
+              :disabled="isChallengeChecking"
+              @click="moveToMyFeeds"
+            >
+              <template #leading><span class="submenu-dot" aria-hidden="true"></span></template>
+              내 게시물
+            </AppButton>
           </div>
         </Transition>
       </div>
@@ -296,12 +323,12 @@ const moveToMyChallenge = () => {
       </div>
     </nav>
 
-    <div class="sidebar-card mt-auto text-center">
+    <AppCard as="div" class="sidebar-card mt-auto text-center" padding="none">
       <img :src="thinkingPenguin" class="sidebar-card-image" alt="생각하는 왈로 캐릭터" />
       <p class="sidebar-card-text mb-0" :title="dailySavingsTip" aria-live="polite">
         {{ dailySavingsTip }}
       </p>
-    </div>
+    </AppCard>
   </aside>
   <AppDialog
     :visible="dialogVisible"
@@ -405,6 +432,18 @@ const moveToMyChallenge = () => {
   cursor: pointer;
 }
 
+.challenge-title.app-button {
+  justify-content: flex-start;
+  min-height: 26px;
+  padding: 0;
+  border: 0;
+}
+
+.challenge-title :deep(.app-button__label) {
+  display: inline-flex;
+  align-items: center;
+}
+
 .challenge-title:hover,
 .challenge-group-active .challenge-title {
   color: #5f50d2;
@@ -426,6 +465,11 @@ const moveToMyChallenge = () => {
   color: inherit;
   background: transparent;
   cursor: pointer;
+}
+
+.collapse-toggle.app-button {
+  min-height: 32px;
+  padding: 0;
 }
 
 .collapse-mark {
@@ -452,6 +496,18 @@ const moveToMyChallenge = () => {
   gap: 18px;
   min-height: 28px;
   font-size: 14.6px;
+}
+
+.submenu-item.app-button {
+  justify-content: flex-start;
+  min-height: 28px;
+  padding: 0;
+  border: 0;
+}
+
+.submenu-item :deep(.app-button__label) {
+  display: inline-flex;
+  align-items: center;
 }
 
 .submenu-link {
@@ -510,7 +566,7 @@ const moveToMyChallenge = () => {
 
 .submenu-enter-to,
 .submenu-leave-from {
-  max-height: 110px;
+  max-height: 160px;
   margin-top: 8px;
   opacity: 1;
 }

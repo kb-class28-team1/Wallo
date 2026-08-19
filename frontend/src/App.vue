@@ -3,6 +3,7 @@ import { computed } from "vue"
 import { RouterView, useRoute } from "vue-router"
 import SideNavigation from "@/components/navigation/SideNavigation.vue"
 import TopHeader from "@/components/navigation/TopHeader.vue"
+import AppToast from "@/components/common/AppToast.vue"
 import { useModalEnter } from "@/composables/useModalEnter"
 
 const route = useRoute()
@@ -11,6 +12,7 @@ useModalEnter()
 </script>
 
 <template>
+  <AppToast />
   <div v-if="usesAppShell" class="app-shell d-flex min-vh-100">
     <SideNavigation />
     <div class="app-shell-body d-flex flex-grow-1 flex-column">
@@ -28,14 +30,14 @@ useModalEnter()
 <style scoped>
 .app-shell {
   min-width: 100%;
-  background: #fafafa;
+  background: var(--wallo-color-bg);
 }
 
 .app-shell-body {
-  width: calc(100% - 273px);
+  width: calc(100% - var(--wallo-sidebar-width));
   min-width: 0;
   min-height: 100vh;
-  margin-left: 273px;
+  margin-left: var(--wallo-sidebar-width);
 }
 
 .page-content {
@@ -43,19 +45,19 @@ useModalEnter()
   justify-content: center;
   min-width: 0;
   min-height: 100vh;
-  padding: 100px 32px 32px;
-  background: #fafafa;
+  padding: var(--wallo-page-top-offset) var(--wallo-page-gutter) var(--wallo-page-gutter);
+  background: var(--wallo-color-bg);
 }
 
 .page-view {
   width: 100%;
-  max-width: 1180px;
+  max-width: var(--wallo-content-max-width);
 }
 
 @media (max-width: 767.98px) {
   .page-content {
-    padding-right: 20px;
-    padding-left: 20px;
+    padding-right: var(--wallo-page-gutter-mobile);
+    padding-left: var(--wallo-page-gutter-mobile);
   }
 }
 </style>
