@@ -21,6 +21,7 @@ import {
   selectGoalAccount,
 } from "@/api/goalApi"
 import { useConversationStore } from "@/stores/conversationStore"
+import { useToastStore } from "@/stores/toastStore"
 import { useUserStore } from "@/stores/userStore"
 
 const { route, replaceMock, pushMock } = vi.hoisted(() => {
@@ -247,7 +248,7 @@ describe("ChatView", () => {
     wrapper.unmount()
   })
 
-  it("shows a completion modal and opens AI consulting after the roadmap is completed", async () => {
+  it("shows a completion toast and opens AI consulting after the roadmap is completed", async () => {
     getActiveGoalInterview.mockResolvedValue({
       active: true,
       draft: {
@@ -312,15 +313,12 @@ describe("ChatView", () => {
     await wrapper.find(".goal-account-selection button.btn-primary").trigger("click")
     await flushPromises()
 
-    expect(wrapper.find('[role="dialog"]').text()).toContain(
-      "목표 설정 및 로드맵이 완성되었습니다!",
-    )
-    expect(wrapper.find("[data-modal-confirm]").text()).toBe("확인하기")
-    expect(pushMock).not.toHaveBeenCalled()
-
-    await wrapper.find("[data-modal-confirm]").trigger("click")
-    await flushPromises()
-
+    const toastStore = useToastStore()
+    expect(toastStore.toasts).toContainEqual({
+      id: expect.any(Number),
+      message: expect.stringContaining("목표 설정 및 로드맵이 완성되었습니다!"),
+      variant: "success",
+    })
     expect(pushMock).toHaveBeenCalledWith({ name: "ai-consulting" })
     wrapper.unmount()
   })

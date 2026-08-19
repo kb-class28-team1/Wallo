@@ -334,7 +334,7 @@ onMounted(loadCurrentChallenge)
 <style scoped>
 .challenge-entry {
   width: 100%;
-  min-height: calc(100vh - 164px);
+  min-height: 0;
   color: #202840;
 }
 
@@ -596,7 +596,7 @@ onMounted(loadCurrentChallenge)
   grid-template-columns: minmax(280px, 0.8fr) minmax(460px, 1.2fr);
   gap: 70px;
   align-items: center;
-  padding: 38px 18px 46px;
+  padding: 0px 18px;
 }
 
 .entry-hero h1 {
@@ -613,6 +613,8 @@ onMounted(loadCurrentChallenge)
 }
 
 .entry-card {
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   background: #fff;
   border: 1px solid #eceef5;
@@ -643,14 +645,19 @@ onMounted(loadCurrentChallenge)
 }
 
 .challenge-form {
+  display: flex;
+  height: 545px;
+  flex-direction: column;
   padding: 36px;
+  box-sizing: border-box;
 }
 
 .entry-form-image {
   display: block;
-  width: min(230px, 100%);
-  height: auto;
+  width: 100%;
+  height: 150px;
   margin: -10px auto 24px;
+  object-fit: contain;
   /* 이미지 원본의 미세한 아이보리 배경이 카드와 분리되어 보이지 않도록 보정 */
   filter: brightness(1.03);
 }
@@ -732,7 +739,7 @@ onMounted(loadCurrentChallenge)
 .submit-button {
   width: 100%;
   min-height: 54px;
-  margin-top: 28px;
+  margin-top: auto;
   color: #fff;
   background: #7062dc;
   border: 0;
@@ -754,6 +761,10 @@ onMounted(loadCurrentChallenge)
   .challenge-actions {
     grid-template-columns: 1fr;
   }
+
+  .challenge-form {
+    height: auto;
+  }
 }
 
 @media (max-width: 767.98px) {
@@ -768,11 +779,22 @@ onMounted(loadCurrentChallenge)
   }
 
   .not-joined-page {
-    padding: 18px 0 32px;
+    padding: 8px 0 12px;
   }
 
   .challenge-form {
+    height: auto;
     padding: 26px 22px;
+  }
+
+  .entry-form-image {
+    height: 132px;
+    margin-top: -4px;
+    margin-bottom: 20px;
+  }
+
+  .submit-button {
+    margin-top: 28px;
   }
 }
 </style>
