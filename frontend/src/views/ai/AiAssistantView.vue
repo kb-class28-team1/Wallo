@@ -4,7 +4,11 @@ import { useRouter } from "vue-router"
 import { storeToRefs } from "pinia"
 import { useGoalStore } from "@/stores/goalStore"
 import { useUserStore } from "@/stores/userStore"
-import { getTodayMissions } from "@/api/missionApi"
+import {
+  completeSelfCheckMission,
+  getTodayMissions,
+  verifyTransactionMission,
+} from "@/api/missionApi"
 import { formatWon } from "@/utils/formatters"
 import {
   getGoalAchievementRate,
@@ -42,6 +46,7 @@ const missionStatus = ref("READY")
 const missionError = ref("")
 const isMissionLoading = ref(false)
 let missionDateTimer = null
+const missionActionId = ref(null)
 
 const currentAmount = computed(() => getGoalCurrentAmount(currentGoal.value))
 const targetAmount = computed(() => getGoalTargetAmount(currentGoal.value))
@@ -203,6 +208,24 @@ const loadTodayMissionList = async () => {
     const response = await getTodayMissions()
     missions.value = response.missions
     missionStatus.value = response.status || "READY"
+    const transactionMissions = missions.value.filter(
+      (mission) => mission.verificationType === "TRANSACTION" && !mission.completed,
+    )
+    if (transactionMissions.length) {
+      const results = await Promise.allSettled(
+        transactionMissions.map((mission) => verifyTransactionMission(mission.id)),
+      )
+      if (results.some(
+        (result) => result.status === "fulfilled" && result.value?.decision === "PASS",
+      )) {
+        const refreshed = await getTodayMissions()
+        missions.value = refreshed.missions
+        missionStatus.value = refreshed.status || "READY"
+        window.dispatchEvent(new CustomEvent("wallo:mission-updated", {
+          detail: { missionResponse: refreshed },
+        }))
+      }
+    }
   } catch (missionLoadError) {
     missions.value = []
     missionError.value = missionLoadError.message || "오늘의 미션을 불러오지 못했습니다."
@@ -228,6 +251,13 @@ const startAiChat = async () => {
   await router.push({ name: "chat" })
 }
 
+const startConsumptionAnalysis = async () => {
+  await router.push({
+    name: "chat",
+    query: { action: "consumption-analysis" },
+  })
+}
+
 const handleMissionUpdated = (event) => {
   const generatedResponse = event?.detail?.missionResponse
   if (generatedResponse) {
@@ -235,6 +265,21 @@ const handleMissionUpdated = (event) => {
     return
   }
   void loadTodayMissionList()
+}
+
+const runMissionAction = async (mission) => {
+  if (mission.completed || missionActionId.value) return
+  if (mission.verificationType !== "SELF_CHECK") return
+  missionActionId.value = mission.id
+  try {
+    await completeSelfCheckMission(mission.id)
+    await loadTodayMissionList()
+    window.dispatchEvent(new CustomEvent("wallo:mission-updated"))
+  } catch (missionActionError) {
+    alert(missionActionError.message || "미션 처리에 실패했습니다.")
+  } finally {
+    missionActionId.value = null
+  }
 }
 
 const scheduleNextMissionDateRefresh = () => {
@@ -386,6 +431,16 @@ onBeforeUnmount(() => {
               />
               <div v-else-if="missionStatus === 'WAITING_ANALYSIS'" class="mission-empty mt-4">
                 소비 분석이 완료되면 오늘의 미션이 생성됩니다.
+                <AppButton
+                  class="mt-3"
+                  variant="outline"
+                  size="sm"
+                  block
+                  @click="startConsumptionAnalysis"
+                >
+                  <i class="bi bi-bar-chart-line me-1" aria-hidden="true"></i>
+                  소비분석 하러가기
+                </AppButton>
               </div>
               <div v-else-if="!missions.length" class="mission-empty mt-4">
                 오늘 배정된 미션이 없습니다.
@@ -417,6 +472,17 @@ onBeforeUnmount(() => {
                       <b>{{ getMissionVerificationInfo(mission).label }}</b>
                       {{ getMissionVerificationInfo(mission).guide }}
                     </span>
+                    <AppButton
+                      v-if="!mission.completed && mission.verificationType === 'SELF_CHECK'"
+                      class="mission-action-button"
+                      variant="outline"
+                      size="sm"
+                      :disabled="missionActionId === mission.id"
+                      :aria-label="`${mission.title} 완료 처리`"
+                      @click="runMissionAction(mission)"
+                    >
+                      {{ missionActionId === mission.id ? "확인 중..." : "완료하기" }}
+                    </AppButton>
                   </li>
                 </ul>
               </div>
@@ -582,6 +648,16 @@ onBeforeUnmount(() => {
               />
               <div v-else-if="missionStatus === 'WAITING_ANALYSIS'" class="mission-empty mt-4">
                 소비 분석이 완료되면 오늘의 미션이 생성됩니다.
+                <AppButton
+                  class="mt-3"
+                  variant="outline"
+                  size="sm"
+                  block
+                  @click="startConsumptionAnalysis"
+                >
+                  <i class="bi bi-bar-chart-line me-1" aria-hidden="true"></i>
+                  소비분석 하러가기
+                </AppButton>
               </div>
               <div v-else-if="!missions.length" class="mission-empty mt-4">
                 오늘 배정된 미션이 없습니다.
@@ -613,6 +689,17 @@ onBeforeUnmount(() => {
                       <b>{{ getMissionVerificationInfo(mission).label }}</b>
                       {{ getMissionVerificationInfo(mission).guide }}
                     </span>
+                    <AppButton
+                      v-if="!mission.completed && mission.verificationType === 'SELF_CHECK'"
+                      class="mission-action-button"
+                      variant="outline"
+                      size="sm"
+                      :disabled="missionActionId === mission.id"
+                      :aria-label="`${mission.title} 완료 처리`"
+                      @click="runMissionAction(mission)"
+                    >
+                      {{ missionActionId === mission.id ? "확인 중..." : "완료하기" }}
+                    </AppButton>
                   </li>
                 </ul>
               </div>
@@ -1046,6 +1133,58 @@ onBeforeUnmount(() => {
   margin-right: 0.25rem;
   color: #6555df;
   font-size: 0.72rem;
+}
+
+.mission-action-button {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 14px;
+  opacity: 0;
+  color: #fff;
+  background: rgb(101 85 223 / 88%);
+  box-shadow: none;
+  font-weight: 700;
+  pointer-events: none;
+  transition: opacity 160ms ease;
+}
+
+.mission-list-item > :not(.mission-action-button) {
+  transition: opacity 160ms ease, filter 160ms ease;
+}
+
+.mission-list-item:has(.mission-action-button):hover > :not(.mission-action-button),
+.mission-list-item:has(.mission-action-button):focus-within > :not(.mission-action-button) {
+  opacity: 0.22;
+  filter: blur(0.6px);
+}
+
+.mission-list-item:hover .mission-action-button,
+.mission-list-item:focus-within .mission-action-button,
+.mission-action-button:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (hover: none) {
+  .mission-action-button {
+    position: static;
+    grid-column: 1 / -1;
+    min-height: 34px;
+    opacity: 1;
+    color: #6555df;
+    background: #f3f1ff;
+    pointer-events: auto;
+  }
+
+  .mission-list-item:has(.mission-action-button):focus-within > :not(.mission-action-button) {
+    opacity: 1;
+    filter: none;
+  }
 }
 
 .mission-list-item.completed .mission-copy strong {

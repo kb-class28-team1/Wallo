@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from "vue"
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import { storeToRefs } from "pinia"
 import { RouterLink, useRouter } from "vue-router"
 import { generateNextDayMissions, getTodayMissions } from "@/api/missionApi"
@@ -50,6 +50,19 @@ const completedMissionReward = computed(() =>
 )
 const totalMissionReward = computed(() =>
   missions.value.reduce((total, mission) => total + Number(mission.rewardPoint || 0), 0),
+)
+
+watch(
+  () => userStore.user?.id,
+  (currentUserId, previousUserId) => {
+    if (currentUserId === previousUserId) return
+    stopMissionPolling()
+    missions.value = []
+    missionStatus.value = "READY"
+    missionFailureReason.value = null
+    missionDevResult.value = null
+    if (currentUserId) void loadTodayMissions(false)
+  },
 )
 
 onMounted(() => {
@@ -139,6 +152,7 @@ const handleMissionUpdated = async (event) => {
     return
   }
   await loadTodayMissions()
+  await userStore.fetchUserProfile()
   if (["WAITING_ANALYSIS", MISSION_GENERATION_FAILED_STATUS].includes(missionStatus.value)) {
     startMissionPolling()
   }

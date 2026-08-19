@@ -29,13 +29,24 @@ MISSION_ITEM_SCHEMA = {
         "rewardPoint": {"type": "integer", "const": 10},
         "verificationType": {
             "type": "string",
-            "enum": ["MEDIA_AI", "TRANSACTION", "HYBRID", "SELF_CHECK", "MANUAL"],
+            "enum": ["MEDIA_AI", "TRANSACTION", "SELF_CHECK"],
         },
         "verificationRule": {
             "type": "object",
             "additionalProperties": False,
-            "properties": {"description": {"type": "string"}},
-            "required": ["description"],
+            "properties": {
+                "description": {"type": "string"},
+                "transactionCategory": {"type": "string"},
+                "transactionOperator": {
+                    "type": "string",
+                    "enum": ["NONE", "SINGLE_MAX"],
+                },
+                "transactionAmount": {"type": "integer", "minimum": 0},
+            },
+            "required": [
+                "description", "transactionCategory",
+                "transactionOperator", "transactionAmount",
+            ],
         },
         "evidenceGuide": {"type": "string"},
     },

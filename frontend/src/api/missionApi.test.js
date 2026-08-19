@@ -4,6 +4,8 @@ import {
   generateNextDayMissions,
   getTodayMissions,
   verifyMissionWithFeed,
+  completeSelfCheckMission,
+  verifyTransactionMission,
 } from "./missionApi"
 
 vi.mock("@/api/httpClient", () => ({
@@ -11,7 +13,10 @@ vi.mock("@/api/httpClient", () => ({
 }))
 
 describe("missionApi", () => {
-  afterEach(() => vi.clearAllMocks())
+  afterEach(() => {
+    vi.clearAllMocks()
+    sessionStorage.clear()
+  })
 
   it("loads and normalizes today's missions", async () => {
     httpClient.get.mockResolvedValue({
@@ -62,6 +67,29 @@ describe("missionApi", () => {
     expect(result.missions[0]).toMatchObject({ id: 4, icon: "☕" })
   })
 
+  it("keeps a generated future mission preview on subsequent loads", async () => {
+    const futureDate = new Date()
+    futureDate.setDate(futureDate.getDate() + 1)
+    const date = [
+      futureDate.getFullYear(),
+      String(futureDate.getMonth() + 1).padStart(2, "0"),
+      String(futureDate.getDate()).padStart(2, "0"),
+    ].join("-")
+    httpClient.post.mockResolvedValue({
+      data: {
+        date,
+        missions: [{ dailyMissionId: 9, category: "FOOD", title: "다음날 미션" }],
+      },
+    })
+
+    await generateNextDayMissions()
+    const result = await getTodayMissions()
+
+    expect(result.date).toBe(date)
+    expect(result.missions[0].title).toBe("다음날 미션")
+    expect(httpClient.get).not.toHaveBeenCalled()
+  })
+
   it("verifies a mission using an already uploaded feed", async () => {
     httpClient.post.mockResolvedValue({
       data: { decision: "PASS", missionStatus: "COMPLETED", rewardedPoint: 10 },
@@ -74,5 +102,17 @@ describe("missionApi", () => {
       null,
       { params: { feedId: 21 } },
     )
+  })
+
+  it("completes a self-check mission", async () => {
+    httpClient.post.mockResolvedValue({ data: { decision: "PASS" } })
+    await completeSelfCheckMission(3)
+    expect(httpClient.post).toHaveBeenCalledWith("/api/missions/3/self-check")
+  })
+
+  it("verifies a transaction mission", async () => {
+    httpClient.post.mockResolvedValue({ data: { decision: "PASS" } })
+    await verifyTransactionMission(3)
+    expect(httpClient.post).toHaveBeenCalledWith("/api/missions/3/transaction/verify")
   })
 })

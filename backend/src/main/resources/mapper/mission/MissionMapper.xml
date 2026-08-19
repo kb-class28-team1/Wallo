@@ -2,203 +2,80 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.wallo.mission.mapper.MissionMapper">
-
     <select id="findUserIdsWithAnalysis" resultType="java.lang.Long">
-        SELECT DISTINCT user_id
-        FROM CONSUMPTION_ANALYSIS_RESULTS
-        ORDER BY user_id
+        SELECT DISTINCT user_id FROM CONSUMPTION_ANALYSIS_RESULTS ORDER BY user_id
     </select>
-
     <select id="findLatestAnalysis" resultType="com.wallo.mission.domain.MissionAnalysisSource">
-        SELECT analysis_result_id AS analysisResultId,
-               user_id AS userId,
+        SELECT analysis_result_id AS analysisResultId, user_id AS userId,
                calculated_result AS calculatedResultJson
-        FROM CONSUMPTION_ANALYSIS_RESULTS
-        WHERE user_id = #{userId}
-        ORDER BY generated_at DESC, analysis_result_id DESC
-        LIMIT 1
+        FROM CONSUMPTION_ANALYSIS_RESULTS WHERE user_id = #{userId}
+        ORDER BY generated_at DESC, analysis_result_id DESC LIMIT 1
     </select>
-
-    <insert id="insertCycle" useGeneratedKeys="true" keyProperty="missionCycleId">
-        INSERT INTO MISSION_CYCLES (
-            user_id, cycle_start_date, cycle_end_date, status,
-            source_analysis_result_id, prompt_version, generation_error, generated_at
-        ) VALUES (
-            #{userId}, #{cycleStartDate}, #{cycleEndDate}, #{status},
-            #{sourceAnalysisResultId}, #{promptVersion}, #{generationError}, #{generatedAt}
-        )
+    <insert id="insertDailyMission" useGeneratedKeys="true" keyProperty="dailyMissionId">
+        INSERT INTO DAILY_MISSIONS
+        (user_id, assigned_date, display_order, title, description, category, reward_point,
+         verification_type, verification_rule, evidence_guide, status)
+        VALUES
+        (#{userId}, #{assignedDate}, #{displayOrder}, #{title}, #{description}, #{category},
+         #{rewardPoint}, #{verificationType}, #{verificationRuleJson}, #{evidenceGuide}, #{status})
     </insert>
-
-    <select id="findCycle" resultType="com.wallo.mission.domain.MissionCycle">
-        SELECT mission_cycle_id AS missionCycleId,
-               user_id AS userId,
-               cycle_start_date AS cycleStartDate,
-               cycle_end_date AS cycleEndDate,
-               status,
-               source_analysis_result_id AS sourceAnalysisResultId,
-               prompt_version AS promptVersion,
-               generation_error AS generationError,
-               generated_at AS generatedAt
-        FROM MISSION_CYCLES
-        WHERE user_id = #{userId}
-          AND cycle_start_date = #{cycleStartDate}
+    <select id="findDailyMissions" resultType="com.wallo.mission.domain.DailyMission">
+        SELECT daily_mission_id AS dailyMissionId,
+               user_id AS userId, assigned_date AS assignedDate, display_order AS displayOrder,
+               status, completed_at AS completedAt, title, description, category,
+               reward_point AS rewardPoint, verification_type AS verificationType,
+               evidence_guide AS evidenceGuide, verification_rule AS verificationRuleJson
+        FROM DAILY_MISSIONS WHERE user_id = #{userId} AND assigned_date = #{assignedDate}
+        ORDER BY display_order
     </select>
-
-    <select id="findCycleForUpdate" resultType="com.wallo.mission.domain.MissionCycle">
-        SELECT mission_cycle_id AS missionCycleId,
-               user_id AS userId,
-               cycle_start_date AS cycleStartDate,
-               cycle_end_date AS cycleEndDate,
-               status,
-               source_analysis_result_id AS sourceAnalysisResultId,
-               prompt_version AS promptVersion,
-               generation_error AS generationError,
-               generated_at AS generatedAt
-        FROM MISSION_CYCLES
-        WHERE user_id = #{userId}
-          AND cycle_start_date = #{cycleStartDate}
+    <select id="findLatestAssignedDate" resultType="java.time.LocalDate">
+        SELECT MAX(assigned_date) FROM DAILY_MISSIONS WHERE user_id = #{userId}
+    </select>
+    <update id="updateDailyMissionStatus">
+        UPDATE DAILY_MISSIONS SET status = #{status},
+        completed_at = CASE WHEN #{status} = 'COMPLETED' THEN CURRENT_TIMESTAMP ELSE completed_at END
+        WHERE daily_mission_id = #{dailyMissionId} AND user_id = #{userId}
+    </update>
+    <update id="expireAssignedMissionsBefore">
+        UPDATE DAILY_MISSIONS SET status = 'EXPIRED'
+        WHERE user_id = #{userId} AND assigned_date &lt; #{assignedDate}
+          AND status IN ('ASSIGNED', 'FAILED')
+    </update>
+    <select id="findMissionEvidenceTarget" resultType="com.wallo.mission.domain.MissionEvidenceTarget">
+        SELECT daily.daily_mission_id AS dailyMissionId, daily.user_id AS userId,
+               daily.assigned_date AS assignedDate, daily.status, daily.title, daily.description,
+               daily.verification_type AS verificationType,
+               daily.verification_rule AS verificationRuleJson,
+               daily.evidence_guide AS evidenceGuide, daily.reward_point AS rewardPoint,
+               feed.media_url AS mediaUrl, feed.media_type AS mediaType,
+               analysis.analysis_summary AS analysisSummary,
+               analysis.estimated_saving_amount AS estimatedSavingAmount
+        FROM DAILY_MISSIONS daily JOIN FEED feed ON feed.id = #{feedId}
+          AND feed.user_id = daily.user_id AND feed.status = 'ACTIVE'
+        JOIN FEED_ANALYSIS analysis ON analysis.feed_id = feed.id
+          AND analysis.analysis_summary IS NOT NULL
+        WHERE daily.daily_mission_id = #{dailyMissionId} AND daily.user_id = #{userId}
+    </select>
+    <select id="findDailyMissionForVerification" resultType="com.wallo.mission.domain.DailyMission">
+        SELECT daily_mission_id AS dailyMissionId, user_id AS userId,
+               assigned_date AS assignedDate, status, title, description, category,
+               reward_point AS rewardPoint, verification_type AS verificationType,
+               verification_rule AS verificationRuleJson, evidence_guide AS evidenceGuide
+        FROM DAILY_MISSIONS WHERE daily_mission_id = #{dailyMissionId} AND user_id = #{userId}
         FOR UPDATE
     </select>
-
-    <select id="findActiveCycleUserIds" resultType="java.lang.Long">
-        SELECT user_id
-        FROM MISSION_CYCLES
-        WHERE status = 'ACTIVE'
-          AND #{assignedDate} BETWEEN cycle_start_date AND cycle_end_date
-        ORDER BY user_id
+    <select id="countQualifyingTransactions" resultType="int">
+        SELECT COUNT(*) FROM TRANSACTIONS WHERE user_id = #{userId}
+          AND transaction_date = #{transactionDate} AND type = 'EXPENSE'
+          AND category = #{category} AND amount &gt;= 0 AND amount &lt;= #{maxAmount}
     </select>
-
-    <update id="updateCycleStatus">
-        UPDATE MISSION_CYCLES
-        SET status = #{status},
-            generation_error = #{generationError},
-            generated_at = CASE WHEN #{status} = 'ACTIVE' THEN CURRENT_TIMESTAMP ELSE generated_at END
-        WHERE mission_cycle_id = #{missionCycleId}
-    </update>
-
-    <insert id="insertMission" useGeneratedKeys="true" keyProperty="missionId">
-        INSERT INTO MISSIONS (
-            mission_cycle_id, title, description, category,
-            reward_point, verification_type, verification_rule,
-            evidence_guide, deduplication_key
-        ) VALUES (
-            #{missionCycleId}, #{title}, #{description}, #{category},
-            #{rewardPoint}, #{verificationType}, #{verificationRuleJson},
-            #{evidenceGuide}, #{deduplicationKey}
-        )
-    </insert>
-
-    <select id="countMissionsByCycleId" resultType="int">
-        SELECT COUNT(*) FROM MISSIONS WHERE mission_cycle_id = #{missionCycleId}
-    </select>
-
-    <select id="findMissionsByCycleId" resultType="com.wallo.mission.domain.Mission">
-        SELECT mission_id AS missionId,
-               mission_cycle_id AS missionCycleId,
-               title,
-               description,
-               category,
-               reward_point AS rewardPoint,
-               verification_type AS verificationType,
-               verification_rule AS verificationRuleJson,
-               evidence_guide AS evidenceGuide,
-               deduplication_key AS deduplicationKey
-        FROM MISSIONS
-        WHERE mission_cycle_id = #{missionCycleId}
-        ORDER BY mission_id
-    </select>
-
-    <insert id="insertDailyMission" useGeneratedKeys="true" keyProperty="dailyMissionId">
-        INSERT INTO DAILY_MISSIONS (
-            mission_cycle_id, mission_id, user_id, assigned_date, display_order, status
-        ) VALUES (
-            #{missionCycleId}, #{missionId}, #{userId}, #{assignedDate}, #{displayOrder}, #{status}
-        )
-    </insert>
-
-    <select id="findDailyMissions" resultType="com.wallo.mission.domain.DailyMission">
-        SELECT daily.daily_mission_id AS dailyMissionId,
-               daily.mission_cycle_id AS missionCycleId,
-               daily.mission_id AS missionId,
-               daily.user_id AS userId,
-               daily.assigned_date AS assignedDate,
-               daily.display_order AS displayOrder,
-               daily.status,
-               daily.completed_at AS completedAt,
-               mission.title,
-               mission.description,
-               mission.category,
-               mission.reward_point AS rewardPoint,
-               mission.verification_type AS verificationType,
-               mission.evidence_guide AS evidenceGuide
-        FROM DAILY_MISSIONS daily
-        JOIN MISSIONS mission ON mission.mission_id = daily.mission_id
-        WHERE daily.user_id = #{userId}
-          AND daily.assigned_date = #{assignedDate}
-        ORDER BY daily.display_order
-    </select>
-
-    <select id="findLatestAssignedDate" resultType="java.time.LocalDate">
-        SELECT MAX(assigned_date)
-        FROM DAILY_MISSIONS
-        WHERE user_id = #{userId}
-    </select>
-
-    <update id="updateDailyMissionStatus">
-        UPDATE DAILY_MISSIONS
-        SET status = #{status},
-            completed_at = CASE WHEN #{status} = 'COMPLETED' THEN CURRENT_TIMESTAMP ELSE completed_at END
-        WHERE daily_mission_id = #{dailyMissionId}
-          AND user_id = #{userId}
-    </update>
-
-    <update id="expireAssignedMissionsBefore">
-        UPDATE DAILY_MISSIONS
-        SET status = 'EXPIRED'
-        WHERE user_id = #{userId}
-          AND assigned_date &lt; #{assignedDate}
-          AND status = 'ASSIGNED'
-    </update>
-
-    <select id="findMissionEvidenceTarget"
-            resultType="com.wallo.mission.domain.MissionEvidenceTarget">
-        SELECT daily.daily_mission_id AS dailyMissionId,
-               daily.mission_cycle_id AS missionCycleId,
-               daily.mission_id AS missionId,
-               daily.user_id AS userId,
-               daily.assigned_date AS assignedDate,
-               daily.status,
-               mission.title,
-               mission.description,
-               mission.verification_type AS verificationType,
-               mission.verification_rule AS verificationRuleJson,
-               mission.evidence_guide AS evidenceGuide
-               ,mission.reward_point AS rewardPoint
-               ,feed.media_url AS mediaUrl
-               ,feed.media_type AS mediaType
-        FROM DAILY_MISSIONS daily
-        JOIN MISSIONS mission ON mission.mission_id = daily.mission_id
-        JOIN FEED feed ON feed.id = #{feedId}
-                      AND feed.user_id = daily.user_id
-                      AND feed.status = 'ACTIVE'
-        WHERE daily.daily_mission_id = #{dailyMissionId}
-          AND daily.user_id = #{userId}
-    </select>
-
     <select id="countVerificationAttempts" resultType="int">
-        SELECT COUNT(*) FROM MISSION_VERIFICATIONS
-        WHERE daily_mission_id = #{dailyMissionId}
+        SELECT COUNT(*) FROM MISSION_VERIFICATIONS WHERE daily_mission_id = #{dailyMissionId}
     </select>
-
-    <insert id="insertMissionVerification" useGeneratedKeys="true"
-            keyProperty="missionVerificationId">
-        INSERT INTO MISSION_VERIFICATIONS (
-            daily_mission_id, feed_id, attempt_number, decision,
-            confidence_score, reason, model_version
-        ) VALUES (
-            #{dailyMissionId}, #{feedId}, #{attemptNumber}, #{decision},
-            #{confidenceScore}, #{reason}, #{modelVersion}
-        )
+    <insert id="insertMissionVerification" useGeneratedKeys="true" keyProperty="missionVerificationId">
+        INSERT INTO MISSION_VERIFICATIONS
+        (daily_mission_id, feed_id, attempt_number, decision, confidence_score, reason, model_version)
+        VALUES (#{dailyMissionId}, #{feedId}, #{attemptNumber}, #{decision},
+                #{confidenceScore}, #{reason}, #{modelVersion})
     </insert>
-
 </mapper>

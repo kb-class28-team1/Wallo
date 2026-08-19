@@ -1,11 +1,9 @@
 package com.wallo.mission.mapper;
 
 import com.wallo.mission.domain.DailyMission;
-import com.wallo.mission.domain.Mission;
-import com.wallo.mission.domain.MissionCycle;
 import com.wallo.mission.domain.MissionAnalysisSource;
-import com.wallo.mission.domain.MissionVerification;
 import com.wallo.mission.domain.MissionEvidenceTarget;
+import com.wallo.mission.domain.MissionVerification;
 import java.time.LocalDate;
 import java.util.List;
 import org.apache.ibatis.annotations.Param;
@@ -13,18 +11,6 @@ import org.apache.ibatis.annotations.Param;
 public interface MissionMapper {
     List<Long> findUserIdsWithAnalysis();
     MissionAnalysisSource findLatestAnalysis(@Param("userId") Long userId);
-    int insertCycle(MissionCycle cycle);
-    MissionCycle findCycle(@Param("userId") Long userId,
-                           @Param("cycleStartDate") LocalDate cycleStartDate);
-    MissionCycle findCycleForUpdate(@Param("userId") Long userId,
-                                    @Param("cycleStartDate") LocalDate cycleStartDate);
-    List<Long> findActiveCycleUserIds(@Param("assignedDate") LocalDate assignedDate);
-    int updateCycleStatus(@Param("missionCycleId") Long missionCycleId,
-                          @Param("status") String status,
-                          @Param("generationError") String generationError);
-    int insertMission(Mission mission);
-    int countMissionsByCycleId(@Param("missionCycleId") Long missionCycleId);
-    List<Mission> findMissionsByCycleId(@Param("missionCycleId") Long missionCycleId);
     int insertDailyMission(DailyMission dailyMission);
     List<DailyMission> findDailyMissions(@Param("userId") Long userId,
                                          @Param("assignedDate") LocalDate assignedDate);
@@ -34,10 +20,15 @@ public interface MissionMapper {
                                  @Param("status") String status);
     int expireAssignedMissionsBefore(@Param("userId") Long userId,
                                      @Param("assignedDate") LocalDate assignedDate);
-    MissionEvidenceTarget findMissionEvidenceTarget(
-            @Param("dailyMissionId") Long dailyMissionId,
-            @Param("feedId") Long feedId,
-            @Param("userId") Long userId);
+    MissionEvidenceTarget findMissionEvidenceTarget(@Param("dailyMissionId") Long dailyMissionId,
+                                                     @Param("feedId") Long feedId,
+                                                     @Param("userId") Long userId);
+    DailyMission findDailyMissionForVerification(@Param("dailyMissionId") Long dailyMissionId,
+                                                 @Param("userId") Long userId);
+    int countQualifyingTransactions(@Param("userId") Long userId,
+                                    @Param("transactionDate") LocalDate transactionDate,
+                                    @Param("category") String category,
+                                    @Param("maxAmount") long maxAmount);
     int countVerificationAttempts(@Param("dailyMissionId") Long dailyMissionId);
     int insertMissionVerification(MissionVerification verification);
 }

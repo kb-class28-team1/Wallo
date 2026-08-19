@@ -3,7 +3,11 @@ import { createPinia, setActivePinia } from "pinia"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import AiAssistantView from "./AiAssistantView.vue"
 import { getGoalRoadmap, getGoals } from "@/api/goalApi"
-import { getTodayMissions } from "@/api/missionApi"
+import {
+  completeSelfCheckMission,
+  getTodayMissions,
+  verifyTransactionMission,
+} from "@/api/missionApi"
 
 const push = vi.fn()
 
@@ -21,6 +25,8 @@ vi.mock("@/api/goalApi", () => ({
 
 vi.mock("@/api/missionApi", () => ({
   getTodayMissions: vi.fn().mockResolvedValue({ status: "READY", missions: [] }),
+  completeSelfCheckMission: vi.fn(),
+  verifyTransactionMission: vi.fn(),
 }))
 
 describe("AiAssistantView", () => {
@@ -30,6 +36,8 @@ describe("AiAssistantView", () => {
     getGoals.mockResolvedValue({ data: [] })
     getGoalRoadmap.mockResolvedValue({ data: null })
     getTodayMissions.mockResolvedValue({ status: "READY", missions: [] })
+    completeSelfCheckMission.mockResolvedValue({ decision: "PASS" })
+    verifyTransactionMission.mockResolvedValue({ decision: "PASS" })
   })
 
   it("shows the goal empty state and roadmap introduction when no goal exists", async () => {
@@ -85,6 +93,29 @@ describe("AiAssistantView", () => {
     expect(wrapper.text()).toContain("미션을 실천한 뒤 오늘의 미션에서 완료 여부를 직접 체크하세요.")
     expect(wrapper.text()).toContain("사진·영상 AI 인증")
     expect(wrapper.text()).toContain("완성한 음식 사진을 피드에 등록하세요.")
+    expect(wrapper.find(".mission-action-button").exists()).toBe(false)
+  })
+
+  it("shows the hover completion action only for self-check missions", async () => {
+    getTodayMissions.mockResolvedValue({
+      status: "READY",
+      missions: [{
+        id: 31,
+        title: "지출 기록 확인",
+        description: "오늘 지출을 확인하세요.",
+        evidenceGuide: "확인 후 직접 완료하세요.",
+        verificationType: "SELF_CHECK",
+        icon: "✨",
+        completed: false,
+      }],
+    })
+    const wrapper = mount(AiAssistantView)
+    await flushPromises()
+
+    expect(wrapper.find(".mission-action-button").text()).toBe("완료하기")
+    await wrapper.find(".mission-action-button").trigger("click")
+    expect(completeSelfCheckMission).toHaveBeenCalledWith(31)
+    wrapper.unmount()
   })
 
   it("reflects missions generated for the next development date", async () => {
@@ -122,6 +153,24 @@ describe("AiAssistantView", () => {
       name: "chat",
       query: { start: "goal-setting" },
     })
+  })
+
+  it("links to consumption analysis when missions are waiting for analysis", async () => {
+    getTodayMissions.mockResolvedValue({ status: "WAITING_ANALYSIS", missions: [] })
+    const wrapper = mount(AiAssistantView)
+    await flushPromises()
+
+    const analysisButton = wrapper.findAll("button").find(
+      (button) => button.text().includes("소비분석 하러가기"),
+    )
+    expect(analysisButton).toBeTruthy()
+    await analysisButton.trigger("click")
+
+    expect(push).toHaveBeenCalledWith({
+      name: "chat",
+      query: { action: "consumption-analysis" },
+    })
+    wrapper.unmount()
   })
 
   it("shows the saved goal, progress, roadmap, and action guide", async () => {

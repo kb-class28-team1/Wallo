@@ -5,7 +5,6 @@ import com.wallo.mission.domain.MissionVerification;
 import com.wallo.mission.dto.MissionVerificationDto;
 import com.wallo.mission.mapper.MissionMapper;
 import com.wallo.mission.verification.MissionVerificationClient;
-import com.wallo.mission.verification.MissionEvidenceLoader;
 import com.wallo.pointshop.mapper.PointShopMapper;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -20,16 +19,13 @@ public class MissionVerificationService {
     private final MissionMapper missionMapper;
     private final MissionVerificationClient verificationClient;
     private final Clock clock;
-    private final MissionEvidenceLoader evidenceLoader;
     private final PointShopMapper pointShopMapper;
 
     public MissionVerificationService(MissionMapper missionMapper,
                                       MissionVerificationClient verificationClient,
-                                      MissionEvidenceLoader evidenceLoader,
                                       PointShopMapper pointShopMapper, Clock clock) {
         this.missionMapper = missionMapper;
         this.verificationClient = verificationClient;
-        this.evidenceLoader = evidenceLoader;
         this.pointShopMapper = pointShopMapper;
         this.clock = clock;
     }
@@ -58,10 +54,13 @@ public class MissionVerificationService {
         }
 
         missionMapper.updateDailyMissionStatus(dailyMissionId, userId, "VERIFYING");
-        MissionEvidenceLoader.Evidence evidence = evidenceLoader.load(
-                mission.getMediaUrl(), mission.getMediaType());
+        if (mission.getAnalysisSummary() == null || mission.getAnalysisSummary().isBlank()) {
+            throw new IllegalStateException("Feed AI analysis is required for mission verification.");
+        }
         MissionVerificationDto.AiResult result = verificationClient.verify(
-                evidence.content(), evidence.contentType(),
+                mission.getAnalysisSummary() + " 예상 절약 금액 "
+                        + (mission.getEstimatedSavingAmount() == null
+                        ? 0 : mission.getEstimatedSavingAmount()) + "원",
                 new MissionVerificationDto.MissionSpec(dailyMissionId, mission.getTitle(),
                         mission.getDescription(), mission.getEvidenceGuide(),
                         mission.getVerificationRuleJson()));
