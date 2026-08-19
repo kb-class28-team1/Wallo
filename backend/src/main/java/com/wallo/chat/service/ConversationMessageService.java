@@ -284,6 +284,7 @@ public class ConversationMessageService {
                     aiResponse.answer()
             );
         }
+        Map<String, Object> productRecommendation = aiResponse.productRecommendation();
         if (isFirstMessage) {
             String title;
             if (consumptionAnalysisRequest) {
@@ -313,12 +314,16 @@ public class ConversationMessageService {
         return new SendConversationMessageResponse(
                 ChatMessageResponse.from(userMessage),
                 ChatMessageResponse.from(
-                        assistantMessage, consumptionAnalysis, assetAnalysis),
+                        assistantMessage,
+                        consumptionAnalysis,
+                        assetAnalysis,
+                        productRecommendation),
                 persistedGoalInterview == null
                         ? aiResponse.goalInterview()
                         : persistedGoalInterview,
                 consumptionAnalysis,
-                assetAnalysis
+                assetAnalysis,
+                productRecommendation
         );
     }
 
