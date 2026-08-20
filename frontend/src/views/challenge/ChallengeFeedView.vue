@@ -2441,6 +2441,8 @@ textarea {
   width: 150px;
   height: 150px;
   overflow: visible;
+  clip-path: inset(20% 0 0);
+  mix-blend-mode: multiply;
   pointer-events: none;
   will-change: left, transform;
   animation: analysis-penguin-bob 1.7s ease-in-out infinite;
@@ -2448,11 +2450,16 @@ textarea {
 }
 .analysis-tenor-embed {
   position: absolute;
-  inset: 0;
+  top: -20%;
+  right: 0;
+  bottom: 0;
+  left: 0;
   width: 100%;
-  height: 100%;
+  height: 120%;
   max-width: none;
   margin: 0;
+  transform: scale(1.08);
+  transform-origin: center bottom;
 }
 .analysis-tenor-embed > a {
   display: none;
