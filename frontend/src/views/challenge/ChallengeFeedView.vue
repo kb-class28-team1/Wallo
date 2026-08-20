@@ -54,6 +54,7 @@ const modalOpen = ref(false)
 const isAnalyzing = ref(false)
 const analysisProgress = ref(0)
 const analysisStageMessage = ref("분석 준비 중...")
+const TENOR_EMBED_SCRIPT_SRC = "https://tenor.com/embed.js"
 const isUploading = ref(false)
 const todayMissions = ref([])
 const isMissionLoading = ref(false)
@@ -104,6 +105,21 @@ const startAnalysisProgress = () => {
     analysisProgress.value = Math.min(90, analysisProgress.value + increment)
   }, 100)
 }
+const reloadTenorEmbed = async () => {
+  if (typeof document === "undefined") return
+  await nextTick()
+  if (!document.querySelector(".analysis-tenor-embed")) return
+  document.querySelector("script[data-wallo-tenor-embed]")?.remove()
+  const script = document.createElement("script")
+  script.type = "text/javascript"
+  script.async = true
+  script.dataset.walloTenorEmbed = "true"
+  script.src = TENOR_EMBED_SCRIPT_SRC
+  document.body.appendChild(script)
+}
+watch(isAnalyzing, (active) => {
+  if (active) reloadTenorEmbed()
+}, { flush: "post" })
 
 const FEED_STALE_TIME = 30 * 1000
 const MESSAGE_STALE_TIME = 15 * 1000
@@ -1293,6 +1309,26 @@ onBeforeUnmount(() => {
             <div>
               <b>🤖 AI 분석</b><span>선택 정보와 미디어를 외부 AI 분석기로 전달합니다.</span>
             </div>
+            <div
+              v-if="isAnalyzing"
+              class="analysis-tenor-track"
+              :style="{ '--analysis-progress': `${analysisProgress}%` }"
+              aria-hidden="true"
+            >
+              <div class="analysis-tenor-loader">
+                <div
+                  class="tenor-gif-embed analysis-tenor-embed"
+                  data-postid="15488237"
+                  data-share-method="host"
+                  data-aspect-ratio="1"
+                  data-width="100%"
+                >
+                  <a href="https://tenor.com/view/catscafe-penguin-run-mood-gotta-go-gif-15488237">
+                    Catscafe Penguin Sticker
+                  </a>
+                </div>
+              </div>
+            </div>
             <button
               type="button"
               :class="{ 'is-analyzing': isAnalyzing }"
@@ -2225,6 +2261,48 @@ textarea {
   color: #737a90;
   font-size: 0.82rem;
 }
+.analysis-tenor-track {
+  position: relative;
+  display: block !important;
+  width: 100%;
+  height: 68px;
+  margin: -2px 0 8px !important;
+  overflow: visible;
+}
+.analysis-tenor-loader {
+  position: absolute;
+  right: auto;
+  bottom: -6px;
+  left: clamp(-31px, calc(var(--analysis-progress) - 31px), calc(100% - 62px));
+  z-index: 1;
+  width: 62px;
+  height: 62px;
+  overflow: visible;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+  will-change: left, transform;
+  animation: analysis-tenor-bob 1.7s ease-in-out infinite;
+  transition: left 100ms linear;
+}
+.analysis-tenor-embed {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  margin: 0;
+}
+.analysis-tenor-embed > a {
+  display: none;
+}
+.analysis-tenor-embed iframe,
+.analysis-tenor-embed img {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  border: 0;
+}
 .analysis-box button {
   width: 100%;
   padding: 13px;
@@ -2288,6 +2366,15 @@ textarea {
     background-position: -20% 0;
   }
 }
+@keyframes analysis-tenor-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
 .analysis-progress-label {
   margin-top: 7px;
   color: #7565d8;
@@ -2305,6 +2392,10 @@ textarea {
   }
   .analysis-box button.is-analyzing::after {
     animation: none;
+  }
+  .analysis-tenor-loader {
+    animation: none;
+    transition: none;
   }
 }
 .result-box {
