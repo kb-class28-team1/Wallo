@@ -129,6 +129,7 @@ describe("challenge views", () => {
   let rankingStore
   let feedStore
   let userStore
+  let pointEarnedEventHandler
 
   beforeEach(() => {
     rankingStore = createRankingStore()
@@ -139,12 +140,15 @@ describe("challenge views", () => {
     useChallengeStore.mockReturnValue(rankingStore)
     useMyFeedStore.mockReturnValue(feedStore)
     useUserStore.mockReturnValue(userStore)
-    grantWeeklyRankingRewardsForTest.mockResolvedValue({ rewardedCount: 1 })
+    grantWeeklyRankingRewardsForTest.mockResolvedValue({ rewardedCount: 1, rewardedPoint: 500 })
+    pointEarnedEventHandler = vi.fn()
+    window.addEventListener("wallo:point-earned", pointEarnedEventHandler)
     mocks.routerPush.mockReset()
     vi.stubGlobal("alert", vi.fn())
   })
 
   afterEach(() => {
+    window.removeEventListener("wallo:point-earned", pointEarnedEventHandler)
     vi.unstubAllGlobals()
     vi.clearAllMocks()
   })
@@ -178,7 +182,9 @@ describe("challenge views", () => {
     await flushPromises()
 
     expect(grantWeeklyRankingRewardsForTest).toHaveBeenCalledOnce()
-    expect(alert).toHaveBeenCalledWith("주간 랭킹 보상이 지급되었습니다.")
+    expect(alert).not.toHaveBeenCalled()
+    expect(pointEarnedEventHandler).toHaveBeenCalledOnce()
+    expect(pointEarnedEventHandler.mock.calls[0][0].detail).toEqual({ point: 500 })
     expect(userStore.restoreSession).toHaveBeenCalledWith(true)
     expect(rankingStore.fetchWeeklyRanking).toHaveBeenLastCalledWith({ force: true })
 

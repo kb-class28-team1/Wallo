@@ -160,7 +160,7 @@ textarea {
 }
 
 .security-note-title strong {
-  color: #5651a8;
+  color: #3f6595;
   font-size: 16pt;
 }
 
@@ -178,7 +178,7 @@ textarea {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #6d66c8;
+  color: #5c8fd5;
   font-size: 16pt;
   font-weight: 900;
 }

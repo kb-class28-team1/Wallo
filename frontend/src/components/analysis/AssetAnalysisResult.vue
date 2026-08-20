@@ -333,7 +333,7 @@ const surplusClass = computed(() =>
 
 .asset-analysis__eyebrow,
 .asset-analysis-card__eyebrow {
-  color: #7062de;
+  color: #4f8fe8;
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.03em;
@@ -342,14 +342,14 @@ const surplusClass = computed(() =>
 .asset-analysis-card {
   padding: 1rem;
   background: #fff;
-  border: 1px solid #e9e6f3;
+  border: 1px solid #e7f2fa;
   border-radius: 1rem;
   box-shadow: 0 0.25rem 0.8rem rgba(57, 45, 110, 0.06);
 }
 
 .asset-analysis-card--direction {
   border-color: #dcd7fb;
-  background: linear-gradient(145deg, #fff, #faf9ff);
+  background: linear-gradient(145deg, #fff, #f8fbff);
 }
 
 .asset-analysis-card--warning {
@@ -393,11 +393,11 @@ const surplusClass = computed(() =>
 }
 
 .asset-metric--accent {
-  background: #f0eefe;
+  background: #eff7ff;
 }
 
 .asset-metric--accent strong {
-  color: #5749c5;
+  color: #3f78cd;
 }
 
 .asset-metric--compact strong {
@@ -470,14 +470,14 @@ const surplusClass = computed(() =>
 .asset-priority-action {
   padding: 0.8rem 0.85rem;
   background: #f8f7fc;
-  border-left: 0.2rem solid #7062de;
+  border-left: 0.2rem solid #4f8fe8;
   border-radius: 0.7rem;
 }
 
 .asset-priority-action__period {
   display: block;
   margin-bottom: 0.2rem;
-  color: #7062de;
+  color: #4f8fe8;
   font-size: 0.72rem;
   font-weight: 700;
 }
@@ -510,7 +510,7 @@ const surplusClass = computed(() =>
 }
 
 .asset-composition-progress .progress-bar {
-  background: #7062de;
+  background: #4f8fe8;
 }
 
 .asset-composition-item {

@@ -199,14 +199,14 @@ const typeLabel = (transaction) => {
 }
 
 .transaction-icon-button:focus-visible {
-  outline: 2px solid #6b5bd2;
+  outline: 2px solid #4d82d6;
   outline-offset: 2px;
 }
 
 .transaction-icon.coral { color: #ff796f; background: #fff0ed; }
 .transaction-icon.green { color: #28b98a; background: #eafaf4; }
 .transaction-icon.blue { color: #4f73e8; background: #edf2ff; }
-.transaction-icon.purple { color: #8170ff; background: #f0edff; }
+.transaction-icon.purple { color: #6b9be3; background: #edf6ff; }
 .transaction-icon.gray { color: #7c8294; background: #f1f3f6; }
 
 .transaction-info {
@@ -254,9 +254,9 @@ const typeLabel = (transaction) => {
 
 .load-more-button {
   min-width: 150px;
-  border: 1px solid #8170ff;
+  border: 1px solid #6b9be3;
   border-radius: 12px;
-  color: #6b5bd2;
+  color: #4d82d6;
   background: #ffffff;
   font-weight: 700;
 }
@@ -264,7 +264,7 @@ const typeLabel = (transaction) => {
 .load-more-button:hover:not(:disabled),
 .load-more-button:focus:not(:disabled) {
   color: #ffffff;
-  background: #8170ff;
+  background: #6b9be3;
 }
 
 @media (max-width: 575.98px) {

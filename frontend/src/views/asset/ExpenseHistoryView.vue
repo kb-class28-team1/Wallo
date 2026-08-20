@@ -756,13 +756,13 @@ onMounted(async () => {
 .back-button:focus,
 .month-button:hover,
 .month-button:focus {
-  color: #6b5bd2;
-  background: #f0edff;
+  color: #4d82d6;
+  background: #edf6ff;
 }
 
 .view-toggle {
   padding: 4px;
-  border: 1px solid #e4e1f4;
+  border: 1px solid #e7f1fa;
   border-radius: 12px;
   background: #ffffff;
 }
@@ -776,8 +776,8 @@ onMounted(async () => {
 }
 
 .view-toggle .btn.active {
-  color: #6b5bd2;
-  background: #f0edff;
+  color: #4d82d6;
+  background: #edf6ff;
 }
 
 .category-filter-trigger {
@@ -787,7 +787,7 @@ onMounted(async () => {
   justify-content: space-between;
   gap: 12px;
   padding: 7px 11px;
-  border: 1px solid #e4e1f4;
+  border: 1px solid #e7f1fa;
   border-radius: 10px;
   color: #343044;
   background: #ffffff;
@@ -797,19 +797,19 @@ onMounted(async () => {
 
 .category-filter-current {
   margin-left: 2px;
-  color: #6b5bd2;
+  color: #4d82d6;
   font-size: 0.78rem;
 }
 
 .category-filter-trigger:hover:not(:disabled),
 .category-filter-trigger:focus-visible {
   border-color: #b9b0f2;
-  color: #6b5bd2;
-  background: #faf9ff;
+  color: #4d82d6;
+  background: #f8fbff;
 }
 
 .category-filter-trigger:focus-visible {
-  outline: 2px solid #6b5bd2;
+  outline: 2px solid #4d82d6;
   outline-offset: 2px;
 }
 

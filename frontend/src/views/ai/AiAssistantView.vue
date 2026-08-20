@@ -22,6 +22,7 @@ import AppCard from "@/components/ui/AppCard.vue"
 import AppPageHeader from "@/components/ui/AppPageHeader.vue"
 import AppState from "@/components/ui/AppState.vue"
 import ProductRecommendationResult from "@/components/analysis/ProductRecommendationResult.vue"
+import { announcePointEarned } from "@/utils/pointRewardNotice"
 
 const router = useRouter()
 const goalStore = useGoalStore()
@@ -89,10 +90,12 @@ const getMissionVerificationInfo = (mission) => {
       guide: "미션 수행 증빙을 제출하면 확인 후 달성 여부가 결정됩니다.",
     },
   }
-  return typeGuides[verificationType] || {
-    label: "달성 방법",
-    guide: mission?.evidenceGuide || "미션 안내에 따라 실천해 주세요.",
-  }
+  return (
+    typeGuides[verificationType] || {
+      label: "달성 방법",
+      guide: mission?.evidenceGuide || "미션 안내에 따라 실천해 주세요.",
+    }
+  )
 }
 
 const parseGoalDate = (value) => {
@@ -225,15 +228,29 @@ const loadTodayMissionList = async () => {
       const results = await Promise.allSettled(
         transactionMissions.map((mission) => verifyTransactionMission(mission.id)),
       )
-      if (results.some(
-        (result) => result.status === "fulfilled" && result.value?.decision === "PASS",
-      )) {
+      results.forEach((result) => {
+        const rewardedPoint = Number(
+          result.status === "fulfilled" ? result.value?.rewardedPoint : 0,
+        )
+        if (
+          result.status === "fulfilled" &&
+          result.value?.decision === "PASS" &&
+          rewardedPoint > 0
+        ) {
+          announcePointEarned(rewardedPoint)
+        }
+      })
+      if (
+        results.some((result) => result.status === "fulfilled" && result.value?.decision === "PASS")
+      ) {
         const refreshed = await getTodayMissions()
         missions.value = refreshed.missions
         missionStatus.value = refreshed.status || "READY"
-        window.dispatchEvent(new CustomEvent("wallo:mission-updated", {
-          detail: { missionResponse: refreshed },
-        }))
+        window.dispatchEvent(
+          new CustomEvent("wallo:mission-updated", {
+            detail: { missionResponse: refreshed },
+          }),
+        )
       }
     }
   } catch (missionLoadError) {
@@ -290,7 +307,11 @@ const runMissionAction = async (mission) => {
   if (mission.verificationType !== "SELF_CHECK") return
   missionActionId.value = mission.id
   try {
-    await completeSelfCheckMission(mission.id)
+    const response = await completeSelfCheckMission(mission.id)
+    const rewardedPoint = Number(response?.rewardedPoint || 0)
+    if (response?.decision === "PASS" && rewardedPoint > 0) {
+      announcePointEarned(rewardedPoint)
+    }
     await loadTodayMissionList()
     window.dispatchEvent(new CustomEvent("wallo:mission-updated"))
   } catch (missionActionError) {
@@ -335,10 +356,7 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="assistant-page">
-    <AppPageHeader
-      class="assistant-header"
-      title="AI 컨설팅"
-    />
+    <AppPageHeader class="assistant-header" title="AI 컨설팅" />
 
     <AppAlert
       v-if="refreshing"
@@ -414,9 +432,7 @@ onBeforeUnmount(() => {
                     <i class="bi bi-stars" aria-hidden="true"></i>
                     AI 한줄 코칭
                   </span>
-                  <p class="mb-0">
-                    목표가 있어야 방향이 생겨요! 작은 목표부터 함께 시작해봐요.
-                  </p>
+                  <p class="mb-0">목표가 있어야 방향이 생겨요! 작은 목표부터 함께 시작해봐요.</p>
                 </div>
                 <img :src="walloCharacter" alt="" aria-hidden="true" />
               </div>
@@ -486,10 +502,7 @@ onBeforeUnmount(() => {
                       :class="mission.completed ? 'bi-check-circle-fill' : 'bi-circle'"
                       :aria-label="mission.completed ? '완료' : '미완료'"
                     ></i>
-                    <span
-                      class="mission-guide"
-                      :title="getMissionVerificationInfo(mission).guide"
-                    >
+                    <span class="mission-guide" :title="getMissionVerificationInfo(mission).guide">
                       <b>{{ getMissionVerificationInfo(mission).label }}</b>
                       {{ getMissionVerificationInfo(mission).guide }}
                     </span>
@@ -706,10 +719,7 @@ onBeforeUnmount(() => {
                       :class="mission.completed ? 'bi-check-circle-fill' : 'bi-circle'"
                       :aria-label="mission.completed ? '완료' : '미완료'"
                     ></i>
-                    <span
-                      class="mission-guide"
-                      :title="getMissionVerificationInfo(mission).guide"
-                    >
+                    <span class="mission-guide" :title="getMissionVerificationInfo(mission).guide">
                       <b>{{ getMissionVerificationInfo(mission).label }}</b>
                       {{ getMissionVerificationInfo(mission).guide }}
                     </span>
@@ -926,9 +936,7 @@ onBeforeUnmount(() => {
         <div class="latest-product-recommendation-heading">
           <div>
             <h2 class="section-title h5 fw-bold">최신 상품 추천</h2>
-            <p class="text-secondary mb-0 mt-2">
-              채팅에서 저장된 가장 최근의 상품 추천 결과예요.
-            </p>
+            <p class="text-secondary mb-0 mt-2">채팅에서 저장된 가장 최근의 상품 추천 결과예요.</p>
           </div>
           <div class="latest-product-recommendation-meta">
             <small v-if="generatedAt" class="latest-product-recommendation-date">
@@ -941,12 +949,11 @@ onBeforeUnmount(() => {
         </div>
 
         <ProductRecommendationResult
-        class="mt-4"
-        full-width
-        :show-intro="false"
-        :recommendation="productRecommendation"
-      />
-
+          class="mt-4"
+          full-width
+          :show-intro="false"
+          :recommendation="productRecommendation"
+        />
       </div>
     </AppCard>
   </section>
@@ -1028,7 +1035,7 @@ onBeforeUnmount(() => {
   padding: 1.35rem 1.5rem;
   border: 2px dashed #c9c5ff;
   border-radius: 20px;
-  background: linear-gradient(135deg, #fff 0%, #f7f6ff 100%);
+  background: linear-gradient(135deg, #fff 0%, #f5faff 100%);
 }
 
 .character-wrap {
@@ -1047,7 +1054,7 @@ onBeforeUnmount(() => {
   position: absolute;
   top: -24px;
   right: 4px;
-  color: #8a7df2;
+  color: #7fa9e8;
   font-size: 2.75rem;
   font-weight: 800;
 }
@@ -1064,7 +1071,7 @@ onBeforeUnmount(() => {
   border: 0;
   border-radius: 14px;
   color: #fff;
-  background: linear-gradient(135deg, #7769f5, #6453e8);
+  background: linear-gradient(135deg, #71a1e8, #5a91dc);
   box-shadow: 0 10px 24px rgb(100 83 232 / 22%);
   font-weight: 700;
 }
@@ -1072,7 +1079,7 @@ onBeforeUnmount(() => {
 .goal-button:hover,
 .goal-button:focus {
   color: #fff;
-  background: linear-gradient(135deg, #695ce6, #5644d8);
+  background: linear-gradient(135deg, #6599e2, #477fc8);
 }
 
 .goal-coaching-inline {
@@ -1084,7 +1091,7 @@ onBeforeUnmount(() => {
   padding: 0.85rem 1.15rem;
   border: 1px solid #dedafd;
   border-radius: 18px;
-  background: linear-gradient(135deg, #f7f6ff 0%, #eeecff 100%);
+  background: linear-gradient(135deg, #f5faff 0%, #eaf4ff 100%);
 }
 
 .goal-coaching-copy {
@@ -1096,7 +1103,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 0.4rem;
   margin-bottom: 0.45rem;
-  color: #6555df;
+  color: #4d85dd;
   font-size: 0.82rem;
   font-weight: 800;
 }
@@ -1141,7 +1148,7 @@ onBeforeUnmount(() => {
   justify-content: center;
   border-radius: 50%;
   color: #fff;
-  background: linear-gradient(135deg, #7769f5, #5f4fd9);
+  background: linear-gradient(135deg, #71a1e8, #4d86d1);
   box-shadow: 0 8px 18px rgb(100 83 232 / 20%);
   font-size: 0.68rem;
 }
@@ -1149,7 +1156,7 @@ onBeforeUnmount(() => {
 .mission-state,
 .mission-empty {
   border-radius: 16px;
-  background: #f8f8fe;
+  background: #f6faff;
 }
 
 .mission-empty {
@@ -1189,7 +1196,7 @@ onBeforeUnmount(() => {
 
 .mission-list-item.completed {
   border-color: #cec9fa;
-  background: #f8f7ff;
+  background: #f6faff;
 }
 
 .mission-icon {
@@ -1200,7 +1207,7 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   border-radius: 12px;
-  background: #eeecff;
+  background: #eaf4ff;
   font-size: 1.2rem;
 }
 
@@ -1236,7 +1243,7 @@ onBeforeUnmount(() => {
   overflow: hidden;
   padding: 0.45rem 0.55rem;
   border-radius: 9px;
-  background: #f3f1ff;
+  background: #eef7ff;
   color: #555d73;
   font-size: 0.76rem;
   line-height: 1.45;
@@ -1246,7 +1253,7 @@ onBeforeUnmount(() => {
 
 .mission-guide b {
   margin-right: 0.25rem;
-  color: #6555df;
+  color: #4d85dd;
   font-size: 0.72rem;
 }
 
@@ -1269,7 +1276,9 @@ onBeforeUnmount(() => {
 }
 
 .mission-list-item > :not(.mission-action-button) {
-  transition: opacity 160ms ease, filter 160ms ease;
+  transition:
+    opacity 160ms ease,
+    filter 160ms ease;
 }
 
 .mission-list-item:has(.mission-action-button):hover > :not(.mission-action-button),
@@ -1291,8 +1300,8 @@ onBeforeUnmount(() => {
     grid-column: 1 / -1;
     min-height: 34px;
     opacity: 1;
-    color: #6555df;
-    background: #f3f1ff;
+    color: #4d85dd;
+    background: #eef7ff;
     pointer-events: auto;
   }
 
@@ -1314,7 +1323,7 @@ onBeforeUnmount(() => {
 }
 
 .mission-list-item.completed .mission-check-icon {
-  color: #7162eb;
+  color: #548be0;
 }
 
 .roadmap-list {
@@ -1331,7 +1340,7 @@ onBeforeUnmount(() => {
   scroll-behavior: smooth;
   scroll-padding-inline: 0.5rem;
   scroll-snap-type: x mandatory;
-  scrollbar-color: #c8c3fb #f1f0fa;
+  scrollbar-color: #c7ddf7 #f1f0fa;
   scrollbar-width: thin;
 }
 
@@ -1373,7 +1382,7 @@ onBeforeUnmount(() => {
   padding: 0;
   border: 0;
   border-radius: var(--wallo-radius-md);
-  color: #6555df;
+  color: #4d85dd;
   background: transparent;
   pointer-events: auto;
   transform: translateY(-50%);
@@ -1387,8 +1396,8 @@ onBeforeUnmount(() => {
 
 .roadmap-navigation-button:hover,
 .roadmap-navigation-button:focus-visible {
-  color: #7567e9;
-  background: rgb(112 98 222 / 8%);
+  color: #6a9ce3;
+  background: rgb(79 143 232 / 8%);
 }
 
 .roadmap-navigation-button:first-child {
@@ -1412,8 +1421,8 @@ onBeforeUnmount(() => {
 }
 
 .roadmap-item.active {
-  border: 2px solid #7a6df0;
-  background: #fbfaff;
+  border: 2px solid #77a8e7;
+  background: #f7fbff;
 }
 
 .step-number {
@@ -1433,7 +1442,7 @@ onBeforeUnmount(() => {
 
 .active .step-number {
   color: #fff;
-  background: #7162eb;
+  background: #548be0;
 }
 
 .step-icon {
@@ -1450,8 +1459,8 @@ onBeforeUnmount(() => {
 }
 
 .active .step-icon {
-  color: #6b5ce8;
-  background: #ebe9ff;
+  color: #659be8;
+  background: #e8f3ff;
 }
 
 .step-copy {
@@ -1481,14 +1490,14 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 1.25rem;
   padding: 1.5rem;
-  border: 1px solid #e8e8f4;
+  border: 1px solid #e7f1f9;
   border-radius: 18px;
-  background: linear-gradient(135deg, #fff, #faf9ff);
+  background: linear-gradient(135deg, #fff, #f8fbff);
 }
 
 .benefit-icon {
   flex: 0 0 auto;
-  color: #7162eb;
+  color: #548be0;
   font-size: 3rem;
 }
 
@@ -1500,17 +1509,17 @@ onBeforeUnmount(() => {
 .goal-status-badge {
   padding: 0.4rem 0.75rem;
   border-radius: 999px;
-  color: #6555df;
-  background: #eeecff;
+  color: #4d85dd;
+  background: #eaf4ff;
   font-size: 0.8rem;
   font-weight: 700;
 }
 
 .goal-chat-button {
   padding: 0.55rem 0.9rem;
-  border: 1px solid #7567e9;
+  border: 1px solid #6a9ce3;
   border-radius: 12px;
-  color: #6555df;
+  color: #4d85dd;
   background: #fff;
   font-size: 0.85rem;
   font-weight: 700;
@@ -1518,9 +1527,9 @@ onBeforeUnmount(() => {
 
 .goal-chat-button:hover,
 .goal-chat-button:focus {
-  border-color: #6555df;
+  border-color: #4d85dd;
   color: #fff;
-  background: #6555df;
+  background: #4d85dd;
 }
 
 .goal-summary {
@@ -1537,13 +1546,13 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   border-radius: 22px;
-  color: #6d5dea;
-  background: #eeecff;
+  color: #568bd6;
+  background: #eaf4ff;
   font-size: 1.75rem;
 }
 
 .goal-type {
-  color: #7568e7;
+  color: #6b9ee5;
   font-size: 0.8rem;
   font-weight: 700;
 }
@@ -1551,7 +1560,7 @@ onBeforeUnmount(() => {
 .goal-progress-panel {
   padding: 1rem 1.2rem;
   border-radius: 18px;
-  background: #f8f8fe;
+  background: #f6faff;
 }
 
 .goal-current-amount {
@@ -1567,7 +1576,7 @@ onBeforeUnmount(() => {
 }
 
 .goal-rate {
-  color: #6455df;
+  color: #4e84d5;
   font-size: 1.1rem;
 }
 
@@ -1579,7 +1588,7 @@ onBeforeUnmount(() => {
 
 .goal-progress .progress-bar {
   border-radius: inherit;
-  background: linear-gradient(90deg, #7567ee, #5e4fde);
+  background: linear-gradient(90deg, #6e9fe8, #4b87d8);
 }
 
 .goal-meta > div {
@@ -1595,24 +1604,24 @@ onBeforeUnmount(() => {
 }
 
 .roadmap-item.completed:not(.active) {
-  border-color: #c8c3fb;
-  background: #faf9ff;
+  border-color: #c7ddf7;
+  background: #f8fbff;
 }
 
 .roadmap-item.completed .step-number {
   color: #fff;
-  background: #8275ec;
+  background: #7da9e5;
 }
 
 .step-date {
-  color: #7162e4 !important;
+  color: #6095dc !important;
   font-weight: 700;
 }
 
 .roadmap-state {
   padding: 1.5rem;
   border-radius: 16px;
-  background: #f8f8fe;
+  background: #f6faff;
   text-align: center;
 }
 
@@ -1632,7 +1641,7 @@ onBeforeUnmount(() => {
   align-items: flex-start;
   gap: 1rem;
   padding: 1.4rem;
-  border: 1px solid #e8e8f4;
+  border: 1px solid #e7f1f9;
   border-radius: 18px;
   background: #fcfcff;
 }
@@ -1645,8 +1654,8 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   border-radius: 14px;
-  color: #6d5dea;
-  background: #eeecff;
+  color: #568bd6;
+  background: #eaf4ff;
   font-size: 1.35rem;
 }
 

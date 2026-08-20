@@ -1,24 +1,24 @@
 :root {
-  --wallo-color-bg: #f6f8fb;
-  --wallo-color-info-bg: #eef6ff;
+  --wallo-color-bg: #f2f7fd;
+  --wallo-color-info-bg: #eaf4ff;
   --wallo-color-surface: #ffffff;
-  --wallo-color-surface-soft: #f9fafc;
-  --wallo-color-border: #e5e9f0;
-  --wallo-color-border-soft: #e7ebf2;
-  --wallo-color-text: #263244;
-  --wallo-color-text-muted: #7c8497;
-  --wallo-color-text-subtle: #95a3b8;
+  --wallo-color-surface-soft: #f8fbff;
+  --wallo-color-border: #dce8f5;
+  --wallo-color-border-soft: #e5eef8;
+  --wallo-color-text: #1d3557;
+  --wallo-color-text-muted: #6d829d;
+  --wallo-color-text-subtle: #91a4bb;
 
-  --wallo-color-primary: #7062de;
-  --wallo-color-primary-hover: #5f50d2;
-  --wallo-color-finance-info: #1f3fb4;
-  --wallo-color-finance-info-hover: #18339c;
+  --wallo-color-primary: #4f8fe8;
+  --wallo-color-primary-hover: #3e7bd1;
+  --wallo-color-finance-info: #2f74c5;
+  --wallo-color-finance-info-hover: #255da2;
   --wallo-color-finance-increase: #dc3545;
-  --wallo-color-finance-decrease: #1f3fb4;
+  --wallo-color-finance-decrease: #2f74c5;
   --wallo-color-success: #18b982;
   --wallo-color-warning: #e39b00;
   --wallo-color-danger: #dc3545;
-  --wallo-color-progress-track: #e8edf5;
+  --wallo-color-progress-track: #e3edf8;
 
   --wallo-font-family: "NexonMaplestory", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
 
@@ -37,9 +37,9 @@
   --wallo-radius-xl: 24px;
   --wallo-radius-pill: 999px;
 
-  --wallo-shadow-card: 0 8px 24px rgb(48 60 110 / 6%);
-  --wallo-shadow-modal: 0 24px 70px rgb(26 31 70 / 25%);
-  --wallo-focus-ring: 0 0 0 3px rgb(112 98 222 / 18%);
+  --wallo-shadow-card: 0 8px 24px rgb(52 106 162 / 8%);
+  --wallo-shadow-modal: 0 24px 70px rgb(27 59 102 / 25%);
+  --wallo-focus-ring: 0 0 0 3px rgb(79 143 232 / 22%);
 
   --wallo-sidebar-width: 232px;
   --wallo-header-height: 68px;
@@ -52,10 +52,10 @@
   --wallo-page-header-margin-bottom: var(--wallo-space-6);
 
   --bs-primary: var(--wallo-color-primary);
-  --bs-primary-rgb: 112, 98, 222;
+  --bs-primary-rgb: 79, 143, 232;
   --bs-link-color: var(--wallo-color-primary);
   --bs-link-hover-color: var(--wallo-color-primary-hover);
-  --bs-focus-ring-color: rgb(112 98 222 / 25%);
+  --bs-focus-ring-color: rgb(79 143 232 / 25%);
 }
 
 @media (max-width: 576px) {

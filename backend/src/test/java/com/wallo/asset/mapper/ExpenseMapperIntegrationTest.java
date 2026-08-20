@@ -187,6 +187,51 @@ class ExpenseMapperIntegrationTest {
     }
 
     @Test
+    void monthlyCashflowUsesOnlyActiveInstitutionTransactions() {
+        ExpenseDto.MonthlyCashflow cashflow = expenseMapper.selectMonthlyCashflow(
+                9L,
+                "2026-08-01",
+                "2026-08-31"
+        );
+
+        assertEquals(5_000L, cashflow.getMonthlyIncome());
+        assertEquals(2_000L, cashflow.getMonthlyExpense());
+    }
+
+    @Test
+    void chatAnalysisReadsOnlyActiveInstitutionExpenses() {
+        List<ExpenseDto.AnalysisTransaction> transactions =
+                expenseMapper.selectAllExpenseTransactions(9L);
+
+        assertEquals(2, transactions.size());
+        assertEquals("활성 계좌 식비", transactions.get(0).getMerchantName());
+        assertEquals("FOOD", transactions.get(0).getCategory());
+        assertEquals(1_200L, transactions.get(0).getAmount());
+        assertEquals("활성 카드 쇼핑", transactions.get(1).getMerchantName());
+        assertEquals("SHOPPING", transactions.get(1).getCategory());
+        assertEquals(800L, transactions.get(1).getAmount());
+        assertFalse(transactions.stream()
+                .anyMatch(transaction -> "CARD_WITHDRAWAL".equals(transaction.getCategory())));
+        assertFalse(transactions.stream()
+                .anyMatch(transaction -> "삭제된 기관 계좌 식비".equals(transaction.getMerchantName())));
+    }
+
+    @Test
+    void chatAndDashboardUseTheSameCardWithdrawalExclusion() {
+        ExpenseDto.SearchCondition condition = new ExpenseDto.SearchCondition(
+                "2026-08-01", "2026-08-31", 0, 20, 0
+        );
+
+        long dashboardExpense = expenseMapper.selectTotalExpense(9L, condition);
+        long chatExpense = expenseMapper.selectAllExpenseTransactions(9L).stream()
+                .mapToLong(ExpenseDto.AnalysisTransaction::getAmount)
+                .sum();
+
+        assertEquals(2_000L, dashboardExpense);
+        assertEquals(dashboardExpense, chatExpense);
+    }
+
+    @Test
     void updatesExpenseIncomeAndTransferButKeepsCardWithdrawalProtected() throws Exception {
         assertEquals(1, expenseMapper.updateTransactionCategory(7L, 1L, "CAFE"));
         assertEquals(1, expenseMapper.updateTransactionCategory(7L, 3L, "FOOD"));

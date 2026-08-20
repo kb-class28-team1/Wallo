@@ -154,7 +154,7 @@
   justify-content: center;
   padding: 0 8px;
   color: var(--wallo-color-primary);
-  background: rgb(112 98 222 / 10%);
+  background: rgb(79 143 232 / 10%);
   border-radius: var(--wallo-radius-pill);
   font-size: 0.78rem;
   font-weight: 800;
@@ -182,8 +182,8 @@
 
 .conversation-item.active {
   color: var(--wallo-color-primary);
-  background: rgb(112 98 222 / 9%);
-  border-color: rgb(112 98 222 / 16%);
+  background: rgb(79 143 232 / 9%);
+  border-color: rgb(79 143 232 / 16%);
 }
 
 .conversation-title-form,
@@ -273,7 +273,7 @@
 .conversation-icon-button:hover,
 .conversation-icon-button:focus-visible {
   color: var(--wallo-color-primary);
-  background: rgb(112 98 222 / 9%);
+  background: rgb(79 143 232 / 9%);
 }
 
 .conversation-action--danger:hover,

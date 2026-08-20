@@ -498,7 +498,7 @@ const handleLogout = async () => {
 .menu-link:hover,
 .menu-link.router-link-active,
 .menu-link.router-link-exact-active {
-  color: #7062de;
+  color: #4f8fe8;
 }
 
 .sidebar :deep(.app-button--ghost:hover:not(:disabled)) {
@@ -524,13 +524,13 @@ const handleLogout = async () => {
 
 .asset-title:hover,
 .asset-group-active .asset-title {
-  color: #5f50d2;
+  color: #3e7bd1;
   font-weight: 700;
 }
 
 .asset-title:focus-visible {
   border-radius: 4px;
-  outline: 2px solid #7062de;
+  outline: 2px solid #4f8fe8;
   outline-offset: 4px;
 }
 
@@ -556,14 +556,14 @@ const handleLogout = async () => {
 
 .challenge-title:hover,
 .challenge-group-active .challenge-title {
-  color: #5f50d2;
+  color: #3e7bd1;
   font-weight: 700;
 }
 
 .challenge-title:focus-visible,
 .collapse-toggle:focus-visible {
   border-radius: 4px;
-  outline: 2px solid #7062de;
+  outline: 2px solid #4f8fe8;
   outline-offset: 4px;
 }
 
@@ -638,7 +638,7 @@ const handleLogout = async () => {
 .submenu-link:hover,
 .submenu-link.router-link-exact-active,
 .submenu-link-active {
-  color: #7062de;
+  color: #4f8fe8;
 }
 
 .submenu-link:disabled {
@@ -711,7 +711,7 @@ const handleLogout = async () => {
 }
 
 .sidebar-logout.app-button:hover:not(:disabled) {
-  color: #6b5bd2;
+  color: #4d82d6;
   background: transparent;
 }
 

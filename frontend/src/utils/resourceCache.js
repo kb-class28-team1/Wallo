@@ -61,6 +61,17 @@ export const invalidateResource = (key, { scope = defaultScope } = {}) => {
   getState(scope).cache.delete(normalizeKey(key))
 }
 
+export const invalidateResourcesByPrefix = (prefix, { scope = defaultScope } = {}) => {
+  const state = getState(scope)
+  const normalizedPrefix = normalizeKey(prefix)
+
+  for (const key of state.cache.keys()) {
+    if (key.startsWith(normalizedPrefix)) {
+      state.cache.delete(key)
+    }
+  }
+}
+
 export const clearResourceCache = ({ scope = defaultScope } = {}) => {
   const state = getState(scope)
   state.cache.clear()

@@ -362,8 +362,8 @@ onMounted(loadHistory)
   padding: 0;
   border: 0;
   border-radius: 12px;
-  background: #f1efff;
-  color: #6b64e8;
+  background: #edf6ff;
+  color: #6599e4;
   text-decoration: none;
   transform: translateX(-8px);
   transition:
@@ -427,7 +427,7 @@ onMounted(loadHistory)
   padding: 20px;
   border-radius: 18px;
   background: #fff;
-  box-shadow: 0 8px 24px rgb(48 60 110 / 6%);
+  box-shadow: 0 8px 24px rgb(52 106 162 / 6%);
 }
 
 .summary-card span {
@@ -452,7 +452,7 @@ onMounted(loadHistory)
 }
 
 .balance-card strong {
-  color: #6754e8;
+  color: #4a82d6;
 }
 
 .monthly-card strong {
@@ -467,7 +467,7 @@ onMounted(loadHistory)
   padding: 16px 20px;
   border-radius: 18px;
   background: #fff;
-  box-shadow: 0 8px 24px rgb(48 60 110 / 5%);
+  box-shadow: 0 8px 24px rgb(52 106 162 / 5%);
 }
 
 .filter-tabs,
@@ -492,8 +492,8 @@ onMounted(loadHistory)
 
 .filter-tab.active,
 .period-button.active {
-  border-color: #6754e8;
-  background: #6754e8;
+  border-color: #4a82d6;
+  background: #4a82d6;
   color: #fff;
 }
 
@@ -571,7 +571,7 @@ onMounted(loadHistory)
   overflow: hidden;
   border-radius: 18px;
   background: #fff;
-  box-shadow: 0 8px 24px rgb(48 60 110 / 5%);
+  box-shadow: 0 8px 24px rgb(52 106 162 / 5%);
 }
 
 .history-item {
@@ -642,8 +642,8 @@ onMounted(loadHistory)
 }
 
 .history-category {
-  background: #f1efff;
-  color: #7061d9;
+  background: #edf6ff;
+  color: #5b8fd6;
 }
 
 .history-amount {
@@ -666,7 +666,7 @@ onMounted(loadHistory)
 }
 
 .empty-state i {
-  color: #8c7af1;
+  color: #85afe8;
   font-size: 30px;
 }
 
