@@ -21,6 +21,8 @@ import AppCard from "@/components/ui/AppCard.vue"
 import AppPageHeader from "@/components/ui/AppPageHeader.vue"
 import AppState from "@/components/ui/AppState.vue"
 import AppDialog from "@/components/common/AppDialog.vue"
+import PointDrawMachine from "@/components/common/PointDrawMachine.vue"
+import { announcePointEarned } from "@/utils/pointRewardNotice"
 
 const userStore = useUserStore()
 const activeProbabilityBox = ref(null)
@@ -31,8 +33,17 @@ const hasLoadedPointShop = ref(false)
 const isOpeningBox = ref(false)
 const errorMessage = ref("")
 const BULK_OPEN_COUNT = 10
+const DRAW_ANIMATION_DURATION_MS = import.meta.env.MODE === "test" ? 0 : 1500
 const POINT_SHOP_STALE_TIME = 60 * 1000
 const pointWCoin = "/images/profiles/point-w-coin.svg"
+const drawAnimation = ref({
+  open: false,
+  mode: "single",
+})
+const inlineDrawState = ref({
+  boxId: null,
+  active: false,
+})
 const rewardModal = ref({
   open: false,
   kind: "neutral",
@@ -49,6 +60,55 @@ const rewardModal = ref({
   rewards: [],
   drawResults: [],
   effectClass: "reward-effect-none",
+})
+
+const rewardParticles = [
+  { left: "7%", top: "9%", size: "22px", delay: "0s", duration: "3.6s", rotate: "-18deg" },
+  { left: "48%", top: "6%", size: "29px", delay: "0.4s", duration: "4.2s", rotate: "12deg" },
+  { left: "91%", top: "12%", size: "24px", delay: "0.9s", duration: "3.8s", rotate: "22deg" },
+  { left: "16%", top: "25%", size: "27px", delay: "0.7s", duration: "4.5s", rotate: "-8deg" },
+  { left: "78%", top: "29%", size: "20px", delay: "1.1s", duration: "3.4s", rotate: "28deg" },
+  { left: "3%", top: "44%", size: "26px", delay: "0.3s", duration: "4.1s", rotate: "-24deg" },
+  { left: "89%", top: "48%", size: "30px", delay: "1.4s", duration: "4.7s", rotate: "14deg" },
+  { left: "23%", top: "67%", size: "20px", delay: "1.5s", duration: "3.9s", rotate: "-12deg" },
+  { left: "72%", top: "72%", size: "25px", delay: "0.8s", duration: "4.3s", rotate: "-28deg" },
+  { left: "42%", top: "85%", size: "21px", delay: "1.8s", duration: "3.7s", rotate: "18deg" },
+]
+
+const getRewardParticleStyle = (particle) => ({
+  "--particle-left": particle.left,
+  "--particle-top": particle.top,
+  "--particle-size": particle.size,
+  "--particle-delay": particle.delay,
+  "--particle-duration": particle.duration,
+  "--particle-rotate": particle.rotate,
+})
+
+const singleRewardCopy = computed(() => {
+  const kind = rewardModal.value.kind
+  if (kind === "point") {
+    const rewardPoint = Number(rewardModal.value.rewardPoint || 0).toLocaleString("ko-KR")
+    return {
+      title: `${rewardPoint}P 당첨!`,
+      message: "포인트가 적립되었어요.",
+      prize: `${rewardPoint}P`,
+      icon: "coin",
+    }
+  }
+  if (kind === "win") {
+    return {
+      title: "상품에 당첨됐어요!",
+      message: "획득한 상품을 보관함에서 확인해보세요.",
+      prize: rewardModal.value.itemName || "상품",
+      icon: "gift",
+    }
+  }
+  return {
+    title: "아쉽게도 꽝이에요",
+    message: "다음엔 더 큰 보상이 나올 거예요.",
+    prize: "꽝",
+    icon: "lose",
+  }
 })
 
 // API에서 박스 정보를 받기 전에도 기본 상자 UI가 유지되도록 기본값을 둠
@@ -450,7 +510,41 @@ const showBulkBoxResult = (result) => {
   })
 }
 
-const handleOpenBox = async (box) => {
+const startDrawAnimation = (mode) => {
+  drawAnimation.value = {
+    open: true,
+    mode,
+  }
+}
+
+const closeDrawAnimation = () => {
+  drawAnimation.value.open = false
+}
+
+const startInlineDraw = (boxId) => {
+  inlineDrawState.value = {
+    boxId,
+    active: true,
+  }
+}
+
+const closeInlineDraw = () => {
+  inlineDrawState.value = {
+    boxId: null,
+    active: false,
+  }
+}
+
+const waitForDrawAnimation = async (startedAt) => {
+  const remaining = DRAW_ANIMATION_DURATION_MS - (Date.now() - startedAt)
+  if (remaining <= 0) return
+
+  await new Promise((resolve) => {
+    window.setTimeout(resolve, remaining)
+  })
+}
+
+const handleOpenBox = async (box, { inline = false } = {}) => {
   if (isOpeningBox.value || currentPoint.value < box.price) {
     if (currentPoint.value < box.price) {
       showBoxErrorModal("보유 포인트가 부족합니다.")
@@ -459,14 +553,34 @@ const handleOpenBox = async (box) => {
   }
 
   isOpeningBox.value = true
+  const animationStartedAt = Date.now()
+  if (inline) {
+    startInlineDraw(box.id)
+  } else {
+    startDrawAnimation("single")
+  }
   try {
     const response = await openRandomBox(box.id)
     const result = response?.data || response
     shopPointBalance.value = result?.remainingPoint ?? shopPointBalance.value
     userStore.updatePointBalance(shopPointBalance.value)
+    await waitForDrawAnimation(animationStartedAt)
+    if (inline) {
+      closeInlineDraw()
+    } else {
+      closeDrawAnimation()
+    }
     showSingleBoxResult(result)
+    if (result?.result === "POINT" && Number(result?.rewardPoint) > 0) {
+      announcePointEarned(result.rewardPoint)
+    }
     await refreshPointData()
   } catch (error) {
+    if (inline) {
+      closeInlineDraw()
+    } else {
+      closeDrawAnimation()
+    }
     showBoxErrorModal(error.message || "랜덤박스를 열지 못했습니다.")
   } finally {
     isOpeningBox.value = false
@@ -502,15 +616,23 @@ const handleOpenBoxes = async (box) => {
   }
 
   isOpeningBox.value = true
+  const animationStartedAt = Date.now()
+  startDrawAnimation("bulk")
   try {
     const response = await openRandomBoxes(box.id)
     const result = response?.data || response
     shopPointBalance.value = result?.remainingPoint ?? shopPointBalance.value
     userStore.updatePointBalance(shopPointBalance.value)
 
+    await waitForDrawAnimation(animationStartedAt)
+    closeDrawAnimation()
     showBulkBoxResult(result)
+    if (Number(result?.rewardPoint) > 0) {
+      announcePointEarned(result.rewardPoint)
+    }
     await refreshPointData()
   } catch (error) {
+    closeDrawAnimation()
     showBoxErrorModal(error.message || "랜덤박스 10개를 열지 못했습니다.")
   } finally {
     isOpeningBox.value = false
@@ -580,22 +702,40 @@ onMounted(() => {
         :class="box.colorClass"
         padding="none"
       >
-        <div class="box-icon">{{ box.icon }}</div>
         <h3>{{ box.name }}</h3>
+        <div
+          class="draw-machine-preview"
+          :class="{
+            'is-drawing': inlineDrawState.active && inlineDrawState.boxId === box.id,
+            'is-disabled': isOpeningBox || currentPoint < box.price,
+          }"
+        >
+          <div class="draw-machine-preview-glass" aria-hidden="true">
+            <div class="draw-machine-preview-lid"></div>
+            <PointDrawMachine />
+            <div class="draw-machine-preview-glass-shine"></div>
+          </div>
+          <div class="draw-machine-preview-housing" aria-hidden="true"></div>
+          <button
+            type="button"
+            class="draw-machine-preview-lever"
+            :disabled="isOpeningBox || currentPoint < box.price"
+            aria-label="뽑기통 레버를 돌려 랜덤 박스 열기"
+            @click="handleOpenBox(box, { inline: true })"
+          >
+            <span class="draw-machine-preview-lever-arm"></span>
+            <span class="draw-machine-preview-lever-knob"></span>
+          </button>
+          <div class="draw-machine-preview-chute" aria-hidden="true">
+            <span class="draw-machine-preview-output-ball">?</span>
+          </div>
+          <span class="draw-machine-preview-hint">
+            {{ isOpeningBox ? "공을 뽑는 중..." : "레버를 돌려 뽑기" }}
+          </span>
+        </div>
         <p>{{ box.description }}</p>
         <strong class="box-price">🪙 {{ box.price.toLocaleString("ko-KR") }}P</strong>
         <div class="open-box-actions">
-          <AppButton
-            class="open-box-button"
-            variant="primary"
-            size="sm"
-            block
-            :disabled="isOpeningBox || currentPoint < box.price"
-            :loading="isOpeningBox"
-            @click="handleOpenBox(box)"
-          >
-            {{ isOpeningBox ? "상자를 여는 중임..." : "상자 열기" }}
-          </AppButton>
           <AppButton
             class="bulk-open-box-button"
             variant="outline"
@@ -605,11 +745,7 @@ onMounted(() => {
             :loading="isOpeningBox"
             @click="handleOpenBoxes(box)"
           >
-            {{
-              isOpeningBox
-                ? "10개를 여는 중..."
-                : `10개 한 번에 열기 · ${bulkOpenPrice(box).toLocaleString("ko-KR")}P`
-            }}
+            {{ `10개 한 번에 열기 · ${bulkOpenPrice(box).toLocaleString("ko-KR")}P` }}
           </AppButton>
         </div>
         <div
@@ -735,6 +871,52 @@ onMounted(() => {
       </div>
     </AppDialog>
 
+    <Transition name="draw-machine">
+      <div
+        v-if="drawAnimation.open"
+        class="draw-machine-backdrop"
+        role="status"
+        aria-live="polite"
+        aria-label="랜덤 박스 보상을 뽑는 중"
+      >
+        <div
+          class="draw-machine-shell"
+          :class="{ 'draw-machine-shell-bulk': drawAnimation.mode === 'bulk' }"
+        >
+          <span class="draw-machine-kicker">WALLO POINT SHOP</span>
+          <h2>행운의 공을 뽑는 중이에요</h2>
+          <div class="draw-machine-stage" aria-hidden="true">
+            <div class="draw-machine-glow"></div>
+            <div class="draw-machine-body">
+              <div class="draw-machine-cap"></div>
+              <div class="draw-machine-drum">
+                <PointDrawMachine :mode="drawAnimation.mode" />
+                <div class="draw-machine-drum-shine"></div>
+              </div>
+              <div class="draw-machine-housing"></div>
+              <div class="draw-machine-support draw-machine-support-left"></div>
+              <div class="draw-machine-support draw-machine-support-right"></div>
+              <div class="draw-machine-platform"></div>
+              <div class="draw-machine-lever" aria-hidden="true">
+                <span class="draw-machine-lever-arm"></span>
+                <span class="draw-machine-lever-knob"></span>
+              </div>
+              <div class="draw-machine-chute">
+                <span class="draw-machine-output-ball">?</span>
+              </div>
+            </div>
+          </div>
+          <p>
+            {{
+              drawAnimation.mode === "bulk"
+                ? "10개의 결과를 섞어서 확인하고 있어요."
+                : "공들이 섞이고 있어요. 잠시만 기다려 주세요."
+            }}
+          </p>
+        </div>
+      </div>
+    </Transition>
+
     <Transition name="reward-modal">
       <div
         v-if="rewardModal.open"
@@ -753,6 +935,16 @@ onMounted(() => {
         @click.self="closeRewardModal"
         @keydown.esc="closeRewardModal"
       >
+        <div class="reward-particle-layer" aria-hidden="true">
+          <span
+            v-for="particle in rewardParticles"
+            :key="`${particle.left}-${particle.top}`"
+            class="reward-particle"
+            :style="getRewardParticleStyle(particle)"
+          >
+            🐾
+          </span>
+        </div>
         <div
           class="reward-modal-shell"
           :class="{
@@ -788,78 +980,31 @@ onMounted(() => {
             </template>
 
             <template v-else-if="['point', 'win', 'lose'].includes(rewardModal.kind)">
-              <div class="bulk-draw-panel single-draw-panel">
-                <div class="bulk-draw-grid single-draw-grid">
-                  <div
-                    class="bulk-draw-card single-draw-card"
-                    :class="[
-                      `draw-${rewardModal.kind === 'point' ? 'point' : rewardModal.kind === 'win' ? 'win' : 'lose'}`,
-                      getRewardEffectClass({
-                        rewardPoint: rewardModal.rewardPoint,
-                        itemName: rewardModal.itemName,
-                      }),
-                    ]"
-                  >
-                    <button
-                      type="button"
-                      class="bulk-draw-close"
-                      aria-label="결과 창 닫기"
-                      @click="closeRewardModal"
-                    >
-                      <i class="bi bi-x-lg" aria-hidden="true"></i>
-                    </button>
-                    <img
-                      v-if="rewardModal.kind === 'point'"
-                      :src="pointWCoin"
-                      class="bulk-draw-result-icon bulk-draw-point-icon"
-                      alt=""
-                      aria-hidden="true"
-                    />
-                    <span
-                      v-else-if="rewardModal.kind === 'win'"
-                      class="bulk-draw-result-icon"
-                      aria-hidden="true"
-                    >
-                      {{ rewardModal.kind === "win" ? "🎉" : "😢" }}
-                    </span>
-                    <strong
-                      v-if="rewardModal.kind === 'win'"
-                      id="single-result-title"
-                      class="bulk-draw-title"
-                      >상품에 당첨됐어요!</strong
-                    >
-                    <strong
-                      v-else-if="rewardModal.kind === 'point'"
-                      id="single-result-title"
-                      class="bulk-draw-title"
-                    >
-                      {{ Number(rewardModal.rewardPoint || 0).toLocaleString("ko-KR") }}P 당첨!
-                    </strong>
-                    <strong v-else id="single-result-title" class="bulk-draw-title"
-                      >다음 기회에..</strong
-                    >
-                    <div class="bulk-draw-prize-card">
-                      <img
-                        v-if="rewardModal.kind === 'point'"
-                        :src="pointWCoin"
-                        class="bulk-draw-prize-icon"
-                        alt=""
-                        aria-hidden="true"
-                      />
-                      <span
-                        v-else-if="rewardModal.kind === 'win'"
-                        class="bulk-draw-prize-icon"
-                        aria-hidden="true"
-                      >
-                        🎁
-                      </span>
-                      <strong v-if="rewardModal.kind === 'win'">{{ rewardModal.itemName }}</strong>
-                      <strong v-else-if="rewardModal.kind === 'point'">
-                        {{ Number(rewardModal.rewardPoint || 0).toLocaleString("ko-KR") }}P
-                      </strong>
-                      <strong v-else>꽝</strong>
-                    </div>
-                  </div>
+              <div class="reward-celebration" :class="`reward-celebration-${rewardModal.kind}`">
+                <button
+                  type="button"
+                  class="reward-celebration-close"
+                  aria-label="결과 창 닫기"
+                  @click="closeRewardModal"
+                >
+                  <i class="bi bi-x-lg" aria-hidden="true"></i>
+                </button>
+                <div class="reward-celebration-icon" aria-hidden="true">
+                  <img v-if="singleRewardCopy.icon === 'coin'" :src="pointWCoin" alt="" />
+                  <span v-else-if="singleRewardCopy.icon === 'gift'">🎁</span>
+                  <span v-else>😢</span>
+                </div>
+                <span class="reward-celebration-kicker">랜덤 박스 결과</span>
+                <h2 id="single-result-title" class="reward-celebration-title">
+                  {{ singleRewardCopy.title }}
+                </h2>
+                <p class="reward-celebration-message">{{ singleRewardCopy.message }}</p>
+                <div class="reward-celebration-prize">
+                  <img v-if="singleRewardCopy.icon === 'coin'" :src="pointWCoin" alt="" />
+                  <span v-else aria-hidden="true">{{
+                    singleRewardCopy.icon === "gift" ? "🎁" : ""
+                  }}</span>
+                  <strong>{{ singleRewardCopy.prize }}</strong>
                 </div>
               </div>
             </template>
@@ -1082,7 +1227,7 @@ onMounted(() => {
 
 .random-box-card {
   position: relative;
-  min-height: 258px;
+  min-height: 540px;
   overflow: visible;
   padding: 20px;
   border: 2px solid #e6e9f3;
@@ -1091,20 +1236,226 @@ onMounted(() => {
   text-align: center;
 }
 
-.box-icon {
-  display: grid;
-  width: 68px;
-  height: 68px;
-  margin: 0 auto 12px;
-  place-items: center;
-  border-radius: 20px;
-  background: #f1f3fa;
-  font-size: 34px;
-}
-
 .random-box-card h3 {
   margin: 0 0 6px;
   font-size: 17px;
+}
+
+.draw-machine-preview {
+  position: relative;
+  width: min(100%, 276px);
+  height: 316px;
+  margin: 4px auto 8px;
+  isolation: isolate;
+}
+
+.draw-machine-preview::after {
+  position: absolute;
+  right: 50%;
+  bottom: 3px;
+  z-index: -1;
+  width: 202px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgb(39 43 59 / 18%);
+  content: "";
+  filter: blur(8px);
+  transform: translateX(50%);
+}
+
+.draw-machine-preview-glass {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  z-index: 2;
+  width: 218px;
+  height: 218px;
+  overflow: hidden;
+  border: 7px solid rgb(209 224 225 / 88%);
+  border-radius: 18px 18px 28px 28px;
+  background:
+    linear-gradient(120deg, rgb(255 255 255 / 28%), transparent 28%),
+    linear-gradient(180deg, rgb(194 224 226 / 24%), rgb(97 154 164 / 14%));
+  box-shadow:
+    0 0 0 4px rgb(255 255 255 / 28%),
+    inset 8px 0 13px rgb(255 255 255 / 24%),
+    inset -10px 0 16px rgb(38 91 102 / 19%),
+    0 18px 22px rgb(41 51 72 / 22%);
+  transform: translateX(-50%);
+}
+
+.draw-machine-preview-lid {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  z-index: 4;
+  width: 224px;
+  height: 28px;
+  border: 4px solid #25292b;
+  border-radius: 14px 14px 8px 8px;
+  background: linear-gradient(180deg, #151819, #080909);
+  box-shadow: 0 6px 10px rgb(0 0 0 / 28%);
+  transform: translateX(-50%);
+}
+
+.draw-machine-preview-glass-shine {
+  position: absolute;
+  top: 18px;
+  left: 22px;
+  z-index: 3;
+  width: 34px;
+  height: 126px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, rgb(255 255 255 / 48%), rgb(255 255 255 / 5%));
+  filter: blur(2px);
+  opacity: 0.75;
+  pointer-events: none;
+  transform: rotate(8deg);
+}
+
+.draw-machine-preview-housing {
+  position: absolute;
+  right: 50%;
+  bottom: 23px;
+  z-index: 1;
+  width: 168px;
+  height: 86px;
+  border: 5px solid #181b1b;
+  border-radius: 17px 17px 9px 9px;
+  background: linear-gradient(90deg, #373a48, #5b5b78 45%, #353846);
+  box-shadow: 0 12px 18px rgb(38 43 57 / 30%), inset 0 5px 10px rgb(255 255 255 / 8%);
+  transform: translateX(50%);
+}
+
+.draw-machine-preview-housing::before {
+  position: absolute;
+  top: 7px;
+  right: 8px;
+  left: 8px;
+  height: 7px;
+  border-radius: 999px;
+  background: rgb(173 166 255 / 38%);
+  content: "";
+}
+
+.draw-machine-preview-lever {
+  position: absolute;
+  right: 50%;
+  bottom: 65px;
+  z-index: 6;
+  width: 64px;
+  height: 64px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 24%, #b9bcc0, #92959a 58%, #707379);
+  box-shadow:
+    0 4px 0 #626368,
+    0 9px 12px rgb(0 0 0 / 30%),
+    inset 3px 3px 5px rgb(255 255 255 / 22%),
+    inset -4px -5px 7px rgb(0 0 0 / 17%);
+  cursor: pointer;
+  transform: translateX(50%);
+}
+
+.draw-machine-preview-lever::before {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 40px;
+  height: 16px;
+  border: 0;
+  border-radius: 1px;
+  background: linear-gradient(180deg, #e0e2e4, #c0c3c6);
+  box-shadow: inset 0 1px 1px rgb(255 255 255 / 70%), inset 0 -1px 1px rgb(80 84 88 / 22%);
+  content: "";
+  border-radius: 4px;
+  transform: translate(-50%, -50%);
+}
+
+.draw-machine-preview-lever:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.28);
+  opacity: 0.62;
+}
+
+.draw-machine-preview-lever:not(:disabled):hover,
+.draw-machine-preview-lever:not(:disabled):focus-visible {
+  filter: brightness(1.08);
+  outline: 3px solid rgb(109 93 240 / 24%);
+  outline-offset: 3px;
+}
+
+.draw-machine-preview-lever-arm {
+  display: none;
+}
+
+.draw-machine-preview-lever-knob {
+  display: none;
+}
+
+.draw-machine-preview-chute {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  z-index: 5;
+  display: grid;
+  width: 82px;
+  height: 56px;
+  place-items: start center;
+  overflow: hidden;
+  border: 5px solid rgb(210 232 232 / 84%);
+  border-radius: 14px 14px 28px 28px;
+  background: linear-gradient(90deg, rgb(112 177 189 / 26%), rgb(240 255 255 / 42%), rgb(112 177 189 / 26%));
+  box-shadow: 0 11px 16px rgb(0 0 0 / 25%);
+  transform: translateX(-50%);
+}
+
+.draw-machine-preview-output-ball {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  margin-top: 6px;
+  place-items: center;
+  border: 3px solid rgb(255 255 255 / 74%);
+  border-radius: 50%;
+  background: #ffd85c;
+  box-shadow:
+    inset -5px -6px 9px rgb(0 0 0 / 18%),
+    inset 5px 4px 6px rgb(255 255 255 / 45%),
+    0 6px 9px rgb(0 0 0 / 28%);
+  color: #4c3a0a;
+  font-size: 16px;
+  font-weight: 900;
+  opacity: 0;
+  transform: translate3d(-10px, -54px, 0) scale(0.62) rotate(-40deg);
+}
+
+.draw-machine-preview-hint {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  z-index: 7;
+  color: #7770bb;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.draw-machine-preview.is-drawing .draw-machine-preview-lever {
+  animation: inline-draw-machine-lever-turn 1.05s cubic-bezier(0.24, 0.7, 0.24, 1) both;
+}
+
+.draw-machine-preview.is-drawing .draw-machine-preview-lever-arm {
+  animation: none;
+}
+
+.draw-machine-preview.is-drawing .draw-machine-preview-output-ball {
+  animation: inline-draw-machine-output 1.25s cubic-bezier(0.2, 0.8, 0.2, 1) 1 both;
+}
+
+.draw-machine-preview.is-disabled .draw-machine-preview-hint {
+  color: #a6aabe;
 }
 
 .random-box-card p {
@@ -1119,24 +1470,6 @@ onMounted(() => {
   margin: 10px 0;
   color: #edaa00;
   font-size: 20px;
-}
-
-.open-box-button {
-  display: block;
-  width: 100%;
-  margin: 0;
-  padding: 10px 14px;
-  border: 0;
-  border-radius: 10px;
-  background: #6d5df0;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.open-box-button:disabled {
-  background: #c9cbe0;
-  cursor: not-allowed;
 }
 
 .open-box-actions {
@@ -2134,6 +2467,616 @@ onMounted(() => {
 @media (max-width: 420px) {
   .bulk-draw-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* 결과 연출의 구조를 고정하고, 최종 UI/UX 확정 때 아래 토큰만 교체할 수 있도록 분리함. */
+.draw-machine-backdrop {
+  --draw-overlay: rgb(8 9 13 / 94%);
+  --draw-copy: #ffffff;
+  --draw-accent: #ffd85c;
+  position: fixed;
+  z-index: 1550;
+  inset: 0;
+  display: grid;
+  overflow: hidden;
+  place-items: center;
+  padding: 24px;
+  background: var(--draw-overlay);
+  color: var(--draw-copy);
+  text-align: center;
+  backdrop-filter: blur(4px);
+}
+
+.draw-machine-shell {
+  width: min(100%, 440px);
+}
+
+.draw-machine-kicker {
+  display: block;
+  margin-bottom: 10px;
+  color: rgb(255 255 255 / 60%);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.draw-machine-shell h2 {
+  margin: 0;
+  color: var(--draw-accent);
+  font-size: clamp(24px, 7vw, 34px);
+  font-weight: 900;
+  line-height: 1.25;
+  word-break: keep-all;
+}
+
+.draw-machine-shell p {
+  margin: 18px auto 0;
+  color: rgb(255 255 255 / 78%);
+  font-size: 15px;
+  font-weight: 700;
+  word-break: keep-all;
+}
+
+.draw-machine-stage {
+  position: relative;
+  display: grid;
+  width: min(100%, 350px);
+  height: 360px;
+  margin: 12px auto 0;
+  place-items: center;
+}
+
+.draw-machine-glow {
+  position: absolute;
+  top: 78px;
+  width: 270px;
+  height: 190px;
+  border-radius: 50%;
+  background: rgb(255 216 92 / 16%);
+  filter: blur(28px);
+  animation: draw-machine-glow 1.4s ease-in-out infinite alternate;
+}
+
+.draw-machine-body {
+  position: relative;
+  width: 290px;
+  height: 320px;
+  padding-top: 16px;
+}
+
+.draw-machine-cap {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  z-index: 2;
+  width: 274px;
+  height: 30px;
+  border: 4px solid #262a2b;
+  border-radius: 15px 15px 8px 8px;
+  background: linear-gradient(180deg, #16191a, #080909);
+  box-shadow: 0 8px 12px rgb(0 0 0 / 30%);
+  transform: translateX(-50%);
+}
+
+.draw-machine-drum {
+  position: relative;
+  z-index: 2;
+  perspective: 520px;
+  width: 260px;
+  height: 260px;
+  margin: 0 auto;
+  overflow: hidden;
+  border: 8px solid rgb(235 242 240 / 78%);
+  border-radius: 15px 15px 22px 22px;
+  background:
+    radial-gradient(circle at 30% 20%, rgb(255 255 255 / 38%), transparent 10%),
+    radial-gradient(circle at 50% 45%, rgb(255 255 255 / 18%), transparent 42%),
+    linear-gradient(145deg, rgb(206 232 232 / 19%), rgb(83 121 133 / 18%));
+  box-shadow:
+    0 0 0 5px rgb(255 255 255 / 14%),
+    0 22px 38px rgb(0 0 0 / 40%),
+    inset 0 0 28px rgb(0 0 0 / 28%),
+    inset 12px 12px 18px rgb(255 255 255 / 13%);
+  backdrop-filter: blur(1px) saturate(115%);
+}
+
+.draw-machine-drum-shine {
+  position: absolute;
+  z-index: 4;
+  top: 18px;
+  left: 48px;
+  width: 74px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 25%);
+  filter: blur(4px);
+  transform: rotate(-26deg);
+  pointer-events: none;
+}
+
+.draw-machine-support {
+  position: absolute;
+  bottom: 28px;
+  z-index: 1;
+  width: 52px;
+  height: 108px;
+  background: linear-gradient(145deg, #262a2c, #080909 72%);
+  box-shadow: 0 12px 16px rgb(0 0 0 / 32%);
+  clip-path: polygon(20% 0, 100% 100%, 0 100%, 32% 7%);
+}
+
+.draw-machine-support-left {
+  left: 30px;
+  transform: rotate(-5deg);
+}
+
+.draw-machine-support-right {
+  right: 30px;
+  transform: scaleX(-1) rotate(-5deg);
+}
+
+.draw-machine-housing {
+  position: absolute;
+  right: 50%;
+  bottom: 26px;
+  z-index: 2;
+  width: 190px;
+  height: 104px;
+  border: 5px solid #17191a;
+  border-radius: 18px 18px 10px 10px;
+  background: linear-gradient(90deg, #373a48, #5b5b78 45%, #353846);
+  box-shadow: 0 14px 20px rgb(0 0 0 / 35%), inset 0 5px 12px rgb(255 255 255 / 8%);
+  transform: translateX(50%);
+}
+
+.draw-machine-platform {
+  position: absolute;
+  right: 50%;
+  bottom: 0;
+  z-index: 0;
+  width: 290px;
+  height: 42px;
+  border: 2px solid #3a3d3e;
+  border-radius: 3px 3px 12px 12px;
+  background: linear-gradient(180deg, #1c1f20, #050606);
+  box-shadow: 0 14px 18px rgb(0 0 0 / 36%);
+  clip-path: polygon(8% 0, 92% 0, 100% 100%, 0 100%);
+  transform: translateX(50%);
+}
+
+.draw-machine-lever {
+  position: absolute;
+  right: 50%;
+  bottom: 84px;
+  z-index: 6;
+  width: 64px;
+  height: 64px;
+  border: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 24%, #b9bcc0, #92959a 58%, #707379);
+  box-shadow:
+    0 4px 0 #626368,
+    0 9px 12px rgb(0 0 0 / 30%),
+    inset 3px 3px 5px rgb(255 255 255 / 22%),
+    inset -4px -5px 7px rgb(0 0 0 / 17%);
+  transform: translateX(50%);
+  animation: draw-machine-lever-turn 1.05s cubic-bezier(0.24, 0.7, 0.24, 1) both;
+}
+
+.draw-machine-lever::before {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 40px;
+  height: 16px;
+  border: 0;
+  border-radius: 1px;
+  background: linear-gradient(180deg, #e0e2e4, #c0c3c6);
+  box-shadow: inset 0 1px 1px rgb(255 255 255 / 70%), inset 0 -1px 1px rgb(80 84 88 / 22%);
+  content: "";
+  border-radius: 4px;
+  transform: translate(-50%, -50%);
+}
+
+.draw-machine-lever-arm {
+  display: none;
+}
+
+.draw-machine-lever-knob {
+  display: none;
+}
+
+.draw-machine-chute {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  z-index: 3;
+  display: grid;
+  width: 106px;
+  height: 67px;
+  place-items: start center;
+  border: 5px solid rgb(210 232 232 / 76%);
+  border-radius: 18px 18px 34px 34px;
+  background: linear-gradient(90deg, rgb(112 177 189 / 22%), rgb(240 255 255 / 34%), rgb(112 177 189 / 22%));
+  box-shadow: 0 15px 22px rgb(0 0 0 / 32%);
+  overflow: hidden;
+  transform: translateX(-50%);
+}
+
+.draw-machine-output-ball {
+  display: grid;
+  width: 45px;
+  height: 45px;
+  margin-top: 8px;
+  place-items: center;
+  border: 3px solid rgb(255 255 255 / 74%);
+  border-radius: 50%;
+  background: var(--draw-accent);
+  box-shadow:
+    inset -6px -7px 10px rgb(0 0 0 / 18%),
+    inset 6px 5px 7px rgb(255 255 255 / 45%),
+    0 7px 10px rgb(0 0 0 / 28%);
+  color: #4c3a0a;
+  font-size: 20px;
+  font-weight: 900;
+  animation: draw-machine-output 1.25s cubic-bezier(0.2, 0.8, 0.2, 1) 1 both;
+}
+
+.draw-machine-enter-active,
+.draw-machine-leave-active {
+  transition: opacity 220ms ease;
+}
+
+.draw-machine-enter-active .draw-machine-shell,
+.draw-machine-leave-active .draw-machine-shell {
+  transition: transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.draw-machine-enter-from,
+.draw-machine-leave-to {
+  opacity: 0;
+}
+
+.draw-machine-enter-from .draw-machine-shell,
+.draw-machine-leave-to .draw-machine-shell {
+  transform: translateY(18px) scale(0.96);
+}
+
+@keyframes draw-machine-output {
+  0%,
+  34% {
+    opacity: 0;
+    transform: translate3d(-10px, -55px, 0) scale(0.62) rotate(-40deg);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translate3d(-12px, -22px, 0) scale(0.86) rotate(120deg);
+  }
+
+  70%,
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1) rotate(420deg);
+  }
+}
+
+@keyframes draw-machine-lever-turn {
+  0% {
+    transform: translateX(50%) rotate(0deg);
+  }
+
+  38% {
+    transform: translateX(50%) rotate(18deg);
+  }
+
+  100% {
+    transform: translateX(50%) rotate(90deg);
+  }
+}
+
+@keyframes draw-machine-lever-arm {
+  0% {
+    transform: translateY(-50%) rotate(-12deg);
+  }
+
+  45% {
+    transform: translateY(-50%) rotate(26deg);
+  }
+
+  100% {
+    transform: translateY(-50%) rotate(350deg);
+  }
+}
+
+@keyframes draw-machine-glow {
+  from {
+    opacity: 0.55;
+    transform: scale(0.92);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes inline-draw-machine-output {
+  0%,
+  34% {
+    opacity: 0;
+    transform: translate3d(-10px, -54px, 0) scale(0.62) rotate(-40deg);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translate3d(-10px, -22px, 0) scale(0.84) rotate(120deg);
+  }
+
+  70%,
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1) rotate(420deg);
+  }
+}
+
+@keyframes inline-draw-machine-lever-turn {
+  0% {
+    transform: translateX(50%) rotate(0deg);
+  }
+
+  38% {
+    transform: translateX(50%) rotate(18deg);
+  }
+
+  100% {
+    transform: translateX(50%) rotate(90deg);
+  }
+}
+
+@keyframes inline-draw-machine-lever-arm {
+  0% {
+    transform: translateY(-50%) rotate(-12deg);
+  }
+
+  45% {
+    transform: translateY(-50%) rotate(26deg);
+  }
+
+  100% {
+    transform: translateY(-50%) rotate(350deg);
+  }
+}
+
+.reward-modal-backdrop {
+  --reward-overlay: #08090d;
+  --reward-accent: #ffd85c;
+  --reward-copy: #ffffff;
+  --reward-action: #18e477;
+  --reward-action-copy: #062713;
+  padding: 0;
+  overflow: hidden;
+  background: var(--reward-overlay);
+}
+
+.reward-particle-layer {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.reward-particle {
+  position: absolute;
+  top: var(--particle-top);
+  left: var(--particle-left);
+  display: block;
+  font-size: var(--particle-size);
+  line-height: 1;
+  opacity: 0;
+  animation: reward-particle-fall var(--particle-duration) ease-in-out var(--particle-delay)
+    infinite;
+}
+
+.reward-modal-shell {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  justify-content: center;
+  width: min(100%, 440px);
+  min-height: 100%;
+  padding: 56px 18px 28px;
+}
+
+.reward-modal-card.single-modal-card {
+  width: min(100%, 420px);
+  min-width: 0;
+}
+
+.reward-celebration {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 22px 20px 28px;
+  color: var(--reward-copy);
+  text-align: center;
+  animation: reward-celebration-in 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.reward-celebration-close {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 24%);
+  border-radius: 50%;
+  background: rgb(255 255 255 / 7%);
+  color: rgb(255 255 255 / 78%);
+  font-size: 12px;
+}
+
+.reward-celebration-close:hover,
+.reward-celebration-close:focus-visible {
+  background: rgb(255 255 255 / 16%);
+  color: var(--reward-copy);
+}
+
+.reward-celebration-icon {
+  display: grid;
+  width: 104px;
+  height: 104px;
+  margin: 0 auto 18px;
+  place-items: center;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 10%);
+  font-size: 64px;
+  line-height: 1;
+  filter: drop-shadow(0 12px 24px rgb(0 0 0 / 28%));
+  animation: reward-celebration-icon 560ms cubic-bezier(0.2, 0.8, 0.2, 1) 80ms both;
+}
+
+.reward-celebration-icon img {
+  width: 78px;
+  height: 78px;
+  object-fit: contain;
+}
+
+.reward-celebration-kicker {
+  margin-bottom: 10px;
+  color: rgb(255 255 255 / 62%);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.reward-celebration-title {
+  margin: 0;
+  color: var(--reward-accent);
+  font-size: clamp(24px, 7vw, 36px);
+  font-weight: 900;
+  line-height: 1.22;
+  word-break: keep-all;
+}
+
+.reward-celebration-message {
+  max-width: 320px;
+  margin: 12px auto 20px;
+  color: var(--reward-copy);
+  font-size: clamp(17px, 4.8vw, 24px);
+  font-weight: 800;
+  line-height: 1.45;
+  word-break: keep-all;
+}
+
+.reward-celebration-prize {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 128px;
+  max-width: 100%;
+  gap: 8px;
+  padding: 12px 18px;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 9%);
+  color: var(--reward-copy);
+}
+
+.reward-celebration-prize img {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+}
+
+.reward-celebration-prize span {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.reward-celebration-prize strong {
+  overflow: hidden;
+  font-size: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reward-modal-confirm-outside {
+  width: min(100%, 420px);
+  margin-top: 4px;
+  padding: 14px 18px;
+  border-radius: 14px;
+  background: var(--reward-action);
+  color: var(--reward-action-copy);
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.reward-modal-confirm-outside:hover,
+.reward-modal-confirm-outside:focus-visible {
+  background: color-mix(in srgb, var(--reward-action) 86%, white);
+  color: var(--reward-action-copy);
+}
+
+@keyframes reward-celebration-in {
+  0% {
+    opacity: 0;
+    transform: translateY(24px) scale(0.94);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes reward-celebration-icon {
+  0% {
+    opacity: 0;
+    transform: scale(0.55) rotate(-12deg);
+  }
+
+  68% {
+    opacity: 1;
+    transform: scale(1.08) rotate(4deg);
+  }
+
+  100% {
+    transform: scale(1) rotate(0);
+  }
+}
+
+@keyframes reward-particle-fall {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -24px, 0) rotate(var(--particle-rotate)) scale(0.72);
+  }
+
+  24% {
+    opacity: 0.92;
+  }
+
+  100% {
+    opacity: 0.18;
+    transform: translate3d(12px, 34px, 0) rotate(calc(var(--particle-rotate) + 28deg)) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .draw-machine-output-ball,
+  .draw-machine-glow,
+  .reward-particle,
+  .reward-celebration,
+  .reward-celebration-icon {
+    animation-duration: 1ms;
+    animation-iteration-count: 1;
   }
 }
 </style>
