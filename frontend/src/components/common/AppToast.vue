@@ -15,7 +15,10 @@ const { toasts } = storeToRefs(toastStore)
       :class="`wallo-toast-${toast.variant}`"
       role="alert"
     >
-      <span class="wallo-toast-message">{{ toast.message }}</span>
+      <span class="wallo-toast-content">
+        <span class="wallo-toast-message">{{ toast.message }}</span>
+        <strong v-if="toast.detail" class="wallo-toast-detail">{{ toast.detail }}</strong>
+      </span>
       <button
         type="button"
         class="wallo-toast-close"
@@ -53,12 +56,24 @@ const { toasts } = storeToRefs(toastStore)
   pointer-events: auto;
 }
 
+.wallo-toast-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .wallo-toast-danger {
   background: #b42318;
 }
 
 .wallo-toast-success {
   background: #147d4d;
+}
+
+.wallo-toast-detail {
+  color: #05a84f;
+  font-size: 0.95rem;
+  white-space: nowrap;
 }
 
 .wallo-toast-message {
@@ -75,4 +90,5 @@ const { toasts } = storeToRefs(toastStore)
   font-size: 1.35rem;
   line-height: 1;
 }
+
 </style>
