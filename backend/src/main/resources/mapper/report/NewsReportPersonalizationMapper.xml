@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wallo.report.mapper.NewsReportPersonalizationMapper">
+    <resultMap id="personalizationMap" type="com.wallo.report.domain.NewsReportPersonalization">
+        <id property="personalizationId" column="personalization_id"/>
+        <result property="newsId" column="news_id"/><result property="userId" column="user_id"/>
+        <result property="userImpact" column="user_impact"/><result property="responseStrategy" column="response_strategy"/>
+        <result property="createdAt" column="created_at"/><result property="updatedAt" column="updated_at"/>
+    </resultMap>
+    <select id="findByNewsIdAndUserId" resultMap="personalizationMap">
+        SELECT personalization_id, news_id, user_id, user_impact, response_strategy, created_at, updated_at
+        FROM news_report_personalization WHERE news_id = #{newsId} AND user_id = #{userId}
+    </select>
+    <insert id="insert" parameterType="com.wallo.report.domain.NewsReportPersonalization" useGeneratedKeys="true" keyProperty="personalizationId">
+        INSERT INTO news_report_personalization (news_id, user_id, user_impact, response_strategy)
+        VALUES (#{newsId}, #{userId}, #{userImpact}, #{responseStrategy})
+    </insert>
+    <select id="findUserProfile" resultType="com.wallo.report.domain.ReportUserProfile">
+        SELECT u.id AS userId, u.nickname, u.annual_salary AS annualSalary,
+          (SELECT s.total_assets FROM ASSET_SNAPSHOTS s WHERE s.user_id=u.id ORDER BY s.snapshot_month DESC LIMIT 1) AS totalAssets,
+          COALESCE((SELECT SUM(CASE WHEN a.account_type='BANK' THEN GREATEST(a.balance,0) ELSE 0 END) FROM ACCOUNTS a JOIN CONNECTIONS c ON c.connection_id=a.connection_id WHERE c.user_id=u.id AND c.deleted_at IS NULL),0) AS depositAssets,
+          COALESCE((SELECT SUM(CASE WHEN a.account_type IN ('STOCK','INVESTMENT') THEN GREATEST(COALESCE(NULLIF(a.eval_amount,0),a.balance),0) ELSE 0 END) FROM ACCOUNTS a JOIN CONNECTIONS c ON c.connection_id=a.connection_id WHERE c.user_id=u.id AND c.deleted_at IS NULL),0) AS investmentAssets,
+          COALESCE((SELECT SUM(CASE WHEN a.account_type='LOAN' THEN ABS(a.balance) ELSE 0 END) FROM ACCOUNTS a JOIN CONNECTIONS c ON c.connection_id=a.connection_id WHERE c.user_id=u.id AND c.deleted_at IS NULL),0) AS loanBalance,
+          COALESCE((SELECT ROUND(SUM(CASE WHEN t.type='INCOME' THEN t.amount ELSE 0 END)/3) FROM TRANSACTIONS t WHERE t.user_id=u.id AND t.transaction_date &gt;= DATE_SUB(CURRENT_DATE, INTERVAL 3 MONTH)),0) AS averageMonthlyIncome,
+          COALESCE((SELECT ROUND(SUM(CASE WHEN t.type='EXPENSE' THEN t.amount ELSE 0 END)/3) FROM TRANSACTIONS t WHERE t.user_id=u.id AND t.transaction_date &gt;= DATE_SUB(CURRENT_DATE, INTERVAL 3 MONTH)),0) AS averageMonthlyExpense
+        FROM USERS u WHERE u.id = #{userId}
+    </select>
+</mapper>
