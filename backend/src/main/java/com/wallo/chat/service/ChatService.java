@@ -1,6 +1,7 @@
 package com.wallo.chat.service;
 
 import com.wallo.asset.dto.GoalAssetContextDto;
+import com.wallo.asset.service.AssetAnalysisContextService;
 import com.wallo.asset.service.AssetService;
 import com.wallo.asset.service.ConsumptionAnalysisContextService;
 import com.wallo.chat.client.PythonAiClient;
@@ -16,17 +17,28 @@ public class ChatService {
     private final PythonAiClient pythonAiClient;
     private final AssetService assetService;
     private final ConsumptionAnalysisContextService consumptionAnalysisContextService;
+    private final AssetAnalysisContextService assetAnalysisContextService;
 
     @Autowired
     public ChatService(PythonAiClient pythonAiClient, AssetService assetService,
-                       ConsumptionAnalysisContextService consumptionAnalysisContextService) {
+                       ConsumptionAnalysisContextService consumptionAnalysisContextService,
+                       AssetAnalysisContextService assetAnalysisContextService) {
         this.pythonAiClient = pythonAiClient;
         this.assetService = assetService;
         this.consumptionAnalysisContextService = consumptionAnalysisContextService;
+        this.assetAnalysisContextService = assetAnalysisContextService;
+    }
+
+    ChatService(
+            PythonAiClient pythonAiClient,
+            AssetService assetService,
+            ConsumptionAnalysisContextService consumptionAnalysisContextService
+    ) {
+        this(pythonAiClient, assetService, consumptionAnalysisContextService, null);
     }
 
     ChatService(PythonAiClient pythonAiClient, AssetService assetService) {
-        this(pythonAiClient, assetService, null);
+        this(pythonAiClient, assetService, null, null);
     }
 
     public ChatResponse chat(ChatRequest request, long currentUserId) {
@@ -47,6 +59,10 @@ public class ChatService {
         GoalAssetContextDto.Response financialContext =
                 assetService.getGoalAssetContext(currentUserId);
         ChatRequest aiRequest = request.withFinancialContext(financialContext);
+        if (assetAnalysisContextService != null) {
+            aiRequest = aiRequest.withAssetAnalysisContext(
+                    assetAnalysisContextService.getContext(currentUserId));
+        }
         if (consumptionAnalysisContextService != null) {
             aiRequest = aiRequest.withConsumptionContext(
                     consumptionAnalysisContextService.getContext(currentUserId));
