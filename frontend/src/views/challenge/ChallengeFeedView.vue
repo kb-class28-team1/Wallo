@@ -31,6 +31,7 @@ import {
   hasInFlightResource,
   invalidateResource,
 } from "@/utils/resourceCache"
+import { announcePointEarned } from "@/utils/pointRewardNotice"
 
 const route = useRoute()
 const router = useRouter()
@@ -53,10 +54,6 @@ const modalOpen = ref(false)
 const isAnalyzing = ref(false)
 const analysisProgress = ref(0)
 const analysisStageMessage = ref("분석 준비 중...")
-const isGaugeTestRunning = ref(false)
-const gaugeTestProgress = ref(0)
-const gaugeTestStageMessage = ref("영상 분석중...")
-const TENOR_EMBED_SCRIPT_SRC = "https://tenor.com/embed.js"
 const isUploading = ref(false)
 const todayMissions = ref([])
 const isMissionLoading = ref(false)
@@ -91,16 +88,6 @@ let newFeedAnimationTimer = null
 let dialogResolver = null
 let analysisRequestSequence = 0
 let analysisProgressTimer = null
-let gaugeTestTimer = null
-let gaugeTestResetTimer = null
-
-const isAnalysisDisplayActive = computed(() => isAnalyzing.value || isGaugeTestRunning.value)
-const analysisDisplayProgress = computed(() =>
-  isGaugeTestRunning.value ? gaugeTestProgress.value : analysisProgress.value,
-)
-const analysisDisplayStageMessage = computed(() =>
-  isGaugeTestRunning.value ? gaugeTestStageMessage.value : analysisStageMessage.value,
-)
 
 const stopAnalysisProgress = () => {
   if (analysisProgressTimer) {
@@ -117,60 +104,6 @@ const startAnalysisProgress = () => {
     analysisProgress.value = Math.min(90, analysisProgress.value + increment)
   }, 100)
 }
-const stopGaugeTest = () => {
-  if (gaugeTestTimer) {
-    window.clearInterval(gaugeTestTimer)
-    gaugeTestTimer = null
-  }
-  if (gaugeTestResetTimer) {
-    window.clearTimeout(gaugeTestResetTimer)
-    gaugeTestResetTimer = null
-  }
-  isGaugeTestRunning.value = false
-}
-const getGaugeTestStageMessage = (progress) => {
-  if (progress < 25) return "영상 분석중..."
-  if (progress < 50) return "시세 확인중..."
-  if (progress < 75) return "가격 산출중..."
-  if (progress < 100) return "절약 금액 계산중..."
-  return "분석 완료"
-}
-const openGaugeTest = () => {
-  if (isAnalyzing.value) return
-  stopGaugeTest()
-  modalOpen.value = true
-  isMissionLoading.value = false
-  isGaugeTestRunning.value = true
-  gaugeTestProgress.value = 0
-  gaugeTestStageMessage.value = getGaugeTestStageMessage(0)
-  gaugeTestTimer = window.setInterval(() => {
-    if (!isGaugeTestRunning.value) return
-    gaugeTestProgress.value = Math.min(100, gaugeTestProgress.value + 1.5)
-    gaugeTestStageMessage.value = getGaugeTestStageMessage(gaugeTestProgress.value)
-    if (gaugeTestProgress.value >= 100) {
-      window.clearInterval(gaugeTestTimer)
-      gaugeTestTimer = null
-      gaugeTestResetTimer = window.setTimeout(() => {
-        stopGaugeTest()
-      }, 900)
-    }
-  }, 75)
-}
-const reloadTenorEmbed = async () => {
-  if (typeof document === "undefined") return
-  await nextTick()
-  if (!document.querySelector(".analysis-tenor-embed")) return
-  document.querySelector("script[data-wallo-tenor-embed]")?.remove()
-  const script = document.createElement("script")
-  script.type = "text/javascript"
-  script.async = true
-  script.dataset.walloTenorEmbed = "true"
-  script.src = TENOR_EMBED_SCRIPT_SRC
-  document.body.appendChild(script)
-}
-watch(isAnalysisDisplayActive, (active) => {
-  if (active) reloadTenorEmbed()
-}, { flush: "post" })
 
 const FEED_STALE_TIME = 30 * 1000
 const MESSAGE_STALE_TIME = 15 * 1000
@@ -486,7 +419,6 @@ const leaveCurrentChallenge = async () => {
 }
 
 const openModal = async () => {
-  stopGaugeTest()
   modalOpen.value = true
   isMissionLoading.value = true
   try {
@@ -506,7 +438,6 @@ const openModal = async () => {
 }
 const closeModal = () => {
   modalOpen.value = false
-  stopGaugeTest()
   analysisRequestSequence += 1
   stopAnalysisProgress()
   isAnalyzing.value = false
@@ -563,7 +494,9 @@ const addLike = async (feed) => {
     const likeCount = Number(feed.likeCount)
     const milestone = Math.floor(likeCount / 10) * 10
     if (
-      likeCount >= 50 && likeCount <= 1000 && likeCount % 50 === 0 &&
+      likeCount >= 50 &&
+      likeCount <= 1000 &&
+      likeCount % 50 === 0 &&
       pageHeartMilestones.get(feed.id) !== milestone
     ) {
       pageHeartMilestones.set(feed.id, milestone)
@@ -621,7 +554,6 @@ const playVideoPreview = (event) => {
   event.currentTarget.play().catch(() => {})
 }
 const handleFile = async (event) => {
-  stopGaugeTest()
   const file = event.target.files?.[0]
   if (!file) return
   if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
@@ -644,7 +576,6 @@ const handleFile = async (event) => {
   analysisStageMessage.value = "분석 준비 중..."
 }
 const selectCategory = (category) => {
-  stopGaugeTest()
   form.category = category
   form.aiEstimatedSavingAmount = 0
   form.savingAmount = 0
@@ -829,6 +760,10 @@ const uploadFeed = async () => {
       newFeedAnimationTimer = null
     }, 700)
     if (verificationResult) {
+      const rewardedPoint = Number(verificationResult.rewardedPoint || 0)
+      if (verificationResult.decision === "PASS" && rewardedPoint > 0) {
+        announcePointEarned(rewardedPoint)
+      }
       const resultMessage =
         verificationResult.decision === "PASS"
           ? `미션을 달성했습니다! +${verificationResult.rewardedPoint}P`
@@ -940,7 +875,6 @@ onBeforeUnmount(() => {
   disconnectChatSocket()
   analysisRequestSequence += 1
   stopAnalysisProgress()
-  stopGaugeTest()
   likeBurstTimers.forEach((timer) => window.clearTimeout(timer))
   if (pageHeartCelebrationTimer) window.clearTimeout(pageHeartCelebrationTimer)
   if (newFeedAnimationTimer) window.clearTimeout(newFeedAnimationTimer)
@@ -1262,26 +1196,15 @@ onBeforeUnmount(() => {
           </section>
         </aside>
       </div>
-      <div class="floating-actions">
-        <AppButton
-          class="floating-gauge-test"
-          variant="secondary"
-          aria-label="분석 게이지 테스트"
-          title="분석 게이지 테스트"
-          @click="openGaugeTest"
-        >
-          🌊
-        </AppButton>
-        <AppButton
-          class="floating-add"
-          variant="primary"
-          size="lg"
-          aria-label="절약 피드 추가"
-          @click="openModal"
-        >
-          +
-        </AppButton>
-      </div>
+      <AppButton
+        class="floating-add"
+        variant="primary"
+        size="lg"
+        aria-label="절약 피드 추가"
+        @click="openModal"
+      >
+        +
+      </AppButton>
     </template>
 
     <div v-if="modalOpen" class="modal-layer" @click.self="closeModal">
@@ -1372,37 +1295,17 @@ onBeforeUnmount(() => {
             </div>
             <button
               type="button"
-              :class="{ 'is-analyzing': isAnalysisDisplayActive }"
-              :style="
-                isAnalysisDisplayActive
-                  ? { '--analysis-progress': `${analysisDisplayProgress}%` }
-                  : undefined
-              "
-              :disabled="isAnalyzing || isGaugeTestRunning"
+              :class="{ 'is-analyzing': isAnalyzing }"
+              :style="isAnalyzing ? { '--analysis-progress': `${analysisProgress}%` } : undefined"
+              :disabled="isAnalyzing"
               @click="requestAnalysis"
             >
-              <span v-if="isAnalysisDisplayActive" class="analysis-ocean-fill" aria-hidden="true"></span>
-              <span v-if="isAnalysisDisplayActive" class="analysis-tenor-loader" aria-hidden="true">
-                <div
-                  class="tenor-gif-embed analysis-tenor-embed"
-                  data-postid="17147917170226623344"
-                  data-share-method="host"
-                  data-aspect-ratio="1"
-                  data-width="100%"
-                >
-                  <a
-                    href="https://tenor.com/view/labor-day-holiday-happy-labor-day-labor-day-weekend-ldw-gif-17147917170226623344"
-                  >
-                    Labor Day Holiday Sticker
-                  </a>
-                </div>
-              </span>
               <span class="analysis-button-label">
-                {{ isAnalysisDisplayActive ? analysisDisplayStageMessage : "✨ AI에게 분석 맡기기" }}
+                {{ isAnalyzing ? analysisStageMessage : "✨ AI에게 분석 맡기기" }}
               </span>
             </button>
-            <div v-if="isAnalysisDisplayActive" class="analysis-progress-label" aria-live="polite">
-              분석 진행률 {{ Math.round(analysisDisplayProgress) }}%
+            <div v-if="isAnalyzing" class="analysis-progress-label" aria-live="polite">
+              분석 진행률 {{ Math.round(analysisProgress) }}%
             </div>
           </div>
           <div class="result-box" :class="{ ready: form.analysisSummary }">
@@ -1594,11 +1497,11 @@ onBeforeUnmount(() => {
   display: block;
 }
 .saving-total small {
-  color: #8e87ba;
+  color: #829fba;
 }
 .saving-total strong {
   margin-top: 4px;
-  color: #6758d6;
+  color: #5a8fd8;
   font-size: 1.35rem;
 }
 .feed-layout {
@@ -1647,7 +1550,7 @@ onBeforeUnmount(() => {
 }
 .feed-tabs button.active {
   color: #fff;
-  background: #6f61dc;
+  background: #4f8fdc;
 }
 .feed-invite-panel {
   display: flex;
@@ -1661,9 +1564,9 @@ onBeforeUnmount(() => {
   width: auto;
   height: 36px;
   padding: 0 12px;
-  color: #6f61dc;
-  background: #f0edff;
-  border: 1px solid #dcd6ff;
+  color: #4f8fdc;
+  background: #edf6ff;
+  border: 1px solid #d5e6f8;
   border-radius: 10px;
   font-size: calc(0.78rem + 1px);
   font-weight: 800;
@@ -1705,9 +1608,9 @@ onBeforeUnmount(() => {
   animation: feed-card-enter 650ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 .feed-card.focused-feed {
-  border-color: #8d80ff;
+  border-color: #8bb6ef;
   box-shadow:
-    0 0 0 5px #8d80ff2e,
+    0 0 0 5px #8bb6ef2e,
     0 18px 38px #29315a35;
   transform: translateY(-2px);
   animation: focus-pulse 900ms ease-out;
@@ -1719,7 +1622,7 @@ onBeforeUnmount(() => {
   z-index: 2;
   padding: 5px 10px;
   color: #fff;
-  background: #796bea;
+  background: #70a0e5;
   border-radius: 999px;
   font-size: 0.72rem;
   font-weight: 850;
@@ -1750,7 +1653,7 @@ onBeforeUnmount(() => {
 }
 .saving-badge {
   padding: 7px 11px;
-  color: #dcd7ff;
+  color: #d7e7f8;
   background: #ffffff18;
   border-radius: 999px;
   font-size: 0.82rem;
@@ -1794,7 +1697,7 @@ onBeforeUnmount(() => {
   font-size: 1rem;
 }
 .feed-sound-toggle:hover {
-  background: #7162de;
+  background: #4e88d8;
 }
 .like-burst-layer {
   position: absolute;
@@ -1887,7 +1790,7 @@ onBeforeUnmount(() => {
   transform: translateY(2px);
 }
 .mention-feed-button:hover {
-  color: #dcd7ff;
+  color: #d7e7f8;
   background: transparent;
 }
 @keyframes like-heart-rise {
@@ -1915,12 +1818,7 @@ onBeforeUnmount(() => {
   }
   100% {
     opacity: 0;
-    transform: translate3d(
-        var(--heart-drift),
-        calc(var(--heart-rise) * -1),
-        0
-      )
-      scale(0.72)
+    transform: translate3d(var(--heart-drift), calc(var(--heart-rise) * -1), 0) scale(0.72)
       rotate(var(--heart-rotate));
   }
 }
@@ -2076,7 +1974,7 @@ onBeforeUnmount(() => {
   width: fit-content;
   max-width: 100%;
   padding: 8px 12px;
-  color: #f1f2ff;
+  color: #eff6ff;
   background: #2b385e;
   border-radius: 13px 13px 13px 4px;
   white-space: pre-wrap;
@@ -2084,7 +1982,7 @@ onBeforeUnmount(() => {
 }
 .message.mine .message-bubble {
   margin-left: auto;
-  background: #7162de;
+  background: #4e88d8;
   border-radius: 13px 13px 4px 13px;
 }
 .message p {
@@ -2115,7 +2013,7 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: space-between;
   padding: 8px 14px;
-  color: #c7c1ff;
+  color: #b9d5f4;
   background: #27224c;
   font-size: 0.76rem;
 }
@@ -2152,7 +2050,7 @@ onBeforeUnmount(() => {
   display: grid;
   place-items: center;
   color: #fff;
-  background: #7162de;
+  background: #4e88d8;
   border: 0;
   border-radius: 50%;
   font-weight: 800;
@@ -2168,45 +2066,15 @@ onBeforeUnmount(() => {
 }
 .floating-add {
   position: fixed;
-  right: 34px;
-  bottom: 30px;
+  right: calc(max(16px, calc((100vw - 1453px) / 2)) + 394px);
+  bottom: 24px;
   z-index: 40;
   width: 58px;
   height: 58px;
   min-height: 0;
   padding: 0;
   font-size: 2rem;
-  box-shadow: 0 10px 28px #6658cf66;
-}
-.floating-actions {
-  position: fixed;
-  right: 34px;
-  bottom: 30px;
-  z-index: 40;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.floating-actions .floating-add {
-  position: static;
-}
-.floating-gauge-test {
-  display: grid;
-  place-items: center;
-  width: 46px;
-  height: 46px;
-  min-height: 0;
-  padding: 0;
-  color: #4f72cb;
-  background: #eaf2ff;
-  border: 1px solid #cddcf7;
-  border-radius: 50%;
-  font-size: 1.15rem;
-  box-shadow: 0 8px 18px rgb(88 117 170 / 16%);
-}
-.floating-gauge-test:hover:not(:disabled) {
-  color: #385db8;
-  background: #dbe9ff;
+  box-shadow: 0 10px 28px #5d92d866;
 }
 .modal-layer {
   position: fixed;
@@ -2315,9 +2183,9 @@ onBeforeUnmount(() => {
   font-weight: 750;
 }
 .chip-row button.selected {
-  color: #6557d5;
-  background: #eeebff;
-  border-color: #8a7ee8;
+  color: #4e85ce;
+  background: #e9f3ff;
+  border-color: #89ace2;
 }
 .custom-input,
 textarea {
@@ -2330,8 +2198,8 @@ textarea {
 .analysis-box {
   margin-top: 20px;
   padding: 17px;
-  background: #f3f0ff;
-  border: 1px solid #d8d1ff;
+  background: #edf6ff;
+  border: 1px solid #d4e5f7;
   border-radius: 18px;
 }
 
@@ -2361,128 +2229,47 @@ textarea {
   width: 100%;
   padding: 13px;
   color: #fff;
-  background: linear-gradient(90deg, #705ef0, #bd36f5);
+  background: linear-gradient(90deg, #4f8fe8, #78aaf0);
   border: 0;
   border-radius: 13px;
   font-weight: 850;
 }
 .analysis-box button.is-analyzing {
   position: relative;
-  overflow: visible;
+  overflow: hidden;
   isolation: isolate;
-  width: calc(100% + 56px);
-  min-height: 104px;
-  margin-left: -28px;
-  padding: 14px 18px;
-  background: #d8edf7;
+  background: #c986ed;
   color: #fff;
   opacity: 1;
 }
-.analysis-ocean-fill {
-  position: absolute;
-  right: auto;
-  bottom: 0;
-  left: 0;
-  z-index: 0;
-  width: var(--analysis-progress);
-  height: 33.333%;
-  overflow: hidden;
-  --analysis-wave-light: #a9efff;
-  --analysis-wave-main: #39bee9;
-  --analysis-wave-deep: #147eb9;
-  border-radius: 0 0 0 13px;
-  background:
-    linear-gradient(
-      180deg,
-      var(--analysis-wave-light) 0%,
-      var(--analysis-wave-main) 48%,
-      var(--analysis-wave-deep) 100%
-    );
-  background-size: 100% 100%;
-  will-change: width;
-  transition: width 180ms linear;
-  pointer-events: none;
-}
-.analysis-ocean-fill::before {
-  position: absolute;
-  top: -8px;
-  left: -16px;
-  width: 120%;
-  height: 18px;
-  content: "";
-  background:
-    radial-gradient(
-      ellipse at 18px 18px,
-      rgba(239, 253, 255, 0.94) 0 7px,
-      transparent 8px 21px
-    ),
-    radial-gradient(
-      ellipse at 34px 13px,
-      rgba(255, 255, 255, 0.7) 0 4px,
-      transparent 5px 17px
-    );
-  background-position: 0 0, 26px 2px;
-  background-size: 56px 18px, 72px 16px;
-  animation: analysis-ocean-wave 0.8s linear infinite;
-  will-change: transform;
-}
-.analysis-ocean-fill::after {
+.analysis-box button.is-analyzing::before,
+.analysis-box button.is-analyzing::after {
   position: absolute;
   inset: 0;
   content: "";
+  pointer-events: none;
+  clip-path: inset(0 calc(100% - var(--analysis-progress)) 0 0 round 13px);
+}
+.analysis-box button.is-analyzing::before {
+  z-index: 0;
+  background: linear-gradient(90deg, #705ef0, #bd36f5);
+  will-change: clip-path;
+  transition: clip-path 1400ms cubic-bezier(0.22, 0.7, 0.28, 1);
+}
+.analysis-box button.is-analyzing::after {
+  z-index: 0;
   background: linear-gradient(
     110deg,
     transparent 35%,
-    rgba(255, 255, 255, 0.24) 50%,
+    rgba(255, 255, 255, 0.3) 50%,
     transparent 65%
   );
   background-size: 220% 100%;
-  animation: analysis-ocean-shimmer 1.8s ease-in-out infinite;
-  pointer-events: none;
-}
-.analysis-tenor-loader {
-  position: absolute;
-  right: auto;
-  bottom: -24px;
-  left: clamp(-60px, calc(var(--analysis-progress) - 60px), calc(100% - 120px));
-  z-index: 2;
-  width: 120px;
-  height: 120px;
-  overflow: visible;
-  clip-path: inset(20% 0 0);
-  mix-blend-mode: multiply;
-  pointer-events: none;
-  will-change: left, transform;
-  animation: analysis-penguin-bob 1.7s ease-in-out infinite;
-  transition: left 100ms linear;
-}
-.analysis-tenor-embed {
-  position: absolute;
-  top: -20%;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 120%;
-  max-width: none;
-  margin: 0;
-  transform: scale(1.04);
-  transform-origin: center bottom;
-}
-.analysis-tenor-embed > a {
-  display: none;
-}
-.analysis-tenor-embed iframe,
-.analysis-tenor-embed img {
-  display: block !important;
-  width: 100% !important;
-  height: 100% !important;
-  max-width: none !important;
-  border: 0;
+  animation: analysis-progress-shimmer 1.8s ease-in-out infinite;
 }
 .analysis-button-label {
   position: relative;
-  z-index: 3;
+  z-index: 1;
   color: #fff !important;
   font-size: inherit;
   font-weight: inherit;
@@ -2493,29 +2280,12 @@ textarea {
   color: #fff;
   opacity: 1 !important;
 }
-@keyframes analysis-ocean-wave {
+@keyframes analysis-progress-shimmer {
   from {
-    transform: translateX(-24px);
-  }
-  to {
-    transform: translateX(0);
-  }
-}
-@keyframes analysis-ocean-shimmer {
-  from {
-    background-position: -20% 0;
-  }
-  to {
     background-position: 120% 0;
   }
-}
-@keyframes analysis-penguin-bob {
-  0%,
-  100% {
-    transform: translate(0, 0);
-  }
-  50% {
-    transform: translate(1px, -3px);
+  to {
+    background-position: -20% 0;
   }
 }
 .analysis-progress-label {
@@ -2527,15 +2297,13 @@ textarea {
   font-variant-numeric: tabular-nums;
 }
 @media (prefers-reduced-motion: reduce) {
-  .analysis-ocean-fill,
-  .analysis-tenor-loader {
+  .analysis-box button.is-analyzing {
     transition: none;
   }
-  .analysis-ocean-fill::before,
-  .analysis-ocean-fill::after {
-    animation: none;
+  .analysis-box button.is-analyzing::before {
+    transition: none;
   }
-  .analysis-tenor-loader {
+  .analysis-box button.is-analyzing::after {
     animation: none;
   }
 }
@@ -2656,7 +2424,7 @@ textarea {
 }
 .submit {
   color: #fff;
-  background: #6d5ddd;
+  background: #5a93df;
   border: 0;
 }
 .submit:disabled,
@@ -2666,11 +2434,11 @@ textarea {
 }
 @keyframes focus-pulse {
   from {
-    box-shadow: 0 0 0 12px #8d80ff35;
+    box-shadow: 0 0 0 12px #8bb6ef35;
   }
   to {
     box-shadow:
-      0 0 0 5px #8d80ff2e,
+      0 0 0 5px #8bb6ef2e,
       0 18px 38px #29315a35;
   }
 }
@@ -2702,10 +2470,6 @@ textarea {
     min-height: 600px;
   }
   .floating-add {
-    right: 20px;
-    bottom: 20px;
-  }
-  .floating-actions {
     right: 20px;
     bottom: 20px;
   }
@@ -2862,7 +2626,7 @@ textarea {
 }
 
 .feed-tabs button.active {
-  background: linear-gradient(135deg, #668cf0, #8c78e7);
+  background: linear-gradient(135deg, #668cf0, #83afe8);
   box-shadow: none;
 }
 
@@ -3087,7 +2851,7 @@ textarea {
 
 .chat-form button,
 .floating-add {
-  background: linear-gradient(135deg, #668cf0, #8c78e7);
+  background: linear-gradient(135deg, #668cf0, #83afe8);
   box-shadow: 0 10px 22px rgb(102 140 240 / 24%);
 }
 
