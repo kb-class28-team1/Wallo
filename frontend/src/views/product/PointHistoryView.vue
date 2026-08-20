@@ -162,10 +162,7 @@ onMounted(loadHistory)
 
 <template>
   <section class="point-history-page">
-    <AppPageHeader
-      class="page-heading"
-      title="포인트 내역"
-    >
+    <AppPageHeader class="page-heading" title="포인트 내역">
       <template #leading>
         <RouterLink to="/point-shop" class="page-back-button" aria-label="포인트 샵으로 이동">
           <i class="bi bi-chevron-left" aria-hidden="true"></i>
@@ -401,11 +398,6 @@ onMounted(loadHistory)
   display: flex;
   align-items: flex-start;
   justify-content: flex-start;
-}
-
-.page-heading :deep(.app-page-header__title) {
-  font-size: 28px;
-  font-weight: 800;
 }
 
 .page-heading :deep(.app-page-header__description) {

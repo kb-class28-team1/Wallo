@@ -281,11 +281,6 @@ onMounted(() => {
   color: #1f2a52;
 }
 
-.ranking-heading :deep(.app-page-header__title) {
-  font-size: 25px;
-  font-weight: 750;
-}
-
 .ranking-heading :deep(.app-page-header__description) {
   color: #8e98ba;
   font-size: 12px;
@@ -772,12 +767,10 @@ onMounted(() => {
 
 /* Dashboard-style visual treatment for the weekly ranking. */
 .ranking-page {
-  padding: 22px;
-  border: 1px solid #dcecff;
-  border-radius: 30px;
-  background:
-    radial-gradient(circle at 92% 0%, #dceeff 0, transparent 30%),
-    linear-gradient(145deg, #edf7ff 0%, #f8fbff 48%, #ffffff 100%);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .ranking-heading {
@@ -787,12 +780,6 @@ onMounted(() => {
   border-radius: 23px;
   background: rgb(255 255 255 / 84%);
   box-shadow: 0 12px 28px rgb(76 132 190 / 8%);
-}
-
-.ranking-heading :deep(.app-page-header__title) {
-  color: #152b48;
-  font-size: clamp(1.55rem, 2.5vw, 2.15rem);
-  letter-spacing: -0.05em;
 }
 
 .ranking-heading :deep(.app-page-header__description) {
@@ -889,14 +876,14 @@ onMounted(() => {
 
 @media (max-width: 1100px) {
   .ranking-page {
-    padding: 16px;
+    padding: 0;
   }
 }
 
 @media (max-width: 767.98px) {
   .ranking-page {
-    padding: 10px;
-    border-radius: 20px;
+    padding: 0;
+    border-radius: 0;
   }
 
   .ranking-heading {

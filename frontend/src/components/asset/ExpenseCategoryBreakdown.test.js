@@ -53,7 +53,7 @@ const budgetSummary = {
 };
 
 describe("ExpenseCategoryBreakdown budget section", () => {
-  it("shows budget progress, remaining amounts, zero-budget status, and ETC label", () => {
+  it("shows budget progress only for budgeted categories and keeps the ETC label", () => {
     const wrapper = mount(ExpenseCategoryBreakdown, {
       ...globalOptions,
       props: {
@@ -65,15 +65,15 @@ describe("ExpenseCategoryBreakdown budget section", () => {
     });
 
     const rows = wrapper.findAll(".budget-category-row");
-    expect(rows).toHaveLength(3);
+    expect(rows).toHaveLength(2);
     expect(wrapper.text()).toContain("기타·미배정");
-    expect(wrapper.text()).toContain("예산 없음");
+    expect(wrapper.text()).not.toContain("카페");
+    expect(wrapper.text()).not.toContain("예산 없음");
     expect(rows[0].classes()).toContain("budget-category-row-over");
-    expect(rows[1].classes()).toContain("budget-category-row-over");
     expect(rows[0].find(".progress-bar").attributes("style")).toContain("width: 100%");
   });
 
-  it("emits the budget edit event only from the enabled action", async () => {
+  it("emits the budget edit event from the enabled edit action", async () => {
     const wrapper = mount(ExpenseCategoryBreakdown, {
       ...globalOptions,
       props: {
@@ -82,7 +82,8 @@ describe("ExpenseCategoryBreakdown budget section", () => {
       },
     });
 
-    await wrapper.find("button").trigger("click");
+    expect(wrapper.get('[data-testid="budget-action"]').text()).toContain("예산 수정");
+    await wrapper.get('[data-testid="budget-action"]').trigger("click");
     expect(wrapper.emitted("edit-budget")).toHaveLength(1);
 
     const readOnlyWrapper = mount(ExpenseCategoryBreakdown, {
@@ -90,6 +91,32 @@ describe("ExpenseCategoryBreakdown budget section", () => {
       props: { budgetSummary, canEditBudget: false },
     });
     expect(readOnlyWrapper.find("button").exists()).toBe(false);
+  });
+
+  it("shows the dashboard-style setup state when no budget is configured", async () => {
+    const wrapper = mount(ExpenseCategoryBreakdown, {
+      ...globalOptions,
+      props: {
+        budgetSummary: {
+          ...budgetSummary,
+          totalAmount: 0,
+          categories: budgetSummary.categories.map((category) => ({
+            ...category,
+            budgetAmount: 0,
+          })),
+        },
+        canEditBudget: true,
+      },
+    });
+
+    expect(wrapper.find('[data-testid="budget-empty-state"]').exists()).toBe(true);
+    expect(wrapper.find(".budget-category-row").exists()).toBe(false);
+    expect(wrapper.text()).toContain("아직 설정된 예산이 없습니다.");
+    expect(wrapper.text()).toContain("예산을 설정해주세요");
+    expect(wrapper.get('[data-testid="budget-action"]').text()).toContain("예산 설정하기");
+
+    await wrapper.get('[data-testid="budget-action"]').trigger("click");
+    expect(wrapper.emitted("edit-budget")).toHaveLength(1);
   });
 });
 

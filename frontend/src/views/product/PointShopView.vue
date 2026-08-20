@@ -1108,11 +1108,6 @@ onMounted(() => {
   color: #27304f;
 }
 
-.page-heading :deep(.app-page-header__title) {
-  font-size: 28px;
-  font-weight: 800;
-}
-
 .shop-state,
 .shop-refresh-status,
 .shop-error {
@@ -1326,7 +1321,9 @@ onMounted(() => {
   border: 5px solid #181b1b;
   border-radius: 17px 17px 9px 9px;
   background: linear-gradient(90deg, #373a48, #5b5b78 45%, #353846);
-  box-shadow: 0 12px 18px rgb(38 43 57 / 30%), inset 0 5px 10px rgb(255 255 255 / 8%);
+  box-shadow:
+    0 12px 18px rgb(38 43 57 / 30%),
+    inset 0 5px 10px rgb(255 255 255 / 8%);
   transform: translateX(50%);
 }
 
@@ -1370,7 +1367,9 @@ onMounted(() => {
   border: 0;
   border-radius: 1px;
   background: linear-gradient(180deg, #e0e2e4, #c0c3c6);
-  box-shadow: inset 0 1px 1px rgb(255 255 255 / 70%), inset 0 -1px 1px rgb(80 84 88 / 22%);
+  box-shadow:
+    inset 0 1px 1px rgb(255 255 255 / 70%),
+    inset 0 -1px 1px rgb(80 84 88 / 22%);
   content: "";
   border-radius: 4px;
   transform: translate(-50%, -50%);
@@ -1409,7 +1408,12 @@ onMounted(() => {
   overflow: hidden;
   border: 5px solid rgb(210 232 232 / 84%);
   border-radius: 14px 14px 28px 28px;
-  background: linear-gradient(90deg, rgb(112 177 189 / 26%), rgb(240 255 255 / 42%), rgb(112 177 189 / 26%));
+  background: linear-gradient(
+    90deg,
+    rgb(112 177 189 / 26%),
+    rgb(240 255 255 / 42%),
+    rgb(112 177 189 / 26%)
+  );
   box-shadow: 0 11px 16px rgb(0 0 0 / 25%);
   transform: translateX(-50%);
 }
@@ -2629,7 +2633,9 @@ onMounted(() => {
   border: 5px solid #17191a;
   border-radius: 18px 18px 10px 10px;
   background: linear-gradient(90deg, #373a48, #5b5b78 45%, #353846);
-  box-shadow: 0 14px 20px rgb(0 0 0 / 35%), inset 0 5px 12px rgb(255 255 255 / 8%);
+  box-shadow:
+    0 14px 20px rgb(0 0 0 / 35%),
+    inset 0 5px 12px rgb(255 255 255 / 8%);
   transform: translateX(50%);
 }
 
@@ -2676,7 +2682,9 @@ onMounted(() => {
   border: 0;
   border-radius: 1px;
   background: linear-gradient(180deg, #e0e2e4, #c0c3c6);
-  box-shadow: inset 0 1px 1px rgb(255 255 255 / 70%), inset 0 -1px 1px rgb(80 84 88 / 22%);
+  box-shadow:
+    inset 0 1px 1px rgb(255 255 255 / 70%),
+    inset 0 -1px 1px rgb(80 84 88 / 22%);
   content: "";
   border-radius: 4px;
   transform: translate(-50%, -50%);
@@ -2701,7 +2709,12 @@ onMounted(() => {
   place-items: start center;
   border: 5px solid rgb(210 232 232 / 76%);
   border-radius: 18px 18px 34px 34px;
-  background: linear-gradient(90deg, rgb(112 177 189 / 22%), rgb(240 255 255 / 34%), rgb(112 177 189 / 22%));
+  background: linear-gradient(
+    90deg,
+    rgb(112 177 189 / 22%),
+    rgb(240 255 255 / 34%),
+    rgb(112 177 189 / 22%)
+  );
   box-shadow: 0 15px 22px rgb(0 0 0 / 32%);
   overflow: hidden;
   transform: translateX(-50%);

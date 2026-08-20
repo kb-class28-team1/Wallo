@@ -110,6 +110,9 @@ const assetCollapseIconClass = computed(() => ({
 const monthlyReportClass = computed(() => ({
   "submenu-link-active": route.path === "/assets/expenses",
 }))
+const categoryExpenseClass = computed(() => ({
+  "submenu-link-active": route.path === "/assets/categories",
+}))
 const challengeGroupClass = computed(() => ({
   "challenge-group-active": isChallengeRoute.value,
 }))
@@ -119,9 +122,6 @@ const collapseIconClass = computed(() => ({
 const weeklyRankingClass = computed(() => ({
   "submenu-link-active": route.path === "/challenges/rankings/weekly",
 }))
-const challengeFeedClass = computed(() => ({
-  "submenu-link-active": route.name === "challenge-feed" || route.path === "/challenges/current",
-}))
 const myChallengeClass = computed(() => ({
   "submenu-link-active": route.path === "/users/me/challenge-dashboard",
 }))
@@ -129,13 +129,11 @@ const myFeedsClass = computed(() => ({
   "submenu-link-active": route.path === "/my-feeds",
 }))
 
-// 챌린지 관련 페이지에서는 새로고침 후에도 하위 메뉴가 펼쳐짐
+// 챌린지 관련 페이지에서는 하위 메뉴를 펼치고, 외부 페이지에서는 닫음
 watch(
   isChallengeRoute,
   (isActive) => {
-    if (isActive) {
-      isChallengeOpen.value = true
-    }
+    isChallengeOpen.value = isActive
   },
   { immediate: true },
 )
@@ -144,12 +142,14 @@ watch(
 watch(
   isAssetRoute,
   (isActive) => {
-    if (isActive) {
-      isAssetOpen.value = true
-    }
+    isAssetOpen.value = isActive
   },
   { immediate: true },
 )
+
+const openAssetMenu = () => {
+  isAssetOpen.value = true
+}
 
 const toggleAsset = () => {
   isAssetOpen.value = !isAssetOpen.value
@@ -263,6 +263,7 @@ const handleLogout = async () => {
               <RouterLink
                 to="/assets"
                 class="menu-item menu-link asset-title d-flex flex-grow-1 align-items-center"
+                @click="openAssetMenu"
               >
                 <span class="menu-icon" aria-hidden="true">
                   <i :class="menu.icon"></i>
@@ -297,6 +298,14 @@ const handleLogout = async () => {
                   <span class="submenu-dot" aria-hidden="true"></span>
                   월별 리포트
                 </RouterLink>
+                <RouterLink
+                  to="/assets/categories"
+                  class="submenu-item submenu-link d-flex align-items-center"
+                  :class="categoryExpenseClass"
+                >
+                  <span class="submenu-dot" aria-hidden="true"></span>
+                  카테고리별 소비
+                </RouterLink>
               </div>
             </Transition>
           </div>
@@ -308,9 +317,8 @@ const handleLogout = async () => {
           <button
             type="button"
             class="menu-item challenge-title d-flex flex-grow-1 align-items-center"
-            :aria-expanded="isChallengeOpen"
-            aria-controls="challenge-submenu"
-            @click="toggleChallenge"
+            :disabled="isChallengeChecking"
+            @click="moveToChallengeFeed"
           >
             <span class="menu-icon" aria-hidden="true">
               <i class="bi bi-cash-coin"></i>
@@ -337,18 +345,6 @@ const handleLogout = async () => {
 
         <Transition name="submenu">
           <div v-if="isChallengeOpen" id="challenge-submenu" class="submenu d-flex flex-column">
-            <AppButton
-              class="submenu-item submenu-link d-flex align-items-center"
-              variant="ghost"
-              size="sm"
-              :class="challengeFeedClass"
-              :disabled="isChallengeChecking"
-              @click="moveToChallengeFeed"
-            >
-              <template #leading><span class="submenu-dot" aria-hidden="true"></span></template>
-              피드 목록
-            </AppButton>
-
             <AppButton
               class="submenu-item submenu-link d-flex align-items-center"
               variant="ghost"
