@@ -53,6 +53,9 @@ const modalOpen = ref(false)
 const isAnalyzing = ref(false)
 const analysisProgress = ref(0)
 const analysisStageMessage = ref("분석 준비 중...")
+const isGaugeTestRunning = ref(false)
+const gaugeTestProgress = ref(0)
+const gaugeTestStageMessage = ref("영상 분석중...")
 const isUploading = ref(false)
 const todayMissions = ref([])
 const isMissionLoading = ref(false)
@@ -87,6 +90,15 @@ let newFeedAnimationTimer = null
 let dialogResolver = null
 let analysisRequestSequence = 0
 let analysisProgressTimer = null
+let gaugeTestTimer = null
+
+const isAnalysisDisplayActive = computed(() => isAnalyzing.value || isGaugeTestRunning.value)
+const analysisDisplayProgress = computed(() =>
+  isGaugeTestRunning.value ? gaugeTestProgress.value : analysisProgress.value,
+)
+const analysisDisplayStageMessage = computed(() =>
+  isGaugeTestRunning.value ? gaugeTestStageMessage.value : analysisStageMessage.value,
+)
 
 const stopAnalysisProgress = () => {
   if (analysisProgressTimer) {
@@ -102,6 +114,38 @@ const startAnalysisProgress = () => {
     const increment = Math.max(0.2, Math.min(0.45, remaining * 0.02))
     analysisProgress.value = Math.min(90, analysisProgress.value + increment)
   }, 100)
+}
+const stopGaugeTest = () => {
+  if (gaugeTestTimer) {
+    window.clearInterval(gaugeTestTimer)
+    gaugeTestTimer = null
+  }
+  isGaugeTestRunning.value = false
+}
+const getGaugeTestStageMessage = (progress) => {
+  if (progress < 25) return "영상 분석중..."
+  if (progress < 50) return "시세 확인중..."
+  if (progress < 75) return "가격 산출중..."
+  if (progress < 100) return "절약 금액 계산중..."
+  return "분석 완료"
+}
+const openGaugeTest = () => {
+  if (isAnalyzing.value) return
+  stopGaugeTest()
+  modalOpen.value = true
+  isMissionLoading.value = false
+  isGaugeTestRunning.value = true
+  gaugeTestProgress.value = 0
+  gaugeTestStageMessage.value = getGaugeTestStageMessage(0)
+  gaugeTestTimer = window.setInterval(() => {
+    if (!isGaugeTestRunning.value) return
+    gaugeTestProgress.value = Math.min(100, gaugeTestProgress.value + 1.5)
+    gaugeTestStageMessage.value = getGaugeTestStageMessage(gaugeTestProgress.value)
+    if (gaugeTestProgress.value >= 100) {
+      window.clearInterval(gaugeTestTimer)
+      gaugeTestTimer = null
+    }
+  }, 75)
 }
 
 const FEED_STALE_TIME = 30 * 1000
@@ -418,6 +462,7 @@ const leaveCurrentChallenge = async () => {
 }
 
 const openModal = async () => {
+  stopGaugeTest()
   modalOpen.value = true
   isMissionLoading.value = true
   try {
@@ -437,6 +482,7 @@ const openModal = async () => {
 }
 const closeModal = () => {
   modalOpen.value = false
+  stopGaugeTest()
   analysisRequestSequence += 1
   stopAnalysisProgress()
   isAnalyzing.value = false
@@ -551,6 +597,7 @@ const playVideoPreview = (event) => {
   event.currentTarget.play().catch(() => {})
 }
 const handleFile = async (event) => {
+  stopGaugeTest()
   const file = event.target.files?.[0]
   if (!file) return
   if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
@@ -573,6 +620,7 @@ const handleFile = async (event) => {
   analysisStageMessage.value = "분석 준비 중..."
 }
 const selectCategory = (category) => {
+  stopGaugeTest()
   form.category = category
   form.aiEstimatedSavingAmount = 0
   form.savingAmount = 0
@@ -868,6 +916,7 @@ onBeforeUnmount(() => {
   disconnectChatSocket()
   analysisRequestSequence += 1
   stopAnalysisProgress()
+  stopGaugeTest()
   likeBurstTimers.forEach((timer) => window.clearTimeout(timer))
   if (pageHeartCelebrationTimer) window.clearTimeout(pageHeartCelebrationTimer)
   if (newFeedAnimationTimer) window.clearTimeout(newFeedAnimationTimer)
@@ -1189,15 +1238,26 @@ onBeforeUnmount(() => {
           </section>
         </aside>
       </div>
-      <AppButton
-        class="floating-add"
-        variant="primary"
-        size="lg"
-        aria-label="절약 피드 추가"
-        @click="openModal"
-      >
-        +
-      </AppButton>
+      <div class="floating-actions">
+        <AppButton
+          class="floating-gauge-test"
+          variant="secondary"
+          aria-label="분석 게이지 테스트"
+          title="분석 게이지 테스트"
+          @click="openGaugeTest"
+        >
+          🌊
+        </AppButton>
+        <AppButton
+          class="floating-add"
+          variant="primary"
+          size="lg"
+          aria-label="절약 피드 추가"
+          @click="openModal"
+        >
+          +
+        </AppButton>
+      </div>
     </template>
 
     <div v-if="modalOpen" class="modal-layer" @click.self="closeModal">
@@ -1288,17 +1348,39 @@ onBeforeUnmount(() => {
             </div>
             <button
               type="button"
-              :class="{ 'is-analyzing': isAnalyzing }"
-              :style="isAnalyzing ? { '--analysis-progress': `${analysisProgress}%` } : undefined"
-              :disabled="isAnalyzing"
+              :class="{ 'is-analyzing': isAnalysisDisplayActive }"
+              :style="
+                isAnalysisDisplayActive
+                  ? { '--analysis-progress': `${analysisDisplayProgress}%` }
+                  : undefined
+              "
+              :disabled="isAnalyzing || isGaugeTestRunning"
               @click="requestAnalysis"
             >
+              <span v-if="isAnalysisDisplayActive" class="analysis-ocean-fill" aria-hidden="true"></span>
+              <span v-if="isAnalysisDisplayActive" class="analysis-surf-wave-loader" aria-hidden="true">
+                <img
+                  class="analysis-surf-wave-art"
+                  src="/assets/G_penguin_C_wave_surf.webp"
+                  alt=""
+                />
+                <i class="analysis-surf-wave-ripple ripple-one"></i>
+                <i class="analysis-surf-wave-ripple ripple-two"></i>
+                <i class="analysis-surf-wave-ripple ripple-three"></i>
+              </span>
+              <img
+                v-if="isAnalysisDisplayActive"
+                class="analysis-penguin-loader"
+                src="/assets/G_penguin_C_wave_surf.webp"
+                alt=""
+                aria-hidden="true"
+              />
               <span class="analysis-button-label">
-                {{ isAnalyzing ? analysisStageMessage : "✨ AI에게 분석 맡기기" }}
+                {{ isAnalysisDisplayActive ? analysisDisplayStageMessage : "✨ AI에게 분석 맡기기" }}
               </span>
             </button>
-            <div v-if="isAnalyzing" class="analysis-progress-label" aria-live="polite">
-              분석 진행률 {{ Math.round(analysisProgress) }}%
+            <div v-if="isAnalysisDisplayActive" class="analysis-progress-label" aria-live="polite">
+              분석 진행률 {{ Math.round(analysisDisplayProgress) }}%
             </div>
           </div>
           <div class="result-box" :class="{ ready: form.analysisSummary }">
@@ -2074,6 +2156,36 @@ onBeforeUnmount(() => {
   font-size: 2rem;
   box-shadow: 0 10px 28px #6658cf66;
 }
+.floating-actions {
+  position: fixed;
+  right: 34px;
+  bottom: 30px;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.floating-actions .floating-add {
+  position: static;
+}
+.floating-gauge-test {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  min-height: 0;
+  padding: 0;
+  color: #4f72cb;
+  background: #eaf2ff;
+  border: 1px solid #cddcf7;
+  border-radius: 50%;
+  font-size: 1.15rem;
+  box-shadow: 0 8px 18px rgb(88 117 170 / 16%);
+}
+.floating-gauge-test:hover:not(:disabled) {
+  color: #385db8;
+  background: #dbe9ff;
+}
 .modal-layer {
   position: fixed;
   inset: 0;
@@ -2234,40 +2346,150 @@ textarea {
 }
 .analysis-box button.is-analyzing {
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   isolation: isolate;
-  background: #c986ed;
+  min-height: 62px;
+  padding: 8px 13px;
+  background: #d8edf7;
   color: #fff;
   opacity: 1;
 }
-.analysis-box button.is-analyzing::before,
-.analysis-box button.is-analyzing::after {
+.analysis-ocean-fill {
+  position: absolute;
+  right: auto;
+  bottom: 0;
+  left: 0;
+  z-index: 0;
+  width: var(--analysis-progress);
+  height: 50%;
+  overflow: hidden;
+  border-radius: 0 0 0 13px;
+  background:
+    linear-gradient(180deg, #36d2f2 0%, #16a9df 52%, #0b78be 100%);
+  background-size: 100% 100%;
+  will-change: width;
+  transition: width 180ms linear;
+  pointer-events: none;
+}
+.analysis-ocean-fill::before {
+  position: absolute;
+  top: -4px;
+  left: -8px;
+  width: 120%;
+  height: 11px;
+  content: "";
+  background:
+    radial-gradient(
+      ellipse at 12px 11px,
+      rgba(255, 255, 255, 0.72) 0 5px,
+      transparent 6px 16px
+    ),
+    radial-gradient(
+      ellipse at 18px 7px,
+      rgba(206, 247, 255, 0.7) 0 3px,
+      transparent 4px 13px
+    );
+  background-position: 0 0, 22px 4px;
+  background-size: 48px 12px, 62px 10px;
+  animation: analysis-ocean-wave 0.75s linear infinite;
+  will-change: transform;
+}
+.analysis-ocean-fill::after {
   position: absolute;
   inset: 0;
   content: "";
-  pointer-events: none;
-  clip-path: inset(0 calc(100% - var(--analysis-progress)) 0 0 round 13px);
-}
-.analysis-box button.is-analyzing::before {
-  z-index: 0;
-  background: linear-gradient(90deg, #705ef0, #bd36f5);
-  will-change: clip-path;
-  transition: clip-path 1400ms cubic-bezier(0.22, 0.7, 0.28, 1);
-}
-.analysis-box button.is-analyzing::after {
-  z-index: 0;
   background: linear-gradient(
     110deg,
     transparent 35%,
-    rgba(255, 255, 255, 0.3) 50%,
+    rgba(255, 255, 255, 0.24) 50%,
     transparent 65%
   );
   background-size: 220% 100%;
-  animation: analysis-progress-shimmer 1.8s ease-in-out infinite;
+  animation: analysis-ocean-shimmer 1.8s ease-in-out infinite;
+  pointer-events: none;
+}
+.analysis-penguin-loader {
+  position: absolute;
+  bottom: 2px;
+  left: clamp(-60px, calc(var(--analysis-progress) - 60px), calc(100% - 120px));
+  z-index: 2;
+  width: 120px;
+  height: 80px;
+  object-fit: contain;
+  clip-path: inset(27% 0 7% 33%);
+  filter: drop-shadow(0 2px 2px rgba(34, 104, 145, 0.25));
+  pointer-events: none;
+  will-change: left, transform;
+  transform-origin: center bottom;
+  animation: analysis-penguin-bob 1.7s ease-in-out infinite;
+  transition: left 180ms linear;
+}
+.analysis-surf-wave-loader {
+  position: absolute;
+  right: auto;
+  bottom: 2px;
+  left: clamp(-60px, calc(var(--analysis-progress) - 60px), calc(100% - 120px));
+  z-index: 1;
+  width: 120px;
+  height: 80px;
+  pointer-events: none;
+  will-change: left, transform;
+  animation: analysis-penguin-bob 1.7s ease-in-out infinite;
+  transition: left 180ms linear;
+}
+.analysis-surf-wave-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  -webkit-mask-image: radial-gradient(
+    ellipse 32% 39% at 69% 61%,
+    transparent 0 96%,
+    #000 100%
+  );
+  mask-image: radial-gradient(
+    ellipse 32% 39% at 69% 61%,
+    transparent 0 96%,
+    #000 100%
+  );
+}
+.analysis-surf-wave-ripple {
+  position: absolute;
+  z-index: 1;
+  height: 9px;
+  border-top: 3px solid rgba(255, 255, 255, 0.86);
+  border-radius: 50%;
+  opacity: 0.8;
+  pointer-events: none;
+  animation: analysis-surf-ripple 0.95s ease-in-out infinite;
+}
+.analysis-surf-wave-ripple.ripple-one {
+  bottom: 9px;
+  left: 29px;
+  width: 70px;
+}
+.analysis-surf-wave-ripple.ripple-two {
+  right: 3px;
+  bottom: 3px;
+  width: 48px;
+  border-top-width: 2px;
+  opacity: 0.62;
+  animation-delay: -0.34s;
+  animation-duration: 0.78s;
+}
+.analysis-surf-wave-ripple.ripple-three {
+  bottom: 18px;
+  left: 12px;
+  width: 34px;
+  border-top-width: 2px;
+  opacity: 0.56;
+  animation-delay: -0.58s;
+  animation-duration: 1.18s;
 }
 .analysis-button-label {
   position: relative;
-  z-index: 1;
+  z-index: 3;
   color: #fff !important;
   font-size: inherit;
   font-weight: inherit;
@@ -2278,12 +2500,38 @@ textarea {
   color: #fff;
   opacity: 1 !important;
 }
-@keyframes analysis-progress-shimmer {
+@keyframes analysis-ocean-wave {
   from {
-    background-position: 120% 0;
+    transform: translateX(-24px);
   }
   to {
+    transform: translateX(0);
+  }
+}
+@keyframes analysis-ocean-shimmer {
+  from {
     background-position: -20% 0;
+  }
+  to {
+    background-position: 120% 0;
+  }
+}
+@keyframes analysis-surf-ripple {
+  0%,
+  100% {
+    transform: translateX(-5px) scaleX(0.88);
+  }
+  50% {
+    transform: translateX(7px) scaleX(1.08);
+  }
+}
+@keyframes analysis-penguin-bob {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(1px, -3px);
   }
 }
 .analysis-progress-label {
@@ -2295,13 +2543,22 @@ textarea {
   font-variant-numeric: tabular-nums;
 }
 @media (prefers-reduced-motion: reduce) {
-  .analysis-box button.is-analyzing {
+  .analysis-ocean-fill,
+  .analysis-penguin-loader,
+  .analysis-surf-wave-loader {
     transition: none;
   }
-  .analysis-box button.is-analyzing::before {
-    transition: none;
+  .analysis-ocean-fill::before,
+  .analysis-ocean-fill::after {
+    animation: none;
   }
-  .analysis-box button.is-analyzing::after {
+  .analysis-penguin-loader {
+    animation: none;
+  }
+  .analysis-surf-wave-loader {
+    animation: none;
+  }
+  .analysis-surf-wave-ripple {
     animation: none;
   }
 }
@@ -2468,6 +2725,10 @@ textarea {
     min-height: 600px;
   }
   .floating-add {
+    right: 20px;
+    bottom: 20px;
+  }
+  .floating-actions {
     right: 20px;
     bottom: 20px;
   }
