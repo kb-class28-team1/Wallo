@@ -5,6 +5,7 @@ const LandingView = () => import("@/views/auth/LandingView.vue")
 const LoginView = () => import("@/views/auth/LoginView.vue")
 const SignupView = () => import("@/views/auth/SignupView.vue")
 const AiAssistantView = () => import("@/views/ai/AiAssistantView.vue")
+const AnalysisDashboardView = () => import("@/views/analysis/AnalysisDashboardView.vue")
 const AssetView = () => import("@/views/asset/AssetView.vue")
 const ConnectionView = () => import("@/views/asset/ConnectionView.vue")
 const ExpenseHistoryView = () => import("@/views/asset/ExpenseHistoryView.vue")
@@ -78,6 +79,11 @@ const router = createRouter({
           path: "/ai-consulting",
           name: "ai-consulting",
           component: AiAssistantView,
+        },
+        {
+          path: "/ai-analysis",
+          name: "ai-analysis",
+          component: AnalysisDashboardView,
         },
         {
           path: "/chat",

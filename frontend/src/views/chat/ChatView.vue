@@ -75,6 +75,7 @@ const editingTitle = ref("")
 const deleteTargetConversation = ref(null)
 const isDeletingConversation = ref(false)
 const isConsumptionAnalysisStarting = ref(false)
+const isGuidedChatStarting = ref(false)
 const isGoalSettingEntry = ref(false)
 const isGoalSettingStarting = ref(false)
 const isMissingGoalConversation = ref(false)
@@ -83,6 +84,10 @@ const isGoalRoadmapReady = ref(false)
 const isGoalAccountConfigured = ref(false)
 const userId = computed(() => user.value?.id ?? null)
 const isGoalDeleteBlocked = computed(() => deleteTargetConversation.value?.hasGoal === true)
+const isGoalChatLocked = computed(() =>
+  Boolean(confirmedGoal.value?.goalId)
+  && availableAccounts.value.some((account) => account.selected),
+)
 const deleteDialogTitle = computed(() =>
   isGoalDeleteBlocked.value ? "삭제할 수 없는 채팅" : "채팅 삭제",
 )
@@ -110,6 +115,18 @@ const displayMessages = computed(() => {
   if (messages.value.length) return messages.value
   if (isGoalSettingEntry.value) return []
   return [{ ...WELCOME_MESSAGE }]
+})
+const showQuickActions = computed(() =>
+  displayMessages.value.length === 1
+  && displayMessages.value[0]?.id === WELCOME_MESSAGE.id
+  && !isChatLoading.value,
+)
+const loadingMessage = computed(() => {
+  if (isGoalCompletionChecking.value) return "목표 설정 결과를 확인하는 중"
+  if (isGoalSettingStarting.value) return "목표 설정 채팅을 준비하는 중"
+  if (isConsumptionAnalysisStarting.value) return "소비 내역을 분석하는 중"
+  if (isGuidedChatStarting.value) return "맞춤 상담을 준비하는 중"
+  return "답변을 생성하는 중"
 })
 
 const resetGoalCompletionFlow = () => {
@@ -271,7 +288,12 @@ const completeTypingMessage = (messageId) => {
 }
 
 async function sendMessage(message, requestId = null) {
-  if (isChatLoading.value || isGoalSettingStarting.value || !userId.value) return
+  if (
+    isChatLoading.value
+    || isGoalSettingStarting.value
+    || isGoalChatLocked.value
+    || !userId.value
+  ) return false
 
   isMissingGoalConversation.value = false
   errorMessage.value = ""
@@ -449,11 +471,38 @@ const startConsumptionAnalysis = async () => {
   }
 }
 
+const startGuidedChat = async (message) => {
+  if (isGuidedChatStarting.value || isChatLoading.value || !userId.value) return
+
+  isGuidedChatStarting.value = true
+  isMissingGoalConversation.value = false
+  resetGoalCompletionFlow()
+  errorMessage.value = ""
+
+  try {
+    await sendMessage(message)
+  } catch (error) {
+    errorMessage.value = error.message || "상담 요청을 전송하지 못했습니다."
+  } finally {
+    isGuidedChatStarting.value = false
+    await scrollToBottom()
+  }
+}
+
+const analyzeCurrentConversationSpending = () => startGuidedChat("내 소비를 분석해줘")
+const startAssetAnalysis = () => startGuidedChat("내 자산을 분석해줘")
+const startProductRecommendation = () =>
+  startGuidedChat("내 상황에 맞는 금융상품을 추천해줘")
+
 watch(
   () => route.query.action,
   (action) => {
     if (action === "consumption-analysis") {
       void startConsumptionAnalysis()
+    } else if (action === "asset-analysis") {
+      void startAssetAnalysis()
+    } else if (action === "product-recommendation") {
+      void startProductRecommendation()
     }
   },
 )
@@ -517,6 +566,12 @@ onMounted(async () => {
     }
     await scrollToBottom()
   }
+
+  if (route.query.action === "asset-analysis") {
+    await startAssetAnalysis()
+  } else if (route.query.action === "product-recommendation") {
+    await startProductRecommendation()
+  }
 })
 </script>
 
@@ -555,6 +610,21 @@ onMounted(async () => {
               @typing-complete="completeTypingMessage"
             />
 
+            <div v-if="showQuickActions" class="chat-quick-actions" aria-label="빠른 상담 시작">
+              <button type="button" class="chat-quick-action" @click="analyzeCurrentConversationSpending">
+                <i class="bi bi-pie-chart" aria-hidden="true"></i>
+                소비분석
+              </button>
+              <button type="button" class="chat-quick-action" @click="startAssetAnalysis">
+                <i class="bi bi-wallet2" aria-hidden="true"></i>
+                자산분석
+              </button>
+              <button type="button" class="chat-quick-action" @click="startProductRecommendation">
+                <i class="bi bi-stars" aria-hidden="true"></i>
+                상품추천
+              </button>
+            </div>
+
             <GoalInterviewCard
               v-if="activeGoalInterview"
               :interview="activeGoalInterview"
@@ -574,27 +644,14 @@ onMounted(async () => {
             />
 
             <div
-              v-if="(isConsumptionAnalysisStarting || isGoalSettingStarting) && !isChatLoading"
-              class="loading-message"
-              aria-label="자동 채팅 준비 중"
+              v-if="isConsumptionAnalysisStarting || isGoalSettingStarting || isGuidedChatStarting || isChatLoading || isGoalCompletionChecking"
+              class="loading-message loading-message--progress"
+              role="status"
+              aria-live="polite"
             >
-              {{
-                isGoalSettingStarting
-                  ? "목표 설정 채팅을 준비하는 중..."
-                  : "소비분석 채팅을 준비하는 중..."
-              }}
-            </div>
-
-            <div v-if="isChatLoading" class="loading-message" aria-label="AI 답변 생성 중">
-              AI 답변을 기다리는 중...
-            </div>
-
-            <div
-              v-if="isGoalCompletionChecking"
-              class="loading-message"
-              aria-label="목표 설정 결과 확인 중"
-            >
-              목표 설정 결과를 확인하는 중...
+              <span>{{ loadingMessage }}...</span>
+              <span class="loading-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+              <span class="loading-progress" aria-hidden="true"><span></span></span>
             </div>
           </div>
 
@@ -609,12 +666,24 @@ onMounted(async () => {
             </RouterLink>
           </AppAlert>
 
+          <AppAlert
+            v-if="isGoalChatLocked"
+            class="chat-completed-notice"
+            variant="info"
+          >
+            <strong>목표 설정이 완료된 채팅입니다.</strong>
+            목표와 연결할 계좌가 저장되어 더 이상 메시지를 입력할 수 없습니다. 새로운 상담은
+            새 채팅에서 시작해 주세요.
+          </AppAlert>
+
           <ChatInput
             :disabled="
               isConsumptionAnalysisStarting ||
               isGoalSettingStarting ||
               isMissingGoalConversation ||
               isGoalCompletionChecking ||
+              isGuidedChatStarting ||
+              isGoalChatLocked ||
               isChatLoading ||
               isMessageLoading ||
               !userId

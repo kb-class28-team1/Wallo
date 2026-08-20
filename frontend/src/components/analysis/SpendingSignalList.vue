@@ -42,7 +42,7 @@ defineProps({
   justify-content: space-between;
   gap: 1rem;
   padding: 0.45rem 0;
-  border-bottom: 1px solid #f0eef7;
+  border-bottom: 1px solid var(--wallo-color-border-soft);
   font-size: 0.9rem;
 }
 </style>
