@@ -24,7 +24,6 @@ MAX_ALLOWED_GROQ_CIRCUIT_BREAKER_OPEN_SECONDS = 600.0
 DEFAULT_GROQ_TIMEOUT_SECONDS = 30.0
 MIN_ALLOWED_GROQ_TIMEOUT_SECONDS = 1.0
 MAX_ALLOWED_GROQ_TIMEOUT_SECONDS = 60.0
-DEFAULT_DEMO_ASSET_PROFILE_ID = 7
 DEFAULT_AI_TOKEN_BUCKET_CAPACITY = 20_000
 MIN_ALLOWED_AI_TOKEN_BUCKET_CAPACITY = 1_000
 MAX_ALLOWED_AI_TOKEN_BUCKET_CAPACITY = 100_000
@@ -226,17 +225,3 @@ def get_ai_queue_max_wait_seconds() -> float:
         MIN_ALLOWED_AI_QUEUE_MAX_WAIT_SECONDS,
         MAX_ALLOWED_AI_QUEUE_MAX_WAIT_SECONDS,
     )
-
-
-def get_demo_asset_profile_id() -> int:
-    raw_profile_id = os.getenv(
-        "DEMO_ASSET_PROFILE_ID",
-        str(DEFAULT_DEMO_ASSET_PROFILE_ID),
-    )
-    try:
-        profile_id = int(raw_profile_id)
-    except ValueError as error:
-        raise RuntimeError("DEMO_ASSET_PROFILE_ID는 정수여야 합니다.") from error
-    if profile_id < 1:
-        raise RuntimeError("DEMO_ASSET_PROFILE_ID는 1 이상이어야 합니다.")
-    return profile_id

@@ -7,7 +7,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.wallo.asset.dto.AssetAnalysisContextDto;
 import com.wallo.asset.dto.GoalAssetContextDto;
+import com.wallo.asset.service.AssetAnalysisContextService;
 import com.wallo.asset.service.AssetService;
 import com.wallo.asset.service.ConsumptionAnalysisContextService;
 import com.wallo.chat.client.PythonAiClient;
@@ -22,6 +24,43 @@ class ChatServiceTest {
     private final PythonAiClient pythonAiClient = mock(PythonAiClient.class);
     private final AssetService assetService = mock(AssetService.class);
     private final ChatService chatService = new ChatService(pythonAiClient, assetService);
+
+    @Test
+    void sendsCurrentUsersAssetAnalysisContextToAiRequest() {
+        AssetAnalysisContextService contextService = mock(AssetAnalysisContextService.class);
+        ChatService service = new ChatService(
+                pythonAiClient, assetService, null, contextService);
+        GoalAssetContextDto.Response financialContext = emptyContext(true);
+        AssetAnalysisContextDto assetAnalysisContext = new AssetAnalysisContextDto(
+                120_000_000L,
+                20_000_000L,
+                100_000_000L,
+                5_000_000L,
+                3_000_000L,
+                2_000_000L,
+                40.0,
+                List.of(new AssetAnalysisContextDto.AssetComposition(
+                        "DEPOSIT", 80_000_000L, 66.6666667
+                )),
+                "2026-08-20T12:00:00+09:00"
+        );
+        ChatRequest request = new ChatRequest("내 자산을 분석해줘");
+        ChatRequest expected = request.withFinancialContext(financialContext)
+                .withAssetAnalysisContext(assetAnalysisContext);
+        when(assetService.getGoalAssetContext(7L)).thenReturn(financialContext);
+        when(contextService.getContext(7L)).thenReturn(assetAnalysisContext);
+        when(pythonAiClient.chat(expected)).thenReturn(new ChatResponse("분석 결과입니다.", null));
+
+        ChatResponse response = service.chat(request, 7L);
+
+        assertEquals("분석 결과입니다.", response.answer());
+        verify(contextService).getContext(7L);
+        assertEquals(120_000_000L, expected.assetAnalysisContext().totalAssets());
+        assertEquals(100_000_000L, expected.assetAnalysisContext().netAssets());
+        assertEquals(3_000_000L, expected.assetAnalysisContext().monthlyExpense());
+        assertEquals("2026-08-20T12:00:00+09:00", expected.assetAnalysisContext().asOf());
+        verify(pythonAiClient).chat(expected);
+    }
 
     @Test
     void sendsConsumptionContextAndReturnsCalculation() {

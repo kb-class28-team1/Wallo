@@ -45,4 +45,10 @@ public interface ExpenseMapper {
     List<ExpenseDto.AnalysisTransaction> selectAllExpenseTransactions(
             @Param("userId") long userId
     );
+
+    ExpenseDto.MonthlyCashflow selectMonthlyCashflow(
+            @Param("userId") long userId,
+            @Param("startDate") String startDate,
+            @Param("endDate") String endDate
+    );
 }
