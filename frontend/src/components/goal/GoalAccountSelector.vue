@@ -193,9 +193,9 @@ const submitAccountSelection = () => {
 }
 
 .goal-account-option-selected {
-  border-color: #6559e8;
-  background: #f7f6ff;
-  box-shadow: 0 0 0 2px rgb(101 89 232 / 10%);
+  border-color: #4f86d8;
+  background: #f5faff;
+  box-shadow: 0 0 0 2px rgb(79 143 232 / 10%);
 }
 
 .goal-account-content {
@@ -204,7 +204,7 @@ const submitAccountSelection = () => {
 }
 
 .goal-account-type {
-  color: #6559e8;
+  color: #4f86d8;
   font-size: 0.75rem;
   font-weight: 700;
 }

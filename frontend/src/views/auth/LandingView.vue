@@ -199,7 +199,7 @@ onUnmounted(() => {
 }
 
 .landing-dot-active {
-  background: #6859e8;
+  background: #5f93dd;
   box-shadow: 0 0 0 3px rgba(104, 89, 232, 0.1);
   opacity: 1;
   transform: scale(1.18);

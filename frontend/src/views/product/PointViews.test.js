@@ -192,7 +192,8 @@ describe("point views", () => {
     expect(wrapper.find(".page-heading").classes()).toContain("app-page-header")
     expect(wrapper.find(".point-summary-card").classes()).toContain("app-card")
     expect(wrapper.find(".random-box-card").classes()).toContain("app-card")
-    expect(wrapper.find(".open-box-button").classes()).toContain("app-button")
+    expect(wrapper.find(".draw-machine-preview-lever").exists()).toBe(true)
+    expect(wrapper.find(".bulk-open-box-button").classes()).toContain("app-button")
     expect(wrapper.find(".random-box-card").text()).toContain("기본 절약 상자")
     expect(wrapper.find(".inventory-item").text()).toContain("아메리카노 기프티콘")
 
@@ -217,13 +218,16 @@ describe("point views", () => {
     await wrapper.get(".app-dialog-confirm").trigger("click")
     expect(wrapper.text()).not.toContain("테스트용 임의 QR")
 
-    await wrapper.get(".open-box-button").trigger("click")
+    await wrapper.get(".draw-machine-preview-lever").trigger("click")
     await flushPromises()
 
     expect(openRandomBox).toHaveBeenCalledWith(2)
     expect(userStore.updatePointBalance).toHaveBeenLastCalledWith(950)
     expect(getPointShop).toHaveBeenCalledTimes(2)
     expect(wrapper.find(".reward-modal-backdrop").text()).toContain("250P 당첨!")
+    expect(wrapper.find(".reward-celebration").exists()).toBe(true)
+    expect(wrapper.find(".reward-modal-confirm-outside").exists()).toBe(true)
+    expect(wrapper.find(".draw-machine-backdrop").exists()).toBe(false)
 
     wrapper.unmount()
   })
