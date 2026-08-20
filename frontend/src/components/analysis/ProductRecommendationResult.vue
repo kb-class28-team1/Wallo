@@ -232,7 +232,7 @@ const productKey = (product, index) =>
 }
 
 .product-recommendation__eyebrow {
-  color: #7062de;
+  color: #4f8fe8;
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.03em;
@@ -243,13 +243,13 @@ const productKey = (product, index) =>
   flex-direction: column;
   padding: 1rem;
   background: #fff;
-  border: 1px solid #e9e6f3;
+  border: 1px solid #e7f2fa;
   border-radius: 1rem;
   box-shadow: 0 0.25rem 0.8rem rgba(57, 45, 110, 0.06);
 }
 
 .product-card__rank {
-  color: #5749c5;
+  color: #3f78cd;
   font-size: 0.78rem;
   font-weight: 800;
 }
@@ -309,11 +309,11 @@ const productKey = (product, index) =>
 }
 
 .product-card__rate--highlight {
-  background: #f0eefe;
+  background: #eff7ff;
 }
 
 .product-card__rate--highlight strong {
-  color: #5749c5;
+  color: #3f78cd;
 }
 
 .product-card__rate strong {
@@ -386,7 +386,7 @@ const productKey = (product, index) =>
 .product-recommendation__reason {
   padding: 0.85rem 1rem;
   color: #4a426f;
-  background: #faf9ff;
+  background: #f8fbff;
   border: 1px solid #ded9fa;
   border-radius: 0.9rem;
 }

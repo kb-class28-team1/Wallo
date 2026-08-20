@@ -176,7 +176,7 @@ const feasibilityClass = computed(() => {
   width: 38px;
   height: 38px;
   color: var(--wallo-color-primary);
-  background: rgb(112 98 222 / 10%);
+  background: rgb(79 143 232 / 10%);
   border-radius: var(--wallo-radius-md);
   place-items: center;
   font-size: 1.1rem;

@@ -31,6 +31,7 @@ import {
   hasInFlightResource,
   invalidateResource,
 } from "@/utils/resourceCache"
+import { announcePointEarned } from "@/utils/pointRewardNotice"
 
 const route = useRoute()
 const router = useRouter()
@@ -493,7 +494,9 @@ const addLike = async (feed) => {
     const likeCount = Number(feed.likeCount)
     const milestone = Math.floor(likeCount / 10) * 10
     if (
-      likeCount >= 50 && likeCount <= 1000 && likeCount % 50 === 0 &&
+      likeCount >= 50 &&
+      likeCount <= 1000 &&
+      likeCount % 50 === 0 &&
       pageHeartMilestones.get(feed.id) !== milestone
     ) {
       pageHeartMilestones.set(feed.id, milestone)
@@ -757,6 +760,10 @@ const uploadFeed = async () => {
       newFeedAnimationTimer = null
     }, 700)
     if (verificationResult) {
+      const rewardedPoint = Number(verificationResult.rewardedPoint || 0)
+      if (verificationResult.decision === "PASS" && rewardedPoint > 0) {
+        announcePointEarned(rewardedPoint)
+      }
       const resultMessage =
         verificationResult.decision === "PASS"
           ? `미션을 달성했습니다! +${verificationResult.rewardedPoint}P`
@@ -1490,11 +1497,11 @@ onBeforeUnmount(() => {
   display: block;
 }
 .saving-total small {
-  color: #8e87ba;
+  color: #829fba;
 }
 .saving-total strong {
   margin-top: 4px;
-  color: #6758d6;
+  color: #5a8fd8;
   font-size: 1.35rem;
 }
 .feed-layout {
@@ -1543,7 +1550,7 @@ onBeforeUnmount(() => {
 }
 .feed-tabs button.active {
   color: #fff;
-  background: #6f61dc;
+  background: #4f8fdc;
 }
 .feed-invite-panel {
   display: flex;
@@ -1557,9 +1564,9 @@ onBeforeUnmount(() => {
   width: auto;
   height: 36px;
   padding: 0 12px;
-  color: #6f61dc;
-  background: #f0edff;
-  border: 1px solid #dcd6ff;
+  color: #4f8fdc;
+  background: #edf6ff;
+  border: 1px solid #d5e6f8;
   border-radius: 10px;
   font-size: calc(0.78rem + 1px);
   font-weight: 800;
@@ -1601,9 +1608,9 @@ onBeforeUnmount(() => {
   animation: feed-card-enter 650ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 .feed-card.focused-feed {
-  border-color: #8d80ff;
+  border-color: #8bb6ef;
   box-shadow:
-    0 0 0 5px #8d80ff2e,
+    0 0 0 5px #8bb6ef2e,
     0 18px 38px #29315a35;
   transform: translateY(-2px);
   animation: focus-pulse 900ms ease-out;
@@ -1615,7 +1622,7 @@ onBeforeUnmount(() => {
   z-index: 2;
   padding: 5px 10px;
   color: #fff;
-  background: #796bea;
+  background: #70a0e5;
   border-radius: 999px;
   font-size: 0.72rem;
   font-weight: 850;
@@ -1646,7 +1653,7 @@ onBeforeUnmount(() => {
 }
 .saving-badge {
   padding: 7px 11px;
-  color: #dcd7ff;
+  color: #d7e7f8;
   background: #ffffff18;
   border-radius: 999px;
   font-size: 0.82rem;
@@ -1690,7 +1697,7 @@ onBeforeUnmount(() => {
   font-size: 1rem;
 }
 .feed-sound-toggle:hover {
-  background: #7162de;
+  background: #4e88d8;
 }
 .like-burst-layer {
   position: absolute;
@@ -1783,7 +1790,7 @@ onBeforeUnmount(() => {
   transform: translateY(2px);
 }
 .mention-feed-button:hover {
-  color: #dcd7ff;
+  color: #d7e7f8;
   background: transparent;
 }
 @keyframes like-heart-rise {
@@ -1811,12 +1818,7 @@ onBeforeUnmount(() => {
   }
   100% {
     opacity: 0;
-    transform: translate3d(
-        var(--heart-drift),
-        calc(var(--heart-rise) * -1),
-        0
-      )
-      scale(0.72)
+    transform: translate3d(var(--heart-drift), calc(var(--heart-rise) * -1), 0) scale(0.72)
       rotate(var(--heart-rotate));
   }
 }
@@ -1972,7 +1974,7 @@ onBeforeUnmount(() => {
   width: fit-content;
   max-width: 100%;
   padding: 8px 12px;
-  color: #f1f2ff;
+  color: #eff6ff;
   background: #2b385e;
   border-radius: 13px 13px 13px 4px;
   white-space: pre-wrap;
@@ -1980,7 +1982,7 @@ onBeforeUnmount(() => {
 }
 .message.mine .message-bubble {
   margin-left: auto;
-  background: #7162de;
+  background: #4e88d8;
   border-radius: 13px 13px 4px 13px;
 }
 .message p {
@@ -2011,7 +2013,7 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: space-between;
   padding: 8px 14px;
-  color: #c7c1ff;
+  color: #b9d5f4;
   background: #27224c;
   font-size: 0.76rem;
 }
@@ -2048,7 +2050,7 @@ onBeforeUnmount(() => {
   display: grid;
   place-items: center;
   color: #fff;
-  background: #7162de;
+  background: #4e88d8;
   border: 0;
   border-radius: 50%;
   font-weight: 800;
@@ -2064,15 +2066,15 @@ onBeforeUnmount(() => {
 }
 .floating-add {
   position: fixed;
-  right: 34px;
-  bottom: 30px;
+  right: calc(max(16px, calc((100vw - 1453px) / 2)) + 394px);
+  bottom: 24px;
   z-index: 40;
   width: 58px;
   height: 58px;
   min-height: 0;
   padding: 0;
   font-size: 2rem;
-  box-shadow: 0 10px 28px #6658cf66;
+  box-shadow: 0 10px 28px #5d92d866;
 }
 .modal-layer {
   position: fixed;
@@ -2181,9 +2183,9 @@ onBeforeUnmount(() => {
   font-weight: 750;
 }
 .chip-row button.selected {
-  color: #6557d5;
-  background: #eeebff;
-  border-color: #8a7ee8;
+  color: #4e85ce;
+  background: #e9f3ff;
+  border-color: #89ace2;
 }
 .custom-input,
 textarea {
@@ -2196,8 +2198,8 @@ textarea {
 .analysis-box {
   margin-top: 20px;
   padding: 17px;
-  background: #f3f0ff;
-  border: 1px solid #d8d1ff;
+  background: #edf6ff;
+  border: 1px solid #d4e5f7;
   border-radius: 18px;
 }
 
@@ -2227,7 +2229,7 @@ textarea {
   width: 100%;
   padding: 13px;
   color: #fff;
-  background: linear-gradient(90deg, #705ef0, #bd36f5);
+  background: linear-gradient(90deg, #4f8fe8, #78aaf0);
   border: 0;
   border-radius: 13px;
   font-weight: 850;
@@ -2422,7 +2424,7 @@ textarea {
 }
 .submit {
   color: #fff;
-  background: #6d5ddd;
+  background: #5a93df;
   border: 0;
 }
 .submit:disabled,
@@ -2432,11 +2434,11 @@ textarea {
 }
 @keyframes focus-pulse {
   from {
-    box-shadow: 0 0 0 12px #8d80ff35;
+    box-shadow: 0 0 0 12px #8bb6ef35;
   }
   to {
     box-shadow:
-      0 0 0 5px #8d80ff2e,
+      0 0 0 5px #8bb6ef2e,
       0 18px 38px #29315a35;
   }
 }
@@ -2624,7 +2626,7 @@ textarea {
 }
 
 .feed-tabs button.active {
-  background: linear-gradient(135deg, #668cf0, #8c78e7);
+  background: linear-gradient(135deg, #668cf0, #83afe8);
   box-shadow: none;
 }
 
@@ -2849,7 +2851,7 @@ textarea {
 
 .chat-form button,
 .floating-add {
-  background: linear-gradient(135deg, #668cf0, #8c78e7);
+  background: linear-gradient(135deg, #668cf0, #83afe8);
   box-shadow: 0 10px 22px rgb(102 140 240 / 24%);
 }
 

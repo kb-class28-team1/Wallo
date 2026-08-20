@@ -87,7 +87,7 @@ const cardClasses = computed(() => [
   border-color: color-mix(in srgb, var(--wallo-color-primary) 35%, var(--wallo-color-border));
   box-shadow:
     var(--wallo-shadow-card),
-    0 10px 28px rgb(48 60 110 / 7%);
+    0 10px 28px rgb(52 106 162 / 7%);
   transform: translateY(-1px);
 }
 

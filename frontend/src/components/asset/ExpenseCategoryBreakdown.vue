@@ -412,7 +412,7 @@ const progressWidth = (rate) => {
 }
 
 .category-list li.active {
-  background: #f5f3ff;
+  background: #f2f8ff;
   transform: translateX(3px);
 }
 
@@ -519,7 +519,7 @@ const progressWidth = (rate) => {
 }
 
 .budget-category-progress .progress-bar {
-  background: #8170ff;
+  background: #6b9be3;
 }
 
 @media (max-width: 575.98px) {

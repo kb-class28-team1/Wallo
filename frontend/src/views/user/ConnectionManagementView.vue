@@ -747,7 +747,7 @@ onMounted(loadConnections)
 }
 
 .connection-add-button:hover {
-  border-color: #6366f1;
+  border-color: #5c94df;
   color: #4f46c7;
 }
 

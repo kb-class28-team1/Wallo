@@ -103,7 +103,7 @@ const showSubscriptions = computed(() => allows("SUBSCRIPTION"))
 
 <style scoped>
 .consumption-analysis { width: min(100%, 680px); margin-bottom: 0.75rem; }
-.analysis-card { padding: 1rem; background: #fff; border: 1px solid #e9e6f3; border-radius: 1rem; box-shadow: 0 0.25rem 0.8rem rgba(57, 45, 110, 0.06); }
+.analysis-card { padding: 1rem; background: #fff; border: 1px solid #e7f2fa; border-radius: 1rem; box-shadow: 0 0.25rem 0.8rem rgba(57, 45, 110, 0.06); }
 .analysis-card--good { background: #f3fbf6; border-color: #d7efe0; }
 .analysis-card--caution { background: #fffbef; border-color: #f4e7bd; }
 </style>
