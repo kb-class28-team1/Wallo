@@ -1,6 +1,7 @@
 package com.wallo.report.controller;
 
 import com.wallo.common.response.CommonResponse;
+import com.wallo.auth.CurrentUserProvider;
 import com.wallo.report.dto.response.ReportDetailResponse;
 import com.wallo.report.dto.response.ReportListResponse;
 import com.wallo.report.service.NewsReportGenerationService;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.List;
 
@@ -24,17 +26,28 @@ public class ReportController {
     private final NewsReportGenerationService newsReportGenerationService;
     private final NewsCrawlingScheduler newsCrawlingScheduler;
     private final FinancialReportGenerationScheduler financialReportGenerationScheduler;
+    private final CurrentUserProvider currentUserProvider;
 
+    @Autowired
     public ReportController(
             NewsService newsService,
             NewsReportGenerationService newsReportGenerationService,
             NewsCrawlingScheduler newsCrawlingScheduler,
-            FinancialReportGenerationScheduler financialReportGenerationScheduler
+            FinancialReportGenerationScheduler financialReportGenerationScheduler,
+            CurrentUserProvider currentUserProvider
     ) {
         this.newsService = newsService;
         this.newsReportGenerationService = newsReportGenerationService;
         this.newsCrawlingScheduler = newsCrawlingScheduler;
         this.financialReportGenerationScheduler = financialReportGenerationScheduler;
+        this.currentUserProvider = currentUserProvider;
+    }
+
+    public ReportController(NewsService newsService, NewsReportGenerationService newsReportGenerationService,
+            NewsCrawlingScheduler newsCrawlingScheduler,
+            FinancialReportGenerationScheduler financialReportGenerationScheduler) {
+        this(newsService, newsReportGenerationService, newsCrawlingScheduler,
+                financialReportGenerationScheduler, () -> 1L);
     }
 
     /**
@@ -52,7 +65,9 @@ public class ReportController {
      */
     @GetMapping("/{newsId}")
     public CommonResponse<ReportDetailResponse> getReportDetail(@PathVariable Long newsId) {
-        return CommonResponse.success(newsService.getReportDetail(newsId));
+        Long userId = currentUserProvider.getCurrentUserId();
+        newsReportGenerationService.generatePersonalizationIfAbsent(newsId, userId);
+        return CommonResponse.success(newsService.getReportDetail(newsId, userId));
     }
 
     /**
@@ -64,7 +79,9 @@ public class ReportController {
     @PostMapping("/{newsId}/generate")
     public CommonResponse<ReportDetailResponse> generateReport(@PathVariable Long newsId) {
         newsReportGenerationService.generateIfAbsent(newsId);
-        return CommonResponse.success(newsService.getReportDetail(newsId));
+        Long userId = currentUserProvider.getCurrentUserId();
+        newsReportGenerationService.generatePersonalizationIfAbsent(newsId, userId);
+        return CommonResponse.success(newsService.getReportDetail(newsId, userId));
     }
 
     /** 뉴스만 크롤링해 DB에 저장하며 AI는 호출하지 않는다. */

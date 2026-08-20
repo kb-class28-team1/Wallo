@@ -39,6 +39,10 @@ public interface NewsService {
      */
     ReportDetailResponse getReportDetail(Long newsId);
 
+    default ReportDetailResponse getReportDetail(Long newsId, Long userId) {
+        return getReportDetail(newsId);
+    }
+
     /** 게시일시 기준 최신 뉴스 목록을 limit개 조회한다. */
     List<News> getLatestNews(int limit);
 

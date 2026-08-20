@@ -148,9 +148,15 @@ const formatLastSync = (lastSyncAt) => {
 
 const getAssetTypeLabel = (connection) => {
   if (connection.assetKind === "CARD") {
-    return connection.assetType === "CHECK" || connection.assetType === "DEBIT"
-      ? "체크카드"
-      : "신용카드"
+    if (connection.assetType === "CHECK") {
+      return "체크카드"
+    }
+
+    if (connection.assetType === "CREDIT") {
+      return "신용카드"
+    }
+
+    return "카드 유형 확인 필요"
   }
 
   return (

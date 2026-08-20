@@ -2,6 +2,7 @@ package com.wallo.report.dto.response;
 
 import com.wallo.report.domain.News;
 import com.wallo.report.domain.NewsReport;
+import com.wallo.report.domain.NewsReportPersonalization;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -33,7 +34,8 @@ public class ReportDetailResponse {
     private final String actionPlan;
     private final List<MatchedTermResponse> terms;
 
-    private ReportDetailResponse(News news, NewsReport newsReport, List<MatchedTermResponse> terms) {
+    private ReportDetailResponse(News news, NewsReport newsReport, NewsReportPersonalization personalization,
+                                 List<MatchedTermResponse> terms) {
         this.newsId = news.getNewsId();
         this.title = news.getTitle();
         this.content = news.getContent();
@@ -51,16 +53,14 @@ public class ReportDetailResponse {
             this.eventDescription = newsReport.getEventDescription();
             this.cause = newsReport.getCause();
             this.socialImpact = newsReport.getSocialImpact();
-            this.userImpact = newsReport.getUserImpact();
-            this.actionPlan = newsReport.getResponseStrategy();
         } else {
             this.summaryPoints = Collections.emptyList();
             this.eventDescription = null;
             this.cause = null;
             this.socialImpact = null;
-            this.userImpact = null;
-            this.actionPlan = null;
         }
+        this.userImpact = personalization == null ? null : personalization.getUserImpact();
+        this.actionPlan = personalization == null ? null : personalization.getResponseStrategy();
         // terms가 null로 들어오면(매칭 결과가 없는 경우 포함) 빈 배열로 내려간다.
         this.terms = terms != null ? terms : Collections.emptyList();
     }
@@ -81,8 +81,10 @@ public class ReportDetailResponse {
                 .collect(Collectors.toList());
     }
 
-    public static ReportDetailResponse from(News news, NewsReport newsReport, List<MatchedTermResponse> terms) {
-        return new ReportDetailResponse(news, newsReport, terms);
+    public static ReportDetailResponse from(News news, NewsReport newsReport,
+                                            NewsReportPersonalization personalization,
+                                            List<MatchedTermResponse> terms) {
+        return new ReportDetailResponse(news, newsReport, personalization, terms);
     }
 
     public Long getNewsId() {

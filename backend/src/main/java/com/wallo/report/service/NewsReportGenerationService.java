@@ -1,6 +1,7 @@
 package com.wallo.report.service;
 
 import com.wallo.report.domain.NewsReport;
+import com.wallo.report.domain.NewsReportPersonalization;
 
 /** AI 금융 리포트 생성과 news_report 저장을 담당한다. */
 public interface NewsReportGenerationService {
@@ -17,4 +18,9 @@ public interface NewsReportGenerationService {
      *         저장 실패({@link com.wallo.common.exception.ErrorCode#REPORT_SAVE_FAILED})
      */
     NewsReport generateIfAbsent(Long newsId);
+
+    /** 현재 로그인 사용자와 뉴스 조합의 맞춤 분석을 최초 한 번만 생성한다. */
+    default NewsReportPersonalization generatePersonalizationIfAbsent(Long newsId, Long userId) {
+        throw new UnsupportedOperationException("사용자별 맞춤 분석을 지원하지 않습니다.");
+    }
 }

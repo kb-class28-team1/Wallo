@@ -192,7 +192,6 @@ public final class CodefDto {
         private String resMemberName;
         private String resUsedAmount;
         private String resMemberSector;
-        private String resCardType;
     }
 
     @Getter
