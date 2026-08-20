@@ -82,6 +82,8 @@ describe("CategoryExpenseView", () => {
     const wrapper = mount(CategoryExpenseView, { global: { stubs: globalStubs } })
     await flushPromises()
 
+    expect(wrapper.get(".back-button").attributes("href")).toBe("/assets")
+    expect(wrapper.get(".back-button").find(".bi-chevron-left").exists()).toBe(true)
     expect(getExpenses).toHaveBeenCalledWith(
       expect.objectContaining({ page: 0, size: 20 }),
     )

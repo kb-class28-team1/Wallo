@@ -394,6 +394,26 @@ onMounted(loadSelectedMonth)
   padding: var(--wallo-space-6);
 }
 
+.back-button {
+  display: inline-flex;
+  width: 38px;
+  height: 38px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 12px;
+  color: #555b6e;
+  background: transparent;
+  font-size: 1.1rem;
+  text-decoration: none;
+}
+
+.back-button:hover,
+.back-button:focus {
+  color: #6b5bd2;
+  background: #f0edff;
+}
+
 .month-navigation {
   color: var(--wallo-color-text);
 }
