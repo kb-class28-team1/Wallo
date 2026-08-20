@@ -91,6 +91,7 @@ let dialogResolver = null
 let analysisRequestSequence = 0
 let analysisProgressTimer = null
 let gaugeTestTimer = null
+let gaugeTestResetTimer = null
 
 const isAnalysisDisplayActive = computed(() => isAnalyzing.value || isGaugeTestRunning.value)
 const analysisDisplayProgress = computed(() =>
@@ -120,6 +121,10 @@ const stopGaugeTest = () => {
     window.clearInterval(gaugeTestTimer)
     gaugeTestTimer = null
   }
+  if (gaugeTestResetTimer) {
+    window.clearTimeout(gaugeTestResetTimer)
+    gaugeTestResetTimer = null
+  }
   isGaugeTestRunning.value = false
 }
 const getGaugeTestStageMessage = (progress) => {
@@ -144,6 +149,9 @@ const openGaugeTest = () => {
     if (gaugeTestProgress.value >= 100) {
       window.clearInterval(gaugeTestTimer)
       gaugeTestTimer = null
+      gaugeTestResetTimer = window.setTimeout(() => {
+        stopGaugeTest()
+      }, 900)
     }
   }, 75)
 }
@@ -2348,8 +2356,10 @@ textarea {
   position: relative;
   overflow: visible;
   isolation: isolate;
-  min-height: 62px;
-  padding: 8px 13px;
+  width: calc(100% + 56px);
+  min-height: 104px;
+  margin-left: -28px;
+  padding: 14px 18px;
   background: #d8edf7;
   color: #fff;
   opacity: 1;
@@ -2361,7 +2371,7 @@ textarea {
   left: 0;
   z-index: 0;
   width: var(--analysis-progress);
-  height: 50%;
+  height: 54%;
   overflow: hidden;
   border-radius: 0 0 0 13px;
   background:
