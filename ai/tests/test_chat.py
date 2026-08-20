@@ -12,6 +12,7 @@ from app.agents.financial.tools.registry import (
 )
 from app.chat.schemas import (
     AccountSubtype,
+    AssetAnalysisContext,
     ChatRequest,
     GoalFundAvailability,
 )
@@ -53,6 +54,7 @@ def test_chat_passes_conversation_history_to_financial_agent():
         None,
         None,
         None,
+        asset_analysis_context=None,
     )
 
 
@@ -74,6 +76,7 @@ def test_chat_passes_long_term_summary_to_financial_agent():
         None,
         None,
         None,
+        asset_analysis_context=None,
     )
 
 
@@ -119,6 +122,51 @@ def test_chat_parses_and_passes_financial_context_to_financial_agent():
         context,
         None,
         None,
+        asset_analysis_context=None,
+    )
+
+
+def test_chat_parses_and_passes_asset_analysis_context_to_financial_agent():
+    client = Mock()
+    service = ChatService(client)
+    request = ChatRequest.model_validate({
+        "message": "내 자산을 분석해줘",
+        "assetAnalysisContext": {
+            "totalAssets": 120_000_000,
+            "totalDebt": 20_000_000,
+            "netAssets": 100_000_000,
+            "monthlyIncome": 5_000_000,
+            "monthlyExpense": 3_000_000,
+            "monthlySaving": 2_000_000,
+            "savingRatePercent": 40.0,
+            "assetComposition": [
+                {
+                    "category": "DEPOSIT",
+                    "amount": 80_000_000,
+                    "sharePercent": 66.7,
+                },
+            ],
+            "asOf": "2026-08-20T12:00:00+09:00",
+        },
+    })
+
+    with patch(
+        "app.chat.service.FinancialAgent.run",
+        return_value="자산 분석 결과입니다.",
+    ) as run_mock:
+        service.chat(request)
+
+    context = request.asset_analysis_context
+    assert isinstance(context, AssetAnalysisContext)
+    assert context.net_assets == 100_000_000
+    run_mock.assert_called_once_with(
+        "내 자산을 분석해줘",
+        [],
+        None,
+        None,
+        None,
+        None,
+        asset_analysis_context=context,
     )
 
 

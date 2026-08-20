@@ -7,6 +7,19 @@ CREATE TABLE USERS (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE CONNECTIONS (
+    connection_id BIGINT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    deleted_at TIMESTAMP NULL
+);
+
+CREATE TABLE ACCOUNTS (
+    account_id BIGINT PRIMARY KEY,
+    connection_id BIGINT NOT NULL,
+    status VARCHAR(20) NOT NULL
+);
+
 CREATE TABLE CARDS (
     card_id BIGINT PRIMARY KEY,
     connection_id BIGINT NULL,

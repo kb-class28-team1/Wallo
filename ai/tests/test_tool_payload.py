@@ -7,13 +7,12 @@ from app.agents.financial.agent import FinancialAgent, PRODUCT_RECOMMENDATION_TO
 from app.agents.financial.tool_payload import compact_tool_result_for_prompt
 
 
-def test_asset_payload_keeps_metrics_but_drops_instruction_and_selection_metadata():
+def test_asset_payload_keeps_database_metrics_and_profile_shape():
     result = ToolResult(
         status="success",
         tool="analyze_assets",
         data={
-            "dataMode": "demo_json",
-            "profileId": 7,
+            "dataMode": "database",
             "request": "analyze assets",
             "calculatedMetrics": {"netAssetsKrw": 27_000_000},
             "profile": {

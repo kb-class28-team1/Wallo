@@ -50,11 +50,6 @@ app/
 │  ├─ groq_client.py           # Groq 클라이언트 생성
 ├─ core/
 │  └─ config.py                # 환경변수와 모델 설정
-├─ demo/
-│  ├─ router.py                # 가상 사용자 데모 API
-│  ├─ schemas.py               # 데모 요청·응답 모델
-│  ├─ repository.py            # 데모 JSON 데이터 접근
-│  └─ service.py               # 데모 자산 계산과 AI 분석
 ├─ health/
 │  └─ router.py                # `/api/health` 상태 확인 API
 └─ reports/

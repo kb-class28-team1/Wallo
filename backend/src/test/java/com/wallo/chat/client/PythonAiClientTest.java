@@ -13,6 +13,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.wallo.asset.dto.AssetAnalysisContextDto;
 import com.wallo.chat.dto.ChatRequest;
 import com.wallo.chat.dto.ChatResponse;
 import com.wallo.goal.dto.GoalInterviewDto;
@@ -70,6 +71,46 @@ class PythonAiClientTest {
         );
 
         assertEquals("다음 질문", response.answer());
+        server.verify();
+    }
+
+    @Test
+    void serializesAssetAnalysisContextForAiRequest() {
+        ObjectMapper objectMapper = objectMapper();
+        RestTemplate restTemplate = PythonAiClient.createRestTemplate(objectMapper);
+        MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
+        server.expect(requestTo("http://127.0.0.1:8000/api/chat"))
+                .andExpect(request -> {
+                    String body = ((MockClientHttpRequest) request)
+                            .getBodyAsString(StandardCharsets.UTF_8);
+                    assertTrue(body.contains("\"assetAnalysisContext\":{"));
+                    assertTrue(body.contains("\"totalAssets\":120000000"));
+                    assertTrue(body.contains("\"monthlySaving\":2000000"));
+                })
+                .andRespond(withSuccess("{\"answer\":\"자산 분석 결과입니다.\"}",
+                        MediaType.APPLICATION_JSON));
+        PythonAiClient client = new PythonAiClient(
+                restTemplate,
+                "http://127.0.0.1:8000"
+        );
+
+        ChatResponse response = client.chat(
+                new ChatRequest("내 자산을 분석해줘").withAssetAnalysisContext(
+                        new AssetAnalysisContextDto(
+                                120_000_000L,
+                                20_000_000L,
+                                100_000_000L,
+                                5_000_000L,
+                                3_000_000L,
+                                2_000_000L,
+                                40.0,
+                                List.of(),
+                                "2026-08-20T12:00:00+09:00"
+                        )
+                )
+        );
+
+        assertEquals("자산 분석 결과입니다.", response.answer());
         server.verify();
     }
 

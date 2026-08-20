@@ -68,6 +68,7 @@ class ChatService:
                     request.financial_context,
                     request.consumption_context,
                     previous_period,
+                    asset_analysis_context=request.asset_analysis_context,
                 )
                 if financial_agent.selected_tool == "coach_spending":
                     consumption_analysis = financial_agent.selected_tool_result
