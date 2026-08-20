@@ -387,7 +387,7 @@ onBeforeUnmount(() => {
             <div class="card-body p-4">
               <h2 class="section-title h5 fw-bold">
                 나의 목표
-                <i class="bi bi-info-circle ms-1 text-secondary" aria-hidden="true"></i>
+                <i class="bi ms-1 text-secondary" aria-hidden="true"></i>
               </h2>
 
               <div class="goal-empty-box mt-3">
@@ -444,7 +444,10 @@ onBeforeUnmount(() => {
                 variant="danger"
                 :message="missionError"
               />
-              <div v-else-if="missionStatus === 'WAITING_ANALYSIS'" class="mission-empty mt-4">
+              <div
+                v-else-if="missionStatus === 'WAITING_ANALYSIS'"
+                class="mission-empty mission-empty-analysis mt-4"
+              >
                 소비 분석이 완료되면 오늘의 미션이 생성됩니다.
                 <AppButton
                   class="mt-3"
@@ -507,7 +510,7 @@ onBeforeUnmount(() => {
         <div class="card-body p-4 p-lg-5">
           <h2 class="section-title h5 fw-bold">
             목표 달성을 위한 로드맵
-            <i class="bi bi-info-circle ms-1 text-secondary" aria-hidden="true"></i>
+            <i class="bi ms-1 text-secondary" aria-hidden="true"></i>
           </h2>
 
           <ol class="roadmap-list list-unstyled mt-4 mb-0">
@@ -658,7 +661,10 @@ onBeforeUnmount(() => {
                 variant="danger"
                 :message="missionError"
               />
-              <div v-else-if="missionStatus === 'WAITING_ANALYSIS'" class="mission-empty mt-4">
+              <div
+                v-else-if="missionStatus === 'WAITING_ANALYSIS'"
+                class="mission-empty mission-empty-analysis mt-4"
+              >
                 소비 분석이 완료되면 오늘의 미션이 생성됩니다.
                 <AppButton
                   class="mt-3"
@@ -877,11 +883,6 @@ onBeforeUnmount(() => {
   color: #1c2440;
 }
 
-.assistant-header :deep(.app-page-header__title) {
-  font-size: clamp(1.75rem, 3vw, 2.35rem);
-  letter-spacing: -0.045em;
-}
-
 .assistant-header :deep(.app-page-header__description) {
   font-size: 1.05rem;
 }
@@ -1056,6 +1057,10 @@ onBeforeUnmount(() => {
   color: #73798d;
   line-height: 1.65;
   text-align: center;
+}
+
+.mission-empty-analysis {
+  background: transparent;
 }
 
 .mission-panel {

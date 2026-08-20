@@ -1,5 +1,6 @@
 import { flushPromises, mount } from "@vue/test-utils"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { nextTick, reactive } from "vue"
 
 import SideNavigation from "./SideNavigation.vue"
 import { getCurrentChallenge } from "@/api/challengeApi"
@@ -38,8 +39,10 @@ vi.mock("@/api/challengeApi", () => ({
 
 describe("SideNavigation", () => {
   beforeEach(() => {
-    mocks.route.path = "/my-feeds"
-    mocks.route.name = "my-feeds"
+    mocks.route = reactive({
+      path: "/my-feeds",
+      name: "my-feeds",
+    })
     mocks.routerPush.mockReset()
     mocks.routerReplace.mockReset()
     mocks.logout.mockReset()
@@ -108,7 +111,8 @@ describe("SideNavigation", () => {
 
     expect(wrapper.find(".challenge-group").classes()).toContain("challenge-group-active")
     expect(wrapper.find("#challenge-submenu").exists()).toBe(true)
-    expect(wrapper.findAll(".submenu-item")).toHaveLength(4)
+    expect(wrapper.findAll(".submenu-item")).toHaveLength(3)
+    expect(wrapper.text()).not.toContain("피드 목록")
     expect(wrapper.find(".submenu-link-active").text()).toContain("내 게시물")
     expect(wrapper.find(".sidebar-card").classes()).toContain("app-card")
 
@@ -120,6 +124,28 @@ describe("SideNavigation", () => {
 
     expect(getCurrentChallenge).toHaveBeenCalledOnce()
     expect(mocks.routerPush).toHaveBeenCalledWith("/my-feeds")
+
+    wrapper.unmount()
+  })
+
+  it("routes to the challenge feed when clicking the challenge title", async () => {
+    mocks.route.path = "/dashboard"
+    mocks.route.name = "dashboard"
+
+    const wrapper = mount(SideNavigation, {
+      global: {
+        stubs: {
+          AppDialog: { template: "<div />" },
+        },
+      },
+    })
+
+    await wrapper.find(".challenge-title").trigger("click")
+    await flushPromises()
+
+    expect(getCurrentChallenge).toHaveBeenCalledOnce()
+    expect(mocks.routerPush).toHaveBeenCalledWith("/challenges/7/feeds")
+    expect(wrapper.text()).not.toContain("피드 목록")
 
     wrapper.unmount()
   })
@@ -145,6 +171,7 @@ describe("SideNavigation", () => {
 
     expect(wrapper.find("#asset-submenu").exists()).toBe(true)
     expect(wrapper.find(".asset-monthly-report").text()).toContain("월별 리포트")
+    expect(wrapper.find('a[href="/assets/categories"]').text()).toContain("카테고리별 소비")
 
     await wrapper.find(".asset-collapse-toggle").trigger("click")
 
@@ -171,6 +198,63 @@ describe("SideNavigation", () => {
     expect(wrapper.find("#asset-submenu").exists()).toBe(true)
     expect(wrapper.find(".asset-monthly-report").classes()).toContain("submenu-link-active")
     expect(wrapper.find(".asset-collapse-toggle").attributes("aria-expanded")).toBe("true")
+
+    wrapper.unmount()
+  })
+
+  it("opens on asset navigation and closes when leaving asset pages", async () => {
+    mocks.route.path = "/assets/categories"
+    mocks.route.name = "category-expenses"
+
+    const wrapper = mount(SideNavigation, {
+      global: {
+        stubs: {
+          AppDialog: { template: "<div />" },
+        },
+      },
+    })
+
+    await flushPromises()
+
+    expect(wrapper.find("#asset-submenu").exists()).toBe(true)
+    expect(wrapper.find('a[href="/assets/categories"]').classes()).toContain("submenu-link-active")
+    expect(wrapper.find(".asset-collapse-toggle").attributes("aria-expanded")).toBe("true")
+
+    mocks.route.path = "/dashboard"
+    mocks.route.name = "dashboard"
+    await nextTick()
+    await flushPromises()
+
+    expect(wrapper.find(".asset-collapse-toggle").attributes("aria-expanded")).toBe("false")
+    expect(wrapper.find("#asset-submenu").exists()).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it("opens on challenge navigation and closes when leaving challenge pages", async () => {
+    mocks.route.path = "/challenges/current"
+    mocks.route.name = "current-challenge"
+
+    const wrapper = mount(SideNavigation, {
+      global: {
+        stubs: {
+          AppDialog: { template: "<div />" },
+        },
+      },
+    })
+
+    await flushPromises()
+
+    expect(wrapper.find("#challenge-submenu").exists()).toBe(true)
+    expect(wrapper.find(".challenge-group .collapse-toggle").attributes("aria-expanded")).toBe("true")
+
+    mocks.route.path = "/dashboard"
+    mocks.route.name = "dashboard"
+    await nextTick()
+    await flushPromises()
+
+    expect(wrapper.find(".challenge-group .collapse-toggle").attributes("aria-expanded")).toBe("false")
+    expect(wrapper.find("#challenge-submenu").exists()).toBe(false)
 
     wrapper.unmount()
   })

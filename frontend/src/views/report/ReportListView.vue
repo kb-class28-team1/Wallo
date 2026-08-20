@@ -130,7 +130,6 @@ const generateNow = async () => {
 <template>
   <section class="report-list-view">
     <AppPageHeader
-      eyebrow="금융·경제"
       title="금융 리포트"
     >
       <template #actions>
@@ -208,7 +207,7 @@ const generateNow = async () => {
 <style scoped>
 .report-list-view {
   width: 100%;
-  padding: var(--wallo-space-6) var(--wallo-space-4);
+  padding: 0 0 var(--wallo-space-6);
 }
 
 .report-generation-message,
@@ -245,8 +244,7 @@ const generateNow = async () => {
 
 @media (max-width: 576px) {
   .report-list-view {
-    padding-right: var(--wallo-space-3);
-    padding-left: var(--wallo-space-3);
+    padding-bottom: var(--wallo-space-5);
   }
 
   .report-error :deep(.app-alert__message) {

@@ -4,6 +4,10 @@ defineProps({
     type: String,
     required: true,
   },
+  titleId: {
+    type: String,
+    default: "",
+  },
   eyebrow: {
     type: String,
     default: "",
@@ -39,7 +43,9 @@ defineProps({
     </div>
     <div class="app-page-header__main">
       <p v-if="eyebrow" class="app-page-header__eyebrow">{{ eyebrow }}</p>
-      <component :is="titleTag" class="app-page-header__title">{{ title }}</component>
+      <component :is="titleTag" :id="titleId || undefined" class="app-page-header__title">
+        <slot name="title">{{ title }}</slot>
+      </component>
       <p v-if="description" class="app-page-header__description">{{ description }}</p>
     </div>
     <div v-if="$slots.actions" class="app-page-header__actions">
@@ -53,15 +59,12 @@ defineProps({
   display: flex;
   align-items: flex-start;
   gap: var(--wallo-space-4);
-  margin-bottom: var(--wallo-space-6);
+  margin-top: var(--wallo-page-header-margin-top);
+  margin-bottom: var(--wallo-page-header-margin-bottom);
 }
 
 .app-page-header--center {
   align-items: center;
-}
-
-.app-page-header--compact {
-  margin-bottom: var(--wallo-space-4);
 }
 
 .app-page-header__leading {
@@ -83,7 +86,7 @@ defineProps({
 .app-page-header__title {
   margin: 0;
   color: var(--wallo-color-text);
-  font-size: clamp(1.5rem, 2vw, 2rem);
+  font-size: var(--wallo-page-title-size);
   font-weight: 800;
   line-height: 1.3;
 }

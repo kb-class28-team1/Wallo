@@ -203,10 +203,6 @@ onBeforeUnmount(() => {
   width: 100%;
 }
 
-.dashboard-page :deep(.app-page-header) {
-  margin-bottom: var(--wallo-space-4);
-}
-
 .dashboard-state {
   min-height: 280px;
   display: flex;

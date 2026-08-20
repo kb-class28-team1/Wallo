@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { createChallenge, getCurrentChallenge, joinChallenge } from '@/api/challengeApi'
 import AppDialog from '@/components/common/AppDialog.vue'
+import AppPageHeader from '@/components/ui/AppPageHeader.vue'
 import { useToastStore } from '@/stores/toastStore'
 
 const router = useRouter()
@@ -142,17 +143,20 @@ onMounted(loadCurrentChallenge)
     </div>
 
     <div v-else-if="hasChallenge" class="joined-page">
-      <header class="page-heading">
-        <div>
-          <span class="eyebrow">MY SAVING CHALLENGE</span>
-          <h1 id="challenge-page-title">{{ currentChallenge.name }}</h1>
-          <p>함께 절약하고, 매주 달라지는 나의 기록을 확인해 보세요.</p>
-        </div>
-        <span class="status-badge">
-          <span class="status-dot"></span>
-          진행 중
-        </span>
-      </header>
+      <AppPageHeader
+        title-id="challenge-page-title"
+        :title="currentChallenge.name"
+        eyebrow="MY SAVING CHALLENGE"
+        description="함께 절약하고, 매주 달라지는 나의 기록을 확인해 보세요."
+        align="center"
+      >
+        <template #actions>
+          <span class="status-badge">
+            <span class="status-dot"></span>
+            진행 중
+          </span>
+        </template>
+      </AppPageHeader>
 
       <div class="challenge-summary-card">
         <div class="summary-main">
@@ -217,14 +221,18 @@ onMounted(loadCurrentChallenge)
     </div>
 
     <div v-else class="not-joined-page">
-      <header class="entry-hero">
-        <span class="eyebrow">SAVE TOGETHER, GROW TOGETHER</span>
-        <h1 id="challenge-page-title">
+      <AppPageHeader
+        class="entry-hero"
+        title-id="challenge-page-title"
+        title="작은 절약을 모아 큰 목표를 만들어 보세요"
+        eyebrow="SAVE TOGETHER, GROW TOGETHER"
+        description="새로운 챌린지를 만들거나 친구에게 받은 초대 코드로 바로 시작할 수 있어요."
+      >
+        <template #title>
           작은 절약을 모아<br />
-          <span>큰 목표</span>를 만들어 보세요
-        </h1>
-        <p>새로운 챌린지를 만들거나 친구에게 받은 초대 코드로 바로 시작할 수 있어요.</p>
-      </header>
+          <span class="entry-hero-title-accent">큰 목표</span>를 만들어 보세요
+        </template>
+      </AppPageHeader>
 
       <div class="entry-card">
         <div class="form-tabs" role="tablist" aria-label="챌린지 시작 방법">
@@ -370,7 +378,7 @@ onMounted(loadCurrentChallenge)
   display: grid;
   place-items: center;
   color: #fff;
-  background: #4f8fe8;
+  background: #7062de;
   border-radius: 50%;
   font-size: 1.5rem;
   font-weight: 900;
@@ -379,47 +387,18 @@ onMounted(loadCurrentChallenge)
 .retry-button {
   padding: 11px 22px;
   color: #fff;
-  background: #4f8fe8;
+  background: #7062de;
   border-radius: 12px;
   font-weight: 700;
 }
 
-.page-heading,
-.entry-hero {
-  margin-bottom: 36px;
+.entry-hero :deep(.app-page-header__description) {
+  max-width: 430px;
+  line-height: 1.75;
 }
 
-.page-heading {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 24px;
-}
-
-.eyebrow {
-  display: block;
-  margin-bottom: 12px;
-  color: #5c8fd5;
-  font-size: 0.78rem;
-  font-weight: 850;
-  letter-spacing: 0.14em;
-}
-
-.page-heading h1,
-.entry-hero h1 {
-  margin: 0;
-  color: #1e2538;
-  font-size: clamp(2rem, 4vw, 3.35rem);
-  font-weight: 900;
-  letter-spacing: -0.055em;
-}
-
-.page-heading p,
-.entry-hero p {
-  margin: 14px 0 0;
-  color: #8c94a8;
-  font-size: 1rem;
-  font-weight: 600;
+.entry-hero-title-accent {
+  color: #7568da;
 }
 
 .status-badge {
@@ -446,7 +425,7 @@ onMounted(loadCurrentChallenge)
   grid-template-columns: 1fr minmax(260px, 0.45fr);
   gap: 28px;
   padding: 34px;
-  background: linear-gradient(135deg, #4d89d3 0%, #86b3e8 100%);
+  background: linear-gradient(135deg, #6e62d9 0%, #8479e6 100%);
   border-radius: 26px;
   box-shadow: 0 18px 42px rgba(100, 88, 201, 0.2);
 }
@@ -486,7 +465,7 @@ onMounted(loadCurrentChallenge)
 
 .invite-panel {
   padding: 20px 24px;
-  color: #4f7fc8;
+  color: #6d62cc;
   background: #fff;
   border-radius: 18px;
 }
@@ -516,8 +495,8 @@ onMounted(loadCurrentChallenge)
   height: 38px;
   display: grid;
   place-items: center;
-  color: #5d8fd5;
-  background: #ebf4ff;
+  color: #7569da;
+  background: #f1effd;
   border: 0;
   border-radius: 11px;
 }
@@ -555,8 +534,8 @@ onMounted(loadCurrentChallenge)
   height: 44px;
   display: grid;
   place-items: center;
-  color: #5d8fd5;
-  background: #ebf4ff;
+  color: #7467da;
+  background: #f1effd;
   border-radius: 13px;
   font-size: 1.1rem;
 }
@@ -598,20 +577,7 @@ onMounted(loadCurrentChallenge)
   align-items: center;
   min-height: calc(100vh - var(--wallo-header-height));
   box-sizing: border-box;
-  padding: 0px 18px;
-}
-
-.entry-hero h1 {
-  line-height: 1.2;
-}
-
-.entry-hero h1 span {
-  color: #5c8fd5;
-}
-
-.entry-hero p {
-  max-width: 430px;
-  line-height: 1.75;
+  padding: 0;
 }
 
 .entry-card {
@@ -641,7 +607,7 @@ onMounted(loadCurrentChallenge)
 }
 
 .form-tabs button.active {
-  color: #4b7fc7;
+  color: #6255ce;
   background: #fff;
   box-shadow: 0 5px 14px rgba(52, 44, 110, 0.08);
 }
@@ -681,8 +647,8 @@ onMounted(loadCurrentChallenge)
   display: grid;
   flex: 0 0 42px;
   place-items: center;
-  color: #5c8fd5;
-  background: #e9f3ff;
+  color: #7568da;
+  background: #eeebff;
   border-radius: 13px;
   font-size: 0.8rem;
   font-weight: 850;
@@ -719,7 +685,7 @@ onMounted(loadCurrentChallenge)
 
 .challenge-input:focus {
   background-color: #fff;
-  border-color: #8aaee0;
+  border-color: #867be4;
   box-shadow: 0 0 0 4px rgba(118, 104, 218, 0.1);
 }
 
@@ -743,7 +709,7 @@ onMounted(loadCurrentChallenge)
   min-height: 54px;
   margin-top: auto;
   color: #fff;
-  background: #4f8fe8;
+  background: #7062dc;
   border: 0;
   border-radius: 14px;
   font-weight: 800;
@@ -771,9 +737,13 @@ onMounted(loadCurrentChallenge)
 }
 
 @media (max-width: 767.98px) {
-  .page-heading {
+  .challenge-entry :deep(.app-page-header) {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .challenge-entry :deep(.app-page-header__actions) {
+    align-self: flex-start;
   }
 
   .challenge-summary-card {
@@ -782,7 +752,7 @@ onMounted(loadCurrentChallenge)
   }
 
   .not-joined-page {
-    padding: 8px 0 12px;
+    padding: 0 0 12px;
   }
 
   .challenge-form {
