@@ -843,6 +843,21 @@ const isFeedShareMessage = (message) =>
 const isFeedMentionMessage = (message) =>
   Boolean(message?.referenceFeedId) && !isFeedShareMessage(message)
 const isMyMessage = (message) => Number(message?.userId) === Number(userStore.user?.id)
+const hasSameMessageSender = (leftMessage, rightMessage) => {
+  if (!leftMessage || !rightMessage) return false
+
+  if (leftMessage.userId != null && rightMessage.userId != null) {
+    return Number(leftMessage.userId) === Number(rightMessage.userId)
+  }
+
+  const leftNickname = String(leftMessage.nickname || "").trim()
+  const rightNickname = String(rightMessage.nickname || "").trim()
+  return Boolean(leftNickname) && leftNickname === rightNickname
+}
+const isSameSenderAsPrevious = (message, index) =>
+  index > 0 && hasSameMessageSender(messages.value[index - 1], message)
+const isSameSenderAsNext = (message, index) =>
+  index < messages.value.length - 1 && hasSameMessageSender(message, messages.value[index + 1])
 const mentionFeedFromCard = async (feed) => {
   mentionedFeed.value = makeMentionedFeed(feed)
   chatInput.value = ""
@@ -1128,13 +1143,19 @@ onBeforeUnmount(() => {
             </header>
             <div ref="messagesElement" class="messages">
               <div
-                v-for="item in messages"
+                v-for="(item, index) in messages"
                 :key="item.id"
                 class="message"
-                :class="{ mine: isMyMessage(item) }"
+                :class="{
+                  mine: isMyMessage(item),
+                  'same-sender': isSameSenderAsPrevious(item, index),
+                  'same-sender-next': isSameSenderAsNext(item, index),
+                }"
               >
                 <div v-if="isFeedShareMessage(item)" class="feed-share-message">
-                  <strong class="message-author">{{ item.nickname }}</strong>
+                  <strong v-if="!isSameSenderAsPrevious(item, index)" class="message-author">
+                    {{ item.nickname }}
+                  </strong>
                   <div class="feed-attachment">
                     <small class="feed-attachment-label">피드 #{{ item.referenceFeedId }}</small>
                     <button type="button" class="shared-feed" @click="mentionFeed(item)">
@@ -1157,7 +1178,9 @@ onBeforeUnmount(() => {
                   </div>
                 </div>
                 <template v-else-if="isFeedMentionMessage(item)">
-                  <strong class="message-author">{{ item.nickname }}</strong>
+                  <strong v-if="!isSameSenderAsPrevious(item, index)" class="message-author">
+                    {{ item.nickname }}
+                  </strong>
                   <div class="feed-mention">
                     <div class="feed-attachment">
                       <small class="feed-attachment-label">피드 #{{ item.referenceFeedId }}</small>
@@ -1184,7 +1207,9 @@ onBeforeUnmount(() => {
                 </template>
                 <template v-else>
                   <div class="message-content">
-                    <strong class="message-author">{{ item.nickname }}</strong>
+                    <strong v-if="!isSameSenderAsPrevious(item, index)" class="message-author">
+                      {{ item.nickname }}
+                    </strong>
                     <p v-if="item.content" class="message-bubble">{{ item.content }}</p>
                   </div>
                 </template>
@@ -1955,6 +1980,15 @@ onBeforeUnmount(() => {
 }
 .message {
   margin-bottom: 14px;
+}
+.message.same-sender-next {
+  margin-bottom: 4px;
+}
+.message.same-sender-next .message-bubble {
+  margin-bottom: 0;
+}
+.message.same-sender .message-bubble {
+  margin-top: 0;
 }
 .feed-share-message {
   display: flex;

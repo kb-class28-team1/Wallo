@@ -263,6 +263,30 @@ describe("challenge page views", () => {
     secondWrapper.unmount()
   })
 
+  it("groups consecutive messages from the same sender", async () => {
+    getRoomMessages.mockResolvedValue({
+      challengeName: "주간 절약 챌린지",
+      messages: [
+        { id: 1, userId: 1, nickname: "나", messageType: "TEXT", content: "첫 메시지" },
+        { id: 2, userId: 1, nickname: "나", messageType: "TEXT", content: "연속 메시지" },
+        { id: 3, userId: 2, nickname: "상대방", messageType: "TEXT", content: "다른 메시지" },
+      ],
+    })
+
+    const wrapper = mountFeed()
+    await flushPromises()
+
+    const renderedMessages = wrapper.findAll(".message")
+    expect(renderedMessages).toHaveLength(3)
+    expect(renderedMessages[0].classes()).toContain("same-sender-next")
+    expect(renderedMessages[0].find(".message-author").text()).toBe("나")
+    expect(renderedMessages[1].classes()).toContain("same-sender")
+    expect(renderedMessages[1].find(".message-author").exists()).toBe(false)
+    expect(renderedMessages[2].find(".message-author").text()).toBe("상대방")
+
+    wrapper.unmount()
+  })
+
   it("reuses the cached dashboard and keeps it visible while changing the period", async () => {
     const firstWrapper = mountMyChallenge()
 
