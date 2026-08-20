@@ -69,7 +69,58 @@ class AssetSyncServiceTest {
                 ArgumentCaptor.forClass(AssetSyncDto.Card.class);
         verify(assetSyncMapper).upsertCard(eq(11L), cardCaptor.capture());
         assertEquals("9876000000004321", cardCaptor.getValue().getNumber());
+        assertEquals("CHECK", cardCaptor.getValue().getType());
         verify(cardApprovalCollectionService).collectInitial(7L, 11L, institution);
+    }
+
+    @Test
+    void normalizesCodefCardTypesBeforeSavingCards() {
+        Institution institution = new Institution(2L, "0311", "Wallo Card", "CARD", "card-logo");
+        Map<String, Object> data = Map.of(
+                "cards", List.of(
+                        Map.of(
+                                "resCardNo", "1111-0000-0000-1111",
+                                "resCardName", "Credit card",
+                                "resCardType", "신용/본인",
+                                "resCardState", "1"
+                        ),
+                        Map.of(
+                                "resCardNo", "2222-0000-0000-2222",
+                                "resCardName", "Debit card",
+                                "resCardType", "직불/본인",
+                                "resCardState", "1"
+                        )
+                )
+        );
+
+        assetSyncService.sync(7L, 11L, institution, CodefDto.Response.success(data));
+
+        ArgumentCaptor<AssetSyncDto.Card> cardCaptor =
+                ArgumentCaptor.forClass(AssetSyncDto.Card.class);
+        verify(assetSyncMapper, times(2)).upsertCard(eq(11L), cardCaptor.capture());
+        assertEquals("CREDIT", cardCaptor.getAllValues().get(0).getType());
+        assertEquals("CHECK", cardCaptor.getAllValues().get(1).getType());
+    }
+
+    @Test
+    void rejectsUnknownCardTypeInsteadOfDefaultingToCredit() {
+        Institution institution = new Institution(2L, "0311", "Wallo Card", "CARD", "card-logo");
+        Map<String, Object> data = Map.of(
+                "cards", List.of(Map.of(
+                        "resCardNo", "1111-0000-0000-1111",
+                        "resCardName", "Unknown card",
+                        "resCardType", "PREPAID",
+                        "resCardState", "1"
+                ))
+        );
+
+        assertThrows(IllegalArgumentException.class, () -> assetSyncService.sync(
+                7L,
+                11L,
+                institution,
+                CodefDto.Response.success(data)
+        ));
+        verify(assetSyncMapper, never()).upsertCard(eq(11L), any(AssetSyncDto.Card.class));
     }
 
     @Test

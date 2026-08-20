@@ -181,8 +181,8 @@ class NewsServiceImplTest {
         assertEquals("사건 설명입니다.", response.getEventDescription());
         assertEquals("원인", response.getCause());
         assertEquals("사회적 영향", response.getSocialImpact());
-        assertEquals("사용자 영향", response.getUserImpact());
-        assertEquals("대응 방안", response.getActionPlan());
+        assertEquals(null, response.getUserImpact());
+        assertEquals(null, response.getActionPlan());
         assertTrue(response.getTerms().isEmpty());
     }
 

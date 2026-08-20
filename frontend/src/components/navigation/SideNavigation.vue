@@ -428,7 +428,9 @@ const handleLogout = async () => {
       </AppButton>
 
       <AppCard as="div" class="sidebar-card text-center" padding="none">
-        <img :src="thinkingPenguin" class="sidebar-card-image" alt="생각하는 왈로 캐릭터" />
+        <div class="sidebar-card-image-frame">
+          <img :src="thinkingPenguin" class="sidebar-card-image" alt="생각하는 왈로 캐릭터" />
+        </div>
         <p class="sidebar-card-text mb-0" :title="dailySavingsTip" aria-live="polite">
           {{ dailySavingsTip }}
         </p>
@@ -450,8 +452,8 @@ const handleLogout = async () => {
   top: 0;
   bottom: 0;
   left: 0;
-  flex: 0 0 273px;
-  width: 273px;
+  flex: 0 0 var(--wallo-sidebar-width);
+  width: var(--wallo-sidebar-width);
   height: 100vh;
   padding: 20px 25px 30px;
   overflow-y: auto;
@@ -729,12 +731,16 @@ const handleLogout = async () => {
   background: #ffffff;
 }
 
+.sidebar-card-image-frame {
+  width: 109px;
+  margin: 0 auto 8px;
+}
+
 .sidebar-card-image {
   display: block;
-  width: 128px;
+  width: 109px;
   max-width: 100%;
   height: auto;
-  margin: 0 auto 8px;
 }
 
 .sidebar-card-text {
@@ -746,8 +752,8 @@ const handleLogout = async () => {
 
 @media (max-width: 767.98px) {
   .sidebar {
-    flex-basis: 273px;
-    width: 273px;
+    flex-basis: var(--wallo-sidebar-width);
+    width: var(--wallo-sidebar-width);
   }
 }
 </style>

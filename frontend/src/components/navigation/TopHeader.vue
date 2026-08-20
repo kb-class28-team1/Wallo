@@ -368,7 +368,7 @@ const handleMissionFocusOut = (event) => {
   z-index: 1020;
   top: 0;
   right: 0;
-  left: 273px;
+  left: var(--wallo-sidebar-width);
   height: 68px;
   min-height: 68px;
   padding: 0 32px;
@@ -390,7 +390,7 @@ const handleMissionFocusOut = (event) => {
 
 .user-summary-divider {
   width: 2px;
-  height: 32px;
+  height: 28px;
   background: #d8dbea;
 }
 
@@ -400,24 +400,40 @@ const handleMissionFocusOut = (event) => {
 
 .mission-trigger {
   gap: 6px;
-  min-height: 34px;
-  padding: 6px 10px;
+  min-height: 36px;
+  padding: 5px 9px;
   border: 1px solid #d9daf3;
   border-radius: 999px;
   background: #fff;
   color: #6a61dc;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   white-space: nowrap;
 }
 
 .mission-trigger.app-button {
   justify-content: flex-start;
-  min-height: 34px;
-  padding: 6px 10px;
+  min-height: 36px;
+  padding: 5px 9px;
   border: 1px solid #d9daf3;
   border-radius: 999px;
   background: #fff;
+}
+
+.mission-trigger.app-button:hover:not(:disabled),
+.mission-trigger.app-button:focus-visible {
+  border-color: #7062de;
+  color: #ffffff;
+  background: #7062de;
+}
+
+.mission-trigger.app-button:hover:not(:disabled) strong,
+.mission-trigger.app-button:hover:not(:disabled) .mission-planned-label,
+.mission-trigger.app-button:hover:not(:disabled) .mission-chevron,
+.mission-trigger.app-button:focus-visible strong,
+.mission-trigger.app-button:focus-visible .mission-planned-label,
+.mission-trigger.app-button:focus-visible .mission-chevron {
+  color: inherit;
 }
 
 .mission-trigger :deep(.app-button__label) {
@@ -433,13 +449,13 @@ const handleMissionFocusOut = (event) => {
 
 .mission-planned-label {
   color: #8178dd;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
 }
 
 .mission-trigger .mission-chevron {
   color: #8c91b1;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .mission-check {
@@ -624,8 +640,8 @@ const handleMissionFocusOut = (event) => {
 }
 
 .profile-image {
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   object-fit: cover;
   background: #ffffff;
 }
@@ -635,36 +651,39 @@ const handleMissionFocusOut = (event) => {
   overflow: hidden;
   color: #111111;
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 400;
+  letter-spacing: 0.015em;
   line-height: 1.2;
+  -webkit-text-stroke: 0.4px currentColor;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .point-badge {
   gap: 5px;
-  padding: 5px 12px;
+  height: 32px;
+  padding: 4px 11px;
   border: 1px solid #c8c2ff;
   border-radius: 999px;
   color: #5648c4;
-  background: #eeecff;
-  font-size: 12px;
+  background: #ffffff;
+  font-size: 14px;
   font-weight: 700;
   line-height: 1;
   text-decoration: none;
 }
 
 .point-icon {
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
   object-fit: contain;
 }
 
 .point-badge:hover,
 .point-badge:focus-visible {
-  border-color: #7565ed;
+  border-color: #7062de;
   color: #fff;
-  background: #7565ed;
+  background: #7062de;
 }
 
 @media (max-width: 991.98px) {

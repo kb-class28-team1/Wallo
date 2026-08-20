@@ -414,7 +414,10 @@ onMounted(loadDashboard)
               <strong>{{ feed.caption || "제목 없는 인증 게시물" }}</strong>
               <span>{{ formatDate(feed.createdAt?.slice(0, 10)) }}</span>
             </div>
-            <span class="feed-like">♥ {{ formatCount(feed.likeCount) }}</span>
+            <span class="feed-like">
+              <i class="bi bi-heart-fill" aria-hidden="true"></i>
+              {{ formatCount(feed.likeCount) }}
+            </span>
           </li>
         </ol>
 
