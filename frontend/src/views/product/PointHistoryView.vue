@@ -401,11 +401,6 @@ onMounted(loadHistory)
   justify-content: flex-start;
 }
 
-.page-heading :deep(.app-page-header__title) {
-  font-size: 28px;
-  font-weight: 800;
-}
-
 .page-heading :deep(.app-page-header__description) {
   color: #8c95b0;
   font-size: 13px;

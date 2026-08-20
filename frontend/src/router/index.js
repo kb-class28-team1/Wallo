@@ -8,6 +8,7 @@ const AiAssistantView = () => import("@/views/ai/AiAssistantView.vue")
 const AssetView = () => import("@/views/asset/AssetView.vue")
 const ConnectionView = () => import("@/views/asset/ConnectionView.vue")
 const ExpenseHistoryView = () => import("@/views/asset/ExpenseHistoryView.vue")
+const CategoryExpenseView = () => import("@/views/asset/CategoryExpenseView.vue")
 const ChallengeEntryView = () => import("@/views/challenge/ChallengeEntryView.vue")
 const ChallengeFeedView = () => import("@/views/challenge/ChallengeFeedView.vue")
 const ChallengeRankingView = () => import("@/views/challenge/ChallengeRankingView.vue")
@@ -93,6 +94,11 @@ const router = createRouter({
           path: "/assets/expenses",
           name: "expenses",
           component: ExpenseHistoryView,
+        },
+        {
+          path: "/assets/categories",
+          name: "category-expenses",
+          component: CategoryExpenseView,
         },
         // 절약 챌린지의 피드 목록 페이지로 이동하는 주소임
         {

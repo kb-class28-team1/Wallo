@@ -1,0 +1,343 @@
+<script setup>
+import { computed, nextTick, onMounted, ref, watch } from "vue"
+import { storeToRefs } from "pinia"
+import { useRoute, useRouter } from "vue-router"
+import CategoryBudgetEditor from "@/components/asset/CategoryBudgetEditor.vue"
+import ExpenseCategoryBreakdown from "@/components/asset/ExpenseCategoryBreakdown.vue"
+import AppAlert from "@/components/ui/AppAlert.vue"
+import AppPageHeader from "@/components/ui/AppPageHeader.vue"
+import AppState from "@/components/ui/AppState.vue"
+import { getExpenses } from "@/api/assetApi"
+import { getApiErrorMessage } from "@/utils/apiError"
+import { useBudgetStore } from "@/stores/budgetStore"
+
+const PAGE_SIZE = 20
+const budgetStore = useBudgetStore()
+const route = useRoute()
+const router = useRouter()
+const {
+  categorySummary: budgetSummary,
+  error: budgetError,
+  initialLoading: budgetInitialLoading,
+  refreshing: budgetRefreshing,
+  isLoading: isBudgetLoading,
+  isSaving: isBudgetSaving,
+} = storeToRefs(budgetStore)
+
+const createEmptyExpenseData = () => ({
+  totalExpense: 0,
+  expenseCategoryBreakdown: [],
+})
+
+const formatDate = (date) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
+const normalizeExpenseData = (data) => ({
+  totalExpense: Number(data?.totalExpense) || 0,
+  expenseCategoryBreakdown: data?.expenseCategoryBreakdown ?? [],
+})
+
+const selectedMonth = ref(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
+const expenseData = ref(createEmptyExpenseData())
+const hasLoadedData = ref(false)
+const isLoading = ref(false)
+const error = ref("")
+const isBudgetEditorVisible = ref(false)
+let summaryRequestVersion = 0
+
+const monthLabel = computed(() =>
+  new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "long" }).format(
+    selectedMonth.value,
+  ),
+)
+
+const targetMonth = computed(() => {
+  const year = selectedMonth.value.getFullYear()
+  const month = String(selectedMonth.value.getMonth() + 1).padStart(2, "0")
+  return `${year}-${month}`
+})
+
+const dateRange = computed(() => {
+  const year = selectedMonth.value.getFullYear()
+  const month = selectedMonth.value.getMonth()
+  return {
+    startDate: formatDate(new Date(year, month, 1)),
+    endDate: formatDate(new Date(year, month + 1, 0)),
+  }
+})
+
+const isCurrentMonth = computed(() => {
+  const today = new Date()
+  return targetMonth.value === `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`
+})
+
+const canEditBudget = computed(
+  () => isCurrentMonth.value && !isBudgetLoading.value && !budgetError.value,
+)
+const isInitialLoading = computed(() => isLoading.value && !hasLoadedData.value)
+const isRefreshing = computed(() => isLoading.value && hasLoadedData.value)
+const isBudgetInitialLoading = computed(() => budgetInitialLoading?.value ?? isBudgetLoading.value)
+const isBudgetRefreshing = computed(() => budgetRefreshing?.value ?? false)
+const displayedBudgetError = computed(() => (budgetSummary.value ? "" : budgetError.value))
+const isBudgetRefreshError = computed(() => Boolean(budgetSummary.value && budgetError.value))
+
+const loadSummary = async () => {
+  const currentRequest = ++summaryRequestVersion
+  const isInitialLoad = !hasLoadedData.value
+  isLoading.value = true
+  error.value = ""
+
+  try {
+    const response = await getExpenses({
+      ...dateRange.value,
+      page: 0,
+      size: PAGE_SIZE,
+    })
+
+    if (currentRequest !== summaryRequestVersion) return
+    if (!response?.success || !response?.data) {
+      throw new Error(response?.error?.message || "카테고리별 소비 응답이 올바르지 않습니다.")
+    }
+
+    expenseData.value = normalizeExpenseData(response.data)
+    hasLoadedData.value = true
+  } catch (caughtError) {
+    if (currentRequest !== summaryRequestVersion) return
+
+    const message = getApiErrorMessage(
+      caughtError,
+      "카테고리별 소비를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.",
+    )
+    error.value = message
+    if (isInitialLoad) {
+      expenseData.value = createEmptyExpenseData()
+      hasLoadedData.value = false
+    }
+    alert(message)
+  } finally {
+    if (currentRequest === summaryRequestVersion) {
+      isLoading.value = false
+    }
+  }
+}
+
+const loadSelectedMonth = async () => {
+  await Promise.all([
+    loadSummary(),
+    budgetStore.fetchCategoryBudgets(targetMonth.value, { notifyError: false }).catch(() => null),
+  ])
+}
+
+const openBudgetEditor = async () => {
+  if (!canEditBudget.value) {
+    alert("예산은 현재 월에서만 수정할 수 있습니다.")
+    return
+  }
+
+  isBudgetEditorVisible.value = true
+  if (route.query.budget !== "edit") {
+    await router.replace({
+      query: {
+        ...route.query,
+        budget: "edit",
+      },
+    })
+  }
+}
+
+const closeBudgetEditor = async () => {
+  isBudgetEditorVisible.value = false
+  if (route.query.budget === "edit") {
+    const query = { ...route.query }
+    delete query.budget
+    await router.replace({ query })
+  }
+}
+
+const saveBudget = async (request) => {
+  try {
+    await budgetStore.saveCategoryBudgets(request)
+    await closeBudgetEditor()
+  } catch {
+    // The store handles the user-facing API error message.
+  }
+}
+
+const moveMonth = async (offset) => {
+  const year = selectedMonth.value.getFullYear()
+  const month = selectedMonth.value.getMonth()
+  selectedMonth.value = new Date(year, month + offset, 1)
+  await loadSelectedMonth()
+}
+
+watch(
+  () => route.query.budget,
+  (budgetQuery) => {
+    isBudgetEditorVisible.value = budgetQuery === "edit" && canEditBudget.value
+  },
+)
+
+onMounted(async () => {
+  await loadSelectedMonth()
+  if (route.query.budget === "edit") {
+    await nextTick()
+    isBudgetEditorVisible.value = canEditBudget.value
+  }
+})
+</script>
+
+<template>
+  <section class="category-expense-view">
+    <AppPageHeader class="page-header" title="카테고리별 소비">
+      <template #leading>
+        <RouterLink to="/assets" class="back-button" aria-label="자산 관리로 돌아가기">
+          <i class="bi bi-chevron-left" aria-hidden="true"></i>
+        </RouterLink>
+      </template>
+    </AppPageHeader>
+
+    <div v-if="isRefreshing" class="small text-secondary mb-3" role="status">
+      <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
+      {{ monthLabel }} 소비 내역을 최신 상태로 갱신하고 있습니다.
+    </div>
+
+    <AppState
+      v-if="isInitialLoading"
+      class="page-state"
+      type="loading"
+      title="카테고리별 소비를 불러오는 중입니다."
+      message="잠시만 기다려 주세요."
+    />
+
+    <AppAlert v-else-if="error && !hasLoadedData" class="page-state" variant="danger">
+      <div>
+        <strong class="d-block mb-1">카테고리별 소비를 불러오지 못했습니다.</strong>
+        <span>{{ error }}</span>
+      </div>
+      <button type="button" class="btn btn-outline-danger btn-sm" @click="loadSelectedMonth">
+        다시 시도
+      </button>
+    </AppAlert>
+
+    <template v-else>
+      <AppAlert v-if="error && hasLoadedData" class="mb-3" variant="warning">
+        <span>최신 카테고리별 소비를 갱신하지 못했습니다. 기존 내역을 표시하고 있습니다.</span>
+        <button type="button" class="btn btn-outline-warning btn-sm" @click="loadSelectedMonth">
+          다시 시도
+        </button>
+      </AppAlert>
+
+      <div v-if="isBudgetRefreshing" class="small text-secondary mb-3" role="status">
+        <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
+        카테고리별 예산을 최신 상태로 갱신하고 있습니다.
+      </div>
+
+      <AppAlert v-if="isBudgetRefreshError" class="mb-3" variant="warning">
+        <span>최신 예산 정보를 갱신하지 못했습니다. 기존 예산을 표시하고 있습니다.</span>
+        <button type="button" class="btn btn-outline-warning btn-sm" @click="loadSelectedMonth">
+          다시 시도
+        </button>
+      </AppAlert>
+
+      <ExpenseCategoryBreakdown
+        :breakdown="expenseData.expenseCategoryBreakdown"
+        :total-expense="expenseData.totalExpense"
+        :budget-summary="budgetSummary"
+        :budget-loading="isBudgetInitialLoading"
+        :budget-error="displayedBudgetError"
+        :can-edit-budget="canEditBudget"
+        @edit-budget="openBudgetEditor"
+      >
+        <template #header>
+          <div class="month-navigation d-flex align-items-center gap-2">
+            <button type="button" class="month-button" aria-label="이전 달" @click="moveMonth(-1)">
+              <i class="bi bi-chevron-left" aria-hidden="true"></i>
+            </button>
+            <strong>{{ monthLabel }}</strong>
+            <button type="button" class="month-button" aria-label="다음 달" @click="moveMonth(1)">
+              <i class="bi bi-chevron-right" aria-hidden="true"></i>
+            </button>
+          </div>
+        </template>
+      </ExpenseCategoryBreakdown>
+    </template>
+
+    <CategoryBudgetEditor
+      :visible="isBudgetEditorVisible"
+      :budget-summary="budgetSummary"
+      :target-month="targetMonth"
+      :is-saving="isBudgetSaving"
+      @close="closeBudgetEditor"
+      @save="saveBudget"
+    />
+  </section>
+</template>
+
+<style scoped>
+.category-expense-view {
+  width: 100%;
+  padding: 0 0 var(--wallo-space-6);
+}
+
+.back-button {
+  display: inline-flex;
+  width: 38px;
+  height: 38px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 12px;
+  color: #555b6e;
+  background: transparent;
+  font-size: 1.1rem;
+  text-decoration: none;
+}
+
+.back-button:hover,
+.back-button:focus {
+  color: #6b5bd2;
+  background: #f0edff;
+}
+
+.month-navigation {
+  color: var(--wallo-color-text);
+}
+
+.month-button {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--wallo-color-border-soft);
+  border-radius: var(--wallo-radius-sm);
+  color: var(--wallo-color-text-muted);
+  background: var(--wallo-color-surface);
+}
+
+.month-button:hover,
+.month-button:focus-visible {
+  border-color: var(--wallo-color-primary);
+  color: var(--wallo-color-primary);
+}
+
+.month-button:focus-visible {
+  outline: 2px solid var(--wallo-color-primary);
+  outline-offset: 2px;
+}
+
+.page-state {
+  min-height: 260px;
+}
+
+@media (max-width: 575.98px) {
+  .category-expense-view {
+    padding-bottom: var(--wallo-space-5);
+  }
+
+}
+</style>

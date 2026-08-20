@@ -31,7 +31,8 @@ class CategoryAgent:
     """거래 카테고리 분류를 한 번의 LLM 호출로 처리하는 전문 Agent."""
 
     SINGLE_MAX_COMPLETION_TOKENS = 256
-    BATCH_MAX_COMPLETION_TOKENS_PER_ITEM = 128
+    BATCH_MAX_COMPLETION_TOKENS_PER_ITEM = 256
+    REASONING_EFFORT = "low"
 
     def __init__(self, client: Groq, model: str | None = None):
         self.client = client
@@ -110,6 +111,7 @@ class CategoryAgent:
                 messages=messages,
                 response_format=self._build_response_format(),
                 max_completion_tokens=max_completion_tokens,
+                reasoning_effort=self.REASONING_EFFORT,
             )
         except RuntimeError:
             logger.error("GROQ_API_KEY is not configured for category classification")

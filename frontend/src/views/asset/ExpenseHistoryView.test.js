@@ -121,6 +121,7 @@ describe("ExpenseHistoryView manual synchronization", () => {
     expect(wrapper.find(".page-header").classes()).toContain("app-page-header")
     expect(wrapper.find(".history-card").classes()).toContain("app-card")
     expect(wrapper.find(".expense-sync-button").classes()).toContain("app-button")
+    expect(wrapper.find('[data-testid="category-breakdown"]').exists()).toBe(false)
 
     await wrapper.get(".expense-sync-button").trigger("click")
     await flushPromises()

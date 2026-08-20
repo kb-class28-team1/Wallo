@@ -260,7 +260,7 @@ const save = () => {
 }
 
 .budget-editor-description {
-  margin-top: calc(var(--wallo-space-2) * -1);
+  margin-top: 0;
 }
 
 .budget-allocation-summary {

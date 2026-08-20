@@ -174,7 +174,7 @@ onMounted(loadAssets)
 <style scoped>
 .asset-view {
   width: 100%;
-  padding: var(--wallo-space-6) var(--wallo-space-4);
+  padding: 0 0 var(--wallo-space-6);
 }
 
 .asset-sync-button {
@@ -229,8 +229,7 @@ onMounted(loadAssets)
 
 @media (max-width: 575.98px) {
   .asset-view {
-    padding-right: var(--wallo-space-3);
-    padding-left: var(--wallo-space-3);
+    padding-bottom: var(--wallo-space-5);
   }
 
   .asset-error {
