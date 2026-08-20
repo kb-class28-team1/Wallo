@@ -9,7 +9,27 @@ import SpendingSignalList from "./SpendingSignalList.vue"
 import SummaryMetrics from "./SummaryMetrics.vue"
 import { formatWon } from "@/types/consumptionAnalysis"
 
+const SPENDING_REPORT_IMAGES = [
+  "03_스트레칭.png",
+  "04_요가타임.png",
+  "05_명상중.png",
+  "06_아침인사.png",
+  "07_하이파이브.png",
+  "08_생각중.png",
+  "09_메모중.png",
+  "10_계획세우기.png",
+  "11_체크리스트.png",
+  "12_집중력MAX.png",
+  "13_데스크정리.png",
+]
+
+const randomSpendingReportImage = () => {
+  const index = Math.floor(Math.random() * SPENDING_REPORT_IMAGES.length)
+  return `/images/spending/${SPENDING_REPORT_IMAGES[index]}`
+}
+
 const props = defineProps({ analysis: { type: Object, required: true } })
+const spendingReportImage = randomSpendingReportImage()
 const signals = computed(() => props.analysis.signals || {})
 const focus = computed(() => props.analysis.focus || "OVERVIEW")
 const has = (items) => Array.isArray(items) && items.length > 0
@@ -99,8 +119,8 @@ const showSubscriptions = computed(() => allows("SUBSCRIPTION"))
       </div>
     </div>
     <RouterLink class="report-link mt-2" :to="{ name: 'expenses' }">
-      <span class="report-link__icon" aria-hidden="true">
-        <i class="bi bi-calendar3"></i>
+      <span class="report-link__icon">
+        <img :src="spendingReportImage" alt="" />
       </span>
       <span class="report-link__copy">
         <strong>월별 소비 리포트</strong>
@@ -140,15 +160,16 @@ const showSubscriptions = computed(() => allows("SUBSCRIPTION"))
 .report-link:focus-visible { outline: 3px solid rgba(112, 98, 222, 0.2); outline-offset: 2px; }
 .report-link__icon {
   display: inline-flex;
-  width: 2.25rem;
-  height: 2.25rem;
-  flex: 0 0 2.25rem;
+  width: 3.25rem;
+  height: 3.25rem;
+  flex: 0 0 3.25rem;
   align-items: center;
   justify-content: center;
-  color: #7062de;
+  overflow: hidden;
   background: #eeebff;
   border-radius: 0.7rem;
 }
+.report-link__icon img { width: 100%; height: 100%; object-fit: contain; }
 .report-link__copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 0.1rem; }
 .report-link__copy strong { font-size: 0.88rem; }
 .report-link__copy small { color: #7b849b; font-size: 0.75rem; }

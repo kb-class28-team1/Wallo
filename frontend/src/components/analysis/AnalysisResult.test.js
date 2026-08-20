@@ -51,6 +51,17 @@ const baseAnalysis = {
 }
 
 describe("AnalysisResult", () => {
+  it("uses a spending illustration for the monthly report shortcut", () => {
+    const wrapper = mount(AnalysisResult, {
+      props: { analysis: { hasEnoughData: false, signals: {} } },
+      global: { stubs: { RouterLink: { template: "<a><slot /></a>" } } },
+    })
+
+    const image = wrapper.get(".report-link__icon img")
+    expect(image.attributes("src")).toMatch(/^\/images\/spending\/.+\.png$/)
+    expect(image.attributes("alt")).toBe("")
+  })
+
   it("서버가 전달한 신호가 있는 블록만 표시한다", () => {
     const wrapper = mount(AnalysisResult, {
       props: { analysis: baseAnalysis },
