@@ -155,10 +155,14 @@ onBeforeUnmount(() => {
         <div class="typing-copy" aria-hidden="true">
           <p class="greeting-line">
             {{ typedGreeting }}<span v-if="!typedGreeting" class="typing-placeholder">&nbsp;</span>
+            <span v-if="typedGreeting.length < greeting.length" class="typing-cursor"></span>
           </p>
           <p class="introduction-line">
             {{ typedIntroduction }}<span v-if="!typedIntroduction" class="typing-placeholder">&nbsp;</span>
-            <span v-if="!isTypingComplete" class="typing-cursor"></span>
+            <span
+              v-if="typedGreeting.length === greeting.length && !isTypingComplete"
+              class="typing-cursor"
+            ></span>
           </p>
         </div>
 
@@ -542,7 +546,7 @@ onBeforeUnmount(() => {
 }
 
 .typing-copy {
-  min-height: 148px;
+  min-height: 92px;
   color: var(--wallo-color-text);
   letter-spacing: -0.045em;
   overflow-wrap: anywhere;
@@ -554,16 +558,17 @@ onBeforeUnmount(() => {
   margin: 0;
   font-weight: 800;
   line-height: 1.35;
+  white-space: nowrap;
 }
 
 .greeting-line {
   color: var(--wallo-color-primary);
-  font-size: clamp(1.9rem, 3.35vw, 3.5rem);
+  font-size: clamp(1.65rem, 2.55vw, 2.65rem);
 }
 
 .introduction-line {
   margin-top: 12px;
-  font-size: clamp(1.25rem, 1.95vw, 2rem);
+  font-size: clamp(1rem, 1.4vw, 1.45rem);
 }
 
 .typing-placeholder {
@@ -582,7 +587,7 @@ onBeforeUnmount(() => {
 
 .welcome-description {
   max-width: 520px;
-  margin: 26px 0 0;
+  margin: 14px 0 0;
   color: var(--wallo-color-text-muted);
   font-size: clamp(1rem, 1.4vw, 1.2rem);
   line-height: 1.8;
@@ -1638,7 +1643,7 @@ onBeforeUnmount(() => {
   }
 
   .typing-copy {
-    min-height: 104px;
+    min-height: 82px;
   }
 
   .welcome-description {
@@ -1683,16 +1688,16 @@ onBeforeUnmount(() => {
   }
 
   .typing-copy {
-    min-height: 94px;
+    min-height: 72px;
     letter-spacing: -0.035em;
   }
 
   .greeting-line {
-    font-size: clamp(1.65rem, 8vw, 2.15rem);
+    font-size: clamp(1.4rem, 6vw, 1.85rem);
   }
 
   .introduction-line {
-    font-size: clamp(1.08rem, 5.2vw, 1.35rem);
+    font-size: clamp(0.78rem, 3.55vw, 1.05rem);
   }
 
   .introduction-line {
@@ -1700,7 +1705,7 @@ onBeforeUnmount(() => {
   }
 
   .welcome-description {
-    margin-top: 18px;
+    margin-top: 10px;
     line-height: 1.65;
   }
 
