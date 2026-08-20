@@ -639,9 +639,9 @@ const handleOpenBoxes = async (box) => {
   }
 }
 
-// 페이지에 들어오면 로그인 사용자의 포인트와 보관함을 조회함
+// 페이지에 들어올 때마다 최신 포인트와 보관함을 조회해 상자 열기 가능 여부를 즉시 갱신함
 onMounted(() => {
-  void loadPointShop()
+  void loadPointShop({ force: true })
 })
 </script>
 

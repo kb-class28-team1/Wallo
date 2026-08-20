@@ -120,6 +120,15 @@ public final class ExpenseDto {
     @Setter
     @NoArgsConstructor
     @AllArgsConstructor
+    public static class MonthlyCashflow {
+        private long monthlyIncome;
+        private long monthlyExpense;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class DailyBreakdown {
         private String date;
         private long totalExpense;

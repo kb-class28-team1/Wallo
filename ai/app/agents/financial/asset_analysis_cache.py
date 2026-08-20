@@ -7,7 +7,7 @@ from typing import Any
 
 
 ASSET_ANALYSIS_CACHE_TTL_SECONDS = 24 * 60 * 60
-ASSET_ANALYSIS_PROMPT_VERSION = "asset-analysis-v2"
+ASSET_ANALYSIS_PROMPT_VERSION = "asset-analysis-v3-database-context"
 
 
 @dataclass(frozen=True)
@@ -21,15 +21,26 @@ _lock = threading.Lock()
 
 
 def build_cache_key(tool_data: dict[str, Any], model: str) -> str | None:
-    profile_id = tool_data.get("profileId")
-    if profile_id is None:
+    if tool_data.get("dataMode") != "database":
         return None
 
-    # 사용자가 같은 자산분석 요청을 다르게 표현해도 같은 보고서를 재사용한다.
+    calculated_metrics = tool_data.get("calculatedMetrics")
+    profile = tool_data.get("profile")
+    if not isinstance(calculated_metrics, dict) or not isinstance(profile, dict):
+        return None
+
+    # DB 동기화 시각과 실제 분석 데이터 fingerprint를 함께 사용한다.
+    # 자산 데이터가 변경되면 asOf가 같더라도 fingerprint가 달라져 이전 답변을
+    # 재사용하지 않는다. 반대로 asOf가 변경되면 데이터가 같아도 새 분석을 만든다.
+    as_of = tool_data.get("asOf")
+    if as_of is None:
+        as_of = profile.get("as_of")
+
     financial_data = {
-        "profileId": profile_id,
-        "calculatedMetrics": tool_data.get("calculatedMetrics"),
-        "profile": tool_data.get("profile"),
+        "dataMode": "database",
+        "asOf": as_of,
+        "calculatedMetrics": calculated_metrics,
+        "profile": profile,
         "model": model,
         "promptVersion": ASSET_ANALYSIS_PROMPT_VERSION,
     }
@@ -40,7 +51,7 @@ def build_cache_key(tool_data: dict[str, Any], model: str) -> str | None:
         separators=(",", ":"),
     )
     fingerprint = hashlib.sha256(serialized.encode("utf-8")).hexdigest()
-    return f"{profile_id}:{fingerprint}"
+    return f"database:{fingerprint}"
 
 
 def get_cached_answer(cache_key: str | None) -> str | None:
