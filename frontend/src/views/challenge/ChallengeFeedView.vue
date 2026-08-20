@@ -30,6 +30,7 @@ import {
   hasInFlightResource,
   invalidateResource,
 } from "@/utils/resourceCache"
+import { announcePointEarned } from "@/utils/pointRewardNotice"
 
 const route = useRoute()
 const router = useRouter()
@@ -467,7 +468,9 @@ const addLike = async (feed) => {
     const likeCount = Number(feed.likeCount)
     const milestone = Math.floor(likeCount / 10) * 10
     if (
-      likeCount >= 50 && likeCount <= 1000 && likeCount % 50 === 0 &&
+      likeCount >= 50 &&
+      likeCount <= 1000 &&
+      likeCount % 50 === 0 &&
       pageHeartMilestones.get(feed.id) !== milestone
     ) {
       pageHeartMilestones.set(feed.id, milestone)
@@ -697,6 +700,10 @@ const uploadFeed = async () => {
       newFeedAnimationTimer = null
     }, 700)
     if (verificationResult) {
+      const rewardedPoint = Number(verificationResult.rewardedPoint || 0)
+      if (verificationResult.decision === "PASS" && rewardedPoint > 0) {
+        announcePointEarned(rewardedPoint)
+      }
       const resultMessage =
         verificationResult.decision === "PASS"
           ? `미션을 달성했습니다! +${verificationResult.rewardedPoint}P`
@@ -1738,12 +1745,7 @@ onBeforeUnmount(() => {
   }
   100% {
     opacity: 0;
-    transform: translate3d(
-        var(--heart-drift),
-        calc(var(--heart-rise) * -1),
-        0
-      )
-      scale(0.72)
+    transform: translate3d(var(--heart-drift), calc(var(--heart-rise) * -1), 0) scale(0.72)
       rotate(var(--heart-rotate));
   }
 }

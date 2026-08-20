@@ -22,6 +22,7 @@ import AppCard from "@/components/ui/AppCard.vue"
 import AppPageHeader from "@/components/ui/AppPageHeader.vue"
 import AppState from "@/components/ui/AppState.vue"
 import ProductRecommendationResult from "@/components/analysis/ProductRecommendationResult.vue"
+import { announcePointEarned } from "@/utils/pointRewardNotice"
 
 const router = useRouter()
 const goalStore = useGoalStore()
@@ -89,10 +90,12 @@ const getMissionVerificationInfo = (mission) => {
       guide: "미션 수행 증빙을 제출하면 확인 후 달성 여부가 결정됩니다.",
     },
   }
-  return typeGuides[verificationType] || {
-    label: "달성 방법",
-    guide: mission?.evidenceGuide || "미션 안내에 따라 실천해 주세요.",
-  }
+  return (
+    typeGuides[verificationType] || {
+      label: "달성 방법",
+      guide: mission?.evidenceGuide || "미션 안내에 따라 실천해 주세요.",
+    }
+  )
 }
 
 const parseGoalDate = (value) => {
@@ -225,15 +228,29 @@ const loadTodayMissionList = async () => {
       const results = await Promise.allSettled(
         transactionMissions.map((mission) => verifyTransactionMission(mission.id)),
       )
-      if (results.some(
-        (result) => result.status === "fulfilled" && result.value?.decision === "PASS",
-      )) {
+      results.forEach((result) => {
+        const rewardedPoint = Number(
+          result.status === "fulfilled" ? result.value?.rewardedPoint : 0,
+        )
+        if (
+          result.status === "fulfilled" &&
+          result.value?.decision === "PASS" &&
+          rewardedPoint > 0
+        ) {
+          announcePointEarned(rewardedPoint)
+        }
+      })
+      if (
+        results.some((result) => result.status === "fulfilled" && result.value?.decision === "PASS")
+      ) {
         const refreshed = await getTodayMissions()
         missions.value = refreshed.missions
         missionStatus.value = refreshed.status || "READY"
-        window.dispatchEvent(new CustomEvent("wallo:mission-updated", {
-          detail: { missionResponse: refreshed },
-        }))
+        window.dispatchEvent(
+          new CustomEvent("wallo:mission-updated", {
+            detail: { missionResponse: refreshed },
+          }),
+        )
       }
     }
   } catch (missionLoadError) {
@@ -290,7 +307,11 @@ const runMissionAction = async (mission) => {
   if (mission.verificationType !== "SELF_CHECK") return
   missionActionId.value = mission.id
   try {
-    await completeSelfCheckMission(mission.id)
+    const response = await completeSelfCheckMission(mission.id)
+    const rewardedPoint = Number(response?.rewardedPoint || 0)
+    if (response?.decision === "PASS" && rewardedPoint > 0) {
+      announcePointEarned(rewardedPoint)
+    }
     await loadTodayMissionList()
     window.dispatchEvent(new CustomEvent("wallo:mission-updated"))
   } catch (missionActionError) {
@@ -335,10 +356,7 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="assistant-page">
-    <AppPageHeader
-      class="assistant-header"
-      title="AI 컨설팅"
-    />
+    <AppPageHeader class="assistant-header" title="AI 컨설팅" />
 
     <AppAlert
       v-if="refreshing"
@@ -414,9 +432,7 @@ onBeforeUnmount(() => {
                     <i class="bi bi-stars" aria-hidden="true"></i>
                     AI 한줄 코칭
                   </span>
-                  <p class="mb-0">
-                    목표가 있어야 방향이 생겨요! 작은 목표부터 함께 시작해봐요.
-                  </p>
+                  <p class="mb-0">목표가 있어야 방향이 생겨요! 작은 목표부터 함께 시작해봐요.</p>
                 </div>
                 <img :src="walloCharacter" alt="" aria-hidden="true" />
               </div>
@@ -483,10 +499,7 @@ onBeforeUnmount(() => {
                       :class="mission.completed ? 'bi-check-circle-fill' : 'bi-circle'"
                       :aria-label="mission.completed ? '완료' : '미완료'"
                     ></i>
-                    <span
-                      class="mission-guide"
-                      :title="getMissionVerificationInfo(mission).guide"
-                    >
+                    <span class="mission-guide" :title="getMissionVerificationInfo(mission).guide">
                       <b>{{ getMissionVerificationInfo(mission).label }}</b>
                       {{ getMissionVerificationInfo(mission).guide }}
                     </span>
@@ -700,10 +713,7 @@ onBeforeUnmount(() => {
                       :class="mission.completed ? 'bi-check-circle-fill' : 'bi-circle'"
                       :aria-label="mission.completed ? '완료' : '미완료'"
                     ></i>
-                    <span
-                      class="mission-guide"
-                      :title="getMissionVerificationInfo(mission).guide"
-                    >
+                    <span class="mission-guide" :title="getMissionVerificationInfo(mission).guide">
                       <b>{{ getMissionVerificationInfo(mission).label }}</b>
                       {{ getMissionVerificationInfo(mission).guide }}
                     </span>
@@ -920,9 +930,7 @@ onBeforeUnmount(() => {
         <div class="latest-product-recommendation-heading">
           <div>
             <h2 class="section-title h5 fw-bold">최신 상품 추천</h2>
-            <p class="text-secondary mb-0 mt-2">
-              채팅에서 저장된 가장 최근의 상품 추천 결과예요.
-            </p>
+            <p class="text-secondary mb-0 mt-2">채팅에서 저장된 가장 최근의 상품 추천 결과예요.</p>
           </div>
           <div class="latest-product-recommendation-meta">
             <small v-if="generatedAt" class="latest-product-recommendation-date">
@@ -935,12 +943,11 @@ onBeforeUnmount(() => {
         </div>
 
         <ProductRecommendationResult
-        class="mt-4"
-        full-width
-        :show-intro="false"
-        :recommendation="productRecommendation"
-      />
-
+          class="mt-4"
+          full-width
+          :show-intro="false"
+          :recommendation="productRecommendation"
+        />
       </div>
     </AppCard>
   </section>
@@ -1264,7 +1271,9 @@ onBeforeUnmount(() => {
 }
 
 .mission-list-item > :not(.mission-action-button) {
-  transition: opacity 160ms ease, filter 160ms ease;
+  transition:
+    opacity 160ms ease,
+    filter 160ms ease;
 }
 
 .mission-list-item:has(.mission-action-button):hover > :not(.mission-action-button),

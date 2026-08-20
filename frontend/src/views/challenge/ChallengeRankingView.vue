@@ -11,6 +11,7 @@ import AppState from "@/components/ui/AppState.vue"
 import { useChallengeStore } from "@/stores/challengeStore"
 import { formatNumber, formatWon } from "@/utils/formatters"
 import { useUserStore } from "@/stores/userStore"
+import { announcePointEarned } from "@/utils/pointRewardNotice"
 
 const DEFAULT_PROFILE_IMAGE = "/images/profiles/default-profile.svg"
 const challengeStore = useChallengeStore()
@@ -54,11 +55,17 @@ const grantRewardsForTest = async () => {
   isRewarding.value = true
   try {
     const response = await grantWeeklyRankingRewardsForTest()
-    alert(
-      response?.rewardedCount > 0
-        ? "주간 랭킹 보상이 지급되었습니다."
-        : "참여자가 2명 미만이라 주간 랭킹 보상을 지급할 수 없습니다.",
-    )
+    const rewardedPoint = Number(response?.rewardedPoint || 0)
+    if (rewardedPoint > 0) {
+      // 실제 포인트가 적립된 경우에는 전역 공통 적립 알림으로 안내함.
+      announcePointEarned(rewardedPoint)
+    } else {
+      alert(
+        response?.rewardedCount > 0
+          ? "이번 주 랭킹 보상이 지급되었습니다."
+          : "참여자가 2명 미만이라 주간 랭킹 보상을 지급할 수 없습니다.",
+      )
+    }
     // 지급 후 세션의 사용자 포인트를 강제로 다시 조회해 상단바를 갱신함.
     await userStore.restoreSession(true)
     await challengeStore.fetchWeeklyRanking({ force: true })
