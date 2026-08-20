@@ -59,6 +59,7 @@ def test_classify_calls_llm_once():
     assert result.confidence == 0.86
     assert client.chat.completions.call_count == 1
     assert client.chat.completions.calls[0]["model"] == "test-model"
+    assert client.chat.completions.calls[0]["reasoning_effort"] == "low"
 
 
 def test_classify_batch_calls_llm_once_for_all_items():
@@ -91,7 +92,8 @@ def test_classify_batch_calls_llm_once_for_all_items():
 
     assert [item.category for item in result.results] == ["LIVING", "FOOD"]
     assert client.chat.completions.call_count == 1
-    assert client.chat.completions.calls[0]["max_completion_tokens"] == 256
+    assert client.chat.completions.calls[0]["max_completion_tokens"] == 512
+    assert client.chat.completions.calls[0]["reasoning_effort"] == "low"
     assert client.chat.completions.calls[0]["messages"][1]["content"].count(
         "unknown"
     ) == 2
@@ -141,7 +143,7 @@ def test_classify_batch_logs_actual_token_usage(caplog):
     assert "promptTokens=120" in timing_logs[0]
     assert "completionTokens=30" in timing_logs[0]
     assert "totalTokens=150" in timing_logs[0]
-    assert "requestedCompletionTokens=256" in timing_logs[0]
+    assert "requestedCompletionTokens=512" in timing_logs[0]
     assert "success=True" in timing_logs[0]
 
 
