@@ -767,12 +767,10 @@ onMounted(() => {
 
 /* Dashboard-style visual treatment for the weekly ranking. */
 .ranking-page {
-  padding: 22px;
-  border: 1px solid #dcecff;
-  border-radius: 30px;
-  background:
-    radial-gradient(circle at 92% 0%, #dceeff 0, transparent 30%),
-    linear-gradient(145deg, #edf7ff 0%, #f8fbff 48%, #ffffff 100%);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .ranking-heading {
@@ -878,14 +876,14 @@ onMounted(() => {
 
 @media (max-width: 1100px) {
   .ranking-page {
-    padding: 16px 0;
+    padding: 0;
   }
 }
 
 @media (max-width: 767.98px) {
   .ranking-page {
-    padding: 10px 0;
-    border-radius: 20px;
+    padding: 0;
+    border-radius: 0;
   }
 
   .ranking-heading {
