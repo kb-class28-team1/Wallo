@@ -280,7 +280,7 @@ onMounted(async () => {
 <style scoped>
 .category-expense-view {
   width: 100%;
-  padding: var(--wallo-space-6) var(--wallo-space-4);
+  padding: 0 0 var(--wallo-space-6);
 }
 
 .back-button {
@@ -336,8 +336,7 @@ onMounted(async () => {
 
 @media (max-width: 575.98px) {
   .category-expense-view {
-    padding-right: var(--wallo-space-3);
-    padding-left: var(--wallo-space-3);
+    padding-bottom: var(--wallo-space-5);
   }
 
 }
