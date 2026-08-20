@@ -55,8 +55,7 @@ def test_non_database_payload_is_not_cached():
     assert (
         build_cache_key(
             {
-                "dataMode": "demo_json",
-                "profileId": 3,
+                "dataMode": "legacy",
                 "calculatedMetrics": {},
                 "profile": {},
             },
