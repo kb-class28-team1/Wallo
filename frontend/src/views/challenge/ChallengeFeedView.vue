@@ -56,6 +56,7 @@ const analysisStageMessage = ref("분석 준비 중...")
 const isGaugeTestRunning = ref(false)
 const gaugeTestProgress = ref(0)
 const gaugeTestStageMessage = ref("영상 분석중...")
+const TENOR_EMBED_SCRIPT_SRC = "https://tenor.com/embed.js"
 const isUploading = ref(false)
 const todayMissions = ref([])
 const isMissionLoading = ref(false)
@@ -155,6 +156,21 @@ const openGaugeTest = () => {
     }
   }, 75)
 }
+const reloadTenorEmbed = async () => {
+  if (typeof document === "undefined") return
+  await nextTick()
+  if (!document.querySelector(".analysis-tenor-embed")) return
+  document.querySelector("script[data-wallo-tenor-embed]")?.remove()
+  const script = document.createElement("script")
+  script.type = "text/javascript"
+  script.async = true
+  script.dataset.walloTenorEmbed = "true"
+  script.src = TENOR_EMBED_SCRIPT_SRC
+  document.body.appendChild(script)
+}
+watch(isAnalysisDisplayActive, (active) => {
+  if (active) reloadTenorEmbed()
+}, { flush: "post" })
 
 const FEED_STALE_TIME = 30 * 1000
 const MESSAGE_STALE_TIME = 15 * 1000
@@ -1366,23 +1382,21 @@ onBeforeUnmount(() => {
               @click="requestAnalysis"
             >
               <span v-if="isAnalysisDisplayActive" class="analysis-ocean-fill" aria-hidden="true"></span>
-              <span v-if="isAnalysisDisplayActive" class="analysis-surf-wave-loader" aria-hidden="true">
-                <img
-                  class="analysis-surf-wave-art"
-                  src="/assets/G_penguin_C_wave_surf.webp"
-                  alt=""
-                />
-                <i class="analysis-surf-wave-ripple ripple-one"></i>
-                <i class="analysis-surf-wave-ripple ripple-two"></i>
-                <i class="analysis-surf-wave-ripple ripple-three"></i>
+              <span v-if="isAnalysisDisplayActive" class="analysis-tenor-loader" aria-hidden="true">
+                <div
+                  class="tenor-gif-embed analysis-tenor-embed"
+                  data-postid="17147917170226623344"
+                  data-share-method="host"
+                  data-aspect-ratio="1"
+                  data-width="100%"
+                >
+                  <a
+                    href="https://tenor.com/view/labor-day-holiday-happy-labor-day-labor-day-weekend-ldw-gif-17147917170226623344"
+                  >
+                    Labor Day Holiday Sticker
+                  </a>
+                </div>
               </span>
-              <img
-                v-if="isAnalysisDisplayActive"
-                class="analysis-penguin-loader"
-                src="/assets/G_penguin_C_wave_surf.webp"
-                alt=""
-                aria-hidden="true"
-              />
               <span class="analysis-button-label">
                 {{ isAnalysisDisplayActive ? analysisDisplayStageMessage : "✨ AI에게 분석 맡기기" }}
               </span>
@@ -2418,84 +2432,38 @@ textarea {
   animation: analysis-ocean-shimmer 1.8s ease-in-out infinite;
   pointer-events: none;
 }
-.analysis-penguin-loader {
-  position: absolute;
-  bottom: 2px;
-  left: clamp(-60px, calc(var(--analysis-progress) - 60px), calc(100% - 120px));
-  z-index: 2;
-  width: 120px;
-  height: 80px;
-  object-fit: contain;
-  clip-path: inset(27% 0 7% 33%);
-  filter: drop-shadow(0 2px 2px rgba(34, 104, 145, 0.25));
-  pointer-events: none;
-  will-change: left, transform;
-  transform-origin: center bottom;
-  animation: analysis-penguin-bob 1.7s ease-in-out infinite;
-  transition: left 180ms linear;
-}
-.analysis-surf-wave-loader {
+.analysis-tenor-loader {
   position: absolute;
   right: auto;
-  bottom: 2px;
-  left: clamp(-60px, calc(var(--analysis-progress) - 60px), calc(100% - 120px));
-  z-index: 1;
-  width: 120px;
-  height: 80px;
+  bottom: -30px;
+  left: clamp(-75px, calc(var(--analysis-progress) - 75px), calc(100% - 150px));
+  z-index: 2;
+  width: 150px;
+  height: 150px;
+  overflow: visible;
   pointer-events: none;
   will-change: left, transform;
   animation: analysis-penguin-bob 1.7s ease-in-out infinite;
   transition: left 180ms linear;
 }
-.analysis-surf-wave-art {
+.analysis-tenor-embed {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: contain;
-  -webkit-mask-image: radial-gradient(
-    ellipse 32% 39% at 69% 61%,
-    transparent 0 96%,
-    #000 100%
-  );
-  mask-image: radial-gradient(
-    ellipse 32% 39% at 69% 61%,
-    transparent 0 96%,
-    #000 100%
-  );
+  max-width: none;
+  margin: 0;
 }
-.analysis-surf-wave-ripple {
-  position: absolute;
-  z-index: 1;
-  height: 9px;
-  border-top: 3px solid rgba(255, 255, 255, 0.86);
-  border-radius: 50%;
-  opacity: 0.8;
-  pointer-events: none;
-  animation: analysis-surf-ripple 0.95s ease-in-out infinite;
+.analysis-tenor-embed > a {
+  display: none;
 }
-.analysis-surf-wave-ripple.ripple-one {
-  bottom: 9px;
-  left: 29px;
-  width: 70px;
-}
-.analysis-surf-wave-ripple.ripple-two {
-  right: 3px;
-  bottom: 3px;
-  width: 48px;
-  border-top-width: 2px;
-  opacity: 0.62;
-  animation-delay: -0.34s;
-  animation-duration: 0.78s;
-}
-.analysis-surf-wave-ripple.ripple-three {
-  bottom: 18px;
-  left: 12px;
-  width: 34px;
-  border-top-width: 2px;
-  opacity: 0.56;
-  animation-delay: -0.58s;
-  animation-duration: 1.18s;
+.analysis-tenor-embed iframe,
+.analysis-tenor-embed img {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  border: 0;
 }
 .analysis-button-label {
   position: relative;
@@ -2526,15 +2494,6 @@ textarea {
     background-position: 120% 0;
   }
 }
-@keyframes analysis-surf-ripple {
-  0%,
-  100% {
-    transform: translateX(-5px) scaleX(0.88);
-  }
-  50% {
-    transform: translateX(7px) scaleX(1.08);
-  }
-}
 @keyframes analysis-penguin-bob {
   0%,
   100% {
@@ -2554,21 +2513,14 @@ textarea {
 }
 @media (prefers-reduced-motion: reduce) {
   .analysis-ocean-fill,
-  .analysis-penguin-loader,
-  .analysis-surf-wave-loader {
+  .analysis-tenor-loader {
     transition: none;
   }
   .analysis-ocean-fill::before,
   .analysis-ocean-fill::after {
     animation: none;
   }
-  .analysis-penguin-loader {
-    animation: none;
-  }
-  .analysis-surf-wave-loader {
-    animation: none;
-  }
-  .analysis-surf-wave-ripple {
+  .analysis-tenor-loader {
     animation: none;
   }
 }
