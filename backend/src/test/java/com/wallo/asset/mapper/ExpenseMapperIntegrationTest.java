@@ -1,6 +1,7 @@
 package com.wallo.asset.mapper;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -145,8 +146,29 @@ class ExpenseMapperIntegrationTest {
         assertEquals(2, transactions.size());
         assertEquals("활성 계좌 식비", transactions.get(0).getMerchantName());
         assertEquals("FOOD", transactions.get(0).getCategory());
+        assertEquals(1_200L, transactions.get(0).getAmount());
         assertEquals("활성 카드 쇼핑", transactions.get(1).getMerchantName());
         assertEquals("SHOPPING", transactions.get(1).getCategory());
+        assertEquals(800L, transactions.get(1).getAmount());
+        assertFalse(transactions.stream()
+                .anyMatch(transaction -> "CARD_WITHDRAWAL".equals(transaction.getCategory())));
+        assertFalse(transactions.stream()
+                .anyMatch(transaction -> "삭제된 기관 계좌 식비".equals(transaction.getMerchantName())));
+    }
+
+    @Test
+    void chatAndDashboardUseTheSameCardWithdrawalExclusion() {
+        ExpenseDto.SearchCondition condition = new ExpenseDto.SearchCondition(
+                "2026-08-01", "2026-08-31", 0, 20, 0
+        );
+
+        long dashboardExpense = expenseMapper.selectTotalExpense(9L, condition);
+        long chatExpense = expenseMapper.selectAllExpenseTransactions(9L).stream()
+                .mapToLong(ExpenseDto.AnalysisTransaction::getAmount)
+                .sum();
+
+        assertEquals(2_000L, dashboardExpense);
+        assertEquals(dashboardExpense, chatExpense);
     }
 
     @Test
@@ -224,7 +246,8 @@ class ExpenseMapperIntegrationTest {
                         (1, 1, '1111', '활성 카드', 'CREDIT', 'ACTIVE'),
                         (2, 2, '2222', '비활성 카드', 'CREDIT', 'ACTIVE'),
                         (3, 4, '3333', '월간 활성 카드', 'CREDIT', 'ACTIVE'),
-                        (4, 5, '4444', '월간 비활성 카드', 'CREDIT', 'ACTIVE')
+                        (4, 5, '4444', '월간 비활성 카드', 'CREDIT', 'ACTIVE'),
+                        (5, 6, '5555', '삭제된 기관 카드', 'CREDIT', 'ACTIVE')
                     """);
             statement.execute("""
                     CREATE TABLE TRANSACTIONS_INPUT (
@@ -301,7 +324,9 @@ class ExpenseMapperIntegrationTest {
                         (205, 9, NULL, 6, 'EXPENSE', 'DELIVERY', 'TEST', 7000, '삭제된 기관 계좌 식비',
                          'MONTHLY_TEST', 'TEST', '205', 'monthly-205', '2026-08-15', '13:00:00'),
                         (206, 9, 3, NULL, 'EXPENSE', 'CARD_WITHDRAWAL', 'TEST', 900, '카드 출금',
-                         'MONTHLY_TEST', 'TEST', '206', 'monthly-206', '2026-08-16', '14:00:00')
+                         'MONTHLY_TEST', 'TEST', '206', 'monthly-206', '2026-08-16', '14:00:00'),
+                        (207, 9, 5, NULL, 'EXPENSE', 'SHOPPING', 'TEST', 800, '삭제된 기관 카드 쇼핑',
+                         'MONTHLY_TEST', 'TEST', '207', 'monthly-207', '2026-08-17', '15:00:00')
                     """);
         }
     }

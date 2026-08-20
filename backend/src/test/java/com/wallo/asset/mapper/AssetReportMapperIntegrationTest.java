@@ -83,6 +83,8 @@ class AssetReportMapperIntegrationTest {
         insertCard(1L, "CREDIT");
         insertCard(2L, "CHECK");
         insertCard(3L, "PREPAID");
+        insertCardWithConnection(4L, 2L, "CREDIT");
+        insertCardWithConnection(5L, 3L, "CHECK");
 
         insertCardTransaction(7L, 1L, "EXPENSE", 3_000_000L, "2026-03-10");
         insertCardTransaction(7L, 2L, "EXPENSE", 8_500_000L, "2026-06-10");
@@ -91,6 +93,8 @@ class AssetReportMapperIntegrationTest {
         insertCardTransaction(8L, 1L, "EXPENSE", 7_000_000L, "2026-05-10");
         insertCardTransaction(7L, 1L, "EXPENSE", 4_000_000L, "2025-12-31");
         insertCardTransaction(7L, 2L, "EXPENSE", 6_000_000L, "2026-08-01");
+        insertCardTransaction(7L, 4L, "EXPENSE", 9_000_000L, "2026-05-11");
+        insertCardTransaction(7L, 5L, "EXPENSE", 8_000_000L, "2026-05-12");
 
         AssetReportDto.CardSpending spending = assetReportMapper.selectCardSpending(
                 7L,
@@ -140,12 +144,20 @@ class AssetReportMapperIntegrationTest {
 
     private void insertCard(long cardId, String cardType) throws Exception {
         insertConnection(100L + cardId, 7L, "ACTIVE");
+        insertCardWithConnection(cardId, 100L + cardId, cardType);
+    }
+
+    private void insertCardWithConnection(
+            long cardId,
+            long connectionId,
+            String cardType
+    ) throws Exception {
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(
                      "INSERT INTO CARDS (card_id, connection_id, card_type, status) VALUES (?, ?, ?, 'ACTIVE')"
              )) {
             statement.setLong(1, cardId);
-            statement.setLong(2, 100L + cardId);
+            statement.setLong(2, connectionId);
             statement.setString(3, cardType);
             statement.executeUpdate();
         }

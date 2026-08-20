@@ -63,6 +63,11 @@ class BudgetMapperIntegrationTest {
         insertTransaction(7L, "EXPENSE", "FOOD", 500L, "2026-07-31");
         insertTransactionWithAccount(7L, 2L, "EXPENSE", "FOOD", 900L, "2026-08-06");
         insertTransactionWithAccount(7L, 3L, "EXPENSE", "OTHER", 800L, "2026-08-07");
+        insertCardTransaction(7L, 1L, "EXPENSE", "FOOD", 40L, "2026-08-08");
+        insertCardTransaction(7L, 2L, "EXPENSE", "FOOD", 900L, "2026-08-09");
+        insertCardTransaction(7L, 3L, "EXPENSE", "FOOD", 800L, "2026-08-10");
+        insertCardTransaction(7L, 1L, "EXPENSE", "CARD_WITHDRAWAL", 700L, "2026-08-11");
+        insertCardTransaction(7L, 1L, "TRANSFER", "SEND", 600L, "2026-08-12");
 
         BudgetDto.Plan plan = budgetMapper.selectApplicablePlan(7L, "2026-09");
 
@@ -78,11 +83,16 @@ class BudgetMapperIntegrationTest {
         );
 
         assertEquals(3, expenses.size());
-        assertEquals(280L, budgetMapper.selectSpentAmount(
+        assertEquals(320L, budgetMapper.selectSpentAmount(
                 7L,
                 "2026-08-01",
                 "2026-08-31"
         ));
+        assertEquals(160L, expenses.stream()
+                .filter(item -> "FOOD".equals(item.getCategory()))
+                .findFirst()
+                .orElseThrow()
+                .getSpentAmount());
         assertEquals(80L, expenses.stream()
                 .filter(item -> "ETC".equals(item.getCategory()))
                 .findFirst()
@@ -111,6 +121,14 @@ class BudgetMapperIntegrationTest {
                         (1, 1, 'ACTIVE'),
                         (2, 2, 'ACTIVE'),
                         (3, 3, 'ACTIVE')
+                    """);
+            statement.execute("""
+                    INSERT INTO CARDS (
+                        card_id, connection_id, card_number, card_name, card_type, status
+                    ) VALUES
+                        (1, 1, '1111', '활성 카드', 'CREDIT', 'ACTIVE'),
+                        (2, 2, '2222', '비활성 카드', 'CREDIT', 'ACTIVE'),
+                        (3, 3, '3333', '삭제된 기관 카드', 'CREDIT', 'ACTIVE')
                     """);
         }
     }
@@ -197,6 +215,38 @@ class BudgetMapperIntegrationTest {
             statement.setString(4, category);
             statement.setLong(5, amount);
             statement.setString(6, "TX-" + sequence);
+            statement.setString(7, String.format("%064d", sequence));
+            statement.setDate(8, Date.valueOf(transactionDate));
+            statement.setTime(9, Time.valueOf("10:00:00"));
+            statement.executeUpdate();
+        }
+    }
+
+    private void insertCardTransaction(
+            long userId,
+            long cardId,
+            String type,
+            String category,
+            long amount,
+            String transactionDate
+    ) throws Exception {
+        long sequence = ++sourceSequence;
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement("""
+                     INSERT INTO TRANSACTIONS (
+                         user_id, card_id, account_id, type, category,
+                         category_source, amount, merchant_name,
+                         source_type, source_organization_code, source_transaction_id,
+                         source_dedup_key, transaction_date, transaction_time
+                     ) VALUES (?, ?, NULL, ?, ?, 'TEST', ?, 'test card merchant',
+                               'CARD_APPROVAL', 'TEST', ?, ?, ?, ?)
+                     """)) {
+            statement.setLong(1, userId);
+            statement.setLong(2, cardId);
+            statement.setString(3, type);
+            statement.setString(4, category);
+            statement.setLong(5, amount);
+            statement.setString(6, "CARD-TX-" + sequence);
             statement.setString(7, String.format("%064d", sequence));
             statement.setDate(8, Date.valueOf(transactionDate));
             statement.setTime(9, Time.valueOf("10:00:00"));

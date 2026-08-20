@@ -55,6 +55,10 @@ class ChatServiceTest {
 
         assertEquals("분석 결과입니다.", response.answer());
         verify(contextService).getContext(7L);
+        assertEquals(120_000_000L, expected.assetAnalysisContext().totalAssets());
+        assertEquals(100_000_000L, expected.assetAnalysisContext().netAssets());
+        assertEquals(3_000_000L, expected.assetAnalysisContext().monthlyExpense());
+        assertEquals("2026-08-20T12:00:00+09:00", expected.assetAnalysisContext().asOf());
         verify(pythonAiClient).chat(expected);
     }
 

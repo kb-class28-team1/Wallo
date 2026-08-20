@@ -5,7 +5,9 @@ app.routes를 직접 순회하는 대신 app.openapi()로 실제 노출되는 �
 실제로 서비스되는 경로 목록(OpenAPI 스키마)을 기준으로 검증하는 편이 더 안정적이다.
 """
 
+import ast
 import importlib
+from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
@@ -67,6 +69,31 @@ def test_specialized_agents_are_not_registered_directly_in_application():
 
     assert not hasattr(application_module, "CategoryAgent")
     assert not hasattr(application_module, "ConsumptionInsightAgent")
+
+
+def test_financial_ai_does_not_import_a_database_client():
+    financial_root = Path(__file__).parents[1] / "app" / "agents" / "financial"
+    forbidden_modules = {
+        "asyncpg",
+        "databases",
+        "mysql",
+        "psycopg",
+        "psycopg2",
+        "pymysql",
+        "sqlite3",
+        "sqlalchemy",
+    }
+    imported_modules = set()
+
+    for source_path in financial_root.rglob("*.py"):
+        tree = ast.parse(source_path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                imported_modules.update(alias.name.split(".")[0] for alias in node.names)
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                imported_modules.add(node.module.split(".")[0])
+
+    assert imported_modules.isdisjoint(forbidden_modules)
 
 
 def test_health_endpoint_is_registered():

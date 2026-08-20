@@ -2,6 +2,7 @@ package com.wallo.asset.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.wallo.asset.dto.AssetAnalysisContextDto;
@@ -55,5 +56,6 @@ class AssetAnalysisContextServiceTest {
         assertEquals("DEPOSIT", result.assetComposition().get(0).category());
         assertEquals(62.5, result.assetComposition().get(0).sharePercent());
         assertEquals("2026-08-15T12:34:56+09:00", result.asOf());
+        verify(expenseMapper).selectMonthlyCashflow(7L, "2026-08-01", "2026-08-31");
     }
 }
