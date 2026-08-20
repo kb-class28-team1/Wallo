@@ -2385,11 +2385,19 @@ textarea {
   left: 0;
   z-index: 0;
   width: var(--analysis-progress);
-  height: 54%;
+  height: 50%;
   overflow: hidden;
+  --analysis-wave-light: #a9efff;
+  --analysis-wave-main: #39bee9;
+  --analysis-wave-deep: #147eb9;
   border-radius: 0 0 0 13px;
   background:
-    linear-gradient(180deg, #36d2f2 0%, #16a9df 52%, #0b78be 100%);
+    linear-gradient(
+      180deg,
+      var(--analysis-wave-light) 0%,
+      var(--analysis-wave-main) 48%,
+      var(--analysis-wave-deep) 100%
+    );
   background-size: 100% 100%;
   will-change: width;
   transition: width 180ms linear;
@@ -2397,25 +2405,25 @@ textarea {
 }
 .analysis-ocean-fill::before {
   position: absolute;
-  top: -4px;
-  left: -8px;
+  top: -8px;
+  left: -16px;
   width: 120%;
-  height: 11px;
+  height: 18px;
   content: "";
   background:
     radial-gradient(
-      ellipse at 12px 11px,
-      rgba(255, 255, 255, 0.72) 0 5px,
-      transparent 6px 16px
+      ellipse at 18px 18px,
+      rgba(239, 253, 255, 0.94) 0 7px,
+      transparent 8px 21px
     ),
     radial-gradient(
-      ellipse at 18px 7px,
-      rgba(206, 247, 255, 0.7) 0 3px,
-      transparent 4px 13px
+      ellipse at 34px 13px,
+      rgba(255, 255, 255, 0.7) 0 4px,
+      transparent 5px 17px
     );
-  background-position: 0 0, 22px 4px;
-  background-size: 48px 12px, 62px 10px;
-  animation: analysis-ocean-wave 0.75s linear infinite;
+  background-position: 0 0, 26px 2px;
+  background-size: 56px 18px, 72px 16px;
+  animation: analysis-ocean-wave 0.8s linear infinite;
   will-change: transform;
 }
 .analysis-ocean-fill::after {
