@@ -370,7 +370,7 @@ onMounted(loadCurrentChallenge)
   display: grid;
   place-items: center;
   color: #fff;
-  background: #7062de;
+  background: #4f8fe8;
   border-radius: 50%;
   font-size: 1.5rem;
   font-weight: 900;
@@ -379,7 +379,7 @@ onMounted(loadCurrentChallenge)
 .retry-button {
   padding: 11px 22px;
   color: #fff;
-  background: #7062de;
+  background: #4f8fe8;
   border-radius: 12px;
   font-weight: 700;
 }
@@ -399,7 +399,7 @@ onMounted(loadCurrentChallenge)
 .eyebrow {
   display: block;
   margin-bottom: 12px;
-  color: #7568da;
+  color: #5c8fd5;
   font-size: 0.78rem;
   font-weight: 850;
   letter-spacing: 0.14em;
@@ -446,7 +446,7 @@ onMounted(loadCurrentChallenge)
   grid-template-columns: 1fr minmax(260px, 0.45fr);
   gap: 28px;
   padding: 34px;
-  background: linear-gradient(135deg, #6e62d9 0%, #8479e6 100%);
+  background: linear-gradient(135deg, #4d89d3 0%, #86b3e8 100%);
   border-radius: 26px;
   box-shadow: 0 18px 42px rgba(100, 88, 201, 0.2);
 }
@@ -486,7 +486,7 @@ onMounted(loadCurrentChallenge)
 
 .invite-panel {
   padding: 20px 24px;
-  color: #6d62cc;
+  color: #4f7fc8;
   background: #fff;
   border-radius: 18px;
 }
@@ -516,8 +516,8 @@ onMounted(loadCurrentChallenge)
   height: 38px;
   display: grid;
   place-items: center;
-  color: #7569da;
-  background: #f1effd;
+  color: #5d8fd5;
+  background: #ebf4ff;
   border: 0;
   border-radius: 11px;
 }
@@ -555,8 +555,8 @@ onMounted(loadCurrentChallenge)
   height: 44px;
   display: grid;
   place-items: center;
-  color: #7467da;
-  background: #f1effd;
+  color: #5d8fd5;
+  background: #ebf4ff;
   border-radius: 13px;
   font-size: 1.1rem;
 }
@@ -606,7 +606,7 @@ onMounted(loadCurrentChallenge)
 }
 
 .entry-hero h1 span {
-  color: #7568da;
+  color: #5c8fd5;
 }
 
 .entry-hero p {
@@ -641,7 +641,7 @@ onMounted(loadCurrentChallenge)
 }
 
 .form-tabs button.active {
-  color: #6255ce;
+  color: #4b7fc7;
   background: #fff;
   box-shadow: 0 5px 14px rgba(52, 44, 110, 0.08);
 }
@@ -681,8 +681,8 @@ onMounted(loadCurrentChallenge)
   display: grid;
   flex: 0 0 42px;
   place-items: center;
-  color: #7568da;
-  background: #eeebff;
+  color: #5c8fd5;
+  background: #e9f3ff;
   border-radius: 13px;
   font-size: 0.8rem;
   font-weight: 850;
@@ -719,7 +719,7 @@ onMounted(loadCurrentChallenge)
 
 .challenge-input:focus {
   background-color: #fff;
-  border-color: #867be4;
+  border-color: #8aaee0;
   box-shadow: 0 0 0 4px rgba(118, 104, 218, 0.1);
 }
 
@@ -743,7 +743,7 @@ onMounted(loadCurrentChallenge)
   min-height: 54px;
   margin-top: auto;
   color: #fff;
-  background: #7062dc;
+  background: #4f8fe8;
   border: 0;
   border-radius: 14px;
   font-weight: 800;

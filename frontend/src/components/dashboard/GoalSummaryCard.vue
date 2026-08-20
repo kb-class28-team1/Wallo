@@ -346,7 +346,7 @@ const formatGoalDate = (date) => {
 .goal-carousel-button:hover,
 .goal-carousel-button:focus {
   color: var(--wallo-color-primary);
-  background: rgb(112 98 222 / 10%);
+  background: rgb(79 143 232 / 10%);
 }
 
 .goal-carousel-position {

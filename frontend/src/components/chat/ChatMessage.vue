@@ -175,7 +175,7 @@ onBeforeUnmount(completeTyping)
 
 .message-row--user .message-content {
   color: #fff;
-  background: #7062de;
+  background: #4f8fe8;
 }
 
 .message-content--markdown {
@@ -248,11 +248,11 @@ onBeforeUnmount(completeTyping)
 .message-content--markdown :deep(blockquote) {
   padding-left: 12px;
   color: #666d80;
-  border-left: 3px solid #9b91e7;
+  border-left: 3px solid #8fb3e8;
 }
 
 .message-content--markdown :deep(a) {
-  color: #5749c5;
+  color: #3f78cd;
 }
 
 .typing-cursor {
@@ -261,7 +261,7 @@ onBeforeUnmount(completeTyping)
   height: 1em;
   margin: 4px 0 0 4px;
   vertical-align: text-bottom;
-  background: #7062de;
+  background: #4f8fe8;
   animation: cursor-blink 0.8s step-end infinite;
 }
 

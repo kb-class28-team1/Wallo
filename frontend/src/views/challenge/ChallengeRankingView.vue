@@ -292,11 +292,11 @@ onMounted(() => {
 }
 
 .test-reward-button {
-  border: 1px solid #c9c4ff;
+  border: 1px solid #c9def7;
   border-radius: 9px;
   padding: 8px 12px;
-  background: #f3f1ff;
-  color: #6357d9;
+  background: #eef7ff;
+  color: #4c80cf;
   font-size: 12px;
   font-weight: 700;
 }
@@ -325,7 +325,7 @@ onMounted(() => {
   border-radius: 18px;
   background: #fff;
   color: #7b83a5;
-  box-shadow: 0 5px 20px rgb(48 60 110 / 5%);
+  box-shadow: 0 5px 20px rgb(52 106 162 / 5%);
 }
 
 .ranking-state-card.error-state {
@@ -563,7 +563,7 @@ onMounted(() => {
 .side-card {
   border-radius: 18px;
   background: #fff;
-  box-shadow: 0 5px 20px rgb(48 60 110 / 5%);
+  box-shadow: 0 5px 20px rgb(52 106 162 / 5%);
 }
 
 .ranking-table-card {
@@ -611,7 +611,7 @@ onMounted(() => {
   height: 28px;
   padding: 5px;
   border-radius: 50%;
-  background: #f0efff;
+  background: #eaf4ff;
 }
 
 .ranking-notice {
@@ -651,7 +651,7 @@ onMounted(() => {
   padding: 6px 9px;
   border-radius: 10px;
   background: #eeedff;
-  color: #756bf5;
+  color: #6c9fe7;
 }
 
 .my-rank-stats {
@@ -935,8 +935,8 @@ onMounted(() => {
 }
 
 .podium-card.rank-3 {
-  background: linear-gradient(180deg, #eee7ff 0%, #ffffff 100%);
-  border-color: #b7a1ed;
+  background: linear-gradient(180deg, #edf6ff 0%, #ffffff 100%);
+  border-color: #9ebfea;
 }
 
 .podium-card-placeholder {
@@ -970,7 +970,7 @@ onMounted(() => {
 }
 
 .rank-3 .rank-badge {
-  background: #9774df;
+  background: #73a3e7;
   color: #fff;
 }
 
@@ -987,7 +987,7 @@ onMounted(() => {
 }
 
 .podium-card.rank-3 {
-  --ranking-accent: #674aa0;
+  --ranking-accent: #4f83c7;
 }
 
 .podium-card .podium-nickname,

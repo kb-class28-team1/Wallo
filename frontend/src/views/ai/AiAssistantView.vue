@@ -1034,7 +1034,7 @@ onBeforeUnmount(() => {
   padding: 1.35rem 1.5rem;
   border: 2px dashed #c9c5ff;
   border-radius: 20px;
-  background: linear-gradient(135deg, #fff 0%, #f7f6ff 100%);
+  background: linear-gradient(135deg, #fff 0%, #f5faff 100%);
 }
 
 .character-wrap {
@@ -1053,7 +1053,7 @@ onBeforeUnmount(() => {
   position: absolute;
   top: -24px;
   right: 4px;
-  color: #8a7df2;
+  color: #7fa9e8;
   font-size: 2.75rem;
   font-weight: 800;
 }
@@ -1070,7 +1070,7 @@ onBeforeUnmount(() => {
   border: 0;
   border-radius: 14px;
   color: #fff;
-  background: linear-gradient(135deg, #7769f5, #6453e8);
+  background: linear-gradient(135deg, #71a1e8, #5a91dc);
   box-shadow: 0 10px 24px rgb(100 83 232 / 22%);
   font-weight: 700;
 }
@@ -1078,7 +1078,7 @@ onBeforeUnmount(() => {
 .goal-button:hover,
 .goal-button:focus {
   color: #fff;
-  background: linear-gradient(135deg, #695ce6, #5644d8);
+  background: linear-gradient(135deg, #6599e2, #477fc8);
 }
 
 .goal-coaching-inline {
@@ -1090,7 +1090,7 @@ onBeforeUnmount(() => {
   padding: 0.85rem 1.15rem;
   border: 1px solid #dedafd;
   border-radius: 18px;
-  background: linear-gradient(135deg, #f7f6ff 0%, #eeecff 100%);
+  background: linear-gradient(135deg, #f5faff 0%, #eaf4ff 100%);
 }
 
 .goal-coaching-copy {
@@ -1102,7 +1102,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 0.4rem;
   margin-bottom: 0.45rem;
-  color: #6555df;
+  color: #4d85dd;
   font-size: 0.82rem;
   font-weight: 800;
 }
@@ -1147,7 +1147,7 @@ onBeforeUnmount(() => {
   justify-content: center;
   border-radius: 50%;
   color: #fff;
-  background: linear-gradient(135deg, #7769f5, #5f4fd9);
+  background: linear-gradient(135deg, #71a1e8, #4d86d1);
   box-shadow: 0 8px 18px rgb(100 83 232 / 20%);
   font-size: 0.68rem;
 }
@@ -1155,7 +1155,7 @@ onBeforeUnmount(() => {
 .mission-state,
 .mission-empty {
   border-radius: 16px;
-  background: #f8f8fe;
+  background: #f6faff;
 }
 
 .mission-empty {
@@ -1191,7 +1191,7 @@ onBeforeUnmount(() => {
 
 .mission-list-item.completed {
   border-color: #cec9fa;
-  background: #f8f7ff;
+  background: #f6faff;
 }
 
 .mission-icon {
@@ -1202,7 +1202,7 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   border-radius: 12px;
-  background: #eeecff;
+  background: #eaf4ff;
   font-size: 1.2rem;
 }
 
@@ -1238,7 +1238,7 @@ onBeforeUnmount(() => {
   overflow: hidden;
   padding: 0.45rem 0.55rem;
   border-radius: 9px;
-  background: #f3f1ff;
+  background: #eef7ff;
   color: #555d73;
   font-size: 0.76rem;
   line-height: 1.45;
@@ -1248,7 +1248,7 @@ onBeforeUnmount(() => {
 
 .mission-guide b {
   margin-right: 0.25rem;
-  color: #6555df;
+  color: #4d85dd;
   font-size: 0.72rem;
 }
 
@@ -1295,8 +1295,8 @@ onBeforeUnmount(() => {
     grid-column: 1 / -1;
     min-height: 34px;
     opacity: 1;
-    color: #6555df;
-    background: #f3f1ff;
+    color: #4d85dd;
+    background: #eef7ff;
     pointer-events: auto;
   }
 
@@ -1318,7 +1318,7 @@ onBeforeUnmount(() => {
 }
 
 .mission-list-item.completed .mission-check-icon {
-  color: #7162eb;
+  color: #548be0;
 }
 
 .roadmap-list {
@@ -1335,7 +1335,7 @@ onBeforeUnmount(() => {
   scroll-behavior: smooth;
   scroll-padding-inline: 0.5rem;
   scroll-snap-type: x mandatory;
-  scrollbar-color: #c8c3fb #f1f0fa;
+  scrollbar-color: #c7ddf7 #f1f0fa;
   scrollbar-width: thin;
 }
 
@@ -1377,7 +1377,7 @@ onBeforeUnmount(() => {
   padding: 0;
   border: 0;
   border-radius: var(--wallo-radius-md);
-  color: #6555df;
+  color: #4d85dd;
   background: transparent;
   pointer-events: auto;
   transform: translateY(-50%);
@@ -1391,8 +1391,8 @@ onBeforeUnmount(() => {
 
 .roadmap-navigation-button:hover,
 .roadmap-navigation-button:focus-visible {
-  color: #7567e9;
-  background: rgb(112 98 222 / 8%);
+  color: #6a9ce3;
+  background: rgb(79 143 232 / 8%);
 }
 
 .roadmap-navigation-button:first-child {
@@ -1416,8 +1416,8 @@ onBeforeUnmount(() => {
 }
 
 .roadmap-item.active {
-  border: 2px solid #7a6df0;
-  background: #fbfaff;
+  border: 2px solid #77a8e7;
+  background: #f7fbff;
 }
 
 .step-number {
@@ -1437,7 +1437,7 @@ onBeforeUnmount(() => {
 
 .active .step-number {
   color: #fff;
-  background: #7162eb;
+  background: #548be0;
 }
 
 .step-icon {
@@ -1454,8 +1454,8 @@ onBeforeUnmount(() => {
 }
 
 .active .step-icon {
-  color: #6b5ce8;
-  background: #ebe9ff;
+  color: #659be8;
+  background: #e8f3ff;
 }
 
 .step-copy {
@@ -1485,14 +1485,14 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 1.25rem;
   padding: 1.5rem;
-  border: 1px solid #e8e8f4;
+  border: 1px solid #e7f1f9;
   border-radius: 18px;
-  background: linear-gradient(135deg, #fff, #faf9ff);
+  background: linear-gradient(135deg, #fff, #f8fbff);
 }
 
 .benefit-icon {
   flex: 0 0 auto;
-  color: #7162eb;
+  color: #548be0;
   font-size: 3rem;
 }
 
@@ -1504,17 +1504,17 @@ onBeforeUnmount(() => {
 .goal-status-badge {
   padding: 0.4rem 0.75rem;
   border-radius: 999px;
-  color: #6555df;
-  background: #eeecff;
+  color: #4d85dd;
+  background: #eaf4ff;
   font-size: 0.8rem;
   font-weight: 700;
 }
 
 .goal-chat-button {
   padding: 0.55rem 0.9rem;
-  border: 1px solid #7567e9;
+  border: 1px solid #6a9ce3;
   border-radius: 12px;
-  color: #6555df;
+  color: #4d85dd;
   background: #fff;
   font-size: 0.85rem;
   font-weight: 700;
@@ -1522,9 +1522,9 @@ onBeforeUnmount(() => {
 
 .goal-chat-button:hover,
 .goal-chat-button:focus {
-  border-color: #6555df;
+  border-color: #4d85dd;
   color: #fff;
-  background: #6555df;
+  background: #4d85dd;
 }
 
 .goal-summary {
@@ -1541,13 +1541,13 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   border-radius: 22px;
-  color: #6d5dea;
-  background: #eeecff;
+  color: #568bd6;
+  background: #eaf4ff;
   font-size: 1.75rem;
 }
 
 .goal-type {
-  color: #7568e7;
+  color: #6b9ee5;
   font-size: 0.8rem;
   font-weight: 700;
 }
@@ -1555,7 +1555,7 @@ onBeforeUnmount(() => {
 .goal-progress-panel {
   padding: 1rem 1.2rem;
   border-radius: 18px;
-  background: #f8f8fe;
+  background: #f6faff;
 }
 
 .goal-current-amount {
@@ -1571,7 +1571,7 @@ onBeforeUnmount(() => {
 }
 
 .goal-rate {
-  color: #6455df;
+  color: #4e84d5;
   font-size: 1.1rem;
 }
 
@@ -1583,7 +1583,7 @@ onBeforeUnmount(() => {
 
 .goal-progress .progress-bar {
   border-radius: inherit;
-  background: linear-gradient(90deg, #7567ee, #5e4fde);
+  background: linear-gradient(90deg, #6e9fe8, #4b87d8);
 }
 
 .goal-meta > div {
@@ -1599,24 +1599,24 @@ onBeforeUnmount(() => {
 }
 
 .roadmap-item.completed:not(.active) {
-  border-color: #c8c3fb;
-  background: #faf9ff;
+  border-color: #c7ddf7;
+  background: #f8fbff;
 }
 
 .roadmap-item.completed .step-number {
   color: #fff;
-  background: #8275ec;
+  background: #7da9e5;
 }
 
 .step-date {
-  color: #7162e4 !important;
+  color: #6095dc !important;
   font-weight: 700;
 }
 
 .roadmap-state {
   padding: 1.5rem;
   border-radius: 16px;
-  background: #f8f8fe;
+  background: #f6faff;
   text-align: center;
 }
 
@@ -1636,7 +1636,7 @@ onBeforeUnmount(() => {
   align-items: flex-start;
   gap: 1rem;
   padding: 1.4rem;
-  border: 1px solid #e8e8f4;
+  border: 1px solid #e7f1f9;
   border-radius: 18px;
   background: #fcfcff;
 }
@@ -1649,8 +1649,8 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   border-radius: 14px;
-  color: #6d5dea;
-  background: #eeecff;
+  color: #568bd6;
+  background: #eaf4ff;
   font-size: 1.35rem;
 }
 

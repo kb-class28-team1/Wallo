@@ -51,7 +51,7 @@ const expenseCategoryColor = (category) => {
     (item) => item.category === category,
   )
 
-  return props.chartData.datasets[0].backgroundColor[categoryIndex] ?? "#8170ff"
+  return props.chartData.datasets[0].backgroundColor[categoryIndex] ?? "#6b9be3"
 }
 
 const expenseCategoryRate = (amount) => {
