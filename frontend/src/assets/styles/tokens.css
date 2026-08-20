@@ -47,10 +47,20 @@
   --wallo-page-gutter: 32px;
   --wallo-page-gutter-mobile: 20px;
   --wallo-content-max-width: 1180px;
+  --wallo-page-title-size: clamp(1.5rem, 2vw, 2rem);
+  --wallo-page-header-margin-top: var(--wallo-space-6);
+  --wallo-page-header-margin-bottom: var(--wallo-space-6);
 
   --bs-primary: var(--wallo-color-primary);
   --bs-primary-rgb: 112, 98, 222;
   --bs-link-color: var(--wallo-color-primary);
   --bs-link-hover-color: var(--wallo-color-primary-hover);
   --bs-focus-ring-color: rgb(112 98 222 / 25%);
+}
+
+@media (max-width: 576px) {
+  :root {
+    --wallo-page-header-margin-top: var(--wallo-space-5);
+    --wallo-page-header-margin-bottom: var(--wallo-space-5);
+  }
 }
