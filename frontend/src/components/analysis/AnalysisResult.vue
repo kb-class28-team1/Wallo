@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from "vue"
+import { computed, ref } from "vue"
 import BudgetGauge from "./BudgetGauge.vue"
 import CategoryOverview from "./CategoryOverview.vue"
 import InsufficientDataNotice from "./InsufficientDataNotice.vue"
@@ -7,7 +7,7 @@ import PositiveSignalList from "./PositiveSignalList.vue"
 import RecurringPatternCard from "./RecurringPatternCard.vue"
 import SpendingSignalList from "./SpendingSignalList.vue"
 import SummaryMetrics from "./SummaryMetrics.vue"
-import { formatWon } from "@/types/consumptionAnalysis"
+import { categoryLabel, formatWon } from "@/types/consumptionAnalysis"
 
 const SPENDING_REPORT_IMAGES = [
   "03_스트레칭.png",
@@ -28,7 +28,11 @@ const randomSpendingReportImage = () => {
   return `/images/spending/${SPENDING_REPORT_IMAGES[index]}`
 }
 
-const props = defineProps({ analysis: { type: Object, required: true } })
+const props = defineProps({
+  analysis: { type: Object, required: true },
+  compact: { type: Boolean, default: false },
+})
+const expanded = ref(false)
 const spendingReportImage = randomSpendingReportImage()
 const signals = computed(() => props.analysis.signals || {})
 const focus = computed(() => props.analysis.focus || "OVERVIEW")
@@ -50,6 +54,12 @@ const showBudget = computed(() => allows("BUDGET"))
 const showCategories = computed(() => allows("CATEGORY"))
 const showPatterns = computed(() => allows("PATTERN"))
 const showSubscriptions = computed(() => allows("SUBSCRIPTION"))
+const topCategories = computed(() => [...(signals.value.categoryOverview || [])]
+  .sort((left, right) => Number(right.current || 0) - Number(left.current || 0))
+  .slice(0, 3))
+const deltaClass = computed(() => Number(props.analysis.summary?.deltaAmount) <= 0
+  ? "text-success"
+  : "text-danger")
 </script>
 
 <template>
@@ -58,7 +68,32 @@ const showSubscriptions = computed(() => allows("SUBSCRIPTION"))
       v-if="!analysis.hasEnoughData"
       :info="analysis.insufficient"
     />
-    <div class="d-flex flex-column gap-2" :class="{ 'mt-2': !analysis.hasEnoughData }">
+    <div v-if="compact && analysis.summary" class="consumption-overview">
+      <div class="consumption-overview__hero">
+        <span>{{ analysis.period?.label || "현재 기간" }} 총지출</span>
+        <strong>{{ formatWon(analysis.summary.currentTotal) }}</strong>
+        <small :class="deltaClass">
+          전 기간보다 {{ formatWon(Math.abs(analysis.summary.deltaAmount || 0)) }}
+          {{ Number(analysis.summary.deltaAmount) <= 0 ? "줄었어요" : "늘었어요" }}
+        </small>
+      </div>
+      <div v-if="topCategories.length" class="consumption-top-categories">
+        <div class="consumption-overview__label">지출이 큰 카테고리</div>
+        <div v-for="item in topCategories" :key="item.categoryCode" class="consumption-category-row">
+          <span>{{ categoryLabel(item.categoryCode) }}</span>
+          <strong>{{ formatWon(item.current) }}</strong>
+        </div>
+      </div>
+      <div v-if="showCaution" class="consumption-highlight consumption-highlight--warning">
+        <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+        <div><span>주의해서 볼 소비가 있어요</span><small>상세 분석에서 증가·신규 지출을 확인하세요.</small></div>
+      </div>
+      <div v-else-if="showGood" class="consumption-highlight consumption-highlight--good">
+        <i class="bi bi-check2-circle" aria-hidden="true"></i>
+        <div><span>좋은 소비 변화가 보여요</span><small>이 흐름을 다음 기간에도 유지해보세요.</small></div>
+      </div>
+    </div>
+    <div v-if="!compact || expanded" class="d-flex flex-column gap-2" :class="{ 'mt-2': !analysis.hasEnoughData }">
       <div v-if="showSummary && analysis.summary" class="analysis-card">
         <SummaryMetrics :summary="analysis.summary" :period-label="analysis.period?.label" />
       </div>
@@ -118,6 +153,16 @@ const showSubscriptions = computed(() => allows("SUBSCRIPTION"))
         <span class="text-secondary">현재 기준을 충족하는 정기결제 후보가 없어요.</span>
       </div>
     </div>
+    <button
+      v-if="compact && analysis.summary"
+      type="button"
+      class="analysis-detail-toggle mt-2"
+      :aria-expanded="expanded"
+      @click="expanded = !expanded"
+    >
+      {{ expanded ? "상세 내용 접기" : "전체 분석 자세히 보기" }}
+      <i :class="expanded ? 'bi bi-chevron-up' : 'bi bi-chevron-down'" aria-hidden="true"></i>
+    </button>
     <RouterLink class="report-link mt-2" :to="{ name: 'expenses' }">
       <span class="report-link__icon">
         <img :src="spendingReportImage" alt="" />
@@ -133,7 +178,24 @@ const showSubscriptions = computed(() => allows("SUBSCRIPTION"))
 
 <style scoped>
 .consumption-analysis { display: flex; width: min(100%, 680px); flex-direction: column; margin-bottom: 0.75rem; }
-.analysis-card { padding: 1rem; background: #fff; border: 1px solid #e7f2fa; border-radius: 1rem; box-shadow: 0 0.25rem 0.8rem rgba(57, 45, 110, 0.06); }
+.consumption-overview { display: grid; gap: 0.75rem; }
+.consumption-overview__hero { padding: 1.4rem; background: linear-gradient(135deg, #eff7ff, #f8fbff); border: 1px solid var(--wallo-color-border); border-radius: 1rem; }
+.consumption-overview__hero span, .consumption-overview__hero small { display: block; }
+.consumption-overview__hero span, .consumption-overview__label { color: var(--wallo-color-text-muted); font-size: 0.76rem; }
+.consumption-overview__hero strong { display: block; margin: 0.35rem 0; color: var(--wallo-color-text); font-size: clamp(1.6rem, 4vw, 2.2rem); }
+.consumption-top-categories { padding: 1rem; background: var(--wallo-color-surface-soft); border-radius: 0.9rem; }
+.consumption-overview__label { margin-bottom: 0.45rem; font-weight: 700; }
+.consumption-category-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.55rem 0; border-bottom: 1px solid var(--wallo-color-border-soft); }
+.consumption-category-row:last-child { border-bottom: 0; }
+.consumption-highlight { display: flex; align-items: flex-start; gap: 0.7rem; padding: 0.9rem 1rem; border-radius: 0.85rem; }
+.consumption-highlight span, .consumption-highlight small { display: block; }
+.consumption-highlight small { margin-top: 0.2rem; }
+.consumption-highlight--warning { color: #805d18; background: #fff9e9; }
+.consumption-highlight--good { color: #176b4d; background: #f2faf5; }
+.analysis-detail-toggle { display: flex; width: 100%; align-items: center; justify-content: center; gap: 0.45rem; padding: 0.75rem; color: var(--wallo-color-primary-hover); background: transparent; border: 1px solid var(--wallo-color-border); border-radius: 0.8rem; font: inherit; font-size: 0.85rem; font-weight: 700; }
+.analysis-detail-toggle:hover { background: var(--wallo-color-info-bg); }
+.analysis-detail-toggle:focus-visible { outline: 0; box-shadow: var(--wallo-focus-ring); }
+.analysis-card { padding: 1rem; background: var(--wallo-color-surface); border: 1px solid var(--wallo-color-border); border-radius: 1rem; box-shadow: var(--wallo-shadow-card); }
 .analysis-card--good { background: #f3fbf6; border-color: #d7efe0; }
 .analysis-card--caution { background: #fffbef; border-color: #f4e7bd; }
 .report-link {
@@ -142,22 +204,22 @@ const showSubscriptions = computed(() => allows("SUBSCRIPTION"))
   align-items: center;
   gap: 0.75rem;
   padding: 0.8rem 0.9rem;
-  color: #514879;
-  background: #faf9ff;
-  border: 1px solid #ded9fa;
+  color: var(--wallo-color-text);
+  background: var(--wallo-color-surface-soft);
+  border: 1px solid var(--wallo-color-border);
   border-radius: 0.9rem;
   text-decoration: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 .report-link:hover,
 .report-link:focus-visible {
-  color: #42369e;
-  background: #f6f4ff;
-  border-color: #bcb4f3;
-  box-shadow: 0 0.3rem 0.9rem rgba(87, 73, 197, 0.1);
+  color: var(--wallo-color-primary-hover);
+  background: var(--wallo-color-info-bg);
+  border-color: var(--wallo-color-primary);
+  box-shadow: var(--wallo-shadow-card);
   transform: translateY(-1px);
 }
-.report-link:focus-visible { outline: 3px solid rgba(112, 98, 222, 0.2); outline-offset: 2px; }
+.report-link:focus-visible { outline: 0; box-shadow: var(--wallo-focus-ring); }
 .report-link__icon {
   display: inline-flex;
   width: 3.25rem;
@@ -166,12 +228,12 @@ const showSubscriptions = computed(() => allows("SUBSCRIPTION"))
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  background: #eeebff;
+  background: var(--wallo-color-info-bg);
   border-radius: 0.7rem;
 }
 .report-link__icon img { width: 100%; height: 100%; object-fit: contain; }
 .report-link__copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 0.1rem; }
 .report-link__copy strong { font-size: 0.88rem; }
-.report-link__copy small { color: #7b849b; font-size: 0.75rem; }
-.report-link__arrow { color: #8f86cf; font-size: 0.85rem; }
+.report-link__copy small { color: var(--wallo-color-text-muted); font-size: 0.75rem; }
+.report-link__arrow { color: var(--wallo-color-text-subtle); font-size: 0.85rem; }
 </style>

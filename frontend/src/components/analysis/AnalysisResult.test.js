@@ -51,6 +51,23 @@ const baseAnalysis = {
 }
 
 describe("AnalysisResult", () => {
+  it("shows a concise spending overview and expands the full analysis", async () => {
+    const wrapper = mount(AnalysisResult, {
+      props: { compact: true, analysis: baseAnalysis },
+      global: { stubs: { RouterLink: { template: "<a><slot /></a>" } } },
+    })
+
+    expect(wrapper.text()).toContain("이번 달 총지출")
+    expect(wrapper.text()).toContain("전 기간보다 266,000원 줄었어요")
+    expect(wrapper.text()).toContain("지출이 큰 카테고리")
+    expect(wrapper.text()).toContain("교통")
+    expect(wrapper.find(".analysis-card").exists()).toBe(false)
+
+    await wrapper.get(".analysis-detail-toggle").trigger("click")
+    expect(wrapper.find(".analysis-card").exists()).toBe(true)
+    expect(wrapper.text()).toContain("상세 내용 접기")
+  })
+
   it("uses a spending illustration for the monthly report shortcut", () => {
     const wrapper = mount(AnalysisResult, {
       props: { analysis: { hasEnoughData: false, signals: {} } },

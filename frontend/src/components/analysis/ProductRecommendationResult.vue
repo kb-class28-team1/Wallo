@@ -311,10 +311,10 @@ const FINANCIAL_SUPERVISION_LOGO_URL =
   display: flex;
   flex-direction: column;
   padding: 1rem;
-  background: #fff;
-  border: 1px solid #e7f2fa;
+  background: var(--wallo-color-surface);
+  border: 1px solid var(--wallo-color-border);
   border-radius: 1rem;
-  box-shadow: 0 0.25rem 0.8rem rgba(57, 45, 110, 0.06);
+  box-shadow: var(--wallo-shadow-card);
 }
 
 .product-carousel {
@@ -352,19 +352,19 @@ const FINANCIAL_SUPERVISION_LOGO_URL =
   align-items: center;
   justify-content: center;
   padding: 0;
-  color: #5749c5;
-  background: #faf9ff;
-  border: 1px solid #ded9fa;
+  color: var(--wallo-color-primary);
+  background: var(--wallo-color-surface-soft);
+  border: 1px solid var(--wallo-color-border);
   border-radius: 50%;
 }
 
 .product-carousel__button:hover,
 .product-carousel__button:focus-visible {
   color: #fff;
-  background: #7062de;
-  border-color: #7062de;
+  background: var(--wallo-color-primary);
+  border-color: var(--wallo-color-primary);
   outline: 0;
-  box-shadow: 0 0 0 3px rgba(112, 98, 222, 0.18);
+  box-shadow: var(--wallo-focus-ring);
 }
 
 .product-carousel__position {
@@ -377,7 +377,7 @@ const FINANCIAL_SUPERVISION_LOGO_URL =
 }
 
 .product-carousel__position strong {
-  color: #5749c5;
+  color: var(--wallo-color-primary);
 }
 
 .product-card__rank {
@@ -417,7 +417,7 @@ const FINANCIAL_SUPERVISION_LOGO_URL =
   flex-direction: column;
   gap: 0.2rem;
   padding: 0.65rem;
-  background: #f8f7fc;
+  background: var(--wallo-color-surface-soft);
   border-radius: 0.7rem;
 }
 
@@ -437,7 +437,7 @@ const FINANCIAL_SUPERVISION_LOGO_URL =
 }
 
 .product-card__rate--base {
-  background: #f8f7fc;
+  background: var(--wallo-color-surface-soft);
 }
 
 .product-card__rate--highlight {
@@ -473,7 +473,7 @@ const FINANCIAL_SUPERVISION_LOGO_URL =
   padding: 0.7rem;
   color: #62697d;
   background: #fbfbfd;
-  border: 1px solid #eeecf5;
+  border: 1px solid var(--wallo-color-border-soft);
   border-radius: 0.7rem;
   font-size: 0.78rem;
 }
@@ -487,7 +487,7 @@ const FINANCIAL_SUPERVISION_LOGO_URL =
 
 .product-card__conditions {
   margin-top: 0.7rem;
-  color: #514879;
+  color: var(--wallo-color-finance-info);
   font-size: 0.8rem;
 }
 
@@ -510,16 +510,16 @@ const FINANCIAL_SUPERVISION_LOGO_URL =
   padding: 1rem;
   color: #62697d;
   background: #fbfbfd;
-  border: 1px dashed #d9d5eb;
+  border: 1px dashed var(--wallo-color-border);
   border-radius: 1rem;
   font-size: 0.86rem;
 }
 
 .product-recommendation__reason {
   padding: 0.85rem 1rem;
-  color: #4a426f;
+  color: var(--wallo-color-text);
   background: #f8fbff;
-  border: 1px solid #ded9fa;
+  border: 1px solid var(--wallo-color-border);
   border-radius: 0.9rem;
 }
 
@@ -547,9 +547,9 @@ const FINANCIAL_SUPERVISION_LOGO_URL =
   align-items: center;
   gap: 0.75rem;
   padding: 0.8rem 0.9rem;
-  color: #514879;
-  background: #faf9ff;
-  border: 1px solid #ded9fa;
+  color: var(--wallo-color-text);
+  background: var(--wallo-color-surface-soft);
+  border: 1px solid var(--wallo-color-border);
   border-radius: 0.9rem;
   text-decoration: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
@@ -557,16 +557,16 @@ const FINANCIAL_SUPERVISION_LOGO_URL =
 
 .product-recommendation__external-link:hover,
 .product-recommendation__external-link:focus-visible {
-  color: #42369e;
-  background: #f6f4ff;
-  border-color: #bcb4f3;
-  box-shadow: 0 0.3rem 0.9rem rgba(87, 73, 197, 0.1);
+  color: var(--wallo-color-primary-hover);
+  background: var(--wallo-color-info-bg);
+  border-color: var(--wallo-color-primary);
+  box-shadow: var(--wallo-shadow-card);
   outline: 0;
   transform: translateY(-1px);
 }
 
 .product-recommendation__external-link:focus-visible {
-  box-shadow: 0 0 0 3px rgba(112, 98, 222, 0.18);
+  box-shadow: var(--wallo-focus-ring);
 }
 
 .product-recommendation__external-icon {
@@ -578,7 +578,7 @@ const FINANCIAL_SUPERVISION_LOGO_URL =
   justify-content: center;
   overflow: hidden;
   background: #fff;
-  border: 1px solid #e8e5f5;
+  border: 1px solid var(--wallo-color-border-soft);
   border-radius: 0.7rem;
 }
 
@@ -606,7 +606,7 @@ const FINANCIAL_SUPERVISION_LOGO_URL =
 }
 
 .product-recommendation__external-arrow {
-  color: #8f86cf;
+  color: var(--wallo-color-text-subtle);
   font-size: 0.85rem;
 }
 
@@ -625,7 +625,7 @@ const FINANCIAL_SUPERVISION_LOGO_URL =
 
 .product-recommendation__reason-markdown :deep(code) {
   padding: 0.1rem 0.3rem;
-  background: #ebe9f8;
+  background: var(--wallo-color-info-bg);
   border-radius: 0.3rem;
   font-size: 0.9em;
 }

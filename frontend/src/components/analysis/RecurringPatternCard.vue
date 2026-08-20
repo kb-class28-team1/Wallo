@@ -30,7 +30,7 @@ const description = computed(() => {
 <style scoped>
 .analysis-subcard {
   padding: 0.75rem 0.9rem;
-  background: #f7f6fc;
+  background: var(--wallo-color-surface-soft);
   border-radius: 0.8rem;
   font-size: 0.9rem;
 }
