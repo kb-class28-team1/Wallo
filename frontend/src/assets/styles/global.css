@@ -19,6 +19,7 @@ body {
   font-family: "TMoneyDungunbaram", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   color: var(--wallo-color-text);
   background: var(--wallo-color-bg);
+  caret-color: transparent;
 }
 
 h1,
@@ -35,6 +36,13 @@ input,
 select,
 textarea {
   font-family: inherit;
+}
+
+input,
+textarea,
+select,
+[contenteditable="true"] {
+  caret-color: auto;
 }
 
 .app-page {
@@ -387,4 +395,3 @@ textarea {
     padding: 48px 28px 64px;
   }
 }
-
