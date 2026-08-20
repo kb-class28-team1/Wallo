@@ -40,7 +40,7 @@ describe("SettingsView", () => {
     expect(wrapper.find(".app-page-header").exists()).toBe(true)
     expect(wrapper.find(".app-page-header__title").text()).toBe("설정")
     expect(wrapper.find(".app-page-header__description").exists()).toBe(false)
-    expect(wrapper.find(".settings-navigation").classes()).toContain("app-card")
+    expect(wrapper.find(".settings-navigation").exists()).toBe(false)
     expect(wrapper.find("nav[aria-label='설정 메뉴']").exists()).toBe(true)
 
     const tabs = wrapper.findAll(".settings-tab")
