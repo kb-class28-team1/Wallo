@@ -4,6 +4,35 @@
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.wallo.asset.mapper.AssetReportMapper">
 
+    <sql id="activeTransactionSourceJoins">
+        LEFT JOIN ACCOUNTS account_asset
+            ON account_asset.account_id = t.account_id
+        LEFT JOIN CARDS card_asset
+            ON card_asset.card_id = t.card_id
+        LEFT JOIN CONNECTIONS account_connection
+            ON account_connection.connection_id = account_asset.connection_id
+        LEFT JOIN CONNECTIONS card_connection
+            ON card_connection.connection_id = card_asset.connection_id
+    </sql>
+
+    <sql id="activeTransactionSourceCondition">
+        AND (
+            (
+                t.account_id IS NOT NULL
+                AND account_connection.user_id = t.user_id
+                AND account_connection.status = 'ACTIVE'
+                AND account_connection.deleted_at IS NULL
+            )
+            OR
+            (
+                t.card_id IS NOT NULL
+                AND card_connection.user_id = t.user_id
+                AND card_connection.status = 'ACTIVE'
+                AND card_connection.deleted_at IS NULL
+            )
+        )
+    </sql>
+
     <select id="selectAnnualSalary" resultType="java.lang.Long">
         SELECT annual_salary
         FROM USERS
@@ -23,36 +52,44 @@
         FROM TRANSACTIONS t
         INNER JOIN CARDS c
             ON c.card_id = t.card_id
+        INNER JOIN CONNECTIONS card_connection
+            ON card_connection.connection_id = c.connection_id
         WHERE t.user_id = #{userId}
           AND t.type = 'EXPENSE'
+          AND t.category NOT IN ('CARD_WITHDRAWAL', 'SEND', 'INCOME')
           AND t.transaction_date BETWEEN #{startDate} AND #{endDate}
           AND c.card_type IN ('CREDIT', 'CHECK')
+          AND card_connection.user_id = t.user_id
+          AND card_connection.status = 'ACTIVE'
+          AND card_connection.deleted_at IS NULL
     </select>
 
     <select id="selectCategoryExpenses"
             resultType="com.wallo.asset.dto.AssetReportDto$CategoryExpense">
         SELECT
-            category AS category,
+            CASE WHEN t.category IN ('OTHER', 'ETC') THEN 'ETC' ELSE t.category END AS category,
             COALESCE(SUM(
                 CASE
-                    WHEN transaction_date BETWEEN #{currentStartDate} AND #{currentEndDate}
-                    THEN amount
+                    WHEN t.transaction_date BETWEEN #{currentStartDate} AND #{currentEndDate}
+                    THEN t.amount
                     ELSE 0
                 END
             ), 0) AS currentAmount,
             COALESCE(SUM(
                 CASE
-                    WHEN transaction_date BETWEEN #{previousStartDate} AND #{previousEndDate}
-                    THEN amount
+                    WHEN t.transaction_date BETWEEN #{previousStartDate} AND #{previousEndDate}
+                    THEN t.amount
                     ELSE 0
                 END
             ), 0) AS previousAmount
-        FROM TRANSACTIONS
-        WHERE user_id = #{userId}
-          AND type = 'EXPENSE'
-          AND category NOT IN ('INCOME', 'SEND', 'CARD_WITHDRAWAL')
-          AND transaction_date BETWEEN #{previousStartDate} AND #{currentEndDate}
-        GROUP BY category
+        FROM TRANSACTIONS t
+        <include refid="activeTransactionSourceJoins"/>
+        WHERE t.user_id = #{userId}
+          AND t.type = 'EXPENSE'
+          AND t.category NOT IN ('INCOME', 'SEND', 'CARD_WITHDRAWAL')
+          AND t.transaction_date BETWEEN #{previousStartDate} AND #{currentEndDate}
+        <include refid="activeTransactionSourceCondition"/>
+        GROUP BY CASE WHEN t.category IN ('OTHER', 'ETC') THEN 'ETC' ELSE t.category END
         ORDER BY category ASC
     </select>
 

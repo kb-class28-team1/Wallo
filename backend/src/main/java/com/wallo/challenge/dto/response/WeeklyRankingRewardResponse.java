@@ -7,14 +7,21 @@ public class WeeklyRankingRewardResponse {
 
     private final LocalDate weekStartDate;
     private final int rewardedCount;
+    private final int rewardedPoint;
 
-    private WeeklyRankingRewardResponse(LocalDate weekStartDate, int rewardedCount) {
+    private WeeklyRankingRewardResponse(LocalDate weekStartDate, int rewardedCount, int rewardedPoint) {
         this.weekStartDate = weekStartDate;
         this.rewardedCount = rewardedCount;
+        this.rewardedPoint = rewardedPoint;
     }
 
     public static WeeklyRankingRewardResponse of(LocalDate weekStartDate, int rewardedCount) {
-        return new WeeklyRankingRewardResponse(weekStartDate, rewardedCount);
+        return of(weekStartDate, rewardedCount, 0);
+    }
+
+    public static WeeklyRankingRewardResponse of(
+            LocalDate weekStartDate, int rewardedCount, int rewardedPoint) {
+        return new WeeklyRankingRewardResponse(weekStartDate, rewardedCount, rewardedPoint);
     }
 
     public LocalDate getWeekStartDate() {
@@ -23,5 +30,9 @@ public class WeeklyRankingRewardResponse {
 
     public int getRewardedCount() {
         return rewardedCount;
+    }
+
+    public int getRewardedPoint() {
+        return rewardedPoint;
     }
 }

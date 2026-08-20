@@ -101,8 +101,12 @@ def select_route_tool_schemas(message: str) -> list[dict[str, Any]]:
     return TOOL_SCHEMAS
 
 
-def execute_tool(tool_name: str, arguments: dict[str, Any],
-                 consumption_context: ConsumptionContext | None = None) -> ToolResult:
+def execute_tool(
+    tool_name: str,
+    arguments: dict[str, Any],
+    consumption_context: ConsumptionContext | None = None,
+    asset_analysis_context: Any | None = None,
+) -> ToolResult:
     handler = TOOL_HANDLERS.get(tool_name)
     if handler is None:
         return ToolResult(
@@ -112,4 +116,6 @@ def execute_tool(tool_name: str, arguments: dict[str, Any],
         )
     if tool_name == spending_coach.NAME:
         return spending_coach.execute(tool_name, arguments, consumption_context)
+    if tool_name == asset_analysis.NAME:
+        return asset_analysis.execute(tool_name, arguments, asset_analysis_context)
     return handler(tool_name, arguments)

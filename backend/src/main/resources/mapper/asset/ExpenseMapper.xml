@@ -4,97 +4,150 @@
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.wallo.asset.mapper.ExpenseMapper">
 
+    <sql id="activeTransactionSourceJoins">
+        LEFT JOIN ACCOUNTS account_asset
+            ON account_asset.account_id = t.account_id
+        LEFT JOIN CARDS card_asset
+            ON card_asset.card_id = t.card_id
+        LEFT JOIN CONNECTIONS account_connection
+            ON account_connection.connection_id = account_asset.connection_id
+        LEFT JOIN CONNECTIONS card_connection
+            ON card_connection.connection_id = card_asset.connection_id
+    </sql>
+
+    <sql id="activeTransactionSourceCondition">
+        AND (
+            (
+                t.account_id IS NOT NULL
+                AND account_connection.user_id = t.user_id
+                AND account_connection.status = 'ACTIVE'
+                AND account_connection.deleted_at IS NULL
+            )
+            OR
+            (
+                t.card_id IS NOT NULL
+                AND card_connection.user_id = t.user_id
+                AND card_connection.status = 'ACTIVE'
+                AND card_connection.deleted_at IS NULL
+            )
+        )
+    </sql>
+
     <select id="selectTotalExpense" resultType="java.lang.Long">
-        SELECT COALESCE(SUM(amount), 0)
-        FROM TRANSACTIONS
-        WHERE user_id = #{userId}
-          AND type = 'EXPENSE'
-          AND category &lt;&gt; 'CARD_WITHDRAWAL'
-          AND transaction_date BETWEEN #{condition.startDate} AND #{condition.endDate}
+        SELECT COALESCE(SUM(t.amount), 0)
+        FROM TRANSACTIONS t
+        <include refid="activeTransactionSourceJoins"/>
+        WHERE t.user_id = #{userId}
+          AND t.type = 'EXPENSE'
+          AND t.category NOT IN ('CARD_WITHDRAWAL', 'SEND', 'INCOME')
+          AND t.transaction_date BETWEEN #{condition.startDate} AND #{condition.endDate}
+        <include refid="activeTransactionSourceCondition"/>
     </select>
 
     <select id="selectTotalIncome" resultType="java.lang.Long">
-        SELECT COALESCE(SUM(amount), 0)
-        FROM TRANSACTIONS
-        WHERE user_id = #{userId}
-          AND type = 'INCOME'
-          AND transaction_date BETWEEN #{condition.startDate} AND #{condition.endDate}
+        SELECT COALESCE(SUM(t.amount), 0)
+        FROM TRANSACTIONS t
+        <include refid="activeTransactionSourceJoins"/>
+        WHERE t.user_id = #{userId}
+          AND t.type = 'INCOME'
+          AND t.category NOT IN ('CARD_WITHDRAWAL', 'SEND')
+          AND t.transaction_date BETWEEN #{condition.startDate} AND #{condition.endDate}
+        <include refid="activeTransactionSourceCondition"/>
     </select>
 
     <select id="selectExpenseCategoryBreakdown" resultType="com.wallo.asset.dto.ExpenseDto$CategoryBreakdown">
         SELECT
-            CASE WHEN category = 'OTHER' THEN 'ETC' ELSE category END AS category,
-            COALESCE(SUM(amount), 0) AS amount
-        FROM TRANSACTIONS
-        WHERE user_id = #{userId}
-          AND type = 'EXPENSE'
-          AND category &lt;&gt; 'CARD_WITHDRAWAL'
-          AND transaction_date BETWEEN #{condition.startDate} AND #{condition.endDate}
-        GROUP BY CASE WHEN category = 'OTHER' THEN 'ETC' ELSE category END
+            CASE WHEN t.category IN ('OTHER', 'ETC') THEN 'ETC' ELSE t.category END AS category,
+            COALESCE(SUM(t.amount), 0) AS amount
+        FROM TRANSACTIONS t
+        <include refid="activeTransactionSourceJoins"/>
+        WHERE t.user_id = #{userId}
+          AND t.type = 'EXPENSE'
+          AND t.category NOT IN ('CARD_WITHDRAWAL', 'SEND', 'INCOME')
+          AND t.transaction_date BETWEEN #{condition.startDate} AND #{condition.endDate}
+        <include refid="activeTransactionSourceCondition"/>
+        GROUP BY CASE WHEN t.category IN ('OTHER', 'ETC') THEN 'ETC' ELSE t.category END
         ORDER BY amount DESC, category ASC
     </select>
 
     <select id="selectDailyBreakdown" resultType="com.wallo.asset.dto.ExpenseDto$DailyBreakdown">
         SELECT
-            transaction_date AS date,
-            COALESCE(SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END), 0) AS totalExpense,
-            COALESCE(SUM(CASE WHEN type = 'INCOME' THEN amount ELSE 0 END), 0) AS totalIncome
-        FROM TRANSACTIONS
-        WHERE user_id = #{userId}
-          AND type IN ('EXPENSE', 'INCOME')
-          AND transaction_date BETWEEN #{condition.startDate} AND #{condition.endDate}
-          AND category &lt;&gt; 'CARD_WITHDRAWAL'
-        GROUP BY transaction_date
-        ORDER BY transaction_date ASC
+            t.transaction_date AS date,
+            COALESCE(SUM(
+                CASE
+                    WHEN t.type = 'EXPENSE'
+                        AND t.category NOT IN ('CARD_WITHDRAWAL', 'SEND', 'INCOME')
+                    THEN t.amount
+                    ELSE 0
+                END
+            ), 0) AS totalExpense,
+            COALESCE(SUM(CASE WHEN t.type = 'INCOME' THEN t.amount ELSE 0 END), 0)
+                AS totalIncome
+        FROM TRANSACTIONS t
+        <include refid="activeTransactionSourceJoins"/>
+        WHERE t.user_id = #{userId}
+          AND t.type IN ('EXPENSE', 'INCOME')
+          AND t.transaction_date BETWEEN #{condition.startDate} AND #{condition.endDate}
+          AND (
+              t.type = 'INCOME'
+              OR t.category NOT IN ('CARD_WITHDRAWAL', 'SEND', 'INCOME')
+          )
+        <include refid="activeTransactionSourceCondition"/>
+        GROUP BY t.transaction_date
+        ORDER BY t.transaction_date ASC
     </select>
 
     <select id="selectTransactions" resultType="com.wallo.asset.dto.ExpenseDto$Transaction">
         SELECT
-            transaction_id AS transactionId,
-            transaction_date AS date,
-            type AS type,
-            CASE WHEN category = 'OTHER' THEN 'ETC' ELSE category END AS category,
-            amount AS amount,
-            merchant_name AS merchantName
-        FROM TRANSACTIONS
-        WHERE user_id = #{userId}
-          AND transaction_date BETWEEN #{condition.startDate} AND #{condition.endDate}
-          AND category &lt;&gt; 'CARD_WITHDRAWAL'
+            t.transaction_id AS transactionId,
+            t.transaction_date AS date,
+            t.type AS type,
+            CASE WHEN t.category IN ('OTHER', 'ETC') THEN 'ETC' ELSE t.category END AS category,
+            t.amount AS amount,
+            t.merchant_name AS merchantName
+        FROM TRANSACTIONS t
+        <include refid="activeTransactionSourceJoins"/>
+        WHERE t.user_id = #{userId}
+          AND t.transaction_date BETWEEN #{condition.startDate} AND #{condition.endDate}
+          AND t.category &lt;&gt; 'CARD_WITHDRAWAL'
+        <include refid="activeTransactionSourceCondition"/>
         <if test="condition.category != null and condition.category != ''">
             <choose>
                 <when test="condition.category == 'ETC'">
-                    AND category IN ('OTHER', 'ETC')
+                    AND t.category IN ('OTHER', 'ETC')
                 </when>
                 <when test="condition.category == 'RECEIVE' or condition.category == 'SEND'">
-                    AND type = 'TRANSFER'
-                    AND category = #{condition.category}
+                    AND t.type = 'TRANSFER'
+                    AND t.category = #{condition.category}
                 </when>
                 <otherwise>
-                    AND category = #{condition.category}
+                    AND t.category = #{condition.category}
                 </otherwise>
             </choose>
         </if>
-        ORDER BY transaction_date DESC, transaction_time DESC, transaction_id DESC
+        ORDER BY t.transaction_date DESC, t.transaction_time DESC, t.transaction_id DESC
         LIMIT #{condition.size} OFFSET #{condition.offset}
     </select>
 
     <select id="countTransactions" resultType="long">
         SELECT COUNT(*)
-        FROM TRANSACTIONS
-        WHERE user_id = #{userId}
-          AND transaction_date BETWEEN #{condition.startDate} AND #{condition.endDate}
-          AND category &lt;&gt; 'CARD_WITHDRAWAL'
+        FROM TRANSACTIONS t
+        <include refid="activeTransactionSourceJoins"/>
+        WHERE t.user_id = #{userId}
+          AND t.transaction_date BETWEEN #{condition.startDate} AND #{condition.endDate}
+          AND t.category &lt;&gt; 'CARD_WITHDRAWAL'
+        <include refid="activeTransactionSourceCondition"/>
         <if test="condition.category != null and condition.category != ''">
             <choose>
                 <when test="condition.category == 'ETC'">
-                    AND category IN ('OTHER', 'ETC')
+                    AND t.category IN ('OTHER', 'ETC')
                 </when>
                 <when test="condition.category == 'RECEIVE' or condition.category == 'SEND'">
-                    AND type = 'TRANSFER'
-                    AND category = #{condition.category}
+                    AND t.type = 'TRANSFER'
+                    AND t.category = #{condition.category}
                 </when>
                 <otherwise>
-                    AND category = #{condition.category}
+                    AND t.category = #{condition.category}
                 </otherwise>
             </choose>
         </if>
@@ -115,15 +168,43 @@
     <select id="selectAllExpenseTransactions"
             resultType="com.wallo.asset.dto.ExpenseDto$AnalysisTransaction">
         SELECT
-            transaction_date AS date,
-            transaction_time AS time,
-            CASE WHEN category = 'OTHER' THEN 'ETC' ELSE category END AS category,
-            amount,
-            merchant_name AS merchantName
-        FROM TRANSACTIONS
-        WHERE user_id = #{userId}
-          AND type = 'EXPENSE'
-        ORDER BY transaction_date ASC, transaction_time ASC, transaction_id ASC
+            t.transaction_date AS date,
+            t.transaction_time AS time,
+            CASE WHEN t.category IN ('OTHER', 'ETC') THEN 'ETC' ELSE t.category END AS category,
+            t.amount,
+            t.merchant_name AS merchantName
+        FROM TRANSACTIONS t
+        <include refid="activeTransactionSourceJoins"/>
+        WHERE t.user_id = #{userId}
+          AND t.type = 'EXPENSE'
+          AND t.category NOT IN ('CARD_WITHDRAWAL', 'SEND', 'INCOME')
+        <include refid="activeTransactionSourceCondition"/>
+        ORDER BY t.transaction_date ASC, t.transaction_time ASC, t.transaction_id ASC
+    </select>
+
+    <select id="selectMonthlyCashflow"
+            resultType="com.wallo.asset.dto.ExpenseDto$MonthlyCashflow">
+        SELECT
+            COALESCE(SUM(CASE WHEN t.type = 'INCOME' THEN t.amount ELSE 0 END), 0)
+                AS monthlyIncome,
+            COALESCE(SUM(
+                CASE
+                    WHEN t.type = 'EXPENSE'
+                        AND t.category NOT IN ('CARD_WITHDRAWAL', 'SEND', 'INCOME')
+                    THEN t.amount
+                    ELSE 0
+                END
+            ), 0) AS monthlyExpense
+        FROM TRANSACTIONS t
+        <include refid="activeTransactionSourceJoins"/>
+        WHERE t.user_id = #{userId}
+          AND t.type IN ('INCOME', 'EXPENSE')
+          AND t.transaction_date BETWEEN #{startDate} AND #{endDate}
+          AND (
+              t.type = 'INCOME'
+              OR t.category NOT IN ('CARD_WITHDRAWAL', 'SEND', 'INCOME')
+          )
+        <include refid="activeTransactionSourceCondition"/>
     </select>
 
 </mapper>

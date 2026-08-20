@@ -161,7 +161,7 @@ function handleClick(event) {
 
 .app-button--outline:hover:not(:disabled) {
   color: var(--wallo-color-primary-hover);
-  background: rgb(112 98 222 / 8%);
+  background: rgb(79 143 232 / 8%);
   border-color: var(--wallo-color-primary-hover);
 }
 
@@ -184,7 +184,7 @@ function handleClick(event) {
 
 .app-button--ghost:hover:not(:disabled) {
   color: var(--wallo-color-primary);
-  background: rgb(112 98 222 / 8%);
+  background: rgb(79 143 232 / 8%);
 }
 
 .app-button__label {

@@ -111,27 +111,40 @@ class AssetSyncReconciliationMapperIntegrationTest {
         TestDatabase.initializeAssetMapperSchema(dataSource);
         try (Connection connection = dataSource.getConnection();
              Statement statement = connection.createStatement()) {
-            statement.execute("INSERT INTO CARDS (card_id, card_type) VALUES (1, 'CHECK'), (2, 'CREDIT')");
+            statement.execute("""
+                    INSERT INTO CONNECTIONS (connection_id, user_id, status, deleted_at)
+                    VALUES (1, 7, 'ACTIVE', NULL)
+                    """);
+            statement.execute("""
+                    INSERT INTO ACCOUNTS (account_id, connection_id, status)
+                    VALUES (1, 1, 'ACTIVE')
+                    """);
+            statement.execute("""
+                    INSERT INTO CARDS (card_id, connection_id, card_type, status)
+                    VALUES
+                        (1, 1, 'CHECK', 'ACTIVE'),
+                        (2, 1, 'CREDIT', 'ACTIVE')
+                    """);
             statement.execute("""
                     INSERT INTO TRANSACTIONS (
-                        transaction_id, user_id, card_id, type, category, category_source,
+                        transaction_id, user_id, card_id, account_id, type, category, category_source,
                         amount, merchant_name, original_merchant_name, source_type,
                         source_organization_code, source_transaction_id, source_dedup_key,
                         transaction_date, transaction_time
                     ) VALUES
-                        (1, 7, NULL, 'TRANSFER', 'SEND', 'BANK_DIRECTION',
+                        (1, 7, NULL, 1, 'TRANSFER', 'SEND', 'BANK_DIRECTION',
                          38000, '체크가맹_배달의민족', '체크가맹_배달의민족', 'BANK_TRANSACTION',
                          '0004', 'BANK-1', 'sync-reconciliation-1',
                          '2026-07-26', '19:30:00'),
-                        (2, 7, NULL, 'TRANSFER', 'SEND', 'BANK_DIRECTION',
+                        (2, 7, NULL, 1, 'TRANSFER', 'SEND', 'BANK_DIRECTION',
                          50000, '김철수', '김철수', 'BANK_TRANSACTION',
                          '0004', 'BANK-2', 'sync-reconciliation-2',
                          '2026-07-28', '14:20:00'),
-                        (3, 7, 1, 'EXPENSE', 'DELIVERY', 'MERCHANT_KEYWORD',
+                        (3, 7, 1, NULL, 'EXPENSE', 'DELIVERY', 'MERCHANT_KEYWORD',
                          38000, '배달의민족', '배달의민족', 'CARD_APPROVAL',
                          '0311', 'CARD-1', 'sync-reconciliation-3',
                          '2026-07-26', '19:30:00'),
-                        (4, 7, 2, 'EXPENSE', 'TRANSPORT', 'MERCHANT_SECTOR',
+                        (4, 7, 2, NULL, 'EXPENSE', 'TRANSPORT', 'MERCHANT_SECTOR',
                          50000, 'SK에너지', 'SK에너지', 'CARD_APPROVAL',
                          '0311', 'CARD-2', 'sync-reconciliation-4',
                          '2026-07-27', '10:00:00')

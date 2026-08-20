@@ -404,8 +404,8 @@ watch(newsId, () => {
 
 .report-back-link:hover,
 .report-back-link:focus-visible {
-  color: #6b5bd2;
-  background: #f0edff;
+  color: #4d82d6;
+  background: #edf6ff;
 }
 
 .report-detail-state {

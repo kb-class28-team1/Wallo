@@ -462,7 +462,7 @@ onMounted(loadDashboard)
   border-radius: 18px;
   background: #fff;
   color: #7b83a5;
-  box-shadow: 0 5px 20px rgb(48 60 110 / 5%);
+  box-shadow: 0 5px 20px rgb(52 106 162 / 5%);
 }
 
 .dashboard-state-card.error-state {
@@ -472,12 +472,12 @@ onMounted(loadDashboard)
 }
 
 .retry-button {
-  border-color: #7b70f5;
-  color: #6d62eb;
+  border-color: #6b9ee9;
+  color: #659be8;
 }
 
 .retry-button:hover {
-  background: #7b70f5;
+  background: #6b9ee9;
   color: #fff;
 }
 
@@ -490,7 +490,7 @@ onMounted(loadDashboard)
 .dashboard-card {
   border-radius: 18px;
   background: #fff;
-  box-shadow: 0 5px 20px rgb(48 60 110 / 5%);
+  box-shadow: 0 5px 20px rgb(52 106 162 / 5%);
 }
 
 .dashboard-card :deep(.app-card__body) {
@@ -584,14 +584,14 @@ onMounted(loadDashboard)
 .profile-edit-button {
   width: 100%;
   margin-top: auto;
-  border: 1px solid #7b70f5;
-  color: #6d62eb;
+  border: 1px solid #6b9ee9;
+  color: #659be8;
   font-size: 15.6px;
   font-weight: 700;
 }
 
 .profile-edit-button:hover {
-  background: #7b70f5;
+  background: #6b9ee9;
   color: #fff;
 }
 
@@ -620,7 +620,7 @@ onMounted(loadDashboard)
   min-width: 0;
   padding: 14px;
   border-radius: 14px;
-  background: #f8f8ff;
+  background: #f7fbff;
 }
 
 .summary-stat span,
@@ -658,7 +658,7 @@ onMounted(loadDashboard)
 .activity-badges span {
   padding: 6px 10px;
   border-radius: 999px;
-  background: #f8f8ff;
+  background: #f7fbff;
   color: #8d96b2;
   font-size: 14.4px;
 }
@@ -694,7 +694,7 @@ onMounted(loadDashboard)
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  color: #7166ed;
+  color: #659be8;
   font-size: 14.4px;
   font-weight: 700;
   text-decoration: none;
@@ -744,7 +744,7 @@ onMounted(loadDashboard)
 }
 
 .feed-rank {
-  color: #7c70f5;
+  color: #6f9fe8;
   font-size: 18px;
 }
 
@@ -756,7 +756,7 @@ onMounted(loadDashboard)
   place-items: center;
   overflow: hidden;
   border-radius: 10px;
-  background: #f3f1ff;
+  background: #eef7ff;
 }
 
 .feed-thumbnail img,

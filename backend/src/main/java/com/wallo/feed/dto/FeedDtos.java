@@ -30,6 +30,12 @@ public final class FeedDtos {
         }
     }
 
+    public record AnalysisJobStartResponse(String jobId) {}
+
+    public record AnalysisProgressResponse(
+            String status, int progress, String message,
+            AnalysisResponse result, String error) {}
+
     public record DetectedItem(
             String itemName,
             String brand,

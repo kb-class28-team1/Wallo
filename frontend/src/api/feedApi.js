@@ -22,6 +22,27 @@ export const analyzeFeed = async (challengeId, formData) => {
   }
 }
 
+export const startAnalyzeFeed = async (challengeId, formData) => {
+  try {
+    return (await httpClient.post(
+      `/api/challenges/${challengeId}/feeds/analyze/start`, formData,
+      { headers: { "Content-Type": "multipart/form-data" } },
+    )).data
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error, "AI 분석을 시작하지 못했습니다."))
+  }
+}
+
+export const getAnalyzeFeedProgress = async (challengeId, jobId) => {
+  try {
+    return (await httpClient.get(
+      `/api/challenges/${challengeId}/feeds/analyze/${jobId}`,
+    )).data
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error, "AI 분석 진행 상황을 확인하지 못했습니다."))
+  }
+}
+
 export const createFeed = async (challengeId, formData) => {
   try {
     return (await httpClient.post(`/api/challenges/${challengeId}/feeds`, formData, {

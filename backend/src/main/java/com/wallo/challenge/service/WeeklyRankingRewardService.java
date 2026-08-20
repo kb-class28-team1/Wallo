@@ -9,5 +9,10 @@ public interface WeeklyRankingRewardService {
     void grantPreviousWeekRewards();
 
     /** 테스트 버튼에서 현재 주 랭킹을 즉시 보상 처리함. */
-    WeeklyRankingRewardResponse grantCurrentWeekRewardsForTest();
+    WeeklyRankingRewardResponse grantCurrentWeekRewardsForTest(Long currentUserId);
+
+    /** 기존 호출부와의 호환을 위해 로그인 사용자 없이 호출하는 형태도 유지함. */
+    default WeeklyRankingRewardResponse grantCurrentWeekRewardsForTest() {
+        return grantCurrentWeekRewardsForTest(null);
+    }
 }

@@ -270,7 +270,7 @@ const save = () => {
 }
 
 .category-type-tab:focus-visible {
-  outline: 2px solid #6b5bd2;
+  outline: 2px solid #4d82d6;
   outline-offset: 2px;
 }
 
@@ -351,8 +351,8 @@ const save = () => {
   background: #edf2ff;
 }
 .category-option-icon.purple {
-  color: #8170ff;
-  background: #f0edff;
+  color: #6b9be3;
+  background: #edf6ff;
 }
 .category-option-icon.gray {
   color: #7c8294;
