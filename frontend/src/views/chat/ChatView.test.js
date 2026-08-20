@@ -172,7 +172,21 @@ describe("ChatView", () => {
     expect(wrapper.text()).toContain("10,000,000원")
     expect(wrapper.text()).not.toContain("이대로 확정")
     expect(wrapper.text()).toContain("Wallo Bank")
+    expect(wrapper.text()).toContain("목표 설정이 완료된 채팅입니다.")
+    expect(wrapper.find(".stub-input").attributes("data-disabled")).toBe("true")
     expect(getGoalByConversationId).toHaveBeenCalledWith(11)
+  })
+
+  it("prevents sending another message after a goal account is selected", async () => {
+    const wrapper = mountChat()
+    await flushPromises()
+
+    await wrapper.find(".stub-input").trigger("click")
+    await flushPromises()
+
+    expect(sendConversationMessage).not.toHaveBeenCalled()
+    expect(wrapper.find(".chat-completed-notice").exists()).toBe(true)
+    wrapper.unmount()
   })
 
   it("uses the shared button for sending chat messages", async () => {
@@ -527,6 +541,8 @@ describe("ChatView", () => {
   })
 
   it("renders a chat rate-limit error in the page error area without alert", async () => {
+    getGoalByConversationId.mockResolvedValue({ data: null })
+    getAvailableGoalAccounts.mockResolvedValue({ data: [] })
     sendConversationMessage.mockRejectedValue(
       Object.assign(
         new Error("현재 AI 사용량 한도에 도달했습니다. 잠시 후 다시 시도해 주세요."),

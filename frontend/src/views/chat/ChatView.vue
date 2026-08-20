@@ -84,6 +84,10 @@ const isGoalRoadmapReady = ref(false)
 const isGoalAccountConfigured = ref(false)
 const userId = computed(() => user.value?.id ?? null)
 const isGoalDeleteBlocked = computed(() => deleteTargetConversation.value?.hasGoal === true)
+const isGoalChatLocked = computed(() =>
+  Boolean(confirmedGoal.value?.goalId)
+  && availableAccounts.value.some((account) => account.selected),
+)
 const deleteDialogTitle = computed(() =>
   isGoalDeleteBlocked.value ? "삭제할 수 없는 채팅" : "채팅 삭제",
 )
@@ -284,7 +288,12 @@ const completeTypingMessage = (messageId) => {
 }
 
 async function sendMessage(message, requestId = null) {
-  if (isChatLoading.value || isGoalSettingStarting.value || !userId.value) return
+  if (
+    isChatLoading.value
+    || isGoalSettingStarting.value
+    || isGoalChatLocked.value
+    || !userId.value
+  ) return false
 
   isMissingGoalConversation.value = false
   errorMessage.value = ""
@@ -647,6 +656,16 @@ onMounted(async () => {
             </RouterLink>
           </AppAlert>
 
+          <AppAlert
+            v-if="isGoalChatLocked"
+            class="chat-completed-notice"
+            variant="info"
+          >
+            <strong>목표 설정이 완료된 채팅입니다.</strong>
+            목표와 연결할 계좌가 저장되어 더 이상 메시지를 입력할 수 없습니다. 새로운 상담은
+            새 채팅에서 시작해 주세요.
+          </AppAlert>
+
           <ChatInput
             :disabled="
               isConsumptionAnalysisStarting ||
@@ -654,6 +673,7 @@ onMounted(async () => {
               isMissingGoalConversation ||
               isGoalCompletionChecking ||
               isGuidedChatStarting ||
+              isGoalChatLocked ||
               isChatLoading ||
               isMessageLoading ||
               !userId
