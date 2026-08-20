@@ -36,6 +36,10 @@ describe("OnboardingWelcomeView", () => {
     expect(wrapper.text()).toContain("AI가 나에게 필요한 답을 찾아줘요")
 
     await wrapper.get(".next-button").trigger("click")
+    expect(wrapper.text()).toContain("어려운 금융 뉴스를 쉽게 읽어요")
+    expect(wrapper.text()).toContain("금융 용어 설명")
+
+    await wrapper.get(".next-button").trigger("click")
     expect(wrapper.text()).toContain("함께 절약하고 보상도 받아요")
     expect(wrapper.get(".next-button").text()).toContain("자산 연동 시작하기")
 

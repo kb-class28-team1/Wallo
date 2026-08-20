@@ -10,7 +10,7 @@ const typedGreeting = ref("")
 const typedIntroduction = ref("")
 const isTypingComplete = ref(false)
 const currentStep = ref(1)
-const totalSteps = 5
+const totalSteps = 6
 const timers = []
 
 const stepContent = {
@@ -33,7 +33,13 @@ const stepContent = {
       "대화만으로 금융 목표를 세우고 자산과 소비를 분석하며, 내 상황에 맞는 금융 상품도 추천받을 수 있어요.",
   },
   5: {
-    eyebrow: "STEP 04 · 챌린지와 포인트",
+    eyebrow: "STEP 04 · 금융 리포트",
+    title: "어려운 금융 뉴스를 쉽게 읽어요",
+    description:
+      "최신 금융·경제 뉴스를 AI가 핵심만 요약해 드려요. 낯선 금융 용어의 뜻도 함께 확인할 수 있어요.",
+  },
+  6: {
+    eyebrow: "STEP 05 · 챌린지와 포인트",
     title: "함께 절약하고 보상도 받아요",
     description:
       "친구들과 절약 챌린지에 참여하고 미션을 달성해 포인트를 모아보세요. 모은 포인트는 포인트 숍에서 사용할 수 있어요.",
@@ -295,6 +301,29 @@ onBeforeUnmount(() => {
           <div class="ai-chat-bar"><span>궁금한 금융 이야기를 입력해 주세요</span><i class="bi bi-arrow-up"></i></div>
         </div>
 
+        <div v-else-if="currentStep === 5" class="report-preview" aria-hidden="true">
+          <div class="report-preview-header">
+            <div><small>FINANCIAL REPORT</small><strong>금융 리포트</strong></div>
+            <span><i class="bi bi-stars"></i> AI 핵심 요약</span>
+          </div>
+          <article class="report-featured-card">
+            <div class="report-card-meta"><span>금융시장</span><span>NEW</span></div>
+            <h2>금리 변화가 내 예금과 대출에 미치는 영향</h2>
+            <p>복잡한 금융 뉴스를 내 자산 관리에 필요한 내용 중심으로 쉽고 짧게 정리해 드려요.</p>
+            <div class="report-source"><span>경제 뉴스</span><span>·</span><span>오늘</span></div>
+          </article>
+          <div class="report-insight-grid">
+            <div class="report-insight-card">
+              <span class="report-insight-icon"><i class="bi bi-lightning-charge-fill"></i></span>
+              <div><small>3줄 핵심 요약</small><strong>바쁜 순간에도 빠르게</strong></div>
+            </div>
+            <div class="report-insight-card">
+              <span class="report-insight-icon"><i class="bi bi-book-fill"></i></span>
+              <div><small>금융 용어 설명</small><strong>낯선 표현도 알기 쉽게</strong></div>
+            </div>
+          </div>
+        </div>
+
         <div v-else class="reward-preview" aria-hidden="true">
           <div class="challenge-panel">
             <div class="challenge-panel-header">
@@ -335,6 +364,10 @@ onBeforeUnmount(() => {
           <div v-else-if="currentStep === 4" class="guide-points">
             <span><i class="bi bi-check2"></i> 목표 설정 · 자산 분석 · 소비 분석</span>
             <span><i class="bi bi-check2"></i> 맞춤 금융 상품 추천</span>
+          </div>
+          <div v-else-if="currentStep === 5" class="guide-points">
+            <span><i class="bi bi-check2"></i> 최신 금융·경제 뉴스 요약</span>
+            <span><i class="bi bi-check2"></i> 문맥에 맞는 금융 용어 설명</span>
           </div>
           <div v-else class="guide-points">
             <span><i class="bi bi-check2"></i> 친구와 함께하는 절약 챌린지</span>
@@ -1069,7 +1102,8 @@ onBeforeUnmount(() => {
 }
 
 .ai-preview,
-.reward-preview {
+.reward-preview,
+.report-preview {
   width: min(700px, 100%);
   padding: 26px;
   background: #f5f9fe;
@@ -1198,6 +1232,136 @@ onBeforeUnmount(() => {
 .reward-preview {
   display: grid;
   gap: 14px;
+}
+
+.report-preview {
+  display: grid;
+  gap: 14px;
+}
+
+.report-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.report-preview-header > div {
+  display: grid;
+  gap: 3px;
+}
+
+.report-preview-header small {
+  color: var(--wallo-color-primary);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.report-preview-header strong {
+  color: var(--wallo-color-text);
+  font-size: 1.16rem;
+}
+
+.report-preview-header > span {
+  padding: 7px 11px;
+  color: var(--wallo-color-finance-info);
+  font-size: 0.68rem;
+  font-weight: 800;
+  background: var(--wallo-color-info-bg);
+  border-radius: var(--wallo-radius-pill);
+}
+
+.report-featured-card {
+  padding: 22px;
+  background: #fff;
+  border: 1px solid var(--wallo-color-border-soft);
+  border-radius: 19px;
+  box-shadow: 0 5px 16px rgb(70 113 157 / 7%);
+}
+
+.report-card-meta {
+  display: flex;
+  gap: 7px;
+}
+
+.report-card-meta span {
+  padding: 5px 9px;
+  color: var(--wallo-color-text-muted);
+  font-size: 0.6rem;
+  font-weight: 800;
+  background: var(--wallo-color-surface-soft);
+  border-radius: var(--wallo-radius-pill);
+}
+
+.report-card-meta span:last-child {
+  color: #fff;
+  background: var(--wallo-color-primary);
+}
+
+.report-featured-card h2 {
+  margin: 14px 0 8px;
+  color: var(--wallo-color-text);
+  font-size: 1.08rem;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.report-featured-card p {
+  margin: 0;
+  color: var(--wallo-color-text-muted);
+  font-size: 0.75rem;
+  line-height: 1.65;
+}
+
+.report-source {
+  display: flex;
+  gap: 6px;
+  margin-top: 13px;
+  color: var(--wallo-color-text-subtle);
+  font-size: 0.64rem;
+}
+
+.report-insight-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.report-insight-card {
+  display: flex;
+  padding: 14px;
+  align-items: center;
+  gap: 11px;
+  background: #fff;
+  border: 1px solid var(--wallo-color-border-soft);
+  border-radius: 15px;
+}
+
+.report-insight-icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  color: var(--wallo-color-primary);
+  background: var(--wallo-color-info-bg);
+  border-radius: 11px;
+  place-items: center;
+}
+
+.report-insight-card > div {
+  display: grid;
+  gap: 3px;
+}
+
+.report-insight-card small {
+  color: var(--wallo-color-primary);
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+
+.report-insight-card strong {
+  color: var(--wallo-color-text);
+  font-size: 0.72rem;
 }
 
 .challenge-panel,
@@ -1444,7 +1608,8 @@ onBeforeUnmount(() => {
   }
 
   .ai-preview,
-  .reward-preview {
+  .reward-preview,
+  .report-preview {
     width: min(650px, 90vw);
   }
 
@@ -1634,7 +1799,8 @@ onBeforeUnmount(() => {
   .feature-badge { top: -9px; right: 6px; padding: 4px 7px; }
 
   .ai-preview,
-  .reward-preview {
+  .reward-preview,
+  .report-preview {
     width: min(560px, 94vw);
     padding: 15px;
     border-width: 5px;
@@ -1666,6 +1832,10 @@ onBeforeUnmount(() => {
   .challenge-panel, .point-panel { padding: 13px; }
   .challenge-stat-grid { margin-top: 10px; }
   .challenge-feed-row { margin-top: 8px; }
+  .report-featured-card { padding: 16px; }
+  .report-featured-card h2 { font-size: 0.9rem; }
+  .report-insight-card { padding: 10px; gap: 7px; }
+  .report-insight-card strong { font-size: 0.62rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
