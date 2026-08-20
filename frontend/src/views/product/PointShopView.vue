@@ -1130,9 +1130,9 @@ onMounted(() => {
   padding: 26px;
   padding-right: 190px;
   border-radius: 20px;
-  background: linear-gradient(110deg, #6857eb, #9178ff);
+  background: linear-gradient(110deg, #619ae5, #89b9ef);
   color: #fff;
-  box-shadow: 0 16px 30px rgb(103 83 226 / 22%);
+  box-shadow: none;
 }
 
 .point-summary-card span,
@@ -1180,10 +1180,10 @@ onMounted(() => {
   top: 50%;
   right: 24px;
   padding: 10px 18px;
-  border: 1px solid #c8c2ff;
+  border: 1px solid #c7dcf4;
   border-radius: 10px;
-  color: #5648c4;
-  background: #eeecff;
+  color: #477fcb;
+  background: #eaf4ff;
   font-size: 14px;
   font-weight: 700;
   text-decoration: none;
@@ -1196,8 +1196,8 @@ onMounted(() => {
 .point-history-button:hover,
 .point-history-button:focus-visible {
   color: #fff;
-  border-color: #7565ed;
-  background: #7565ed;
+  border-color: #5b94e7;
+  background: #5b94e7;
 }
 
 .section-title {
@@ -1245,7 +1245,7 @@ onMounted(() => {
   position: relative;
   width: min(100%, 276px);
   height: 316px;
-  margin: 4px auto 8px;
+  margin: 4px auto 20px;
   isolation: isolate;
 }
 
@@ -1334,7 +1334,7 @@ onMounted(() => {
   left: 8px;
   height: 7px;
   border-radius: 999px;
-  background: rgb(173 166 255 / 38%);
+  background: rgb(137 172 226 / 38%);
   content: "";
 }
 
@@ -1382,7 +1382,7 @@ onMounted(() => {
 .draw-machine-preview-lever:not(:disabled):hover,
 .draw-machine-preview-lever:not(:disabled):focus-visible {
   filter: brightness(1.08);
-  outline: 3px solid rgb(109 93 240 / 24%);
+  outline: 3px solid rgb(79 143 232 / 24%);
   outline-offset: 3px;
 }
 
@@ -1434,10 +1434,10 @@ onMounted(() => {
 .draw-machine-preview-hint {
   position: absolute;
   right: 0;
-  bottom: -1px;
+  bottom: -12px;
   left: 0;
   z-index: 7;
-  color: #7770bb;
+  color: #4f80c9;
   font-size: 11px;
   font-weight: 800;
 }
@@ -1482,18 +1482,18 @@ onMounted(() => {
   display: block;
   width: 100%;
   padding: 9px 12px;
-  border: 1px solid #c8c2ff;
+  border: 1px solid #c7dcf4;
   border-radius: 10px;
-  background: #eeecff;
-  color: #5648c4;
+  background: #eaf4ff;
+  color: #477fcb;
   font-size: 12px;
   font-weight: 800;
 }
 
 .bulk-open-box-button:hover:not(:disabled),
 .bulk-open-box-button:focus-visible:not(:disabled) {
-  border-color: #7565ed;
-  background: #e4e0ff;
+  border-color: #5b94e7;
+  background: #dbeafe;
 }
 
 .bulk-open-box-button:disabled {
@@ -1636,7 +1636,7 @@ onMounted(() => {
 .reward-modal-kicker {
   display: block;
   margin-bottom: 5px;
-  color: #786de9;
+  color: #709fe2;
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.04em;
@@ -1662,7 +1662,7 @@ onMounted(() => {
   margin-bottom: 14px;
   padding: 13px;
   border-radius: 12px;
-  background: #f7f6ff;
+  background: #f5faff;
 }
 
 .reward-prize-icon {
@@ -1670,7 +1670,7 @@ onMounted(() => {
 }
 
 .reward-prize-card strong {
-  color: #5546ca;
+  color: #3d72c9;
   font-size: 14px;
 }
 
@@ -1780,7 +1780,7 @@ onMounted(() => {
   box-sizing: border-box;
   gap: 7px;
   padding: 22px 10px 14px;
-  border: 1px solid #ebeaff;
+  border: 1px solid #e8f3ff;
   border-radius: 17px;
   background: #fff;
   text-align: center;
@@ -1853,7 +1853,7 @@ onMounted(() => {
 }
 
 .bulk-draw-card.draw-win .bulk-draw-title {
-  color: #5546ca;
+  color: #3d72c9;
 }
 
 .bulk-draw-card.draw-point .bulk-draw-title {
@@ -1861,14 +1861,14 @@ onMounted(() => {
 }
 
 .bulk-draw-card.draw-lose {
-  border-color: #ebeaff;
+  border-color: #e8f3ff;
   background: #fff;
   opacity: 1;
   justify-content: center;
 }
 
 .bulk-draw-card.draw-lose .bulk-draw-title {
-  color: #5546ca;
+  color: #3d72c9;
 }
 
 .bulk-draw-prize-card {
@@ -1902,7 +1902,7 @@ onMounted(() => {
   display: -webkit-box;
   max-width: 100%;
   overflow: hidden;
-  color: #5546ca;
+  color: #3d72c9;
   font-size: 13px;
   line-height: 1.25;
   text-align: center;
@@ -1920,7 +1920,7 @@ onMounted(() => {
 }
 
 .draw-lose .bulk-draw-prize-card strong {
-  color: #5546ca;
+  color: #3d72c9;
 }
 
 .bulk-draw-card.reward-effect-blue {
@@ -1980,7 +1980,7 @@ onMounted(() => {
   padding: 8px 16px;
   border: 0;
   border-radius: 9px;
-  background: #6d5df0;
+  background: #4f8fe8;
   color: #fff;
   font-size: 12px;
   font-weight: 800;
@@ -1988,7 +1988,7 @@ onMounted(() => {
 
 .bulk-result-confirm:hover,
 .bulk-result-confirm:focus-visible {
-  background: #5949df;
+  background: #4f86d2;
 }
 
 .result-lose .reward-modal-icon {
@@ -2006,7 +2006,7 @@ onMounted(() => {
   padding: 8px 12px;
   border: 0;
   border-radius: 8px;
-  background: #6d5df0;
+  background: #4f8fe8;
   color: #fff;
   font-size: 12px;
   font-weight: 800;
@@ -2014,7 +2014,7 @@ onMounted(() => {
 
 .reward-modal-confirm:hover,
 .reward-modal-confirm:focus-visible {
-  background: #5949df;
+  background: #4f86d2;
 }
 
 .reward-modal-confirm-outside {
@@ -2076,7 +2076,7 @@ onMounted(() => {
 .probability-button {
   border: 0;
   background: transparent;
-  color: #7770bb;
+  color: #4f80c9;
   font-size: 12px;
   cursor: pointer;
 }
@@ -2120,7 +2120,7 @@ onMounted(() => {
 }
 
 .probability-row b {
-  color: #6c60e9;
+  color: #5d91d9;
 }
 
 .inventory-title {
@@ -2132,7 +2132,7 @@ onMounted(() => {
   padding: 8px 18px;
   border-radius: 18px;
   background: #fff;
-  box-shadow: 0 5px 20px rgb(48 60 110 / 5%);
+  box-shadow: 0 5px 20px rgb(52 106 162 / 5%);
 }
 
 .inventory-item {
@@ -2152,7 +2152,7 @@ onMounted(() => {
 .inventory-item:hover,
 .inventory-item:focus-visible {
   outline: 0;
-  background: #faf9ff;
+  background: #f8fbff;
 }
 
 .inventory-item.used {
@@ -2190,7 +2190,7 @@ onMounted(() => {
   padding: 5px 9px;
   border-radius: 999px;
   background: #edf2ff;
-  color: #6670c8;
+  color: #6289c2;
 }
 
 .used .inventory-status {
@@ -2256,7 +2256,7 @@ onMounted(() => {
 .inventory-detail-kicker {
   display: block;
   margin-bottom: 6px;
-  color: #786de9;
+  color: #709fe2;
   font-size: 12px;
   font-weight: 800;
 }
@@ -2280,7 +2280,7 @@ onMounted(() => {
   margin: 0 0 20px;
   padding: 14px 16px;
   border-radius: 14px;
-  background: #f8f7ff;
+  background: #f6faff;
   text-align: left;
 }
 
@@ -2318,7 +2318,7 @@ onMounted(() => {
   aspect-ratio: 1;
   place-items: center;
   padding: 10px;
-  border: 1px solid #ebe9ff;
+  border: 1px solid #e8f3ff;
   border-radius: 18px;
   background: #fff;
   box-shadow: 0 8px 24px rgb(74 64 175 / 8%);
@@ -2355,7 +2355,7 @@ onMounted(() => {
 
 .inventory-detail-use {
   border: 0;
-  background: #6c5ce7;
+  background: #518ddf;
   color: #fff;
 }
 
@@ -2379,8 +2379,8 @@ onMounted(() => {
 .inventory-detail-dismiss:hover,
 .inventory-detail-dismiss:focus-visible {
   border-color: #c9c5f4;
-  background: #f8f7ff;
-  color: #5546ca;
+  background: #f6faff;
+  color: #3d72c9;
 }
 
 .inventory-detail-modal-enter-active,
