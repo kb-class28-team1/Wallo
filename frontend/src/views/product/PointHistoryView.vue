@@ -332,9 +332,10 @@ onMounted(loadHistory)
           variant="secondary"
           size="sm"
           :disabled="page === 0"
+          aria-label="이전 페이지"
           @click="movePage(page - 1)"
         >
-          <i class="bi bi-chevron-left" aria-hidden="true"></i>
+          <span aria-hidden="true">&lt;</span>
         </AppButton>
         <span>{{ page + 1 }} / {{ totalPages }}</span>
         <AppButton
@@ -342,9 +343,10 @@ onMounted(loadHistory)
           variant="secondary"
           size="sm"
           :disabled="page + 1 >= totalPages"
+          aria-label="다음 페이지"
           @click="movePage(page + 1)"
         >
-          <i class="bi bi-chevron-right" aria-hidden="true"></i>
+          <span aria-hidden="true">&gt;</span>
         </AppButton>
       </nav>
     </section>
@@ -465,9 +467,7 @@ onMounted(loadHistory)
 }
 
 .filter-panel {
-  display: flex;
-  align-items: end;
-  gap: 16px;
+  display: block;
   margin-bottom: 12px;
   padding: 16px 20px;
   border-radius: 18px;
@@ -475,10 +475,32 @@ onMounted(loadHistory)
   box-shadow: 0 8px 24px rgb(52 106 162 / 5%);
 }
 
+.filter-panel :deep(.app-card__body) {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.8fr) minmax(0, 1.3fr) minmax(0, 1.2fr);
+  align-items: end;
+  gap: 16px;
+}
+
 .filter-tabs,
 .period-buttons {
   display: flex;
   gap: 4px;
+}
+
+.filter-tabs,
+.period-buttons {
+  width: 100%;
+}
+
+.filter-tabs {
+  align-self: center;
+}
+
+.filter-tabs .filter-tab,
+.period-buttons .period-button {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .filter-tab,
@@ -506,6 +528,8 @@ onMounted(loadHistory)
 .period-field,
 .search-field {
   display: grid;
+  width: 100%;
+  min-width: 0;
   gap: 5px;
   color: #9098b0;
   font-size: 11px;
@@ -526,8 +550,8 @@ onMounted(loadHistory)
 }
 
 .search-field {
-  min-width: 175px;
-  margin-left: auto;
+  min-width: 0;
+  margin-left: 0;
 }
 
 .search-field .form-control {
@@ -690,12 +714,28 @@ onMounted(loadHistory)
 }
 
 .page-button {
-  width: 30px;
-  height: 30px;
+  box-sizing: border-box;
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  min-height: 40px;
+  flex: 0 0 40px;
+  padding: 0;
   border: 1px solid #e4e7f2;
   border-radius: 8px;
   background: #fff;
   color: #68719a;
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.page-button :deep(.app-button__label) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  line-height: 1;
 }
 
 .page-button:disabled {
@@ -709,13 +749,17 @@ onMounted(loadHistory)
   }
 
   .filter-panel {
-    flex-wrap: wrap;
-    align-items: center;
+    display: block;
+  }
+
+  .filter-panel :deep(.app-card__body) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .search-field {
     width: 100%;
     margin-left: 0;
+    grid-column: 1 / -1;
   }
 
   .history-item {
@@ -737,6 +781,23 @@ onMounted(loadHistory)
   .page-heading {
     display: flex;
     gap: 12px !important;
+  }
+
+  .filter-panel {
+    display: block;
+  }
+
+  .filter-panel :deep(.app-card__body) {
+    grid-template-columns: 1fr;
+  }
+
+  .filter-tabs,
+  .period-buttons {
+    flex-wrap: wrap;
+  }
+
+  .search-field {
+    grid-column: auto;
   }
 }
 </style>
