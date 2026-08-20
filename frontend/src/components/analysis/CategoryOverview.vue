@@ -48,7 +48,7 @@ const isRepeating = (code, repeatingCategories) =>
   justify-content: space-between;
   gap: 1rem;
   padding: 0.65rem 0;
-  border-bottom: 1px solid #ece9f3;
+  border-bottom: 1px solid var(--wallo-color-border-soft);
 }
 .category-row:last-child { border-bottom: 0; }
 </style>

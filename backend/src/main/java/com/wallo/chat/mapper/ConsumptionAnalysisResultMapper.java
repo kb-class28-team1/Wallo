@@ -11,4 +11,8 @@ public interface ConsumptionAnalysisResultMapper {
     List<ConsumptionAnalysisResultDto.StoredResult> findByAssistantMessageIds(
             @Param("assistantMessageIds") List<Long> assistantMessageIds
     );
+
+    ConsumptionAnalysisResultDto.LatestStoredResult findLatestByUserId(
+            @Param("userId") long userId
+    );
 }
