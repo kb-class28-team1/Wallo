@@ -111,7 +111,8 @@ describe("SideNavigation", () => {
 
     expect(wrapper.find(".challenge-group").classes()).toContain("challenge-group-active")
     expect(wrapper.find("#challenge-submenu").exists()).toBe(true)
-    expect(wrapper.findAll(".submenu-item")).toHaveLength(4)
+    expect(wrapper.findAll(".submenu-item")).toHaveLength(3)
+    expect(wrapper.text()).not.toContain("피드 목록")
     expect(wrapper.find(".submenu-link-active").text()).toContain("내 게시물")
     expect(wrapper.find(".sidebar-card").classes()).toContain("app-card")
 
@@ -123,6 +124,28 @@ describe("SideNavigation", () => {
 
     expect(getCurrentChallenge).toHaveBeenCalledOnce()
     expect(mocks.routerPush).toHaveBeenCalledWith("/my-feeds")
+
+    wrapper.unmount()
+  })
+
+  it("routes to the challenge feed when clicking the challenge title", async () => {
+    mocks.route.path = "/dashboard"
+    mocks.route.name = "dashboard"
+
+    const wrapper = mount(SideNavigation, {
+      global: {
+        stubs: {
+          AppDialog: { template: "<div />" },
+        },
+      },
+    })
+
+    await wrapper.find(".challenge-title").trigger("click")
+    await flushPromises()
+
+    expect(getCurrentChallenge).toHaveBeenCalledOnce()
+    expect(mocks.routerPush).toHaveBeenCalledWith("/challenges/7/feeds")
+    expect(wrapper.text()).not.toContain("피드 목록")
 
     wrapper.unmount()
   })

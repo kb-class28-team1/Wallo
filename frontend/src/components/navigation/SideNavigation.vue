@@ -122,9 +122,6 @@ const collapseIconClass = computed(() => ({
 const weeklyRankingClass = computed(() => ({
   "submenu-link-active": route.path === "/challenges/rankings/weekly",
 }))
-const challengeFeedClass = computed(() => ({
-  "submenu-link-active": route.name === "challenge-feed" || route.path === "/challenges/current",
-}))
 const myChallengeClass = computed(() => ({
   "submenu-link-active": route.path === "/users/me/challenge-dashboard",
 }))
@@ -320,9 +317,8 @@ const handleLogout = async () => {
           <button
             type="button"
             class="menu-item challenge-title d-flex flex-grow-1 align-items-center"
-            :aria-expanded="isChallengeOpen"
-            aria-controls="challenge-submenu"
-            @click="toggleChallenge"
+            :disabled="isChallengeChecking"
+            @click="moveToChallengeFeed"
           >
             <span class="menu-icon" aria-hidden="true">
               <i class="bi bi-cash-coin"></i>
@@ -349,18 +345,6 @@ const handleLogout = async () => {
 
         <Transition name="submenu">
           <div v-if="isChallengeOpen" id="challenge-submenu" class="submenu d-flex flex-column">
-            <AppButton
-              class="submenu-item submenu-link d-flex align-items-center"
-              variant="ghost"
-              size="sm"
-              :class="challengeFeedClass"
-              :disabled="isChallengeChecking"
-              @click="moveToChallengeFeed"
-            >
-              <template #leading><span class="submenu-dot" aria-hidden="true"></span></template>
-              피드 목록
-            </AppButton>
-
             <AppButton
               class="submenu-item submenu-link d-flex align-items-center"
               variant="ghost"
