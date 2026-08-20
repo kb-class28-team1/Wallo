@@ -98,9 +98,15 @@ const showSubscriptions = computed(() => allows("SUBSCRIPTION"))
         <span class="text-secondary">현재 기준을 충족하는 정기결제 후보가 없어요.</span>
       </div>
     </div>
-    <RouterLink class="btn btn-outline-primary mt-2 align-self-start" :to="{ name: 'expenses' }">
-      <i class="bi bi-calendar3 me-2" aria-hidden="true"></i>
-      월별 소비 내역 자세히 보기
+    <RouterLink class="report-link mt-2" :to="{ name: 'expenses' }">
+      <span class="report-link__icon" aria-hidden="true">
+        <i class="bi bi-calendar3"></i>
+      </span>
+      <span class="report-link__copy">
+        <strong>월별 소비 리포트</strong>
+        <small>소비 내역을 더 자세히 확인해 보세요</small>
+      </span>
+      <i class="bi bi-chevron-right report-link__arrow" aria-hidden="true"></i>
     </RouterLink>
   </section>
 </template>
@@ -110,4 +116,41 @@ const showSubscriptions = computed(() => allows("SUBSCRIPTION"))
 .analysis-card { padding: 1rem; background: #fff; border: 1px solid #e9e6f3; border-radius: 1rem; box-shadow: 0 0.25rem 0.8rem rgba(57, 45, 110, 0.06); }
 .analysis-card--good { background: #f3fbf6; border-color: #d7efe0; }
 .analysis-card--caution { background: #fffbef; border-color: #f4e7bd; }
+.report-link {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.8rem 0.9rem;
+  color: #514879;
+  background: #faf9ff;
+  border: 1px solid #ded9fa;
+  border-radius: 0.9rem;
+  text-decoration: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+.report-link:hover,
+.report-link:focus-visible {
+  color: #42369e;
+  background: #f6f4ff;
+  border-color: #bcb4f3;
+  box-shadow: 0 0.3rem 0.9rem rgba(87, 73, 197, 0.1);
+  transform: translateY(-1px);
+}
+.report-link:focus-visible { outline: 3px solid rgba(112, 98, 222, 0.2); outline-offset: 2px; }
+.report-link__icon {
+  display: inline-flex;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: 0 0 2.25rem;
+  align-items: center;
+  justify-content: center;
+  color: #7062de;
+  background: #eeebff;
+  border-radius: 0.7rem;
+}
+.report-link__copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 0.1rem; }
+.report-link__copy strong { font-size: 0.88rem; }
+.report-link__copy small { color: #7b849b; font-size: 0.75rem; }
+.report-link__arrow { color: #8f86cf; font-size: 0.85rem; }
 </style>
