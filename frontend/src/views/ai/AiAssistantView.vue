@@ -3,7 +3,6 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue"
 import { useRouter } from "vue-router"
 import { storeToRefs } from "pinia"
 import { useGoalStore } from "@/stores/goalStore"
-import { useProductRecommendationStore } from "@/stores/productRecommendationStore"
 import { useUserStore } from "@/stores/userStore"
 import {
   completeSelfCheckMission,
@@ -21,12 +20,10 @@ import AppButton from "@/components/ui/AppButton.vue"
 import AppCard from "@/components/ui/AppCard.vue"
 import AppPageHeader from "@/components/ui/AppPageHeader.vue"
 import AppState from "@/components/ui/AppState.vue"
-import ProductRecommendationResult from "@/components/analysis/ProductRecommendationResult.vue"
 import { announcePointEarned } from "@/utils/pointRewardNotice"
 
 const router = useRouter()
 const goalStore = useGoalStore()
-const productRecommendationStore = useProductRecommendationStore()
 const userStore = useUserStore()
 const {
   goals,
@@ -38,13 +35,6 @@ const {
   roadmapError,
   isRoadmapProgressSaving,
 } = storeToRefs(goalStore)
-const {
-  productRecommendation,
-  requestMessage,
-  generatedAt,
-  status: productRecommendationStatus,
-  error: productRecommendationError,
-} = storeToRefs(productRecommendationStore)
 const { user } = storeToRefs(userStore)
 
 const walloCharacter = "/images/profiles/thinking-penguin.svg"
@@ -267,14 +257,6 @@ const applyMissionResponse = (response) => {
   missionError.value = ""
 }
 
-const loadLatestProductRecommendation = ({ force = false } = {}) =>
-  productRecommendationStore.fetchLatest({ force })
-
-const formatRecommendationDate = (value) => {
-  if (!value) return ""
-  return String(value).replace("T", " ").slice(0, 16)
-}
-
 const startGoalSetting = async () => {
   await router.push({
     name: "chat",
@@ -341,7 +323,6 @@ onMounted(() => {
   window.addEventListener("focus", handlePageVisibility)
   document.addEventListener("visibilitychange", handlePageVisibility)
   void loadGoalPage({ force: true })
-  void loadLatestProductRecommendation({ force: true })
   void loadTodayMissionList()
   scheduleNextMissionDateRefresh()
 })
@@ -887,69 +868,6 @@ onBeforeUnmount(() => {
       </AppCard>
     </div>
 
-    <AppCard
-      v-if="productRecommendationStatus === 'loading'"
-      class="content-card latest-product-recommendation-card mt-4"
-      padding="none"
-    >
-      <div class="card-body p-4 p-lg-5">
-        <h2 class="section-title h5 fw-bold">최신 상품 추천</h2>
-        <AppState
-          class="latest-product-recommendation-state mt-3"
-          type="loading"
-          compact
-          title="최신 상품 추천을 불러오는 중입니다."
-          message="저장된 추천 결과를 확인하고 있습니다."
-        />
-      </div>
-    </AppCard>
-
-    <AppAlert
-      v-else-if="productRecommendationStatus === 'error'"
-      class="latest-product-recommendation-error mt-4"
-      variant="warning"
-    >
-      <div class="assistant-error-content">
-        <span>{{ productRecommendationError }}</span>
-        <AppButton
-          variant="outline"
-          size="sm"
-          @click="loadLatestProductRecommendation({ force: true })"
-        >
-          다시 시도
-        </AppButton>
-      </div>
-    </AppAlert>
-
-    <AppCard
-      v-else-if="productRecommendationStatus === 'success'"
-      class="content-card latest-product-recommendation-card mt-4"
-      padding="none"
-    >
-      <div class="card-body p-4 p-lg-5">
-        <div class="latest-product-recommendation-heading">
-          <div>
-            <h2 class="section-title h5 fw-bold">최신 상품 추천</h2>
-            <p class="text-secondary mb-0 mt-2">채팅에서 저장된 가장 최근의 상품 추천 결과예요.</p>
-          </div>
-          <div class="latest-product-recommendation-meta">
-            <small v-if="generatedAt" class="latest-product-recommendation-date">
-              {{ formatRecommendationDate(generatedAt) }} 기준
-            </small>
-            <p v-if="requestMessage" class="latest-product-recommendation-request mb-0 mt-3">
-              추천 요청: {{ requestMessage }}
-            </p>
-          </div>
-        </div>
-
-        <ProductRecommendationResult
-          class="mt-4"
-          full-width
-          :show-intro="false"
-          :recommendation="productRecommendation"
-        />
-      </div>
-    </AppCard>
   </section>
 </template>
 
@@ -971,31 +889,6 @@ onBeforeUnmount(() => {
 .assistant-refresh-status,
 .assistant-refresh-error {
   margin-bottom: var(--wallo-space-3);
-}
-
-.latest-product-recommendation-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.latest-product-recommendation-meta {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.35rem;
-  text-align: right;
-}
-
-.latest-product-recommendation-date,
-.latest-product-recommendation-request {
-  color: #85899b;
-  font-size: 0.78rem;
-}
-
-.latest-product-recommendation-state {
-  min-height: 140px;
 }
 
 .assistant-error-content {
@@ -1032,7 +925,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 2rem;
   padding: 1.35rem 1.5rem;
-  border: 2px dashed #c9c5ff;
+  border: 2px dashed var(--wallo-color-border);
   border-radius: 20px;
   background: linear-gradient(135deg, #fff 0%, #f5faff 100%);
 }
@@ -1071,7 +964,7 @@ onBeforeUnmount(() => {
   border-radius: 14px;
   color: #fff;
   background: linear-gradient(135deg, #71a1e8, #5a91dc);
-  box-shadow: 0 10px 24px rgb(100 83 232 / 22%);
+  box-shadow: 0 10px 24px rgb(79 143 232 / 22%);
   font-weight: 700;
 }
 
@@ -1088,7 +981,7 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   gap: 1.5rem;
   padding: 0.85rem 1.15rem;
-  border: 1px solid #dedafd;
+  border: 1px solid var(--wallo-color-border);
   border-radius: 18px;
   background: linear-gradient(135deg, #f5faff 0%, #eaf4ff 100%);
 }
@@ -1148,7 +1041,7 @@ onBeforeUnmount(() => {
   border-radius: 50%;
   color: #fff;
   background: linear-gradient(135deg, #71a1e8, #4d86d1);
-  box-shadow: 0 8px 18px rgb(100 83 232 / 20%);
+  box-shadow: 0 8px 18px rgb(79 143 232 / 20%);
   font-size: 0.68rem;
 }
 
@@ -1186,7 +1079,7 @@ onBeforeUnmount(() => {
   padding: 0.9rem;
   border: 1px solid #e7e7f2;
   border-radius: 15px;
-  background: #fcfcff;
+  background: var(--wallo-color-surface);
 }
 
 .mission-list-item.completed {
@@ -1335,7 +1228,7 @@ onBeforeUnmount(() => {
   scroll-behavior: smooth;
   scroll-padding-inline: 0.5rem;
   scroll-snap-type: x mandatory;
-  scrollbar-color: #c7ddf7 #f1f0fa;
+  scrollbar-color: #c7ddf7 var(--wallo-color-surface-soft);
   scrollbar-width: thin;
 }
 
@@ -1559,7 +1452,7 @@ onBeforeUnmount(() => {
 }
 
 .goal-current-amount {
-  color: #5f50d8;
+  color: var(--wallo-color-primary);
   font-size: 1.35rem;
   font-weight: 800;
 }
@@ -1578,7 +1471,7 @@ onBeforeUnmount(() => {
 .goal-progress {
   height: 0.7rem;
   border-radius: 999px;
-  background: #e6e4fb;
+  background: var(--wallo-color-progress-track);
 }
 
 .goal-progress .progress-bar {
@@ -1638,7 +1531,7 @@ onBeforeUnmount(() => {
   padding: 1.4rem;
   border: 1px solid #e7f1f9;
   border-radius: 18px;
-  background: #fcfcff;
+  background: var(--wallo-color-surface);
 }
 
 .action-icon {
@@ -1713,15 +1606,6 @@ onBeforeUnmount(() => {
   .goal-heading-actions {
     width: 100%;
     justify-content: space-between;
-  }
-
-  .latest-product-recommendation-heading {
-    flex-direction: column;
-  }
-
-  .latest-product-recommendation-meta {
-    align-items: flex-start;
-    text-align: left;
   }
 
   .roadmap-list {

@@ -14,6 +14,7 @@ const primaryMenus = [
   { icon: "bi bi-house-fill", label: "대시보드", to: "/dashboard" },
   { icon: "bi bi-bar-chart-line", label: "자산관리", to: "/assets" },
   { icon: "bi bi-robot", label: "AI 컨설팅", to: "/ai-consulting" },
+  { icon: "bi bi-stars", label: "AI 분석 결과", to: "/ai-analysis" },
 ]
 
 const utilityMenus = [

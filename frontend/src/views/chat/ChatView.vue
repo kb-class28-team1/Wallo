@@ -499,6 +499,10 @@ watch(
   (action) => {
     if (action === "consumption-analysis") {
       void startConsumptionAnalysis()
+    } else if (action === "asset-analysis") {
+      void startAssetAnalysis()
+    } else if (action === "product-recommendation") {
+      void startProductRecommendation()
     }
   },
 )
@@ -561,6 +565,12 @@ onMounted(async () => {
       await conversationStore.selectConversation(conversationId, userId.value)
     }
     await scrollToBottom()
+  }
+
+  if (route.query.action === "asset-analysis") {
+    await startAssetAnalysis()
+  } else if (route.query.action === "product-recommendation") {
+    await startProductRecommendation()
   }
 })
 </script>
