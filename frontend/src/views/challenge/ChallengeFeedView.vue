@@ -57,6 +57,7 @@ const analysisStageMessage = ref("분석 준비 중...")
 const isGaugeTestRunning = ref(false)
 const gaugeTestProgress = ref(0)
 const gaugeTestStageMessage = ref("영상 분석중...")
+const TENOR_EMBED_SCRIPT_SRC = "https://tenor.com/embed.js"
 const isUploading = ref(false)
 const todayMissions = ref([])
 const isMissionLoading = ref(false)
@@ -156,6 +157,22 @@ const openGaugeTest = () => {
     }
   }, 75)
 }
+const reloadTenorEmbed = async () => {
+  if (typeof document === "undefined") return
+  await nextTick()
+  if (!document.querySelector(".analysis-tenor-embed")) return
+  document.querySelector("script[data-wallo-tenor-embed]")?.remove()
+  const script = document.createElement("script")
+  script.type = "text/javascript"
+  script.async = true
+  script.dataset.walloTenorEmbed = "true"
+  script.src = TENOR_EMBED_SCRIPT_SRC
+  document.body.appendChild(script)
+}
+watch(isAnalysisDisplayActive, (active) => {
+  if (active) reloadTenorEmbed()
+}, { flush: "post" })
+
 const FEED_STALE_TIME = 30 * 1000
 const MESSAGE_STALE_TIME = 15 * 1000
 const getFeedCacheKey = (id, tab) => `challenge:feeds:current:${id}:${tab}`
@@ -1384,16 +1401,22 @@ onBeforeUnmount(() => {
             </div>
             <div
               v-if="isAnalysisDisplayActive"
-              class="analysis-penguin-track"
+              class="analysis-tenor-track"
               :style="{ '--analysis-progress': `${analysisDisplayProgress}%` }"
               aria-hidden="true"
             >
-              <div class="analysis-penguin-loader">
-                <img
-                  class="analysis-penguin-character"
-                  src="/images/profiles/default-profile.svg"
-                  alt=""
-                />
+              <div class="analysis-tenor-loader">
+                <div
+                  class="tenor-gif-embed analysis-tenor-embed"
+                  data-postid="15488237"
+                  data-share-method="host"
+                  data-aspect-ratio="1"
+                  data-width="100%"
+                >
+                  <a href="https://tenor.com/view/catscafe-penguin-run-mood-gotta-go-gif-15488237">
+                    Catscafe Penguin Sticker
+                  </a>
+                </div>
               </div>
             </div>
             <button
@@ -2357,7 +2380,7 @@ textarea {
   color: #737a90;
   font-size: 0.82rem;
 }
-.analysis-penguin-track {
+.analysis-tenor-track {
   position: relative;
   display: block !important;
   width: 100%;
@@ -2365,7 +2388,7 @@ textarea {
   margin: -2px 0 8px !important;
   overflow: visible;
 }
-.analysis-penguin-loader {
+.analysis-tenor-loader {
   position: absolute;
   right: auto;
   bottom: -6px;
@@ -2377,14 +2400,27 @@ textarea {
   mix-blend-mode: multiply;
   pointer-events: none;
   will-change: left, transform;
-  animation: analysis-penguin-bob 1.7s ease-in-out infinite;
+  animation: analysis-tenor-bob 1.7s ease-in-out infinite;
   transition: left 100ms linear;
 }
-.analysis-penguin-character {
-  display: block;
+.analysis-tenor-embed {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  max-width: none;
+  margin: 0;
+}
+.analysis-tenor-embed > a {
+  display: none;
+}
+.analysis-tenor-embed iframe,
+.analysis-tenor-embed img {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  border: 0;
 }
 .analysis-box button {
   width: 100%;
@@ -2449,7 +2485,7 @@ textarea {
     background-position: -20% 0;
   }
 }
-@keyframes analysis-penguin-bob {
+@keyframes analysis-tenor-bob {
   0%,
   100% {
     transform: translateY(0);
@@ -2476,7 +2512,7 @@ textarea {
   .analysis-box button.is-analyzing::after {
     animation: none;
   }
-  .analysis-penguin-loader {
+  .analysis-tenor-loader {
     animation: none;
     transition: none;
   }
