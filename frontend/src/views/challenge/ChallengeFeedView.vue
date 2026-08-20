@@ -9,6 +9,7 @@ import AppDialog from "@/components/common/AppDialog.vue"
 import AuthenticatedImage from "@/components/common/AuthenticatedImage.vue"
 import AppAlert from "@/components/ui/AppAlert.vue"
 import AppButton from "@/components/ui/AppButton.vue"
+import AppPageHeader from "@/components/ui/AppPageHeader.vue"
 import AppState from "@/components/ui/AppState.vue"
 import { leaveChallenge as leaveChallengeRequest } from "@/api/challengeApi"
 import { getTodayMissions, verifyMissionWithFeed } from "@/api/missionApi"
@@ -868,29 +869,13 @@ onBeforeUnmount(() => {
     />
     <template v-else>
       <header class="feed-header">
-        <div class="feed-header-top">
-          <div class="feed-title-group">
-            <h1 class="feed-challenge-name">{{ challengeName }}</h1>
-            <div v-if="inviteCode" class="feed-header-actions">
-              <div class="feed-invite-panel">
-                <AppButton
-                  variant="outline"
-                  size="sm"
-                  aria-label="초대 코드 복사"
-                  @click="copyInviteCode"
-                >
-                  <template #leading>
-                    <i class="bi bi-copy" aria-hidden="true"></i>
-                  </template>
-                  초대코드 복사
-                </AppButton>
-              </div>
+        <AppPageHeader class="feed-page-header" :title="challengeName">
+          <template #actions>
+            <div class="saving-total">
+              <small>누적 절약 금액</small><strong>{{ formatWon(mySavingTotal) }}</strong>
             </div>
-          </div>
-          <div class="saving-total">
-            <small>누적 절약 금액</small><strong>{{ formatWon(mySavingTotal) }}</strong>
-          </div>
-        </div>
+          </template>
+        </AppPageHeader>
         <div class="feed-header-bottom">
           <nav class="feed-tabs">
             <AppButton
@@ -910,6 +895,21 @@ onBeforeUnmount(() => {
               내 피드
             </AppButton>
           </nav>
+          <div v-if="inviteCode" class="feed-header-actions">
+            <div class="feed-invite-panel">
+              <AppButton
+                variant="outline"
+                size="sm"
+                aria-label="초대 코드 복사"
+                @click="copyInviteCode"
+              >
+                <template #leading>
+                  <i class="bi bi-copy" aria-hidden="true"></i>
+                </template>
+                초대코드 복사
+              </AppButton>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -1343,27 +1343,10 @@ onBeforeUnmount(() => {
   width: calc(100% - 352px);
   margin-bottom: 24px;
 }
-.feed-header :deep(.app-page-header__title) {
-  justify-self: start;
-  min-width: 0;
-  max-width: 100%;
-  margin: 8px 0 4px;
-  overflow: hidden;
-  color: inherit;
-  font-size: 2rem;
-  font-weight: 900;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 .feed-header-actions {
   display: flex;
   align-items: center;
   gap: 12px;
-}
-.feed-header :deep(.app-page-header__description) {
-  margin: 8px 0 0;
-  color: #939bad;
-  font-size: 0.67rem;
 }
 .feed-leave-button.app-button {
   display: inline-flex !important;
@@ -2331,9 +2314,6 @@ textarea {
     width: 100%;
     margin-bottom: 20px;
   }
-  .feed-header :deep(.app-page-header__title) {
-    font-size: 1.35rem;
-  }
   .feed-alert-content {
     align-items: flex-start;
     flex-direction: column;
@@ -2375,7 +2355,7 @@ textarea {
 }
 
 .feed-page {
-  padding: 0 22px 22px;
+  padding: 0 0 22px;
   border: 0;
   border-radius: 30px;
   background: #f6f8fb;
@@ -2394,56 +2374,13 @@ textarea {
   display: block;
 }
 
-.feed-header-top,
 .feed-header-bottom {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-}
-
-.feed-header-top {
-  align-items: center;
-}
-
-.feed-title-group {
-  display: flex;
-  min-width: 0;
-  flex: 1;
-  height: 75px;
-  align-items: center;
-  gap: 16px;
-}
-
-.feed-challenge-name {
-  flex: 0 1 auto;
-  min-width: 0;
-  margin: 0;
-  overflow: hidden;
-  color: #1b2d50;
-  font-size: clamp(1.65rem, 2.7vw, 2.25rem);
-  font-weight: 800;
-  letter-spacing: -0.05em;
-  line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-shadow: 0 2px 0 rgb(31 56 95 / 12%);
-}
-
-.feed-header-bottom {
   margin-top: 0;
   margin-bottom: 22px;
-}
-
-.feed-header :deep(.app-page-header__title) {
-  color: #1b2d50;
-  font-size: clamp(1.55rem, 2.5vw, 2.15rem);
-  letter-spacing: -0.05em;
-}
-
-.feed-header :deep(.app-page-header__description) {
-  color: #7b8eae;
-  font-size: 0.82rem;
 }
 
 .feed-layout {
@@ -2505,7 +2442,7 @@ textarea {
 .saving-total {
   display: flex;
   position: relative;
-  top: 22px;
+  top: 0;
   height: auto;
   min-height: 0;
   box-sizing: border-box;
@@ -2716,7 +2653,7 @@ textarea {
 
 @media (max-width: 1200px) {
   .feed-page {
-    padding: 16px;
+    padding: 16px 0;
   }
 
   .feed-header {
@@ -2732,28 +2669,12 @@ textarea {
 
 @media (max-width: 650px) {
   .feed-page {
-    padding: 0 10px 10px;
+    padding: 0 0 10px;
     border-radius: 20px;
   }
 
   .feed-header {
-    padding: 18px;
-    border-radius: 18px;
-  }
-
-  .feed-header-top,
-  .feed-header-bottom {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .feed-title-group {
-    width: 100%;
-    height: auto;
-    min-height: 0;
-    align-items: stretch;
-    flex-direction: column;
-    gap: 10px;
+    border-radius: 0;
   }
 
   .feed-header .saving-total {
@@ -2762,8 +2683,19 @@ textarea {
   }
 
   .feed-header-bottom {
-    margin-top: 14px;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 0;
     margin-bottom: 0;
+  }
+
+  .feed-header-bottom .feed-tabs {
+    flex: 1 1 auto;
+  }
+
+  .feed-header-bottom .feed-header-actions {
+    flex: 0 0 auto;
   }
 }
 </style>
