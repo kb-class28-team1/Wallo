@@ -40,6 +40,9 @@ const drawAnimation = ref({
   open: false,
   mode: "single",
 })
+const isOpeningBulk = computed(
+  () => isOpeningBox.value && drawAnimation.value.open && drawAnimation.value.mode === "bulk",
+)
 const inlineDrawState = ref({
   boxId: null,
   active: false,
@@ -742,7 +745,7 @@ onMounted(() => {
             size="sm"
             block
             :disabled="isOpeningBox || currentPoint < bulkOpenPrice(box)"
-            :loading="isOpeningBox"
+            :loading="isOpeningBulk"
             @click="handleOpenBoxes(box)"
           >
             {{ `10개 한 번에 열기 · ${bulkOpenPrice(box).toLocaleString("ko-KR")}P` }}
