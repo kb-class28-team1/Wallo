@@ -21,6 +21,23 @@ body {
   background: var(--wallo-color-bg);
 }
 
+.page-enter-active,
+.page-leave-active {
+  transition: opacity 200ms ease-out;
+}
+
+.page-enter-from,
+.page-leave-to {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-enter-active,
+  .page-leave-active {
+    transition: none;
+  }
+}
+
 h1,
 h2,
 h3,

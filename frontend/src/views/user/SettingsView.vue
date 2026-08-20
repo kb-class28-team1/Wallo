@@ -35,9 +35,11 @@ const isActiveTab = (tabName) => route.name === tabName
 
     <main class="settings-content">
       <RouterView v-slot="{ Component }">
-        <KeepAlive>
-          <component :is="Component" :key="route.name" />
-        </KeepAlive>
+        <Transition name="page" mode="out-in">
+          <KeepAlive>
+            <component :is="Component" :key="route.name" />
+          </KeepAlive>
+        </Transition>
       </RouterView>
     </main>
   </section>
