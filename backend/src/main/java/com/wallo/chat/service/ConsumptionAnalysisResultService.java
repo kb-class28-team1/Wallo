@@ -103,4 +103,30 @@ public class ConsumptionAnalysisResultService {
         }
         return null;
     }
+
+    @Transactional(readOnly = true)
+    public ConsumptionAnalysisResultDto.LatestResponse findLatestByUserId(long userId) {
+        ConsumptionAnalysisResultDto.LatestStoredResult stored = mapper.findLatestByUserId(userId);
+        if (stored == null) {
+            return null;
+        }
+        return new ConsumptionAnalysisResultDto.LatestResponse(
+                stored.getAssistantMessageId(),
+                stored.getRequestMessage(),
+                parseAnalysis(stored.getCalculatedResultJson()),
+                stored.getAiResponse(),
+                stored.getGeneratedAt()
+        );
+    }
+
+    private ConsumptionAnalysisView parseAnalysis(String calculatedResultJson) {
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> calculation = objectMapper.readValue(
+                    calculatedResultJson, Map.class);
+            return viewAssembler.assemble(calculation);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("저장된 소비분석 결과를 읽지 못했습니다.", exception);
+        }
+    }
 }

@@ -34,6 +34,33 @@ describe("ProductRecommendationResult", () => {
     expect(wrapper.text()).not.toContain("Product 4")
   })
 
+  it("shows one product at a time and moves through recommendations", async () => {
+    const wrapper = mount(ProductRecommendationResult, {
+      props: {
+        recommendation: {
+          ...recommendation,
+          products: Array.from({ length: 3 }, (_, index) => ({
+            ...recommendation.products[0],
+            productName: `Product ${index + 1}`,
+          })),
+        },
+      },
+    })
+
+    const slides = wrapper.findAll(".product-carousel__slide")
+    expect(slides).toHaveLength(3)
+    expect(slides[0].attributes("aria-hidden")).toBe("false")
+    expect(slides[1].attributes("aria-hidden")).toBe("true")
+    expect(wrapper.find(".product-carousel__position").text()).toContain("1/ 3")
+
+    await wrapper.find('[aria-label="다음 추천 상품 보기"]').trigger("click")
+
+    expect(slides[0].attributes("aria-hidden")).toBe("true")
+    expect(slides[1].attributes("aria-hidden")).toBe("false")
+    expect(wrapper.find(".product-carousel__position").text()).toContain("2/ 3")
+    expect(wrapper.find(".product-carousel__track").attributes("style")).toContain("-100%")
+  })
+
   it("shows an empty state when no product matches", () => {
     const wrapper = mount(ProductRecommendationResult, {
       props: {
@@ -47,6 +74,21 @@ describe("ProductRecommendationResult", () => {
     expect(wrapper.find(".product-recommendation__empty").exists()).toBe(true)
     expect(wrapper.find(".product-recommendation__empty").attributes("role")).toBe("status")
     expect(wrapper.findAll(".product-card")).toHaveLength(0)
+  })
+
+  it("renders the financial product comparison site as a styled external action", () => {
+    const wrapper = mount(ProductRecommendationResult, {
+      props: { recommendation },
+    })
+
+    const link = wrapper.get(".product-recommendation__external-link")
+    expect(link.text()).toContain("금융상품 한눈에")
+    expect(link.attributes("target")).toBe("_blank")
+    expect(link.attributes("rel")).toContain("noopener")
+    const logo = link.get('img[alt="금융감독원"]')
+    expect(logo.attributes("src")).toBe(
+      "/images/institutions/financial-supervision-service.png",
+    )
   })
 
   it("puts numbered preferential conditions on separate lines", () => {
