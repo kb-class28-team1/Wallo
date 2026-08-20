@@ -5,14 +5,18 @@ import com.wallo.common.exception.CustomException;
 import com.wallo.common.exception.ErrorCode;
 import com.wallo.report.domain.News;
 import com.wallo.report.domain.NewsReport;
+import com.wallo.report.domain.NewsReportPersonalization;
+import com.wallo.report.domain.ReportUserProfile;
 import com.wallo.report.dto.ai.NewsReportAiRequest;
 import com.wallo.report.dto.ai.NewsReportAiResponse;
 import com.wallo.report.mapper.NewsReportMapper;
+import com.wallo.report.mapper.NewsReportPersonalizationMapper;
 import com.wallo.report.term.service.FinancialTermMatchingService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.List;
 
@@ -25,17 +29,26 @@ public class NewsReportGenerationServiceImpl implements NewsReportGenerationServ
     private final NewsReportMapper newsReportMapper;
     private final NewsReportAiClient newsReportAiClient;
     private final FinancialTermMatchingService financialTermMatchingService;
+    private final NewsReportPersonalizationMapper personalizationMapper;
 
+    @Autowired
     public NewsReportGenerationServiceImpl(
             NewsService newsService,
             NewsReportMapper newsReportMapper,
             NewsReportAiClient newsReportAiClient,
-            FinancialTermMatchingService financialTermMatchingService
+            FinancialTermMatchingService financialTermMatchingService,
+            NewsReportPersonalizationMapper personalizationMapper
     ) {
         this.newsService = newsService;
         this.newsReportMapper = newsReportMapper;
         this.newsReportAiClient = newsReportAiClient;
         this.financialTermMatchingService = financialTermMatchingService;
+        this.personalizationMapper = personalizationMapper;
+    }
+
+    public NewsReportGenerationServiceImpl(NewsService newsService, NewsReportMapper newsReportMapper,
+            NewsReportAiClient newsReportAiClient, FinancialTermMatchingService financialTermMatchingService) {
+        this(newsService, newsReportMapper, newsReportAiClient, financialTermMatchingService, null);
     }
 
     /**
@@ -69,13 +82,43 @@ public class NewsReportGenerationServiceImpl implements NewsReportGenerationServ
                 .eventDescription(aiResponse.eventDescription())
                 .cause(aiResponse.cause())
                 .socialImpact(aiResponse.socialImpact())
-                .userImpact(aiResponse.userImpact())
-                .responseStrategy(aiResponse.responseStrategy())
                 .build();
 
         NewsReport saved = insertOrReuseExisting(newsId, newsReport);
         matchFinancialTerms(news);
         return saved;
+    }
+
+    @Override
+    public NewsReportPersonalization generatePersonalizationIfAbsent(Long newsId, Long userId) {
+        News news = newsService.getNewsByIdOrThrow(newsId);
+        NewsReportPersonalization existing = personalizationMapper.findByNewsIdAndUserId(newsId, userId);
+        if (existing != null) {
+            return existing;
+        }
+        ReportUserProfile profile = personalizationMapper.findUserProfile(userId);
+        if (profile == null || profile.getNickname() == null || profile.getNickname().isBlank()) {
+            throw new CustomException(ErrorCode.REPORT_NOT_FOUND);
+        }
+        NewsReportAiResponse response = newsReportAiClient.generateReport(new NewsReportAiRequest(
+                news.getNewsId(), news.getTitle(), news.getContent(), news.getCategory(), news.getSource(),
+                news.getPublishedAt(), "PERSONALIZED", profile.toPromptMap()));
+        if (isBlank(response.userImpact()) || isBlank(response.responseStrategy())) {
+            throw new CustomException(ErrorCode.AI_REPORT_INVALID_RESPONSE);
+        }
+        NewsReportPersonalization personalization = NewsReportPersonalization.builder()
+                .newsId(newsId).userId(userId).userImpact(response.userImpact())
+                .responseStrategy(response.responseStrategy()).build();
+        try {
+            if (personalizationMapper.insert(personalization) != 1) {
+                throw new CustomException(ErrorCode.REPORT_SAVE_FAILED);
+            }
+            return personalization;
+        } catch (DuplicateKeyException exception) {
+            NewsReportPersonalization winner = personalizationMapper.findByNewsIdAndUserId(newsId, userId);
+            if (winner != null) return winner;
+            throw new CustomException(ErrorCode.REPORT_SAVE_FAILED, exception);
+        }
     }
 
     /**
@@ -100,9 +143,7 @@ public class NewsReportGenerationServiceImpl implements NewsReportGenerationServ
         if (isBlankSummary(aiResponse.summary())
                 || isBlank(aiResponse.eventDescription())
                 || isBlank(aiResponse.cause())
-                || isBlank(aiResponse.socialImpact())
-                || isBlank(aiResponse.userImpact())
-                || isBlank(aiResponse.responseStrategy())) {
+                || isBlank(aiResponse.socialImpact())) {
             log.warn("AI 응답에 빈 필드가 있어 저장하지 않습니다 - newsId: {}", newsId);
             throw new CustomException(ErrorCode.AI_REPORT_INVALID_RESPONSE);
         }

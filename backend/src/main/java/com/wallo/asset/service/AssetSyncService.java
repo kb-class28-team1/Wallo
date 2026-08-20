@@ -104,7 +104,7 @@ public class AssetSyncService {
                 .toList()) {
             assetSyncMapper.upsertCard(connectionId, new AssetSyncDto.Card(
                     AssetIdentifierNormalizer.normalize(card.getResCardNo(), "card number"),
-                    card.getResCardName(), defaultValue(card.getResCardType(), "CREDIT"),
+                    card.getResCardName(), CardTypeNormalizer.normalize(card.getResCardType()),
                     status(card.getResCardState()), card.getResValidPeriod()));
         }
         long assetStageElapsedMs = elapsedMillis(startedAt);
