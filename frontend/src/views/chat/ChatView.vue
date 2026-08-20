@@ -462,7 +462,7 @@ const startConsumptionAnalysis = async () => {
   }
 }
 
-const startGuidedChat = async (title, message) => {
+const startGuidedChat = async (message) => {
   if (isGuidedChatStarting.value || isChatLoading.value || !userId.value) return
 
   isGuidedChatStarting.value = true
@@ -471,23 +471,19 @@ const startGuidedChat = async (title, message) => {
   errorMessage.value = ""
 
   try {
-    const conversation = await conversationStore.startNewConversation(userId.value, title)
-    if (!conversation) {
-      errorMessage.value = conversationError.value || `${title} 채팅을 시작하지 못했습니다.`
-      return
-    }
     await sendMessage(message)
   } catch (error) {
-    errorMessage.value = error.message || `${title} 채팅을 시작하지 못했습니다.`
+    errorMessage.value = error.message || "상담 요청을 전송하지 못했습니다."
   } finally {
     isGuidedChatStarting.value = false
     await scrollToBottom()
   }
 }
 
-const startAssetAnalysis = () => startGuidedChat("자산 분석", "내 자산을 분석해줘")
+const analyzeCurrentConversationSpending = () => startGuidedChat("내 소비를 분석해줘")
+const startAssetAnalysis = () => startGuidedChat("내 자산을 분석해줘")
 const startProductRecommendation = () =>
-  startGuidedChat("상품 추천", "내 상황에 맞는 금융상품을 추천해줘")
+  startGuidedChat("내 상황에 맞는 금융상품을 추천해줘")
 
 watch(
   () => route.query.action,
@@ -596,7 +592,7 @@ onMounted(async () => {
             />
 
             <div v-if="showQuickActions" class="chat-quick-actions" aria-label="빠른 상담 시작">
-              <button type="button" class="chat-quick-action" @click="startConsumptionAnalysis">
+              <button type="button" class="chat-quick-action" @click="analyzeCurrentConversationSpending">
                 <i class="bi bi-pie-chart" aria-hidden="true"></i>
                 소비분석
               </button>

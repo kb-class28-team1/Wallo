@@ -411,6 +411,34 @@ describe("ChatView", () => {
     wrapper.unmount()
   })
 
+  it("runs a quick analysis in the current conversation without creating another one", async () => {
+    getConversationMessages.mockResolvedValue([])
+    getGoalByConversationId.mockResolvedValue({ data: null })
+    sendConversationMessage.mockResolvedValue({
+      userMessage: {
+        messageId: 2,
+        role: "USER",
+        content: "내 소비를 분석해줘",
+      },
+      assistantMessage: {
+        messageId: 3,
+        role: "ASSISTANT",
+        content: "소비 분석 결과입니다.",
+      },
+      goalInterview: null,
+    })
+
+    const wrapper = mountChat()
+    await flushPromises()
+
+    await wrapper.findAll(".chat-quick-action")[0].trigger("click")
+    await flushPromises()
+
+    expect(sendConversationMessage).toHaveBeenCalledWith(11, 7, "내 소비를 분석해줘", null)
+    expect(createConversation).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
   it("starts a named goal-setting conversation from the dashboard entry", async () => {
     route.query = { start: "goal-setting" }
     createConversation.mockResolvedValue({
