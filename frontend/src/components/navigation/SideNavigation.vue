@@ -110,6 +110,9 @@ const assetCollapseIconClass = computed(() => ({
 const monthlyReportClass = computed(() => ({
   "submenu-link-active": route.path === "/assets/expenses",
 }))
+const categoryExpenseClass = computed(() => ({
+  "submenu-link-active": route.path === "/assets/categories",
+}))
 const challengeGroupClass = computed(() => ({
   "challenge-group-active": isChallengeRoute.value,
 }))
@@ -144,12 +147,14 @@ watch(
 watch(
   isAssetRoute,
   (isActive) => {
-    if (isActive) {
-      isAssetOpen.value = true
-    }
+    isAssetOpen.value = isActive
   },
   { immediate: true },
 )
+
+const openAssetMenu = () => {
+  isAssetOpen.value = true
+}
 
 const toggleAsset = () => {
   isAssetOpen.value = !isAssetOpen.value
@@ -263,6 +268,7 @@ const handleLogout = async () => {
               <RouterLink
                 to="/assets"
                 class="menu-item menu-link asset-title d-flex flex-grow-1 align-items-center"
+                @click="openAssetMenu"
               >
                 <span class="menu-icon" aria-hidden="true">
                   <i :class="menu.icon"></i>
@@ -296,6 +302,14 @@ const handleLogout = async () => {
                 >
                   <span class="submenu-dot" aria-hidden="true"></span>
                   월별 리포트
+                </RouterLink>
+                <RouterLink
+                  to="/assets/categories"
+                  class="submenu-item submenu-link d-flex align-items-center"
+                  :class="categoryExpenseClass"
+                >
+                  <span class="submenu-dot" aria-hidden="true"></span>
+                  카테고리별 소비 내역
                 </RouterLink>
               </div>
             </Transition>
