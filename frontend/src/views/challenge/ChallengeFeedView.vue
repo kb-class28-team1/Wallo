@@ -54,9 +54,6 @@ const modalOpen = ref(false)
 const isAnalyzing = ref(false)
 const analysisProgress = ref(0)
 const analysisStageMessage = ref("분석 준비 중...")
-const isGaugeTestRunning = ref(false)
-const gaugeTestProgress = ref(0)
-const gaugeTestStageMessage = ref("영상 분석중...")
 const TENOR_EMBED_SCRIPT_SRC = "https://tenor.com/embed.js"
 const isUploading = ref(false)
 const todayMissions = ref([])
@@ -92,16 +89,6 @@ let newFeedAnimationTimer = null
 let dialogResolver = null
 let analysisRequestSequence = 0
 let analysisProgressTimer = null
-let gaugeTestTimer = null
-let gaugeTestResetTimer = null
-
-const isAnalysisDisplayActive = computed(() => isAnalyzing.value || isGaugeTestRunning.value)
-const analysisDisplayProgress = computed(() =>
-  isGaugeTestRunning.value ? gaugeTestProgress.value : analysisProgress.value,
-)
-const analysisDisplayStageMessage = computed(() =>
-  isGaugeTestRunning.value ? gaugeTestStageMessage.value : analysisStageMessage.value,
-)
 
 const stopAnalysisProgress = () => {
   if (analysisProgressTimer) {
@@ -118,45 +105,6 @@ const startAnalysisProgress = () => {
     analysisProgress.value = Math.min(90, analysisProgress.value + increment)
   }, 100)
 }
-const stopGaugeTest = () => {
-  if (gaugeTestTimer) {
-    window.clearInterval(gaugeTestTimer)
-    gaugeTestTimer = null
-  }
-  if (gaugeTestResetTimer) {
-    window.clearTimeout(gaugeTestResetTimer)
-    gaugeTestResetTimer = null
-  }
-  isGaugeTestRunning.value = false
-}
-const getGaugeTestStageMessage = (progress) => {
-  if (progress < 25) return "영상 분석중..."
-  if (progress < 50) return "시세 확인중..."
-  if (progress < 75) return "가격 산출중..."
-  if (progress < 100) return "절약 금액 계산중..."
-  return "분석 완료"
-}
-const openGaugeTest = () => {
-  if (isAnalyzing.value) return
-  stopGaugeTest()
-  modalOpen.value = true
-  isMissionLoading.value = false
-  isGaugeTestRunning.value = true
-  gaugeTestProgress.value = 0
-  gaugeTestStageMessage.value = getGaugeTestStageMessage(0)
-  gaugeTestTimer = window.setInterval(() => {
-    if (!isGaugeTestRunning.value) return
-    gaugeTestProgress.value = Math.min(100, gaugeTestProgress.value + 1.5)
-    gaugeTestStageMessage.value = getGaugeTestStageMessage(gaugeTestProgress.value)
-    if (gaugeTestProgress.value >= 100) {
-      window.clearInterval(gaugeTestTimer)
-      gaugeTestTimer = null
-      gaugeTestResetTimer = window.setTimeout(() => {
-        stopGaugeTest()
-      }, 900)
-    }
-  }, 75)
-}
 const reloadTenorEmbed = async () => {
   if (typeof document === "undefined") return
   await nextTick()
@@ -169,7 +117,7 @@ const reloadTenorEmbed = async () => {
   script.src = TENOR_EMBED_SCRIPT_SRC
   document.body.appendChild(script)
 }
-watch(isAnalysisDisplayActive, (active) => {
+watch(isAnalyzing, (active) => {
   if (active) reloadTenorEmbed()
 }, { flush: "post" })
 
@@ -487,7 +435,6 @@ const leaveCurrentChallenge = async () => {
 }
 
 const openModal = async () => {
-  stopGaugeTest()
   modalOpen.value = true
   isMissionLoading.value = true
   try {
@@ -509,7 +456,6 @@ const closeModal = () => {
   modalOpen.value = false
   analysisRequestSequence += 1
   stopAnalysisProgress()
-  stopGaugeTest()
   isAnalyzing.value = false
   analysisProgress.value = 0
   analysisStageMessage.value = "분석 준비 중..."
@@ -960,7 +906,6 @@ onBeforeUnmount(() => {
   disconnectChatSocket()
   analysisRequestSequence += 1
   stopAnalysisProgress()
-  stopGaugeTest()
   likeBurstTimers.forEach((timer) => window.clearTimeout(timer))
   if (pageHeartCelebrationTimer) window.clearTimeout(pageHeartCelebrationTimer)
   if (newFeedAnimationTimer) window.clearTimeout(newFeedAnimationTimer)
@@ -1293,16 +1238,6 @@ onBeforeUnmount(() => {
         </aside>
       </div>
       <AppButton
-        class="floating-gauge-test"
-        variant="primary"
-        size="sm"
-        aria-label="AI 분석 게이지 테스트"
-        title="AI 분석 게이지 테스트"
-        @click="openGaugeTest"
-      >
-        🌊
-      </AppButton>
-      <AppButton
         class="floating-add"
         variant="primary"
         size="lg"
@@ -1400,9 +1335,9 @@ onBeforeUnmount(() => {
               <b>🤖 AI 분석</b><span>선택 정보와 미디어를 외부 AI 분석기로 전달합니다.</span>
             </div>
             <div
-              v-if="isAnalysisDisplayActive"
+              v-if="isAnalyzing"
               class="analysis-tenor-track"
-              :style="{ '--analysis-progress': `${analysisDisplayProgress}%` }"
+              :style="{ '--analysis-progress': `${analysisProgress}%` }"
               aria-hidden="true"
             >
               <div class="analysis-tenor-loader">
@@ -1421,21 +1356,17 @@ onBeforeUnmount(() => {
             </div>
             <button
               type="button"
-              :class="{ 'is-analyzing': isAnalysisDisplayActive }"
-              :style="
-                isAnalysisDisplayActive
-                  ? { '--analysis-progress': `${analysisDisplayProgress}%` }
-                  : undefined
-              "
-              :disabled="isAnalyzing || isGaugeTestRunning"
+              :class="{ 'is-analyzing': isAnalyzing }"
+              :style="isAnalyzing ? { '--analysis-progress': `${analysisProgress}%` } : undefined"
+              :disabled="isAnalyzing"
               @click="requestAnalysis"
             >
               <span class="analysis-button-label">
-                {{ isAnalysisDisplayActive ? analysisDisplayStageMessage : "✨ AI에게 분석 맡기기" }}
+                {{ isAnalyzing ? analysisStageMessage : "✨ AI에게 분석 맡기기" }}
               </span>
             </button>
-            <div v-if="isAnalysisDisplayActive" class="analysis-progress-label" aria-live="polite">
-              분석 진행률 {{ Math.round(analysisDisplayProgress) }}%
+            <div v-if="isAnalyzing" class="analysis-progress-label" aria-live="polite">
+              분석 진행률 {{ Math.round(analysisProgress) }}%
             </div>
           </div>
           <div class="result-box" :class="{ ready: form.analysisSummary }">
@@ -2215,22 +2146,6 @@ onBeforeUnmount(() => {
   font-size: 2rem;
   box-shadow: 0 10px 28px #5d92d866;
 }
-.floating-gauge-test {
-  position: fixed;
-  right: max(16px, calc((100vw - 1453px) / 2));
-  bottom: 96px;
-  z-index: 40;
-  width: 46px;
-  height: 46px;
-  min-height: 0;
-  padding: 0;
-  color: #fff;
-  background: #6f96e9;
-  border: 0;
-  border-radius: 50%;
-  box-shadow: 0 8px 22px #5d92d866;
-  font-size: 1.1rem;
-}
 .modal-layer {
   position: fixed;
   inset: 0;
@@ -2682,10 +2597,6 @@ textarea {
   .floating-add {
     right: 20px;
     bottom: 20px;
-  }
-  .floating-gauge-test {
-    right: 20px;
-    bottom: 88px;
   }
 }
 @media (max-width: 650px) {
