@@ -103,12 +103,14 @@ class ExpenseMapperIntegrationTest {
         assertEquals("TRANSFER", transactions.get(0).getType());
         assertEquals("RECEIVE", transactions.get(0).getCategory());
         assertEquals(1L, expenseMapper.countTransactions(7L, condition));
-        assertEquals(410L, expenseMapper.selectTotalExpense(7L, condition));
-        assertEquals(1_000L, expenseMapper.selectTotalIncome(7L, condition));
+        assertEquals(0L, expenseMapper.selectTotalExpense(7L, condition));
+        assertEquals(0L, expenseMapper.selectTotalIncome(7L, condition));
+        assertTrue(expenseMapper.selectExpenseCategoryBreakdown(7L, condition).isEmpty());
+        assertTrue(expenseMapper.selectDailyBreakdown(7L, condition).isEmpty());
     }
 
     @Test
-    void filtersTransactionsByCategoryWithoutChangingAggregateQueries() {
+    void filtersCategoryAggregatesAlongsideTransactions() {
         ExpenseDto.SearchCondition condition = new ExpenseDto.SearchCondition(
                 "2026-07-01", "2026-07-02", 0, 20, "ETC", 0
         );
@@ -122,8 +124,21 @@ class ExpenseMapperIntegrationTest {
         assertEquals("ETC", transactions.get(1).getCategory());
         assertEquals(2L, expenseMapper.countTransactions(7L, condition));
 
-        assertEquals(410L, expenseMapper.selectTotalExpense(7L, condition));
-        assertEquals(2, expenseMapper.selectDailyBreakdown(7L, condition).size());
+        assertEquals(110L, expenseMapper.selectTotalExpense(7L, condition));
+        assertEquals(0L, expenseMapper.selectTotalIncome(7L, condition));
+
+        List<ExpenseDto.CategoryBreakdown> categories =
+                expenseMapper.selectExpenseCategoryBreakdown(7L, condition);
+        assertEquals(1, categories.size());
+        assertEquals("ETC", categories.get(0).getCategory());
+        assertEquals(110L, categories.get(0).getAmount());
+
+        List<ExpenseDto.DailyBreakdown> dailyBreakdown =
+                expenseMapper.selectDailyBreakdown(7L, condition);
+        assertEquals(1, dailyBreakdown.size());
+        assertEquals("2026-07-01", dailyBreakdown.get(0).getDate());
+        assertEquals(110L, dailyBreakdown.get(0).getTotalExpense());
+        assertEquals(0L, dailyBreakdown.get(0).getTotalIncome());
     }
 
     @Test
