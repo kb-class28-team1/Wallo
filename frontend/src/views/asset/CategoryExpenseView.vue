@@ -299,8 +299,8 @@ onMounted(async () => {
 
 .back-button:hover,
 .back-button:focus {
-  color: #6b5bd2;
-  background: #f0edff;
+  color: #4d82d6;
+  background: #edf6ff;
 }
 
 .month-navigation {
