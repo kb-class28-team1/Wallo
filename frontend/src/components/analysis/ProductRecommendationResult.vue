@@ -206,6 +206,15 @@ const productKey = (product, index) =>
         최고 우대금리는 조건 충족 시 적용될 수 있으며, 가입 전 금융회사에서 최신 조건을 확인해야 합니다.
       </small>
     </div>
+    <a
+      class="btn btn-outline-primary align-self-start"
+      href="https://finlife.fss.or.kr/finlife/main/main.do"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      <i class="bi bi-box-arrow-up-right me-2" aria-hidden="true"></i>
+      금융상품 한눈에에서 더 알아보기
+    </a>
   </section>
 </template>
 

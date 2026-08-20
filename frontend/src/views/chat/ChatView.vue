@@ -75,6 +75,7 @@ const editingTitle = ref("")
 const deleteTargetConversation = ref(null)
 const isDeletingConversation = ref(false)
 const isConsumptionAnalysisStarting = ref(false)
+const isGuidedChatStarting = ref(false)
 const isGoalSettingEntry = ref(false)
 const isGoalSettingStarting = ref(false)
 const isMissingGoalConversation = ref(false)
@@ -110,6 +111,18 @@ const displayMessages = computed(() => {
   if (messages.value.length) return messages.value
   if (isGoalSettingEntry.value) return []
   return [{ ...WELCOME_MESSAGE }]
+})
+const showQuickActions = computed(() =>
+  displayMessages.value.length === 1
+  && displayMessages.value[0]?.id === WELCOME_MESSAGE.id
+  && !isChatLoading.value,
+)
+const loadingMessage = computed(() => {
+  if (isGoalCompletionChecking.value) return "목표 설정 결과를 확인하는 중"
+  if (isGoalSettingStarting.value) return "목표 설정 채팅을 준비하는 중"
+  if (isConsumptionAnalysisStarting.value) return "소비 내역을 분석하는 중"
+  if (isGuidedChatStarting.value) return "맞춤 상담을 준비하는 중"
+  return "답변을 생성하는 중"
 })
 
 const resetGoalCompletionFlow = () => {
@@ -449,6 +462,33 @@ const startConsumptionAnalysis = async () => {
   }
 }
 
+const startGuidedChat = async (title, message) => {
+  if (isGuidedChatStarting.value || isChatLoading.value || !userId.value) return
+
+  isGuidedChatStarting.value = true
+  isMissingGoalConversation.value = false
+  resetGoalCompletionFlow()
+  errorMessage.value = ""
+
+  try {
+    const conversation = await conversationStore.startNewConversation(userId.value, title)
+    if (!conversation) {
+      errorMessage.value = conversationError.value || `${title} 채팅을 시작하지 못했습니다.`
+      return
+    }
+    await sendMessage(message)
+  } catch (error) {
+    errorMessage.value = error.message || `${title} 채팅을 시작하지 못했습니다.`
+  } finally {
+    isGuidedChatStarting.value = false
+    await scrollToBottom()
+  }
+}
+
+const startAssetAnalysis = () => startGuidedChat("자산 분석", "내 자산을 분석해줘")
+const startProductRecommendation = () =>
+  startGuidedChat("상품 추천", "내 상황에 맞는 금융상품을 추천해줘")
+
 watch(
   () => route.query.action,
   (action) => {
@@ -555,6 +595,21 @@ onMounted(async () => {
               @typing-complete="completeTypingMessage"
             />
 
+            <div v-if="showQuickActions" class="chat-quick-actions" aria-label="빠른 상담 시작">
+              <button type="button" class="chat-quick-action" @click="startConsumptionAnalysis">
+                <i class="bi bi-pie-chart" aria-hidden="true"></i>
+                소비분석
+              </button>
+              <button type="button" class="chat-quick-action" @click="startAssetAnalysis">
+                <i class="bi bi-wallet2" aria-hidden="true"></i>
+                자산분석
+              </button>
+              <button type="button" class="chat-quick-action" @click="startProductRecommendation">
+                <i class="bi bi-stars" aria-hidden="true"></i>
+                상품추천
+              </button>
+            </div>
+
             <GoalInterviewCard
               v-if="activeGoalInterview"
               :interview="activeGoalInterview"
@@ -574,27 +629,14 @@ onMounted(async () => {
             />
 
             <div
-              v-if="(isConsumptionAnalysisStarting || isGoalSettingStarting) && !isChatLoading"
-              class="loading-message"
-              aria-label="자동 채팅 준비 중"
+              v-if="isConsumptionAnalysisStarting || isGoalSettingStarting || isGuidedChatStarting || isChatLoading || isGoalCompletionChecking"
+              class="loading-message loading-message--progress"
+              role="status"
+              aria-live="polite"
             >
-              {{
-                isGoalSettingStarting
-                  ? "목표 설정 채팅을 준비하는 중..."
-                  : "소비분석 채팅을 준비하는 중..."
-              }}
-            </div>
-
-            <div v-if="isChatLoading" class="loading-message" aria-label="AI 답변 생성 중">
-              AI 답변을 기다리는 중...
-            </div>
-
-            <div
-              v-if="isGoalCompletionChecking"
-              class="loading-message"
-              aria-label="목표 설정 결과 확인 중"
-            >
-              목표 설정 결과를 확인하는 중...
+              <span>{{ loadingMessage }}...</span>
+              <span class="loading-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+              <span class="loading-progress" aria-hidden="true"><span></span></span>
             </div>
           </div>
 
@@ -615,6 +657,7 @@ onMounted(async () => {
               isGoalSettingStarting ||
               isMissingGoalConversation ||
               isGoalCompletionChecking ||
+              isGuidedChatStarting ||
               isChatLoading ||
               isMessageLoading ||
               !userId

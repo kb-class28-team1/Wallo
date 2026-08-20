@@ -98,11 +98,15 @@ const showSubscriptions = computed(() => allows("SUBSCRIPTION"))
         <span class="text-secondary">현재 기준을 충족하는 정기결제 후보가 없어요.</span>
       </div>
     </div>
+    <RouterLink class="btn btn-outline-primary mt-2 align-self-start" :to="{ name: 'expenses' }">
+      <i class="bi bi-calendar3 me-2" aria-hidden="true"></i>
+      월별 소비 내역 자세히 보기
+    </RouterLink>
   </section>
 </template>
 
 <style scoped>
-.consumption-analysis { width: min(100%, 680px); margin-bottom: 0.75rem; }
+.consumption-analysis { display: flex; width: min(100%, 680px); flex-direction: column; margin-bottom: 0.75rem; }
 .analysis-card { padding: 1rem; background: #fff; border: 1px solid #e9e6f3; border-radius: 1rem; box-shadow: 0 0.25rem 0.8rem rgba(57, 45, 110, 0.06); }
 .analysis-card--good { background: #f3fbf6; border-color: #d7efe0; }
 .analysis-card--caution { background: #fffbef; border-color: #f4e7bd; }
