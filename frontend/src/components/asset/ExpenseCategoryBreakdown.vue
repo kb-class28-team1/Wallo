@@ -166,7 +166,11 @@ const progressWidth = (rate) => {
 <template>
   <article class="card category-card border-0 shadow-sm">
     <div class="card-body category-card-body">
-      <h2 class="h5 fw-bold mb-0">카테고리별 소비 내역</h2>
+      <div class="category-card-heading">
+        <slot name="header">
+          <h2 class="h5 fw-bold mb-0">카테고리별 소비 내역</h2>
+        </slot>
+      </div>
 
       <div
         v-if="categories.length"

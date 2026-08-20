@@ -1,123 +1,208 @@
 import { flushPromises, mount } from "@vue/test-utils"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { reactive, ref } from "vue"
 
 import CategoryExpenseView from "./CategoryExpenseView.vue"
 import { getExpenses } from "@/api/assetApi"
+import { useBudgetStore } from "@/stores/budgetStore"
+
+const mocks = vi.hoisted(() => ({
+  route: { query: {} },
+  routerReplace: vi.fn(),
+}))
 
 vi.mock("@/api/assetApi", () => ({
   getExpenses: vi.fn(),
 }))
 
-const createExpenseData = ({ category } = {}) => ({
-  totalExpense: 300_000,
-  expenseCategoryBreakdown: [
-    { category: "FOOD", amount: 200_000 },
-    { category: "CAFE", amount: 100_000 },
-  ],
-  transactions: [
-    {
-      transactionId: category === "CAFE" ? 2 : 1,
-      date: "2026-08-11",
-      type: "EXPENSE",
-      category: category || "FOOD",
-      amount: category === "CAFE" ? 100_000 : 200_000,
-      merchantName: category === "CAFE" ? "카페 테스트" : "식당 테스트",
-    },
-  ],
-  pagination: {
-    currentPage: 0,
-    totalPages: 1,
-    totalElements: 1,
-    hasNext: false,
-  },
-})
+vi.mock("@/stores/budgetStore", () => ({
+  useBudgetStore: vi.fn(),
+}))
 
-const globalStubs = {
+vi.mock("vue-router", () => ({
   RouterLink: {
     props: ["to"],
     template: '<a :href="to"><slot /></a>',
   },
+  useRoute: () => mocks.route,
+  useRouter: () => ({
+    replace: mocks.routerReplace,
+  }),
+}))
+
+const getMonthKey = (date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
+
+const createExpenseResponse = () => ({
+  success: true,
+  data: {
+    totalExpense: 300_000,
+    expenseCategoryBreakdown: [
+      { category: "FOOD", amount: 200_000 },
+      { category: "CAFE", amount: 100_000 },
+    ],
+  },
+})
+
+const createBudgetStore = () => ({
+  categorySummary: ref({
+    targetMonth: getMonthKey(new Date()),
+    totalAmount: 1_000_000,
+    allocatedAmount: 1_000_000,
+    unallocatedAmount: 0,
+    spentAmount: 300_000,
+    remainingAmount: 700_000,
+    usageRate: 30,
+    overBudget: false,
+    categories: [
+      {
+        category: "FOOD",
+        budgetAmount: 500_000,
+        spentAmount: 200_000,
+        remainingAmount: 300_000,
+        usageRate: 40,
+        overBudget: false,
+      },
+    ],
+  }),
+  initialLoading: ref(false),
+  refreshing: ref(false),
+  isLoading: ref(false),
+  isSaving: ref(false),
+  error: ref(null),
+  fetchCategoryBudgets: vi.fn().mockResolvedValue(null),
+  saveCategoryBudgets: vi.fn().mockResolvedValue(null),
+})
+
+const globalStubs = {
   AppPageHeader: {
     props: ["title"],
     template: '<header class="app-page-header"><slot name="leading" /><h1>{{ title }}</h1><slot name="actions" /></header>',
   },
-  AppCard: {
-    template: '<article class="app-card"><slot /></article>',
-  },
   AppAlert: {
-    props: ["message"],
-    template: '<div class="app-alert"><span v-if="message">{{ message }}</span><slot /></div>',
+    template: '<div class="app-alert"><slot /></div>',
   },
   AppState: {
     props: ["type", "title", "message"],
-    template: '<section class="app-state" :data-state="type"><strong>{{ title }}</strong><span>{{ message }}</span><slot /></section>',
+    template: '<section class="app-state" :data-state="type"><strong>{{ title }}</strong><span>{{ message }}</span></section>',
   },
-  ExpenseTransactionList: {
-    props: ["transactions", "hasNext", "emptyMessage"],
+  ExpenseCategoryBreakdown: {
+    props: [
+      "breakdown",
+      "totalExpense",
+      "budgetSummary",
+      "budgetLoading",
+      "budgetError",
+      "canEditBudget",
+    ],
     template: `
-      <div data-testid="transaction-list">
-        <span data-testid="transaction-count">{{ transactions.length }}</span>
-        <span>{{ emptyMessage }}</span>
-        <button v-if="hasNext" type="button" data-testid="load-more" @click="$emit('load-more')">더보기</button>
-      </div>
+      <article data-testid="expense-category-breakdown">
+        <slot name="header" />
+        <section data-testid="category-budget">카테고리별 예산</section>
+        <button
+          v-if="canEditBudget"
+          type="button"
+          data-testid="budget-action"
+          @click="$emit('edit-budget')"
+        >
+          예산 수정
+        </button>
+      </article>
     `,
+  },
+  CategoryBudgetEditor: {
+    props: ["visible"],
+    template: '<div v-if="visible" data-testid="category-budget-editor">editor</div>',
   },
 }
 
 describe("CategoryExpenseView", () => {
+  let budgetStore
+
   beforeEach(() => {
-    getExpenses.mockImplementation((params = {}) =>
-      Promise.resolve({
-        success: true,
-        data: createExpenseData({ category: params.category }),
-      }),
-    )
+    mocks.route = reactive({ query: {} })
+    mocks.routerReplace.mockReset()
+    mocks.routerReplace.mockResolvedValue(undefined)
+    budgetStore = createBudgetStore()
+    useBudgetStore.mockReturnValue(budgetStore)
+    getExpenses.mockResolvedValue(createExpenseResponse())
   })
 
   afterEach(() => {
+    vi.restoreAllMocks()
     vi.clearAllMocks()
   })
 
-  it("loads the selected month's category amounts and transactions", async () => {
+  it("renders the monthly report breakdown and budget instead of the legacy category list and transactions", async () => {
     const wrapper = mount(CategoryExpenseView, { global: { stubs: globalStubs } })
     await flushPromises()
 
-    expect(wrapper.get(".back-button").attributes("href")).toBe("/assets")
-    expect(wrapper.get(".back-button").find(".bi-chevron-left").exists()).toBe(true)
     expect(getExpenses).toHaveBeenCalledWith(
       expect.objectContaining({ page: 0, size: 20 }),
     )
-    expect(wrapper.find('[data-testid="category-option-ALL"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="category-option-FOOD"]').text()).toContain("식비")
-    expect(wrapper.find('[data-testid="category-option-CAFE"]').text()).toContain("카페")
-    expect(wrapper.find('[data-testid="transaction-count"]').text()).toBe("1")
-    expect(wrapper.text()).toContain("300,000원")
+    expect(budgetStore.fetchCategoryBudgets).toHaveBeenCalledWith(getMonthKey(new Date()), {
+      notifyError: false,
+    })
+    expect(wrapper.find('[data-testid="expense-category-breakdown"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="category-budget"]').exists()).toBe(true)
+    expect(wrapper.find(".category-option-list").exists()).toBe(false)
+    expect(wrapper.find('[data-testid="transaction-list"]').exists()).toBe(false)
+    expect(wrapper.find(".app-page-header h1").text()).toBe("카테고리별 소비")
+    expect(wrapper.find(".app-page-header .month-navigation").exists()).toBe(false)
+    expect(wrapper.find('[data-testid="expense-category-breakdown"] .month-navigation').exists()).toBe(true)
+    expect(wrapper.find(".category-expense-toolbar").exists()).toBe(false)
+    expect(wrapper.findAll(".month-button")).toHaveLength(2)
+
+    wrapper.unmount()
   })
 
-  it("requests and displays transactions for the selected category", async () => {
+  it("keeps month navigation and reloads expense and budget data for the selected month", async () => {
+    const wrapper = mount(CategoryExpenseView, { global: { stubs: globalStubs } })
+    await flushPromises()
+    getExpenses.mockClear()
+    budgetStore.fetchCategoryBudgets.mockClear()
+
+    const currentMonth = new Date()
+    const previousMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1)
+    await wrapper.get('[aria-label="이전 달"]').trigger("click")
+    await flushPromises()
+
+    expect(getExpenses).toHaveBeenLastCalledWith({
+      startDate: `${previousMonth.getFullYear()}-${String(previousMonth.getMonth() + 1).padStart(2, "0")}-01`,
+      endDate: `${previousMonth.getFullYear()}-${String(previousMonth.getMonth() + 1).padStart(2, "0")}-${new Date(previousMonth.getFullYear(), previousMonth.getMonth() + 1, 0).getDate()}`,
+      page: 0,
+      size: 20,
+    })
+    expect(budgetStore.fetchCategoryBudgets).toHaveBeenCalledWith(getMonthKey(previousMonth), {
+      notifyError: false,
+    })
+
+    wrapper.unmount()
+  })
+
+  it("opens the existing category budget editor from the breakdown", async () => {
     const wrapper = mount(CategoryExpenseView, { global: { stubs: globalStubs } })
     await flushPromises()
 
-    await wrapper.get('[data-testid="category-option-CAFE"]').trigger("click")
+    await wrapper.get('[data-testid="budget-action"]').trigger("click")
     await flushPromises()
 
-    expect(getExpenses).toHaveBeenLastCalledWith(
-      expect.objectContaining({ category: "CAFE", page: 0, size: 20 }),
-    )
-    expect(wrapper.text()).toContain("카페 거래내역")
-    expect(wrapper.find('[data-testid="transaction-count"]').text()).toBe("1")
+    expect(wrapper.find('[data-testid="category-budget-editor"]').exists()).toBe(true)
+    expect(mocks.routerReplace).toHaveBeenCalledWith({ query: { budget: "edit" } })
+
+    wrapper.unmount()
   })
 
-  it("shows an empty state and alerts when the monthly request fails", async () => {
+  it("shows an error state and alerts when the monthly expense request fails", async () => {
     const alertSpy = vi.spyOn(globalThis, "alert").mockImplementation(() => {})
     getExpenses.mockRejectedValue(new Error("network error"))
 
     const wrapper = mount(CategoryExpenseView, { global: { stubs: globalStubs } })
     await flushPromises()
 
-    expect(wrapper.text()).toContain("소비 내역을 불러오지 못했습니다.")
+    expect(wrapper.text()).toContain("카테고리별 소비를 불러오지 못했습니다.")
     expect(alertSpy).toHaveBeenCalledOnce()
 
-    alertSpy.mockRestore()
+    wrapper.unmount()
   })
 })

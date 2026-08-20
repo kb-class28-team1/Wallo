@@ -132,13 +132,11 @@ const myFeedsClass = computed(() => ({
   "submenu-link-active": route.path === "/my-feeds",
 }))
 
-// 챌린지 관련 페이지에서는 새로고침 후에도 하위 메뉴가 펼쳐짐
+// 챌린지 관련 페이지에서는 하위 메뉴를 펼치고, 외부 페이지에서는 닫음
 watch(
   isChallengeRoute,
   (isActive) => {
-    if (isActive) {
-      isChallengeOpen.value = true
-    }
+    isChallengeOpen.value = isActive
   },
   { immediate: true },
 )
@@ -309,7 +307,7 @@ const handleLogout = async () => {
                   :class="categoryExpenseClass"
                 >
                   <span class="submenu-dot" aria-hidden="true"></span>
-                  카테고리별 소비 내역
+                  카테고리별 소비
                 </RouterLink>
               </div>
             </Transition>

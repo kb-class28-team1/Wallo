@@ -148,7 +148,7 @@ describe("SideNavigation", () => {
 
     expect(wrapper.find("#asset-submenu").exists()).toBe(true)
     expect(wrapper.find(".asset-monthly-report").text()).toContain("월별 리포트")
-    expect(wrapper.find('a[href="/assets/categories"]').text()).toContain("카테고리별 소비 내역")
+    expect(wrapper.find('a[href="/assets/categories"]').text()).toContain("카테고리별 소비")
 
     await wrapper.find(".asset-collapse-toggle").trigger("click")
 
@@ -204,6 +204,34 @@ describe("SideNavigation", () => {
 
     expect(wrapper.find(".asset-collapse-toggle").attributes("aria-expanded")).toBe("false")
     expect(wrapper.find("#asset-submenu").exists()).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it("opens on challenge navigation and closes when leaving challenge pages", async () => {
+    mocks.route.path = "/challenges/current"
+    mocks.route.name = "current-challenge"
+
+    const wrapper = mount(SideNavigation, {
+      global: {
+        stubs: {
+          AppDialog: { template: "<div />" },
+        },
+      },
+    })
+
+    await flushPromises()
+
+    expect(wrapper.find("#challenge-submenu").exists()).toBe(true)
+    expect(wrapper.find(".challenge-group .collapse-toggle").attributes("aria-expanded")).toBe("true")
+
+    mocks.route.path = "/dashboard"
+    mocks.route.name = "dashboard"
+    await nextTick()
+    await flushPromises()
+
+    expect(wrapper.find(".challenge-group .collapse-toggle").attributes("aria-expanded")).toBe("false")
+    expect(wrapper.find("#challenge-submenu").exists()).toBe(false)
 
     wrapper.unmount()
   })
