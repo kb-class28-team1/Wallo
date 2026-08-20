@@ -128,13 +128,25 @@ class ExpenseMapperIntegrationTest {
     @Test
     void monthlyCashflowUsesOnlyActiveInstitutionTransactions() {
         ExpenseDto.MonthlyCashflow cashflow = expenseMapper.selectMonthlyCashflow(
-                7L,
-                "2026-07-01",
-                "2026-07-31"
+                9L,
+                "2026-08-01",
+                "2026-08-31"
         );
 
         assertEquals(5_000L, cashflow.getMonthlyIncome());
         assertEquals(2_000L, cashflow.getMonthlyExpense());
+    }
+
+    @Test
+    void chatAnalysisReadsOnlyActiveInstitutionExpenses() {
+        List<ExpenseDto.AnalysisTransaction> transactions =
+                expenseMapper.selectAllExpenseTransactions(9L);
+
+        assertEquals(2, transactions.size());
+        assertEquals("활성 계좌 식비", transactions.get(0).getMerchantName());
+        assertEquals("FOOD", transactions.get(0).getCategory());
+        assertEquals("활성 카드 쇼핑", transactions.get(1).getMerchantName());
+        assertEquals("SHOPPING", transactions.get(1).getCategory());
     }
 
     @Test
@@ -190,21 +202,29 @@ class ExpenseMapperIntegrationTest {
                     VALUES
                         (1, 7, 'ACTIVE', NULL),
                         (2, 7, 'INACTIVE', NULL),
-                        (3, 7, 'ACTIVE', CURRENT_TIMESTAMP)
+                        (3, 7, 'ACTIVE', CURRENT_TIMESTAMP),
+                        (4, 9, 'ACTIVE', NULL),
+                        (5, 9, 'INACTIVE', NULL),
+                        (6, 9, 'ACTIVE', CURRENT_TIMESTAMP)
                     """);
             statement.execute("""
                     INSERT INTO ACCOUNTS (account_id, connection_id, status)
                     VALUES
                         (1, 1, 'ACTIVE'),
                         (2, 2, 'ACTIVE'),
-                        (3, 3, 'ACTIVE')
+                        (3, 3, 'ACTIVE'),
+                        (4, 4, 'ACTIVE'),
+                        (5, 5, 'ACTIVE'),
+                        (6, 6, 'ACTIVE')
                     """);
             statement.execute("""
                     INSERT INTO CARDS (
                         card_id, connection_id, card_number, card_name, card_type, status
                     ) VALUES
                         (1, 1, '1111', '활성 카드', 'CREDIT', 'ACTIVE'),
-                        (2, 2, '2222', '비활성 카드', 'CREDIT', 'ACTIVE')
+                        (2, 2, '2222', '비활성 카드', 'CREDIT', 'ACTIVE'),
+                        (3, 4, '3333', '월간 활성 카드', 'CREDIT', 'ACTIVE'),
+                        (4, 5, '4444', '월간 비활성 카드', 'CREDIT', 'ACTIVE')
                     """);
             statement.execute("""
                     CREATE TABLE TRANSACTIONS_INPUT (
@@ -241,7 +261,7 @@ class ExpenseMapperIntegrationTest {
                         source_type, source_organization_code, source_transaction_id,
                         source_dedup_key, transaction_date, transaction_time
                     )
-                    SELECT transaction_id, user_id, NULL, NULL, type, category,
+                    SELECT transaction_id, user_id, NULL, 1, type, category,
                            'TEST', amount, merchant_name,
                            'TEST_TRANSACTION', 'TEST', CONCAT('EXP-', transaction_id),
                            LPAD(CAST(transaction_id AS VARCHAR), 64, '0'),
@@ -267,7 +287,21 @@ class ExpenseMapperIntegrationTest {
                         (104, 7, 2, NULL, 'EXPENSE', 'SHOPPING', 'TEST', 6000, '비활성 카드 쇼핑',
                          'ACTIVE_TEST', 'TEST', '104', 'active-104', '2026-07-14', '13:00:00'),
                         (105, 7, 1, NULL, 'EXPENSE', 'CARD_WITHDRAWAL', 'TEST', 900, '카드 출금',
-                         'ACTIVE_TEST', 'TEST', '105', 'active-105', '2026-07-15', '14:00:00')
+                         'ACTIVE_TEST', 'TEST', '105', 'active-105', '2026-07-15', '14:00:00'),
+                        (200, 9, NULL, 4, 'INCOME', 'INCOME', 'TEST', 5000, '월급',
+                         'MONTHLY_TEST', 'TEST', '200', 'monthly-200', '2026-08-10', '09:00:00'),
+                        (201, 9, NULL, 4, 'EXPENSE', 'FOOD', 'TEST', 1200, '활성 계좌 식비',
+                         'MONTHLY_TEST', 'TEST', '201', 'monthly-201', '2026-08-11', '12:00:00'),
+                        (202, 9, 3, NULL, 'EXPENSE', 'SHOPPING', 'TEST', 800, '활성 카드 쇼핑',
+                         'MONTHLY_TEST', 'TEST', '202', 'monthly-202', '2026-08-12', '13:00:00'),
+                        (203, 9, NULL, 5, 'EXPENSE', 'FOOD', 'TEST', 7000, '비활성 계좌 식비',
+                         'MONTHLY_TEST', 'TEST', '203', 'monthly-203', '2026-08-13', '12:00:00'),
+                        (204, 9, 4, NULL, 'EXPENSE', 'SHOPPING', 'TEST', 6000, '비활성 카드 쇼핑',
+                         'MONTHLY_TEST', 'TEST', '204', 'monthly-204', '2026-08-14', '13:00:00'),
+                        (205, 9, NULL, 6, 'EXPENSE', 'DELIVERY', 'TEST', 7000, '삭제된 기관 계좌 식비',
+                         'MONTHLY_TEST', 'TEST', '205', 'monthly-205', '2026-08-15', '13:00:00'),
+                        (206, 9, 3, NULL, 'EXPENSE', 'CARD_WITHDRAWAL', 'TEST', 900, '카드 출금',
+                         'MONTHLY_TEST', 'TEST', '206', 'monthly-206', '2026-08-16', '14:00:00')
                     """);
         }
     }

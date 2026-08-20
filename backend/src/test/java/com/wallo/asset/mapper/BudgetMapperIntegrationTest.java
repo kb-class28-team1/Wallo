@@ -8,6 +8,7 @@ import com.wallo.test.TestDatabase;
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.PreparedStatement;
+import java.sql.Statement;
 import java.sql.Time;
 import java.util.List;
 import javax.sql.DataSource;
@@ -30,6 +31,7 @@ class BudgetMapperIntegrationTest {
         dataSource = TestDatabase.h2("budget_mapper");
         TestDatabase.initializeAssetMapperSchema(dataSource);
         insertUser(7L);
+        insertSourceFixtures();
 
         SqlSessionFactoryBean factoryBean = new SqlSessionFactoryBean();
         factoryBean.setDataSource(dataSource);
@@ -55,9 +57,12 @@ class BudgetMapperIntegrationTest {
 
         insertTransaction(7L, "EXPENSE", "FOOD", 120L, "2026-08-02");
         insertTransaction(7L, "EXPENSE", "OTHER", 50L, "2026-08-03");
+        insertTransaction(7L, "EXPENSE", "ETC", 30L, "2026-08-03");
         insertTransaction(7L, "EXPENSE", "LOAN_REPAYMENT", 80L, "2026-08-04");
         insertTransaction(7L, "EXPENSE", "CARD_WITHDRAWAL", 900L, "2026-08-05");
         insertTransaction(7L, "EXPENSE", "FOOD", 500L, "2026-07-31");
+        insertTransactionWithAccount(7L, 2L, "EXPENSE", "FOOD", 900L, "2026-08-06");
+        insertTransactionWithAccount(7L, 3L, "EXPENSE", "OTHER", 800L, "2026-08-07");
 
         BudgetDto.Plan plan = budgetMapper.selectApplicablePlan(7L, "2026-09");
 
@@ -73,12 +78,12 @@ class BudgetMapperIntegrationTest {
         );
 
         assertEquals(3, expenses.size());
-        assertEquals(250L, budgetMapper.selectSpentAmount(
+        assertEquals(280L, budgetMapper.selectSpentAmount(
                 7L,
                 "2026-08-01",
                 "2026-08-31"
         ));
-        assertEquals(50L, expenses.stream()
+        assertEquals(80L, expenses.stream()
                 .filter(item -> "ETC".equals(item.getCategory()))
                 .findFirst()
                 .orElseThrow()
@@ -88,6 +93,26 @@ class BudgetMapperIntegrationTest {
                 .findFirst()
                 .orElseThrow()
                 .getSpentAmount());
+    }
+
+    private void insertSourceFixtures() throws Exception {
+        try (Connection connection = dataSource.getConnection();
+             Statement statement = connection.createStatement()) {
+            statement.execute("""
+                    INSERT INTO CONNECTIONS (connection_id, user_id, status, deleted_at)
+                    VALUES
+                        (1, 7, 'ACTIVE', NULL),
+                        (2, 7, 'INACTIVE', NULL),
+                        (3, 7, 'ACTIVE', CURRENT_TIMESTAMP)
+                    """);
+            statement.execute("""
+                    INSERT INTO ACCOUNTS (account_id, connection_id, status)
+                    VALUES
+                        (1, 1, 'ACTIVE'),
+                        (2, 2, 'ACTIVE'),
+                        (3, 3, 'ACTIVE')
+                    """);
+        }
     }
 
     private void insertUser(long userId) throws Exception {
@@ -144,6 +169,17 @@ class BudgetMapperIntegrationTest {
             long amount,
             String transactionDate
     ) throws Exception {
+        insertTransactionWithAccount(userId, 1L, type, category, amount, transactionDate);
+    }
+
+    private void insertTransactionWithAccount(
+            long userId,
+            long accountId,
+            String type,
+            String category,
+            long amount,
+            String transactionDate
+    ) throws Exception {
         long sequence = ++sourceSequence;
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement("""
@@ -152,17 +188,18 @@ class BudgetMapperIntegrationTest {
                          category_source, amount, merchant_name,
                          source_type, source_organization_code, source_transaction_id,
                          source_dedup_key, transaction_date, transaction_time
-                     ) VALUES (?, NULL, NULL, ?, ?, 'TEST', ?, 'test merchant',
+                     ) VALUES (?, NULL, ?, ?, ?, 'TEST', ?, 'test merchant',
                                'TEST_TRANSACTION', 'TEST', ?, ?, ?, ?)
                      """)) {
             statement.setLong(1, userId);
-            statement.setString(2, type);
-            statement.setString(3, category);
-            statement.setLong(4, amount);
-            statement.setString(5, "TX-" + sequence);
-            statement.setString(6, String.format("%064d", sequence));
-            statement.setDate(7, Date.valueOf(transactionDate));
-            statement.setTime(8, Time.valueOf("10:00:00"));
+            statement.setLong(2, accountId);
+            statement.setString(3, type);
+            statement.setString(4, category);
+            statement.setLong(5, amount);
+            statement.setString(6, "TX-" + sequence);
+            statement.setString(7, String.format("%064d", sequence));
+            statement.setDate(8, Date.valueOf(transactionDate));
+            statement.setTime(9, Time.valueOf("10:00:00"));
             statement.executeUpdate();
         }
     }

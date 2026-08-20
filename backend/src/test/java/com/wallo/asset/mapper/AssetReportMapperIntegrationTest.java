@@ -59,6 +59,8 @@ class AssetReportMapperIntegrationTest {
         insertTransaction(7L, "EXPENSE", "CARD_WITHDRAWAL", 300_000L, "2026-07-10");
         insertTransaction(7L, "EXPENSE", "SEND", 200_000L, "2026-07-10");
         insertTransaction(7L, "EXPENSE", "INCOME", 400_000L, "2026-07-10");
+        insertTransactionWithAccount(7L, 2L, "EXPENSE", "FOOD", 900_000L, "2026-07-11");
+        insertTransactionWithAccount(7L, 3L, "EXPENSE", "FOOD", 800_000L, "2026-07-12");
 
         List<AssetReportDto.CategoryExpense> results = assetReportMapper.selectCategoryExpenses(
                 7L,
@@ -104,6 +106,25 @@ class AssetReportMapperIntegrationTest {
 
     private void createTables() throws Exception {
         TestDatabase.initializeAssetMapperSchema(dataSource);
+        try (Connection connection = dataSource.getConnection();
+             Statement statement = connection.createStatement()) {
+            statement.execute("""
+                    INSERT INTO CONNECTIONS (connection_id, user_id, status, deleted_at)
+                    VALUES
+                        (1, 7, 'ACTIVE', NULL),
+                        (2, 7, 'INACTIVE', NULL),
+                        (3, 7, 'ACTIVE', CURRENT_TIMESTAMP),
+                        (4, 8, 'ACTIVE', NULL)
+                    """);
+            statement.execute("""
+                    INSERT INTO ACCOUNTS (account_id, connection_id, status)
+                    VALUES
+                        (1, 1, 'ACTIVE'),
+                        (2, 2, 'ACTIVE'),
+                        (3, 3, 'ACTIVE'),
+                        (4, 4, 'ACTIVE')
+                    """);
+        }
     }
 
     private void insertUser(long userId, long annualSalary) throws Exception {
@@ -118,12 +139,27 @@ class AssetReportMapperIntegrationTest {
     }
 
     private void insertCard(long cardId, String cardType) throws Exception {
+        insertConnection(100L + cardId, 7L, "ACTIVE");
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(
-                     "INSERT INTO CARDS (card_id, card_type) VALUES (?, ?)"
+                     "INSERT INTO CARDS (card_id, connection_id, card_type, status) VALUES (?, ?, ?, 'ACTIVE')"
              )) {
             statement.setLong(1, cardId);
-            statement.setString(2, cardType);
+            statement.setLong(2, 100L + cardId);
+            statement.setString(3, cardType);
+            statement.executeUpdate();
+        }
+    }
+
+    private void insertConnection(long connectionId, long userId, String status) throws Exception {
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(
+                     "INSERT INTO CONNECTIONS (connection_id, user_id, status, deleted_at) "
+                             + "VALUES (?, ?, ?, NULL)"
+             )) {
+            statement.setLong(1, connectionId);
+            statement.setLong(2, userId);
+            statement.setString(3, status);
             statement.executeUpdate();
         }
     }
@@ -145,12 +181,36 @@ class AssetReportMapperIntegrationTest {
             long amount,
             String transactionDate
     ) throws Exception {
-        insertTransaction(userId, null, type, category, amount, transactionDate);
+        Long accountId = userId == 7L ? 1L : userId == 8L ? 4L : null;
+        insertTransaction(userId, null, accountId, type, category, amount, transactionDate);
+    }
+
+    private void insertTransactionWithAccount(
+            long userId,
+            long accountId,
+            String type,
+            String category,
+            long amount,
+            String transactionDate
+    ) throws Exception {
+        insertTransaction(userId, null, accountId, type, category, amount, transactionDate);
     }
 
     private void insertTransaction(
             long userId,
             Long cardId,
+            String type,
+            String category,
+            long amount,
+            String transactionDate
+    ) throws Exception {
+        insertTransaction(userId, cardId, null, type, category, amount, transactionDate);
+    }
+
+    private void insertTransaction(
+            long userId,
+            Long cardId,
+            Long accountId,
             String type,
             String category,
             long amount,
@@ -181,7 +241,7 @@ class AssetReportMapperIntegrationTest {
                          source_dedup_key,
                          transaction_date,
                          transaction_time
-                     ) VALUES (?, ?, NULL, ?, ?, 'TEST', NULL, NULL, ?,
+                     ) VALUES (?, ?, ?, ?, ?, 'TEST', NULL, NULL, ?,
                                'test merchant', NULL, NULL, NULL, ?, 'TEST', ?, ?, ?, '00:00:00')
                      """)) {
             statement.setLong(1, userId);
@@ -190,13 +250,18 @@ class AssetReportMapperIntegrationTest {
             } else {
                 statement.setLong(2, cardId);
             }
-            statement.setString(3, type);
-            statement.setString(4, category);
-            statement.setLong(5, amount);
-            statement.setString(6, sourceType);
-            statement.setString(7, sourceTransactionId);
-            statement.setString(8, sourceDedupKey);
-            statement.setDate(9, Date.valueOf(transactionDate));
+            if (accountId == null) {
+                statement.setNull(3, java.sql.Types.BIGINT);
+            } else {
+                statement.setLong(3, accountId);
+            }
+            statement.setString(4, type);
+            statement.setString(5, category);
+            statement.setLong(6, amount);
+            statement.setString(7, sourceType);
+            statement.setString(8, sourceTransactionId);
+            statement.setString(9, sourceDedupKey);
+            statement.setDate(10, Date.valueOf(transactionDate));
             statement.executeUpdate();
         }
     }
