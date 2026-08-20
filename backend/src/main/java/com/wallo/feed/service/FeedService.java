@@ -84,11 +84,22 @@ public class FeedService {
 
     public AnalysisResponse analyze(Long userId, Long challengeId, MultipartFile media,
                                     String spendingType, String category) {
+        return analyze(userId, challengeId, media, spendingType, category,
+                (progress, message) -> { });
+    }
+
+    public AnalysisResponse analyze(Long userId, Long challengeId, MultipartFile media,
+                                    String spendingType, String category,
+                                    AnalysisProgressListener progressListener) {
         requireMember(userId, challengeId);
         String normalizedCategory = normalizeCategory(category);
         validate(media, spendingType, normalizedCategory);
+        AnalysisProgressListener progress = progressListener == null
+                ? (value, message) -> { } : progressListener;
+        progress.update(5, "분석 요청 준비 중...");
         SavingAmountFeedbackSummary feedbackSummary = feedMapper.findSavingAmountFeedbackSummary(
                 userId, normalizedCategory);
+        progress.update(10, "영상 분석 중...");
         AnalysisResponse analysis;
         if (analysisClient instanceof SavingFeedbackAwareFeedAnalysisClient feedbackAwareClient) {
             analysis = feedbackAwareClient.analyze(
@@ -96,10 +107,15 @@ public class FeedService {
         } else {
             analysis = analysisClient.analyze(media, spendingType, normalizedCategory);
         }
+        progress.update(55, "화면 속 물품과 재료 확인 중...");
         if (priceReferenceService != null) {
+            progress.update(60, "시세 확인 중...");
             analysis = priceReferenceService.enrich(analysis);
         }
-        return applyCategoryAverageFallback(userId, analysis);
+        progress.update(85, "절약 금액 계산 중...");
+        AnalysisResponse completed = applyCategoryAverageFallback(userId, analysis);
+        progress.update(100, "분석 완료");
+        return completed;
     }
 
     @Transactional
