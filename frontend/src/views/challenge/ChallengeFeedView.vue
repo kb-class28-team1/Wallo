@@ -2443,18 +2443,18 @@ textarea {
 .analysis-tenor-loader {
   position: absolute;
   right: auto;
-  bottom: -30px;
-  left: clamp(-75px, calc(var(--analysis-progress) - 75px), calc(100% - 150px));
+  bottom: -24px;
+  left: clamp(-60px, calc(var(--analysis-progress) - 60px), calc(100% - 120px));
   z-index: 2;
-  width: 150px;
-  height: 150px;
+  width: 120px;
+  height: 120px;
   overflow: visible;
   clip-path: inset(20% 0 0);
   mix-blend-mode: multiply;
   pointer-events: none;
   will-change: left, transform;
   animation: analysis-penguin-bob 1.7s ease-in-out infinite;
-  transition: left 180ms linear;
+  transition: left 100ms linear;
 }
 .analysis-tenor-embed {
   position: absolute;
@@ -2466,7 +2466,7 @@ textarea {
   height: 120%;
   max-width: none;
   margin: 0;
-  transform: scale(1.08);
+  transform: scale(1.04);
   transform-origin: center bottom;
 }
 .analysis-tenor-embed > a {
