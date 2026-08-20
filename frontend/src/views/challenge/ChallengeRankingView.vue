@@ -274,11 +274,6 @@ onMounted(() => {
   color: #1f2a52;
 }
 
-.ranking-heading :deep(.app-page-header__title) {
-  font-size: 25px;
-  font-weight: 750;
-}
-
 .ranking-heading :deep(.app-page-header__description) {
   color: #8e98ba;
   font-size: 12px;
@@ -782,12 +777,6 @@ onMounted(() => {
   box-shadow: 0 12px 28px rgb(76 132 190 / 8%);
 }
 
-.ranking-heading :deep(.app-page-header__title) {
-  color: #152b48;
-  font-size: clamp(1.55rem, 2.5vw, 2.15rem);
-  letter-spacing: -0.05em;
-}
-
 .ranking-heading :deep(.app-page-header__description) {
   color: #7188a5;
 }
@@ -882,13 +871,13 @@ onMounted(() => {
 
 @media (max-width: 1100px) {
   .ranking-page {
-    padding: 16px;
+    padding: 16px 0;
   }
 }
 
 @media (max-width: 767.98px) {
   .ranking-page {
-    padding: 10px;
+    padding: 10px 0;
     border-radius: 20px;
   }
 

@@ -353,11 +353,6 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
   color: #27304f;
 }
 
-.page-heading :deep(.app-page-header__title) {
-  font-size: 28px;
-  font-weight: 800;
-}
-
 .overview-card,
 .feed-card,
 .page-state-card {

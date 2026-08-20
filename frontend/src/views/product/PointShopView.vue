@@ -960,11 +960,6 @@ onMounted(() => {
   color: #27304f;
 }
 
-.page-heading :deep(.app-page-header__title) {
-  font-size: 28px;
-  font-weight: 800;
-}
-
 .shop-state,
 .shop-refresh-status,
 .shop-error {
