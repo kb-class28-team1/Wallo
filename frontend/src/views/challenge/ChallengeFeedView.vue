@@ -2385,7 +2385,7 @@ textarea {
   left: 0;
   z-index: 0;
   width: var(--analysis-progress);
-  height: 50%;
+  height: 33.333%;
   overflow: hidden;
   --analysis-wave-light: #a9efff;
   --analysis-wave-main: #39bee9;
