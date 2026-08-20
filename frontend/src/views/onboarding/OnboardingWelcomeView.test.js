@@ -30,13 +30,13 @@ describe("OnboardingWelcomeView", () => {
     expect(router.push).not.toHaveBeenCalled()
 
     await wrapper.get(".next-button").trigger("click")
-    expect(wrapper.text()).toContain("내 금융 현황을 한눈에 확인해요")
+    expect(wrapper.text()).toContain("내 금융 생활을 한눈에 확인해요")
 
     await wrapper.get(".next-button").trigger("click")
-    expect(wrapper.text()).toContain("어디에 얼마나 썼는지 알아봐요")
+    expect(wrapper.text()).toContain("AI가 나에게 필요한 답을 찾아줘요")
 
     await wrapper.get(".next-button").trigger("click")
-    expect(wrapper.text()).toContain("목표를 세우고 즐겁게 실천해요")
+    expect(wrapper.text()).toContain("함께 절약하고 보상도 받아요")
     expect(wrapper.get(".next-button").text()).toContain("자산 연동 시작하기")
 
     await wrapper.get(".next-button").trigger("click")

@@ -21,22 +21,22 @@ const stepContent = {
       "은행과 카드 정보를 연결하면 왈로가 자산과 소비 내역을 자동으로 모아 보여드려요.",
   },
   3: {
-    eyebrow: "STEP 02 · 자산과 예산",
-    title: "내 금융 현황을 한눈에 확인해요",
+    eyebrow: "STEP 02 · 대시보드",
+    title: "내 금융 생활을 한눈에 확인해요",
     description:
-      "대시보드에서 전체 자산의 변화와 이번 달 예산 사용 현황을 빠르게 파악할 수 있어요.",
+      "대시보드 한 화면에서 자산 변화, 이번 달 예산과 지출, 금융 목표의 진행 상황을 모두 확인할 수 있어요.",
   },
   4: {
-    eyebrow: "STEP 03 · 소비 분석",
-    title: "어디에 얼마나 썼는지 알아봐요",
+    eyebrow: "STEP 03 · AI 금융 도우미",
+    title: "AI가 나에게 필요한 답을 찾아줘요",
     description:
-      "카테고리별 지출과 소비 리포트로 놓치기 쉬운 소비 습관까지 찾아드려요.",
+      "대화만으로 금융 목표를 세우고 자산과 소비를 분석하며, 내 상황에 맞는 금융 상품도 추천받을 수 있어요.",
   },
   5: {
-    eyebrow: "STEP 04 · 목표와 실천",
-    title: "목표를 세우고 즐겁게 실천해요",
+    eyebrow: "STEP 04 · 챌린지와 포인트",
+    title: "함께 절약하고 보상도 받아요",
     description:
-      "AI 상담으로 금융 목표를 만들고 절약 챌린지에 참여하며 포인트 보상도 받을 수 있어요.",
+      "친구들과 절약 챌린지에 참여하고 미션을 달성해 포인트를 모아보세요. 모은 포인트는 포인트 숍에서 사용할 수 있어요.",
   },
 }
 
@@ -209,13 +209,13 @@ onBeforeUnmount(() => {
           <span class="connection-callout connection-callout--right">자동으로 정리</span>
         </div>
 
-        <div v-else class="dashboard-preview" aria-hidden="true">
+        <div v-else-if="currentStep === 3" class="dashboard-preview" aria-hidden="true">
           <aside class="preview-sidebar">
             <span class="preview-brand">W</span>
-            <i class="bi bi-grid-fill active"></i>
-            <i class="bi bi-wallet2"></i>
-            <i class="bi bi-stars"></i>
-            <i class="bi bi-trophy"></i>
+            <span class="preview-nav active"><i class="bi bi-grid-fill"></i>대시보드</span>
+            <span class="preview-nav"><i class="bi bi-wallet2"></i>자산</span>
+            <span class="preview-nav"><i class="bi bi-stars"></i>AI 컨설팅</span>
+            <span class="preview-nav"><i class="bi bi-trophy"></i>챌린지</span>
           </aside>
           <div class="preview-main">
             <div class="preview-header">
@@ -224,52 +224,97 @@ onBeforeUnmount(() => {
             </div>
             <div class="preview-grid preview-grid--top">
               <article
-                class="preview-card preview-card--asset"
-                :class="{ 'is-highlighted': currentStep === 3 }"
+                class="preview-card preview-card--asset is-highlighted"
               >
                 <span class="card-label">총 자산</span>
                 <strong>32,480,000원</strong>
                 <div class="mini-chart">
                   <i v-for="height in [32, 42, 38, 55, 64, 76]" :key="height" :style="{ height: `${height}%` }"></i>
                 </div>
-                <span v-if="currentStep === 3" class="feature-badge">자산 변화</span>
+                <span class="feature-badge">자산 현황</span>
               </article>
               <article
-                class="preview-card preview-card--budget"
-                :class="{ 'is-highlighted': currentStep === 3 }"
+                class="preview-card preview-card--budget is-highlighted"
               >
                 <span class="card-label">이번 달 예산</span>
                 <strong>68% 사용</strong>
                 <div class="budget-ring"><span>32%</span></div>
-                <span v-if="currentStep === 3" class="feature-badge">예산 관리</span>
+                <span class="feature-badge">예산 관리</span>
               </article>
             </div>
             <div class="preview-grid preview-grid--bottom">
               <article
-                class="preview-card preview-card--expense"
-                :class="{ 'is-highlighted': currentStep === 4 }"
+                class="preview-card preview-card--expense is-highlighted"
               >
                 <span class="card-label">카테고리별 소비</span>
                 <div class="expense-row"><span>식비</span><i style="width: 78%"></i></div>
                 <div class="expense-row"><span>쇼핑</span><i style="width: 52%"></i></div>
                 <div class="expense-row"><span>교통</span><i style="width: 36%"></i></div>
-                <span v-if="currentStep === 4" class="feature-badge">소비 분석 · 리포트</span>
+                <span class="feature-badge">소비 현황</span>
               </article>
               <article
-                class="preview-card preview-card--goal"
-                :class="{ 'is-highlighted': currentStep === 5 }"
+                class="preview-card preview-card--goal is-highlighted"
               >
                 <span class="card-label">나의 금융 목표</span>
                 <strong>여행 자금 모으기</strong>
                 <div class="goal-progress"><i></i></div>
                 <small>목표까지 64%</small>
-                <div class="goal-tools">
-                  <span><i class="bi bi-stars"></i> AI 상담</span>
-                  <span><i class="bi bi-trophy-fill"></i> 챌린지</span>
-                  <span><i class="bi bi-coin"></i> 포인트</span>
-                </div>
-                <span v-if="currentStep === 5" class="feature-badge">목표와 실천</span>
+                <span class="feature-badge">금융 목표</span>
               </article>
+            </div>
+          </div>
+        </div>
+
+        <div v-else-if="currentStep === 4" class="ai-preview" aria-hidden="true">
+          <div class="service-preview-header">
+            <span class="service-preview-icon"><i class="bi bi-stars"></i></span>
+            <div><small>AI CONSULTING</small><strong>무엇을 도와드릴까요?</strong></div>
+          </div>
+          <div class="ai-feature-grid">
+            <article class="ai-feature-card ai-feature-card--goal">
+              <span><i class="bi bi-bullseye"></i></span>
+              <div><strong>목표 설정</strong><small>대화로 목표와 로드맵 만들기</small></div>
+              <i class="bi bi-arrow-right"></i>
+            </article>
+            <article class="ai-feature-card ai-feature-card--asset">
+              <span><i class="bi bi-pie-chart-fill"></i></span>
+              <div><strong>자산 분석</strong><small>자산 구성과 재무 상태 진단</small></div>
+              <i class="bi bi-arrow-right"></i>
+            </article>
+            <article class="ai-feature-card ai-feature-card--spending">
+              <span><i class="bi bi-bar-chart-line-fill"></i></span>
+              <div><strong>소비 분석</strong><small>지출 습관과 개선 방법 확인</small></div>
+              <i class="bi bi-arrow-right"></i>
+            </article>
+            <article class="ai-feature-card ai-feature-card--product">
+              <span><i class="bi bi-gift-fill"></i></span>
+              <div><strong>금융 상품 추천</strong><small>나에게 맞는 예·적금 찾기</small></div>
+              <i class="bi bi-arrow-right"></i>
+            </article>
+          </div>
+          <div class="ai-chat-bar"><span>궁금한 금융 이야기를 입력해 주세요</span><i class="bi bi-arrow-up"></i></div>
+        </div>
+
+        <div v-else class="reward-preview" aria-hidden="true">
+          <div class="challenge-panel">
+            <div class="challenge-panel-header">
+              <span class="challenge-symbol">💰</span>
+              <div><small>MY SAVING CHALLENGE</small><strong>일주일 생활비 줄이기</strong></div>
+              <span class="challenge-status">진행 중</span>
+            </div>
+            <div class="challenge-stat-grid">
+              <div><i class="bi bi-check-circle-fill"></i><strong>5개</strong><small>완료한 미션</small></div>
+              <div><i class="bi bi-people-fill"></i><strong>8명</strong><small>함께하는 친구</small></div>
+              <div><i class="bi bi-trophy-fill"></i><strong>3위</strong><small>이번 주 순위</small></div>
+            </div>
+            <div class="challenge-feed-row"><span class="feed-avatar">W</span><div><strong>오늘 커피값 아끼기 성공!</strong><small>방금 전 · +100P</small></div><i class="bi bi-heart-fill"></i></div>
+          </div>
+          <div class="point-panel">
+            <div class="point-balance"><span><i class="bi bi-coin"></i> 보유 포인트</span><strong>2,450 P</strong></div>
+            <div class="point-products">
+              <div><span>☕</span><small>커피 쿠폰</small><strong>1,500P</strong></div>
+              <div><span>🎁</span><small>랜덤 박스</small><strong>500P</strong></div>
+              <div><span>🍦</span><small>간식 쿠폰</small><strong>1,000P</strong></div>
             </div>
           </div>
         </div>
@@ -284,16 +329,16 @@ onBeforeUnmount(() => {
             <span><i class="bi bi-check2"></i> 소비 내역 자동 분류</span>
           </div>
           <div v-else-if="currentStep === 3" class="guide-points">
-            <span><i class="bi bi-check2"></i> 전체 자산 변화 확인</span>
-            <span><i class="bi bi-check2"></i> 월 예산 사용률 관리</span>
+            <span><i class="bi bi-check2"></i> 자산 · 예산 · 소비 현황</span>
+            <span><i class="bi bi-check2"></i> 금융 목표 진행률 관리</span>
           </div>
           <div v-else-if="currentStep === 4" class="guide-points">
-            <span><i class="bi bi-check2"></i> 카테고리별 지출 분석</span>
-            <span><i class="bi bi-check2"></i> 맞춤형 금융 리포트</span>
+            <span><i class="bi bi-check2"></i> 목표 설정 · 자산 분석 · 소비 분석</span>
+            <span><i class="bi bi-check2"></i> 맞춤 금융 상품 추천</span>
           </div>
           <div v-else class="guide-points">
-            <span><i class="bi bi-check2"></i> AI 금융 목표 설정</span>
-            <span><i class="bi bi-check2"></i> 챌린지와 포인트 보상</span>
+            <span><i class="bi bi-check2"></i> 친구와 함께하는 절약 챌린지</span>
+            <span><i class="bi bi-check2"></i> 미션 포인트와 포인트 숍</span>
           </div>
 
           <div class="guide-actions">
@@ -317,7 +362,8 @@ onBeforeUnmount(() => {
   position: relative;
   display: grid;
   min-height: 100vh;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: clamp(32px, 5vw, 72px);
   background:
     radial-gradient(circle at 18% 24%, rgb(133 188 255 / 22%), transparent 28%),
@@ -769,7 +815,7 @@ onBeforeUnmount(() => {
 
 .dashboard-preview {
   display: grid;
-  grid-template-columns: 58px 1fr;
+  grid-template-columns: 126px 1fr;
   width: min(700px, 100%);
   min-height: 515px;
   overflow: hidden;
@@ -781,23 +827,26 @@ onBeforeUnmount(() => {
 
 .preview-sidebar {
   display: flex;
-  padding: 18px 10px;
-  align-items: center;
-  gap: 22px;
+  padding: 18px 12px;
+  gap: 10px;
   color: #8da4bd;
   background: #fff;
   flex-direction: column;
 }
 
-.preview-sidebar i {
-  display: grid;
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  place-items: center;
+.preview-nav {
+  display: flex;
+  width: 100%;
+  min-height: 36px;
+  padding: 0 9px;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.67rem;
+  font-weight: 700;
+  border-radius: 9px;
 }
 
-.preview-sidebar i.active {
+.preview-nav.active {
   color: #fff;
   background: var(--wallo-color-primary);
 }
@@ -1019,6 +1068,263 @@ onBeforeUnmount(() => {
   border-radius: 7px;
 }
 
+.ai-preview,
+.reward-preview {
+  width: min(700px, 100%);
+  padding: 26px;
+  background: #f5f9fe;
+  border: 8px solid rgb(255 255 255 / 86%);
+  border-radius: 28px;
+  box-shadow: 0 30px 80px rgb(46 103 161 / 18%);
+}
+
+.service-preview-header {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin-bottom: 20px;
+}
+
+.service-preview-icon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  color: #fff;
+  font-size: 1.25rem;
+  background: linear-gradient(135deg, #4f8fe8, #826fe9);
+  border-radius: 15px;
+  place-items: center;
+}
+
+.service-preview-header > div {
+  display: grid;
+  gap: 3px;
+}
+
+.service-preview-header small,
+.challenge-panel-header small {
+  color: var(--wallo-color-primary);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.service-preview-header strong {
+  color: var(--wallo-color-text);
+  font-size: 1.15rem;
+}
+
+.ai-feature-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ai-feature-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  min-width: 0;
+  padding: 18px;
+  align-items: center;
+  gap: 12px;
+  background: #fff;
+  border: 1px solid var(--wallo-color-border-soft);
+  border-radius: 17px;
+  box-shadow: 0 5px 16px rgb(70 113 157 / 7%);
+}
+
+.ai-feature-card > span {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  color: #fff;
+  border-radius: 13px;
+  place-items: center;
+}
+
+.ai-feature-card--goal > span { background: #4f8fe8; }
+.ai-feature-card--asset > span { background: #19b98a; }
+.ai-feature-card--spending > span { background: #f09b51; }
+.ai-feature-card--product > span { background: #806fe9; }
+
+.ai-feature-card > div {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.ai-feature-card strong {
+  color: var(--wallo-color-text);
+  font-size: 0.86rem;
+}
+
+.ai-feature-card small {
+  overflow: hidden;
+  color: var(--wallo-color-text-muted);
+  font-size: 0.67rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-feature-card > i {
+  color: var(--wallo-color-text-subtle);
+  font-size: 0.75rem;
+}
+
+.ai-chat-bar {
+  display: flex;
+  min-height: 48px;
+  margin-top: 16px;
+  padding: 8px 9px 8px 16px;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--wallo-color-text-subtle);
+  font-size: 0.75rem;
+  background: #fff;
+  border: 1px solid var(--wallo-color-border);
+  border-radius: var(--wallo-radius-pill);
+}
+
+.ai-chat-bar i {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  color: #fff;
+  background: var(--wallo-color-primary);
+  border-radius: 50%;
+  place-items: center;
+}
+
+.reward-preview {
+  display: grid;
+  gap: 14px;
+}
+
+.challenge-panel,
+.point-panel {
+  padding: 20px;
+  background: #fff;
+  border: 1px solid var(--wallo-color-border-soft);
+  border-radius: 19px;
+  box-shadow: 0 5px 16px rgb(70 113 157 / 7%);
+}
+
+.challenge-panel-header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.challenge-symbol {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  font-size: 1.3rem;
+  background: #fff4cf;
+  border-radius: 14px;
+  place-items: center;
+}
+
+.challenge-panel-header > div {
+  display: grid;
+  gap: 3px;
+}
+
+.challenge-panel-header strong {
+  color: var(--wallo-color-text);
+  font-size: 0.94rem;
+}
+
+.challenge-status {
+  padding: 6px 10px;
+  color: var(--wallo-color-success);
+  font-size: 0.65rem;
+  font-weight: 800;
+  background: #eafaf5;
+  border-radius: var(--wallo-radius-pill);
+}
+
+.challenge-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.challenge-stat-grid > div {
+  display: grid;
+  padding: 11px 7px;
+  text-align: center;
+  background: var(--wallo-color-surface-soft);
+  border-radius: 12px;
+  place-items: center;
+}
+
+.challenge-stat-grid i { color: var(--wallo-color-primary); font-size: 0.8rem; }
+.challenge-stat-grid strong { margin-top: 4px; color: var(--wallo-color-text); font-size: 0.8rem; }
+.challenge-stat-grid small { color: var(--wallo-color-text-muted); font-size: 0.58rem; }
+
+.challenge-feed-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 10px;
+  align-items: center;
+  background: #f8fbff;
+  border-radius: 12px;
+}
+
+.feed-avatar {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 800;
+  background: var(--wallo-color-primary);
+  border-radius: 50%;
+  place-items: center;
+}
+
+.challenge-feed-row > div { display: grid; gap: 2px; }
+.challenge-feed-row strong { color: var(--wallo-color-text); font-size: 0.72rem; }
+.challenge-feed-row small { color: var(--wallo-color-success); font-size: 0.61rem; }
+.challenge-feed-row > i { color: #f2748b; }
+
+.point-balance {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--wallo-color-text);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.point-balance i { color: #e6a600; }
+.point-balance strong { color: var(--wallo-color-primary); font-size: 1rem; }
+
+.point-products {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.point-products > div {
+  display: grid;
+  padding: 10px 6px;
+  text-align: center;
+  background: var(--wallo-color-surface-soft);
+  border-radius: 12px;
+  place-items: center;
+}
+
+.point-products span { font-size: 1.25rem; }
+.point-products small { margin-top: 4px; color: var(--wallo-color-text-muted); font-size: 0.6rem; }
+.point-products strong { margin-top: 2px; color: var(--wallo-color-text); font-size: 0.68rem; }
+
 .onboarding-step-enter-active,
 .onboarding-step-leave-active {
   transition: opacity 0.3s ease, transform 0.3s ease;
@@ -1135,6 +1441,11 @@ onBeforeUnmount(() => {
   .dashboard-preview {
     width: min(650px, 90vw);
     min-height: 470px;
+  }
+
+  .ai-preview,
+  .reward-preview {
+    width: min(650px, 90vw);
   }
 
   .penguin-stage {
@@ -1298,6 +1609,17 @@ onBeforeUnmount(() => {
     font-size: 0.75rem;
   }
 
+  .preview-nav {
+    justify-content: center;
+    padding: 0;
+    font-size: 0;
+  }
+
+  .preview-nav i {
+    display: grid;
+    place-items: center;
+  }
+
   .preview-main { padding: 13px; }
   .preview-header { margin-bottom: 11px; }
   .preview-grid { gap: 8px; }
@@ -1310,6 +1632,40 @@ onBeforeUnmount(() => {
   .expense-row { margin-top: 8px; }
   .goal-tools { margin-top: 9px; }
   .feature-badge { top: -9px; right: 6px; padding: 4px 7px; }
+
+  .ai-preview,
+  .reward-preview {
+    width: min(560px, 94vw);
+    padding: 15px;
+    border-width: 5px;
+    border-radius: 20px;
+  }
+
+  .ai-feature-grid {
+    gap: 8px;
+  }
+
+  .ai-feature-card {
+    grid-template-columns: auto 1fr;
+    padding: 11px;
+    gap: 8px;
+  }
+
+  .ai-feature-card > span {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+  }
+
+  .ai-feature-card > i {
+    display: none;
+  }
+
+  .ai-feature-card strong { font-size: 0.72rem; }
+  .ai-feature-card small { font-size: 0.57rem; }
+  .challenge-panel, .point-panel { padding: 13px; }
+  .challenge-stat-grid { margin-top: 10px; }
+  .challenge-feed-row { margin-top: 8px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
