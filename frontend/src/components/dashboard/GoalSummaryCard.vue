@@ -373,6 +373,7 @@ const formatGoalDate = (date) => {
 }
 
 .goal-account-summary {
+  min-height: 3rem;
   margin-top: auto;
 }
 
