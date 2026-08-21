@@ -748,9 +748,16 @@ onMounted(loadConnections)
   text-decoration: none;
 }
 
-.connection-add-button:hover {
+.connection-add-button:hover,
+.connection-add-button:focus-visible {
   border-color: #5c94df;
-  color: #4f46c7;
+  color: #3e7bd1;
+  background: #f5faff;
+}
+
+.connection-add-button:focus-visible {
+  outline: 3px solid rgb(79 143 232 / 22%);
+  outline-offset: 2px;
 }
 
 .connection-modal-backdrop {
