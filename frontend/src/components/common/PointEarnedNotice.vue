@@ -2,6 +2,7 @@
 import { onBeforeUnmount, onMounted, ref } from "vue"
 
 const NOTICE_DURATION_MS = 4200
+const pointWCoin = "/images/profiles/point-w-coin.svg"
 const point = ref(0)
 const visible = ref(false)
 let hideTimer = null
@@ -47,7 +48,7 @@ onBeforeUnmount(() => {
       aria-live="polite"
       aria-atomic="true"
     >
-      <img src="/images/profiles/point-w-coin.svg" alt="" aria-hidden="true" />
+      <img :src="pointWCoin" alt="" aria-hidden="true" />
       <span>포인트 {{ point.toLocaleString("ko-KR") }}P가 적립되었습니다.</span>
       <button type="button" aria-label="포인트 적립 알림 닫기" @click="hide">×</button>
     </div>

@@ -1,15 +1,15 @@
 {
   "result": {
     "code": "CF-00000",
-    "message": "success",
+    "message": "성공",
     "extraMessage": ""
   },
   "data": {
     "resPaymentDetailsStatusList": [
       {
         "resAttrYear": "2025",
-        "resType": "\uADFC\uB85C\uC18C\uB4DD",
-        "resPaidTotalAmt": "32400000"
+        "resType": "근로소득",
+        "resPaidTotalAmt": "38400000"
       }
     ]
   }

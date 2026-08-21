@@ -111,6 +111,21 @@ select,
   font-weight: 700;
 }
 
+.app-action-link {
+  border: 1px solid var(--wallo-color-primary);
+  border-radius: var(--wallo-radius-md);
+  color: var(--wallo-color-primary);
+  background: var(--wallo-color-surface);
+  font-weight: 500;
+}
+
+.app-action-link:hover,
+.app-action-link:focus {
+  border-color: var(--wallo-color-primary-hover);
+  color: var(--wallo-color-surface);
+  background: var(--wallo-color-primary);
+}
+
 .progress {
   height: 12px;
   background: var(--wallo-color-progress-track);
@@ -131,8 +146,8 @@ select,
   min-height: calc(100vh - 96px);
   display: grid;
   grid-template-columns: minmax(360px, 42%) minmax(480px, 58%);
-  background: var(--wallo-color-surface);
-  width: min(1180px, calc(100% - 96px));
+  background: #f5fbff;
+  width: min(1360px, calc(100% - 96px));
   margin: 48px auto;
   overflow: hidden;
   border: 1px solid var(--wallo-color-border);

@@ -1,0 +1,46 @@
+{
+  "result": {
+    "code": "CF-00000",
+    "message": "성공",
+    "extraMessage": ""
+  },
+  "data": {
+    "accounts": [
+      {
+        "resAccountName": "월급·생활비 통장",
+        "resAccount": "111111-01-222222",
+        "resAccountDisplay": "111111-**-***222",
+        "resAccountBalance": "1650000",
+        "resAccountEvalAmount": "1650000",
+        "resAccountCurrency": "KRW",
+        "resAccountStatus": "1",
+        "resAccountSubtype": "DEPOSIT"
+      }
+    ],
+    "loans": [
+      {
+        "resLoanName": "학자금 상환 대출",
+        "resLoanAccount": "LOAN-2021-0007",
+        "resLoanDisplay": "학자금-****-0007",
+        "resLoanBalance": "4800000",
+        "resLoanStatus": "1",
+        "resLoanCurrency": "KRW"
+      }
+    ],
+    "assetSnapshots": [
+      {
+        "snapshotMonth": "2026-06",
+        "totalAssets": "6300000"
+      },
+      {
+        "snapshotMonth": "2026-07",
+        "totalAssets": "6650000"
+      },
+      {
+        "snapshotMonth": "2026-08",
+        "totalAssets": "6900000"
+      }
+    ],
+    "transactions": []
+  }
+}

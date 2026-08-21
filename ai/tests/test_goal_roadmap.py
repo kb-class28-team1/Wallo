@@ -6,6 +6,7 @@ import pytest
 from app.agents.roadmap.generator import (
     ROADMAP_MAX_COMPLETION_TOKENS,
     generate_goal_roadmap,
+    normalize_roadmap_text,
 )
 from app.agents.roadmap.models import RoadmapGoal
 
@@ -69,3 +70,8 @@ def test_rejects_roadmap_whose_last_step_does_not_match_goal():
 
     with pytest.raises(ValueError, match="마지막 단계 금액"):
         generate_goal_roadmap(client, goal())
+
+
+def test_normalizes_million_shorthand_in_generated_roadmap_text():
+    assert normalize_roadmap_text("현재 3M에 1M 추가") == "현재 3백만원에 1백만원 추가"
+    assert normalize_roadmap_text("3M원과 1.5m") == "3백만원과 1.5백만원"

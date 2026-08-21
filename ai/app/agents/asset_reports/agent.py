@@ -17,7 +17,7 @@ from app.core.config import get_groq_model
 
 
 logger = logging.getLogger("uvicorn.error")
-CONSUMPTION_INSIGHT_MAX_COMPLETION_TOKENS = 2000
+CONSUMPTION_INSIGHT_MAX_COMPLETION_TOKENS = 1024
 
 
 class InvalidConsumptionInsightResponseError(ValueError):

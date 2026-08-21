@@ -7,14 +7,14 @@
   "data": {
     "accounts": [
       {
-        "resAccountName": "주식 투자",
-        "resAccount": "77777777-07",
-        "resAccountDisplay": "777777**-**",
-        "resAccountBalance": "0",
-        "resAccountEvalAmount": "15900000",
+        "resAccountName": "여행 적금",
+        "resAccount": "333333-01-444444",
+        "resAccountDisplay": "333333-**-***444",
+        "resAccountBalance": "1050000",
+        "resAccountEvalAmount": "1050000",
         "resAccountCurrency": "KRW",
         "resAccountStatus": "1",
-        "resAccountSubtype": "STOCK"
+        "resAccountSubtype": "SAVINGS"
       }
     ],
     "loans": [],

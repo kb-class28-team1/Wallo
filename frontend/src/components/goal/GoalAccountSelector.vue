@@ -188,8 +188,8 @@ const submitAccountSelection = () => {
 }
 
 .goal-account-option:hover {
-  border-color: #aaa4ee;
-  background: #fafaff;
+  border-color: color-mix(in srgb, var(--wallo-color-primary) 45%, var(--wallo-color-border));
+  background: var(--wallo-color-info-bg);
 }
 
 .goal-account-option-selected {

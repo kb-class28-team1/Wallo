@@ -1,0 +1,19 @@
+{
+  "result": {
+    "code": "CF-00000",
+    "message": "성공",
+    "extraMessage": ""
+  },
+  "data": {
+    "cards": [
+      {
+        "resCardName": "Wallo 생활비 신용카드",
+        "resCardNo": "4555-0000-0000-1222",
+        "resCardDisplay": "4555-****-****-1222",
+        "resCardType": "CREDIT",
+        "resCardState": "1",
+        "resValidPeriod": "09/30"
+      }
+    ]
+  }
+}

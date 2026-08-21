@@ -1,6 +1,6 @@
 import { flushPromises, mount } from "@vue/test-utils"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { reactive, ref } from "vue"
+import { nextTick, reactive, ref } from "vue"
 
 import CategoryExpenseView from "./CategoryExpenseView.vue"
 import { getExpenses } from "@/api/assetApi"
@@ -77,7 +77,7 @@ const createBudgetStore = () => ({
 const globalStubs = {
   AppPageHeader: {
     props: ["title"],
-    template: '<header class="app-page-header"><slot name="leading" /><h1>{{ title }}</h1><slot name="actions" /></header>',
+    template: '<header class="app-page-header"><slot name="leading" /><h1><slot name="title">{{ title }}</slot></h1><slot name="actions" /></header>',
   },
   AppAlert: {
     template: '<div class="app-alert"><slot /></div>',
@@ -177,6 +177,30 @@ describe("CategoryExpenseView", () => {
       notifyError: false,
     })
 
+    wrapper.unmount()
+  })
+
+  it("keeps the refresh status beside the title while changing months", async () => {
+    const wrapper = mount(CategoryExpenseView, { global: { stubs: globalStubs } })
+    await flushPromises()
+
+    let resolveRefresh
+    getExpenses.mockImplementationOnce(
+      () => new Promise((resolve) => {
+        resolveRefresh = resolve
+      }),
+    )
+
+    await wrapper.get('[aria-label="다음 달"]').trigger("click")
+    await nextTick()
+
+    expect(wrapper.find(".app-page-header .category-refresh-status").exists()).toBe(true)
+    expect(wrapper.find(".category-expense-view > .category-refresh-status").exists()).toBe(false)
+
+    resolveRefresh(createExpenseResponse())
+    await flushPromises()
+
+    expect(wrapper.find(".app-page-header .category-refresh-status").exists()).toBe(false)
     wrapper.unmount()
   })
 

@@ -199,11 +199,11 @@ describe("AiAssistantView", () => {
           steps: [
             {
               stepNumber: 1,
-              title: "자동 저축 시작",
-              description: "전용 계좌를 준비합니다.",
+              title: "현재 3M에 1M 추가",
+              description: "현재 금액에 1M을 더합니다.",
               targetDate: "2026-09-30",
               targetAmount: 3000000,
-              actionItems: ["자동이체 설정"],
+              actionItems: ["3M 잔액 확인"],
             },
             {
               stepNumber: 2,
@@ -223,7 +223,13 @@ describe("AiAssistantView", () => {
     await vi.waitFor(() => expect(wrapper.text()).toContain("비상금 1,000만 원 만들기"))
 
     expect(wrapper.text()).toContain("2,500,000원")
+    expect(wrapper.text()).toContain("현재 3백만원에 1백만원 추가")
+    expect(wrapper.text()).toContain("3백만원 잔액 확인")
+    expect(wrapper.text()).not.toContain("현재 3M에 1M 추가")
     expect(wrapper.text()).toContain("25%")
+    expect(wrapper.text()).not.toContain("EMERGENCY_FUND")
+    expect(wrapper.find(".goal-summary-icon").exists()).toBe(false)
+    expect(wrapper.find(".goal-type").exists()).toBe(false)
     expect(wrapper.text()).toContain("최종 목표 달성")
     expect(wrapper.text()).not.toContain("AI가 생성한 맞춤 계획")
     expect(wrapper.find(".goal-roadmap-card").exists()).toBe(true)

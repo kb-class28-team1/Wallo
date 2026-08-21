@@ -8,6 +8,8 @@ import { getAvailableGoalAccounts, getGoalRoadmap, getGoals } from "@/api/goalAp
 import { useGoalStore } from "@/stores/goalStore"
 import { useUserStore } from "@/stores/userStore"
 
+const push = vi.hoisted(() => vi.fn())
+
 vi.mock("@/api/goalApi", () => ({
   getAvailableGoalAccounts: vi.fn(),
   getGoalRoadmap: vi.fn(),
@@ -17,7 +19,7 @@ vi.mock("@/api/goalApi", () => ({
 }))
 
 vi.mock("vue-router", () => ({
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push }),
 }))
 
 vi.mock("@/api/assetApi", () => ({
@@ -51,7 +53,9 @@ const mountDashboard = () =>
     global: {
       stubs: {
         AssetSummaryCard: { template: "<div />" },
-        BudgetSummaryCard: { template: "<div />" },
+        BudgetSummaryCard: {
+          template: '<button data-testid="budget-settings" @click="$emit(\'open-budget-settings\')">설정하기</button>',
+        },
         ExpenseSummaryCard: { template: "<div />" },
         RouterLink: {
           props: ["to"],
@@ -87,6 +91,20 @@ describe("DashboardView", () => {
     expect(getAvailableGoalAccounts).toHaveBeenCalledWith()
     expect(wrapper.find(".goal-progress-amount").text()).toContain("1,400,000")
     expect(wrapper.find(".goal-progress-rate").text()).toContain("14%")
+
+    wrapper.unmount()
+  })
+
+  it("opens the budget editor on the category expense page", async () => {
+    const wrapper = mountDashboard()
+
+    await flushPromises()
+    await wrapper.get('[data-testid="budget-settings"]').trigger("click")
+
+    expect(push).toHaveBeenCalledWith({
+      name: "category-expenses",
+      query: { budget: "edit" },
+    })
 
     wrapper.unmount()
   })

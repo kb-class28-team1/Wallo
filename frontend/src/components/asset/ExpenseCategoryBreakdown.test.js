@@ -82,8 +82,11 @@ describe("ExpenseCategoryBreakdown budget section", () => {
       },
     });
 
-    expect(wrapper.get('[data-testid="budget-action"]').text()).toContain("예산 수정");
-    await wrapper.get('[data-testid="budget-action"]').trigger("click");
+    const budgetAction = wrapper.get('[data-testid="budget-action"]');
+    expect(budgetAction.text()).toContain("예산 수정");
+    expect(budgetAction.classes()).toContain("app-action-link");
+    expect(budgetAction.find(".bi-arrow-right").exists()).toBe(true);
+    await budgetAction.trigger("click");
     expect(wrapper.emitted("edit-budget")).toHaveLength(1);
 
     const readOnlyWrapper = mount(ExpenseCategoryBreakdown, {
@@ -118,6 +121,28 @@ describe("ExpenseCategoryBreakdown budget section", () => {
     await wrapper.get('[data-testid="budget-action"]').trigger("click");
     expect(wrapper.emitted("edit-budget")).toHaveLength(1);
   });
+
+  it("shows historical-budget guidance for a past month without a budget", () => {
+    const wrapper = mount(ExpenseCategoryBreakdown, {
+      ...globalOptions,
+      props: {
+        budgetSummary: {
+          ...budgetSummary,
+          totalAmount: 0,
+          categories: [],
+        },
+        canEditBudget: false,
+      },
+    });
+
+    expect(wrapper.get('[data-testid="budget-empty-state"]').text()).toContain(
+      "이 달에 설정된 예산이 없습니다.",
+    );
+    expect(wrapper.get('[data-testid="budget-empty-state"]').text()).toContain(
+      "예산은 현재 달부터 설정하고 관리할 수 있습니다.",
+    );
+    expect(wrapper.find('[data-testid="budget-action"]').exists()).toBe(false);
+  });
 });
 
 describe("ExpenseCategoryBreakdown category chart", () => {
@@ -140,5 +165,8 @@ describe("ExpenseCategoryBreakdown category chart", () => {
 
     expect(wrapper.findAll(".category-list li")).toHaveLength(7);
     expect(wrapper.find(".category-list").classes()).toContain("category-list-two-columns");
+    expect(wrapper.find(".category-list").attributes("style")).toContain(
+      "--category-list-row-count: 4",
+    );
   });
 });
