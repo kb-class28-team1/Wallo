@@ -2,8 +2,8 @@ import json
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from app.agents.base import ToolResult
-from app.agents.financial.agent import (
+from app.financial_assistant.tool_result import ToolResult
+from app.financial_assistant.agent import (
     PRODUCT_RECOMMENDATION_TOOL,
     FinancialAgent,
 )
@@ -108,7 +108,7 @@ def test_product_recommendation_allocates_enough_tokens_for_complete_summary():
     ]
 
     with patch(
-        "app.agents.financial.agent.execute_tool",
+        "app.financial_assistant.agent.execute_tool",
         return_value=ToolResult(
             status="success",
             tool=PRODUCT_RECOMMENDATION_TOOL,

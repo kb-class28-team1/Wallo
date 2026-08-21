@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from app.agents.base import ToolResult
-from app.agents.financial.tools.pending import build_tool_schema
+from app.financial_assistant.tool_result import ToolResult
+from app.financial_assistant.tools.pending import build_tool_schema
 
 if TYPE_CHECKING:
     from app.chat.schemas import AssetAnalysisContext

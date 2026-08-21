@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch
 import pytest
 from pydantic import ValidationError
 
-from app.agents.financial.tools.registry import (
+from app.financial_assistant.tools.registry import (
     TOOL_SCHEMAS,
     select_route_tool_schemas,
 )

@@ -5,7 +5,7 @@ from datetime import date
 import pytest
 from pydantic import ValidationError
 
-from app.agents.goal.models import (
+from app.goals.interview.models import (
     GoalDraft,
     GoalField,
     GoalPriority,

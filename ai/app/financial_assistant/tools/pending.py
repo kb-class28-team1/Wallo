@@ -1,6 +1,6 @@
 from typing import Any
 
-from app.agents.base import ToolResult
+from app.financial_assistant.tool_result import ToolResult
 
 
 def build_tool_schema(name: str, description: str) -> dict[str, Any]:

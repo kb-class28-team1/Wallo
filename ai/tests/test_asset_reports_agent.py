@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.agents.asset_reports.agent import (
+from app.asset_reports.agent import (
     ConsumptionInsightAgent,
     InvalidConsumptionInsightResponseError,
 )

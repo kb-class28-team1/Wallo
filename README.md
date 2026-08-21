@@ -182,13 +182,24 @@ Wallo/
 │       ├── external/        # 외부 API 연동
 │       └── config/          # Java Config
 │
-├── ai/                       # FastAPI AI 서버
-│   └── app/
-│       ├── agents/           # 도메인별 Agent·Tool (financial, goal, roadmap, category, asset_reports)
-│       ├── chat/              # 채팅 API
-│       ├── reports/           # 금융 뉴스 리포트 생성 API
-│       ├── clients/           # Groq 클라이언트
-│       └── core/              # 환경설정
+├── ai/                       # FastAPI AI 서버 (기능 중심 패키지 구조)
+│   ├── app/
+│   │   ├── asset_reports/    # 소비 인사이트 API·Service·Agent
+│   │   ├── category/         # 소비 카테고리 분류 API·Service·Agent
+│   │   ├── chat/             # 금융 채팅 API와 응답 조합
+│   │   ├── financial_assistant/ # 금융 대화 Agent와 Tool
+│   │   │   └── tools/        # 자산 분석·소비 코칭·금융상품 추천 Tool
+│   │   ├── goals/
+│   │   │   ├── interview/    # 자연어 금융 목표 인터뷰
+│   │   │   └── roadmap/      # 확정 목표 로드맵 생성
+│   │   ├── missions/         # 개인화 미션 생성 API
+│   │   ├── reports/          # 금융 뉴스 리포트 생성 API
+│   │   ├── health/           # AI 서버 상태 확인 API
+│   │   ├── clients/          # Groq 클라이언트
+│   │   └── core/             # 환경설정·토큰 가드·AI 요청 측정
+│   ├── data/                 # 금융상품·금융용어 원본 및 가공 데이터
+│   ├── scripts/              # 금융 데이터 수집·변환 스크립트
+│   └── tests/                # AI 서버 pytest 테스트
 │
 └── database/                 # 스키마·시드 SQL
     ├── sql/

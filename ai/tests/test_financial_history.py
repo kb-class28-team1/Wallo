@@ -1,8 +1,8 @@
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-from app.agents.financial.agent import FinancialAgent
-from app.agents.financial.history import (
+from app.financial_assistant.agent import FinancialAgent
+from app.financial_assistant.history import (
     build_bounded_context,
     estimate_message_tokens,
     estimate_text_tokens,

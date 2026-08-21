@@ -1,6 +1,11 @@
 import csv
 
-from app.agents.financial.tools import product_recommendation
+from app.financial_assistant.tools import product_recommendation
+
+
+def test_default_product_data_files_exist():
+    assert product_recommendation.DATA_FILES["deposit"].is_file()
+    assert product_recommendation.DATA_FILES["saving"].is_file()
 
 
 def write_products(path, rows):

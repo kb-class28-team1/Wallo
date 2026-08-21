@@ -2,10 +2,10 @@ from datetime import date
 
 from groq import Groq
 
-from app.agents.goal.context import FinancialContext
-from app.agents.goal.extractor import GoalExtractor
-from app.agents.goal.models import GoalDraft, GoalInterviewResult
-from app.agents.goal.service import GoalInterviewService
+from app.goals.interview.context import FinancialContext
+from app.goals.interview.extractor import GoalExtractor
+from app.goals.interview.models import GoalDraft, GoalInterviewResult
+from app.goals.interview.service import GoalInterviewService
 
 
 class GoalAgent:

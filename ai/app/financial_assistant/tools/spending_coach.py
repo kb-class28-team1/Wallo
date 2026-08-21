@@ -7,8 +7,8 @@ from statistics import median
 from typing import Any
 import re
 
-from app.agents.base import ToolResult
-from app.agents.financial.consumption_models import ConsumptionContext, ConsumptionTransaction
+from app.financial_assistant.tool_result import ToolResult
+from app.financial_assistant.consumption_models import ConsumptionContext, ConsumptionTransaction
 
 NAME = "coach_spending"
 SCHEMA = {

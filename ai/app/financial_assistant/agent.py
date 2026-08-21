@@ -6,28 +6,28 @@ from typing import Any, TYPE_CHECKING
 
 from groq import Groq
 
-from app.agents.financial.asset_analysis_cache import (
+from app.financial_assistant.asset_analysis_cache import (
     build_cache_key,
     cache_answer,
     get_cached_answer,
 )
-from app.agents.financial.prompts import SYSTEM_PROMPT
-from app.agents.financial.tools.registry import (
+from app.financial_assistant.prompts import SYSTEM_PROMPT
+from app.financial_assistant.tools.registry import (
     execute_tool,
     select_route_tool_schemas,
 )
-from app.agents.financial.history import (
+from app.financial_assistant.history import (
     BoundedConversationContext,
     HISTORY_TOKEN_BUDGET,
     SUMMARY_TOKEN_BUDGET,
     build_bounded_context,
 )
-from app.agents.financial.tool_payload import compact_tool_result_for_prompt
-from app.agents.goal.context import FinancialContext
+from app.financial_assistant.tool_payload import compact_tool_result_for_prompt
+from app.goals.interview.context import FinancialContext
 from app.core.config import get_groq_model
 from app.core.ai_timing import current_request_id, timed_groq_completion
-from app.agents.financial.consumption_models import ConsumptionContext
-from app.agents.financial.spending_intent import (
+from app.financial_assistant.consumption_models import ConsumptionContext
+from app.financial_assistant.spending_intent import (
     build_spending_arguments,
     is_spending_request,
 )
