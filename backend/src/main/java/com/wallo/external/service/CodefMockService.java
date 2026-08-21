@@ -29,17 +29,21 @@ public class CodefMockService {
     );
     private static final Map<String, String> BANK_ACCOUNT_FIXTURE_BY_ORGANIZATION = Map.of(
             "0004", "bank-accounts-goal-saver.json",
-            "0088", "bank-accounts-goal-saver.json",
-            "0081", "bank-accounts-goal-saver.json"
+            "0088", "bank-accounts-goal-saver-0088.json",
+            "0081", "bank-accounts-goal-saver-0081.json"
     );
     private static final Map<String, String> CARD_ACCOUNT_FIXTURE_BY_ORGANIZATION = Map.of(
             "0311", "card-list-goal-saver.json",
-            "0301", "card-list-goal-saver.json"
+            "0301", "card-list-goal-saver-0301.json"
     );
     private static final Map<String, Set<String>> MOCK_BANK_ACCOUNTS_BY_ORGANIZATION = Map.of(
-            "0004", Set.of("111111-01-222222", "222222-01-333333", "333333-01-444444"),
-            "0088", Set.of("111111-01-222222", "222222-01-333333", "333333-01-444444"),
-            "0081", Set.of("111111-01-222222", "222222-01-333333", "333333-01-444444")
+            "0004", Set.of("111111-01-222222", "LOAN-2021-0007"),
+            "0088", Set.of("222222-01-333333"),
+            "0081", Set.of("333333-01-444444")
+    );
+    private static final Map<String, Set<String>> MOCK_CARD_NUMBERS_BY_ORGANIZATION = Map.of(
+            "0311", Set.of("4555-0000-0000-1222"),
+            "0301", Set.of("5666-0000-0000-2333")
     );
     private static final Map<String, String> BANK_TRANSACTION_FIXTURE_BY_ORGANIZATION = Map.of(
             "0004", "bank-transaction-list-goal-saver.json",
@@ -50,7 +54,6 @@ public class CodefMockService {
             "0311", "card-approval-list-goal-saver.json",
             "0301", "card-approval-list-goal-saver.json"
     );
-    private static final int INCOME_PROOF_FIXTURE_YEAR = 2026;
     private static final String INCOME_PROOF_FIXTURE = "income-proof-goal-saver.json";
     private final ObjectMapper objectMapper;
 
@@ -120,7 +123,9 @@ public class CodefMockService {
                 fixture.getData(),
                 new TypeReference<List<CodefDto.CardApproval>>() { }
         );
+        Set<String> availableCardNumbers = MOCK_CARD_NUMBERS_BY_ORGANIZATION.get(request.getOrganization());
         List<CodefDto.CardApproval> filteredApprovals = safeList(approvals).stream()
+                .filter(approval -> availableCardNumbers.contains(approval.getResCardNo()))
                 .filter(approval -> range.contains(approval.getResUsedDate()))
                 .toList();
 
@@ -200,15 +205,38 @@ public class CodefMockService {
         if (startYear == null || endYear == null || startYear > endYear) {
             return invalidRequest("searchStartYear and searchEndYear must be YYYY.");
         }
-        if (INCOME_PROOF_FIXTURE_YEAR < startYear || INCOME_PROOF_FIXTURE_YEAR > endYear) {
+
+        CodefDto.Response fixture = load(INCOME_PROOF_FIXTURE);
+        if (!isSuccess(fixture)) {
+            return fixture;
+        }
+
+        CodefDto.IncomeProofData incomeProofData = objectMapper.convertValue(
+                fixture.getData(),
+                CodefDto.IncomeProofData.class
+        );
+        List<CodefDto.PaymentDetails> filteredPayments = safeList(
+                incomeProofData.getResPaymentDetailsStatusList()
+        ).stream()
+                .filter(payment -> payment != null)
+                .filter(payment -> {
+                    Integer paymentYear = parseYear(payment.getResAttrYear());
+                    return paymentYear != null
+                            && startYear <= paymentYear
+                            && paymentYear <= endYear;
+                })
+                .toList();
+
+        if (filteredPayments.isEmpty()) {
             return CodefDto.Response.failure(
                     CodefConstants.NOT_FOUND_CODE,
                     "Income proof mock response is unavailable for the requested year.",
-                    String.valueOf(INCOME_PROOF_FIXTURE_YEAR)
+                    request.getSearchStartYear() + "-" + request.getSearchEndYear()
             );
         }
 
-        return load(INCOME_PROOF_FIXTURE);
+        incomeProofData.setResPaymentDetailsStatusList(filteredPayments);
+        return new CodefDto.Response(fixture.getResult(), incomeProofData);
     }
 
     private String firstMissingCommonField(

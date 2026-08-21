@@ -1,0 +1,19 @@
+{
+  "result": {
+    "code": "CF-00000",
+    "message": "성공",
+    "extraMessage": ""
+  },
+  "data": {
+    "cards": [
+      {
+        "resCardName": "Wallo 절약 체크카드",
+        "resCardNo": "5666-0000-0000-2333",
+        "resCardDisplay": "5666-****-****-2333",
+        "resCardType": "CHECK",
+        "resCardState": "1",
+        "resValidPeriod": "03/29"
+      }
+    ]
+  }
+}

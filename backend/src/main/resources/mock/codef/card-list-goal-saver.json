@@ -13,14 +13,6 @@
         "resCardType": "CREDIT",
         "resCardState": "1",
         "resValidPeriod": "09/30"
-      },
-      {
-        "resCardName": "Wallo 절약 체크카드",
-        "resCardNo": "5666-0000-0000-2333",
-        "resCardDisplay": "5666-****-****-2333",
-        "resCardType": "CHECK",
-        "resCardState": "1",
-        "resValidPeriod": "03/29"
       }
     ]
   }

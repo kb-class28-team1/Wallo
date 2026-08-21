@@ -15,26 +15,6 @@
         "resAccountCurrency": "KRW",
         "resAccountStatus": "1",
         "resAccountSubtype": "DEPOSIT"
-      },
-      {
-        "resAccountName": "비상금 통장",
-        "resAccount": "222222-01-333333",
-        "resAccountDisplay": "222222-**-***333",
-        "resAccountBalance": "4200000",
-        "resAccountEvalAmount": "4200000",
-        "resAccountCurrency": "KRW",
-        "resAccountStatus": "1",
-        "resAccountSubtype": "SAVINGS"
-      },
-      {
-        "resAccountName": "여행 적금",
-        "resAccount": "333333-01-444444",
-        "resAccountDisplay": "333333-**-***444",
-        "resAccountBalance": "1050000",
-        "resAccountEvalAmount": "1050000",
-        "resAccountCurrency": "KRW",
-        "resAccountStatus": "1",
-        "resAccountSubtype": "SAVINGS"
       }
     ],
     "loans": [

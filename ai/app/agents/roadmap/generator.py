@@ -40,7 +40,7 @@ TOOL_SCHEMA = {
     },
 }
 
-ROADMAP_MAX_COMPLETION_TOKENS = 1600
+ROADMAP_MAX_COMPLETION_TOKENS = 1024
 MILLION_AMOUNT_PATTERN = re.compile(
     r"(?<![A-Za-z0-9])(?P<amount>\d+(?:[.,]\d+)?)\s*"
     r"(?:[mM]|million)(?:\s*원)?(?![A-Za-z0-9])"
