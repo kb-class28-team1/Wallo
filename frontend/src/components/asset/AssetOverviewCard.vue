@@ -317,10 +317,22 @@ const chartOptions = {
 
 .asset-category-list li {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 44px 118px;
+  grid-template-columns: minmax(0, 1fr) var(--wallo-space-6) 50px var(--wallo-space-2) 118px;
   padding-bottom: 10px;
   border-bottom: 1px solid var(--wallo-color-border-soft);
   color: var(--wallo-color-text);
+}
+
+.asset-category-label {
+  grid-column: 1;
+}
+
+.asset-category-rate {
+  grid-column: 3;
+}
+
+.asset-category-list strong {
+  grid-column: 5;
 }
 
 .asset-category-list li:last-child {
@@ -386,6 +398,12 @@ const chartOptions = {
 
   .asset-category-list li {
     grid-template-columns: minmax(0, 1fr) 40px auto;
+  }
+
+  .asset-category-label,
+  .asset-category-rate,
+  .asset-category-list strong {
+    grid-column: auto;
   }
 
   .asset-category-list strong {

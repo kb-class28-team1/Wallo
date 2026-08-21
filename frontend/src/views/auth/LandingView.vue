@@ -66,7 +66,7 @@ onUnmounted(() => {
       </div>
 
       <div class="landing-copy">
-        <h1 id="landing-title"><span>왈로</span> 페이지 불러오는 중이에요</h1>
+        <h1 id="landing-title"><span>왈로</span>를 불러오는 중이에요</h1>
         <p>잠시만 기다려주세요.</p>
       </div>
 
