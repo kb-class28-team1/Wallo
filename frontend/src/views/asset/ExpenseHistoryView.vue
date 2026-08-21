@@ -492,6 +492,17 @@ onMounted(async () => {
           <i class="bi bi-chevron-left" aria-hidden="true"></i>
         </RouterLink>
       </template>
+      <template #title>
+        <span class="expense-page-title">
+          <span>월별 리포트</span>
+          <span v-if="isExpenseRefreshing" class="expense-refresh-status" role="status">
+            <span class="spinner-border spinner-border-sm text-primary" aria-hidden="true"></span>
+            <span class="expense-refresh-status__text">
+              {{ monthLabel }} 소비 내역을 최신 상태로 갱신하고 있습니다.
+            </span>
+          </span>
+        </span>
+      </template>
       <template #actions>
         <AppButton
           class="expense-sync-button"
@@ -517,11 +528,6 @@ onMounted(async () => {
       :message="syncStatus.message"
       role="status"
     />
-
-    <div v-if="isExpenseRefreshing" class="small text-secondary mb-3" role="status">
-      <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
-      {{ monthLabel }} 소비 내역을 최신 상태로 갱신하고 있습니다.
-    </div>
 
     <AppAlert v-if="error && hasLoadedExpenseData" class="expense-error mb-3" variant="warning">
       <span>최신 소비 내역을 갱신하지 못했습니다. 기존 내역을 표시하고 있습니다.</span>
@@ -728,6 +734,31 @@ onMounted(async () => {
 
 .expense-sync-button {
   min-width: 172px;
+}
+
+.expense-page-title {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: var(--wallo-space-3);
+}
+
+.expense-refresh-status {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--wallo-space-2);
+  overflow: hidden;
+  color: var(--wallo-color-text-muted);
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.expense-refresh-status__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .expense-sync-status {

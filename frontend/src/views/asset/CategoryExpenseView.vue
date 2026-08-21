@@ -82,6 +82,18 @@ const isInitialLoading = computed(() => isLoading.value && !hasLoadedData.value)
 const isRefreshing = computed(() => isLoading.value && hasLoadedData.value)
 const isBudgetInitialLoading = computed(() => budgetInitialLoading?.value ?? isBudgetLoading.value)
 const isBudgetRefreshing = computed(() => budgetRefreshing?.value ?? false)
+const isPageRefreshing = computed(() => isRefreshing.value || isBudgetRefreshing.value)
+const refreshStatusMessage = computed(() => {
+  if (isRefreshing.value && isBudgetRefreshing.value) {
+    return `${monthLabel.value} 소비·예산을 최신 상태로 갱신하고 있습니다.`
+  }
+
+  if (isRefreshing.value) {
+    return `${monthLabel.value} 소비 내역을 최신 상태로 갱신하고 있습니다.`
+  }
+
+  return "카테고리별 예산을 최신 상태로 갱신하고 있습니다."
+})
 const displayedBudgetError = computed(() => (budgetSummary.value ? "" : budgetError.value))
 const isBudgetRefreshError = computed(() => Boolean(budgetSummary.value && budgetError.value))
 
@@ -198,12 +210,16 @@ onMounted(async () => {
           <i class="bi bi-chevron-left" aria-hidden="true"></i>
         </RouterLink>
       </template>
+      <template #title>
+        <span class="category-page-title">
+          <span>카테고리별 소비</span>
+          <span v-if="isPageRefreshing" class="category-refresh-status" role="status">
+            <span class="spinner-border spinner-border-sm text-primary" aria-hidden="true"></span>
+            <span class="category-refresh-status__text">{{ refreshStatusMessage }}</span>
+          </span>
+        </span>
+      </template>
     </AppPageHeader>
-
-    <div v-if="isRefreshing" class="small text-secondary mb-3" role="status">
-      <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
-      {{ monthLabel }} 소비 내역을 최신 상태로 갱신하고 있습니다.
-    </div>
 
     <AppState
       v-if="isInitialLoading"
@@ -230,11 +246,6 @@ onMounted(async () => {
           다시 시도
         </button>
       </AppAlert>
-
-      <div v-if="isBudgetRefreshing" class="small text-secondary mb-3" role="status">
-        <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
-        카테고리별 예산을 최신 상태로 갱신하고 있습니다.
-      </div>
 
       <AppAlert v-if="isBudgetRefreshError" class="mb-3" variant="warning">
         <span>최신 예산 정보를 갱신하지 못했습니다. 기존 예산을 표시하고 있습니다.</span>
@@ -281,6 +292,31 @@ onMounted(async () => {
 .category-expense-view {
   width: 100%;
   padding: 0 0 var(--wallo-space-6);
+}
+
+.category-page-title {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: var(--wallo-space-3);
+}
+
+.category-refresh-status {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--wallo-space-2);
+  overflow: hidden;
+  color: var(--wallo-color-text-muted);
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.category-refresh-status__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .back-button {

@@ -1,4 +1,4 @@
-import { ref } from "vue"
+import { nextTick, ref } from "vue"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { flushPromises, mount } from "@vue/test-utils"
 import ExpenseHistoryView from "./ExpenseHistoryView.vue"
@@ -183,6 +183,26 @@ describe("ExpenseHistoryView manual synchronization", () => {
     await flushPromises()
 
     expect(syncButton.element.disabled).toBe(false)
+  })
+
+  it("keeps the month refresh status beside the title while changing months", async () => {
+    let resolveRefresh
+    getExpenses.mockImplementationOnce(
+      () => new Promise((resolve) => {
+        resolveRefresh = resolve
+      }),
+    )
+
+    await wrapper.get('[aria-label="다음 달"]').trigger("click")
+    await nextTick()
+
+    expect(wrapper.find(".app-page-header__title .expense-refresh-status").exists()).toBe(true)
+    expect(wrapper.find(".expense-history-view > .expense-refresh-status").exists()).toBe(false)
+
+    resolveRefresh(createExpenseResponse())
+    await flushPromises()
+
+    expect(wrapper.find(".app-page-header__title .expense-refresh-status").exists()).toBe(false)
   })
 
   it("shows partial failures while keeping the refreshed expense data", async () => {
