@@ -137,6 +137,7 @@ const save = () => {
     confirm-variant="primary"
     :confirm-disabled="isSaving || !isValid"
     :confirm-loading="isSaving"
+    :close-on-backdrop="false"
     @close="emit('close')"
     @confirm="save"
   >

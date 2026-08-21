@@ -201,8 +201,7 @@ onMounted(() => loadTaxSettlement({ force: props.forceRefresh }))
       </div>
 
       <div v-else-if="isAnnualSalaryUnavailable" class="tax-deduction-state manual-salary-state">
-        <i class="bi bi-pencil-square text-primary fs-2" aria-hidden="true"></i>
-        <p class="fw-semibold mb-1 mt-3">세전 연봉을 자동으로 조회하지 못했습니다.</p>
+        <p class="fw-semibold mb-1">세전 연봉을 자동으로 조회하지 못했습니다.</p>
         <p class="small text-secondary mb-3">
           연봉을 직접 입력하면 소득공제 달성률을 계산할 수 있습니다.
         </p>
@@ -233,7 +232,7 @@ onMounted(() => loadTaxSettlement({ force: props.forceRefresh }))
           </p>
           <AppButton
             type="submit"
-            class="w-100"
+            class="w-100 mt-4"
             variant="primary"
             :disabled="isAnnualSalarySaving"
             :loading="isAnnualSalarySaving"

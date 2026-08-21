@@ -208,6 +208,7 @@ const deltaClass = computed(() => Number(props.analysis.summary?.deltaAmount) <=
   background: var(--wallo-color-surface-soft);
   border: 1px solid var(--wallo-color-border);
   border-radius: 0.9rem;
+  box-shadow: var(--wallo-shadow-card);
   text-decoration: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }

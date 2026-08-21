@@ -32,7 +32,7 @@ describe("BudgetSummaryCard", () => {
     expect(wrapper.find(".budget-remaining-rate").text()).toBe("75%")
     expect(wrapper.find(".ice-budget-status").exists()).toBe(false)
 
-    await wrapper.find(".dashboard-action-button").trigger("click")
+    await wrapper.find(".app-action-link").trigger("click")
 
     expect(wrapper.emitted("open-budget-settings")).toHaveLength(1)
   })
@@ -52,10 +52,10 @@ describe("BudgetSummaryCard", () => {
     )
     expect(wrapper.find(".budget-state .app-state__message").text()).toBe("예산을 설정해주세요")
     expect(wrapper.find(".budget-state .app-state__icon").exists()).toBe(false)
-    expect(wrapper.find(".dashboard-action-button").text()).toBe("설정하기")
+    expect(wrapper.find(".app-action-link").text()).toBe("설정하기")
     expect(wrapper.find('[role="progressbar"]').exists()).toBe(false)
 
-    await wrapper.find(".dashboard-action-button").trigger("click")
+    await wrapper.find(".app-action-link").trigger("click")
 
     expect(wrapper.emitted("open-budget-settings")).toHaveLength(1)
   })

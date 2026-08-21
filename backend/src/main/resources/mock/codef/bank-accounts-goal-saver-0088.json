@@ -7,14 +7,14 @@
   "data": {
     "accounts": [
       {
-        "resAccountName": "하나 급여 통장",
-        "resAccount": "334455-01-667788",
-        "resAccountDisplay": "334455-**-***788",
-        "resAccountBalance": "6100000",
-        "resAccountEvalAmount": "6100000",
+        "resAccountName": "비상금 통장",
+        "resAccount": "222222-01-333333",
+        "resAccountDisplay": "222222-**-***333",
+        "resAccountBalance": "4200000",
+        "resAccountEvalAmount": "4200000",
         "resAccountCurrency": "KRW",
         "resAccountStatus": "1",
-        "resAccountSubtype": "DEPOSIT"
+        "resAccountSubtype": "SAVINGS"
       }
     ],
     "loans": [],

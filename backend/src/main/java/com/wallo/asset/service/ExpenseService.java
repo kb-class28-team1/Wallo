@@ -5,6 +5,7 @@ import com.wallo.asset.exception.InvalidDashboardRequestException;
 import com.wallo.asset.mapper.ExpenseMapper;
 import java.time.DateTimeException;
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -89,7 +90,7 @@ public class ExpenseService {
         LocalDate endDate = parseRequired(condition.getEndDate());
         int page = condition.getPage();
         int size = condition.getSize();
-        String category = normalizeCategory(condition.getCategory());
+        String category = normalizeCategories(condition.getCategory());
 
         if (startDate.isAfter(endDate) || page < 0 || size < 1 || size > MAX_SIZE) {
             throw new InvalidDashboardRequestException();
@@ -125,6 +126,22 @@ public class ExpenseService {
             throw new InvalidDashboardRequestException();
         }
         return normalized;
+    }
+
+    private String normalizeCategories(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        List<String> categories = Arrays.stream(value.split(","))
+                .map(String::trim)
+                .filter(category -> !category.isEmpty())
+                .map(this::normalizeCategory)
+                .filter(category -> category != null)
+                .distinct()
+                .toList();
+
+        return categories.isEmpty() ? null : String.join(",", categories);
     }
 
     private LocalDate parseRequired(String value) {

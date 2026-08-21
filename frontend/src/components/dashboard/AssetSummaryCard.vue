@@ -102,7 +102,7 @@ const chartOptions = {
         <div class="col-lg-7">
           <section class="asset-trend-section h-100" aria-label="자산 변동 그래프">
             <div class="asset-status-action">
-              <RouterLink to="/assets" class="btn dashboard-action-button">
+              <RouterLink to="/assets" class="btn app-action-link">
                 자산 현황
                 <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
               </RouterLink>
@@ -159,23 +159,6 @@ const chartOptions = {
 
 .asset-change-negative {
   color: var(--wallo-color-finance-increase);
-}
-
-.dashboard-action-button {
-  border: 1px solid var(--wallo-color-finance-info);
-  border-radius: var(--wallo-radius-md);
-  color: var(--wallo-color-finance-info);
-  background: var(--wallo-color-surface);
-  transition:
-    color 0.2s ease,
-    background-color 0.2s ease;
-}
-
-.dashboard-action-button:hover,
-.dashboard-action-button:focus {
-  border-color: var(--wallo-color-finance-info-hover);
-  color: var(--wallo-color-surface);
-  background: var(--wallo-color-finance-info);
 }
 
 .asset-trend-section {

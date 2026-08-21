@@ -6,7 +6,7 @@ import {
 } from "@/api/assetApi";
 import { getApiErrorCode, getApiErrorMessage } from "@/utils/apiError";
 
-const REPORT_STALE_TIME = 5 * 60 * 1000;
+const TAX_SETTLEMENT_STALE_TIME = 5 * 60 * 1000;
 const requestStateByStore = new WeakMap();
 
 const getRequestState = (store) => {
@@ -72,22 +72,11 @@ export const useReportStore = defineStore("report", {
 
     fetchInsight({
       notifyError = true,
-      force = false,
-      staleTime = REPORT_STALE_TIME,
     } = {}) {
       const requestState = getRequestState(this);
 
       if (requestState.insight) {
         return requestState.insight;
-      }
-
-      const isFresh = (
-        this.lastFetchedAt.insight > 0 &&
-        Date.now() - this.lastFetchedAt.insight < staleTime
-      );
-
-      if (!force && isFresh) {
-        return Promise.resolve(this.insight);
       }
 
       const isInitialLoad = this.lastFetchedAt.insight === 0 && this.insight === null;
@@ -137,7 +126,7 @@ export const useReportStore = defineStore("report", {
     fetchTaxSettlement(year, {
       notifyError = false,
       force = false,
-      staleTime = REPORT_STALE_TIME,
+      staleTime = TAX_SETTLEMENT_STALE_TIME,
     } = {}) {
       const requestState = getRequestState(this);
       const normalizedYear = year ?? new Date().getFullYear();

@@ -77,7 +77,7 @@ describe("ExpenseCategoryEditModal", () => {
     expect(wrapper.get('[data-testid="category-option-RECEIVE"]').classes()).toContain("selected")
   })
 
-  it("reuses the category cards for an ALL filter and emits only the category", async () => {
+  it("allows multiple categories in filter mode and emits all selections", async () => {
     const wrapper = mount(ExpenseCategoryEditModal, {
       props: {
         visible: true,
@@ -88,11 +88,27 @@ describe("ExpenseCategoryEditModal", () => {
 
     expect(wrapper.find('[role="dialog"] h2').text()).toBe("카테고리 필터")
     expect(wrapper.get('[data-testid="category-option-ALL"]').classes()).toContain("selected")
+    expect(wrapper.get('[role="listbox"]').attributes("aria-multiselectable")).toBe("true")
 
     await wrapper.get('[data-testid="category-option-FOOD"]').trigger("click")
+    await wrapper.get('[data-testid="category-option-CAFE"]').trigger("click")
     await wrapper.get("[data-modal-confirm]").trigger("click")
 
-    expect(wrapper.emitted("save")?.[0]?.[0]).toEqual({ category: "FOOD" })
+    expect(wrapper.emitted("save")?.[0]?.[0]).toEqual({ categories: ["FOOD", "CAFE"] })
+  })
+
+  it("restores multiple filter selections when the modal opens", () => {
+    const wrapper = mount(ExpenseCategoryEditModal, {
+      props: {
+        visible: true,
+        mode: "filter",
+        initialCategories: ["FOOD", "CAFE"],
+      },
+    })
+
+    expect(wrapper.get('[data-testid="category-option-FOOD"]').classes()).toContain("selected")
+    expect(wrapper.get('[data-testid="category-option-CAFE"]').classes()).toContain("selected")
+    expect(wrapper.get('[data-testid="category-option-ALL"]').classes()).not.toContain("selected")
   })
 
   it("emits the selected category with the transaction id", async () => {

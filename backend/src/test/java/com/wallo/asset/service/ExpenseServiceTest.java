@@ -13,6 +13,7 @@ import com.wallo.asset.dto.ExpenseDto;
 import com.wallo.asset.exception.InvalidDashboardRequestException;
 import com.wallo.asset.mapper.ExpenseMapper;
 import java.util.List;
+import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.Test;
 
 class ExpenseServiceTest {
@@ -60,6 +61,28 @@ class ExpenseServiceTest {
         assertEquals(0, summary.getPagination().getTotalPages());
         assertEquals(0L, summary.getPagination().getTotalElements());
         assertEquals(false, summary.getPagination().isHasNext());
+    }
+
+    @Test
+    void normalizesMultipleCategoriesBeforeQuerying() {
+        when(expenseMapper.selectTransactions(eq(7L), any())).thenReturn(List.of());
+        when(expenseMapper.countTransactions(eq(7L), any())).thenReturn(0L);
+        when(expenseMapper.selectExpenseCategoryBreakdown(eq(7L), any())).thenReturn(List.of());
+        when(expenseMapper.selectDailyBreakdown(eq(7L), any())).thenReturn(List.of());
+
+        expenseService.getExpenseSummary(
+                7L,
+                new ExpenseDto.SearchCondition(
+                        "2026-07-01", "2026-07-31", 0, 20, " food, other, FOOD ", 0
+                )
+        );
+
+        ArgumentCaptor<ExpenseDto.SearchCondition> captor = ArgumentCaptor.forClass(
+                ExpenseDto.SearchCondition.class
+        );
+        verify(expenseMapper).selectTransactions(eq(7L), captor.capture());
+        assertEquals("FOOD,ETC", captor.getValue().getCategory());
+        assertEquals(List.of("FOOD", "ETC"), captor.getValue().getCategories());
     }
 
     @Test

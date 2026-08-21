@@ -19,8 +19,18 @@ const userStore = useUserStore()
 const isRewarding = ref(false)
 
 // Pinia의 반응형 상태를 유지한 채 화면에서 사용할 값으로 분리함
-const { rankings, myRanking, initialLoading, refreshing, errorMessage } =
+const { startDate, endDate, rankings, myRanking, initialLoading, refreshing, errorMessage } =
   storeToRefs(challengeStore)
+
+const formatRankingDate = (date) => String(date || "").replaceAll("-", ".")
+
+const rankingPeriodLabel = computed(() => {
+  if (!startDate.value || !endDate.value) {
+    return ""
+  }
+
+  return `${formatRankingDate(startDate.value)} ~ ${formatRankingDate(endDate.value)}`
+})
 
 // 인원수와 상관없이 시상대 슬롯을 2위, 1위, 3위 위치로 고정함
 const podiumSlots = computed(() =>
@@ -87,6 +97,7 @@ onMounted(() => {
     <AppPageHeader
       class="ranking-heading"
       title="주간 랭킹"
+      :description="rankingPeriodLabel"
       compact
     >
       <template #actions>
