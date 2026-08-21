@@ -121,6 +121,28 @@ describe("ExpenseCategoryBreakdown budget section", () => {
     await wrapper.get('[data-testid="budget-action"]').trigger("click");
     expect(wrapper.emitted("edit-budget")).toHaveLength(1);
   });
+
+  it("shows historical-budget guidance for a past month without a budget", () => {
+    const wrapper = mount(ExpenseCategoryBreakdown, {
+      ...globalOptions,
+      props: {
+        budgetSummary: {
+          ...budgetSummary,
+          totalAmount: 0,
+          categories: [],
+        },
+        canEditBudget: false,
+      },
+    });
+
+    expect(wrapper.get('[data-testid="budget-empty-state"]').text()).toContain(
+      "이 달에 설정된 예산이 없습니다.",
+    );
+    expect(wrapper.get('[data-testid="budget-empty-state"]').text()).toContain(
+      "예산은 현재 달부터 설정하고 관리할 수 있습니다.",
+    );
+    expect(wrapper.find('[data-testid="budget-action"]').exists()).toBe(false);
+  });
 });
 
 describe("ExpenseCategoryBreakdown category chart", () => {

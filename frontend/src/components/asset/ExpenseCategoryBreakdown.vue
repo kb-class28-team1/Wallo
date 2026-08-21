@@ -133,6 +133,18 @@ const hasConfiguredBudget = computed(
   () => Number(props.budgetSummary?.totalAmount ?? 0) > 0,
 );
 
+const budgetEmptyState = computed(() =>
+  props.canEditBudget
+    ? {
+        title: "아직 설정된 예산이 없습니다.",
+        message: "예산을 설정해주세요",
+      }
+    : {
+        title: "이 달에 설정된 예산이 없습니다.",
+        message: "예산은 현재 달부터 설정하고 관리할 수 있습니다.",
+      },
+);
+
 const budgetCategories = computed(() => (props.budgetSummary?.categories ?? [])
   .filter((category) => Number(category.budgetAmount) > 0)
   .map((category) => {
@@ -354,8 +366,8 @@ const progressWidth = (rate) => {
           class="budget-state"
           data-testid="budget-empty-state"
           type="empty"
-          title="아직 설정된 예산이 없습니다."
-          message="예산을 설정해주세요"
+          :title="budgetEmptyState.title"
+          :message="budgetEmptyState.message"
           compact
           hide-icon
         />
