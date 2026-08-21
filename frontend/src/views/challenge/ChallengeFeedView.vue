@@ -637,6 +637,7 @@ const requestAnalysis = async () => {
   isAnalyzing.value = true
   analysisProgress.value = 0
   analysisStageMessage.value = "분석 준비 중..."
+  await nextTick()
   startAnalysisProgress()
   try {
     const result = await waitForAnalysis(requestSequence)
@@ -1118,7 +1119,7 @@ onBeforeUnmount(() => {
                 :class="{ mine: isMyMessage(item) }"
               >
                 <div v-if="isFeedShareMessage(item)" class="feed-share-message">
-                  <strong class="message-author">{{ item.nickname }}</strong>
+                  <strong v-if="!isMyMessage(item)" class="message-author">{{ item.nickname }}</strong>
                   <div class="feed-attachment">
                     <small class="feed-attachment-label">피드 #{{ item.referenceFeedId }}</small>
                     <button type="button" class="shared-feed" @click="mentionFeed(item)">
@@ -1141,7 +1142,7 @@ onBeforeUnmount(() => {
                   </div>
                 </div>
                 <template v-else-if="isFeedMentionMessage(item)">
-                  <strong class="message-author">{{ item.nickname }}</strong>
+                  <strong v-if="!isMyMessage(item)" class="message-author">{{ item.nickname }}</strong>
                   <div class="feed-mention">
                     <div class="feed-attachment">
                       <small class="feed-attachment-label">피드 #{{ item.referenceFeedId }}</small>
@@ -1168,7 +1169,7 @@ onBeforeUnmount(() => {
                 </template>
                 <template v-else>
                   <div class="message-content">
-                    <strong class="message-author">{{ item.nickname }}</strong>
+                    <strong v-if="!isMyMessage(item)" class="message-author">{{ item.nickname }}</strong>
                     <p v-if="item.content" class="message-bubble">{{ item.content }}</p>
                   </div>
                 </template>
@@ -1207,7 +1208,7 @@ onBeforeUnmount(() => {
       </AppButton>
     </template>
 
-    <div v-if="modalOpen" class="modal-layer" @click.self="closeModal">
+    <div v-if="modalOpen" class="modal-layer">
       <section class="upload-modal" role="dialog" aria-modal="true" aria-labelledby="upload-title">
         <header>
           <h2 id="upload-title">절약 피드 추가</h2>
@@ -1300,6 +1301,31 @@ onBeforeUnmount(() => {
               :disabled="isAnalyzing"
               @click="requestAnalysis"
             >
+              <span v-if="isAnalyzing" class="analysis-wave-scene" aria-hidden="true">
+                <svg
+                  class="analysis-wave-svg"
+                  viewBox="0 0 200 34"
+                  preserveAspectRatio="none"
+                >
+                  <path
+                    class="analysis-wave-track"
+                    d="M0 20C18 8 32 8 50 20S82 32 100 20 132 8 150 20 182 32 200 20V34H0Z"
+                  />
+                  <path
+                    class="analysis-wave-fill"
+                    d="M0 20C18 8 32 8 50 20S82 32 100 20 132 8 150 20 182 32 200 20V34H0Z"
+                  />
+                  <path
+                    class="analysis-wave-foam"
+                    d="M0 20C18 8 32 8 50 20S82 32 100 20 132 8 150 20 182 32 200 20"
+                  />
+                </svg>
+                <img
+                  class="analysis-surfer"
+                  src="/images/illustrations/wallo-surfing.png"
+                  alt=""
+                />
+              </span>
               <span class="analysis-button-label">
                 {{ isAnalyzing ? analysisStageMessage : "✨ AI에게 분석 맡기기" }}
               </span>
@@ -2221,73 +2247,102 @@ textarea {
   position: relative;
   overflow: hidden;
   isolation: isolate;
-  background: #c986ed;
+  background: linear-gradient(90deg, #4f8fe8, #78aaf0);
   color: #fff;
   opacity: 1;
 }
-.analysis-box button.is-analyzing::before,
-.analysis-box button.is-analyzing::after {
+.analysis-wave-scene {
   position: absolute;
   inset: 0;
-  content: "";
   pointer-events: none;
-  clip-path: inset(0 calc(100% - var(--analysis-progress)) 0 0 round 13px);
+  overflow: hidden;
 }
-.analysis-box button.is-analyzing::before {
-  z-index: 0;
-  background: linear-gradient(90deg, #705ef0, #bd36f5);
-  will-change: clip-path;
-  transition: clip-path 1400ms cubic-bezier(0.22, 0.7, 0.28, 1);
+.analysis-wave-svg {
+  position: absolute;
+  bottom: 0;
+  left: -6%;
+  width: 112%;
+  height: 72%;
+  overflow: visible;
+  animation: analysis-wave-drift 2.2s ease-in-out infinite;
 }
-.analysis-box button.is-analyzing::after {
-  z-index: 0;
-  background: linear-gradient(
-    110deg,
-    transparent 35%,
-    rgba(255, 255, 255, 0.3) 50%,
-    transparent 65%
-  );
-  background-size: 220% 100%;
-  animation: analysis-progress-shimmer 1.8s ease-in-out infinite;
+.analysis-wave-track {
+  fill: #b8dcf8;
+  opacity: 0.95;
+}
+.analysis-wave-fill,
+.analysis-wave-foam {
+  clip-path: inset(0 calc(100% - var(--analysis-progress)) 0 0);
+  transition: clip-path 900ms cubic-bezier(0.22, 0.7, 0.28, 1);
+}
+.analysis-wave-fill {
+  fill: #3e7bd1;
+}
+.analysis-wave-foam {
+  fill: none;
+  stroke: #fff;
+  stroke-linecap: round;
+  stroke-width: 1.8;
+  opacity: 0.9;
+}
+.analysis-surfer {
+  position: absolute;
+  bottom: -16px;
+  left: clamp(28px, var(--analysis-progress), calc(100% - 28px));
+  z-index: 4;
+  width: 62px;
+  height: 62px;
+  object-fit: contain;
+  transform: translateX(-50%);
+  transform-origin: 50% 90%;
+  animation: analysis-surfer-bob 900ms ease-in-out infinite alternate;
 }
 .analysis-button-label {
   position: relative;
-  z-index: 1;
+  z-index: 3;
   color: #fff !important;
   font-size: inherit;
   font-weight: inherit;
   opacity: 1 !important;
-  text-shadow: 0 1px 2px rgba(44, 27, 105, 0.18);
+  text-shadow: 0 1px 2px rgba(28, 64, 120, 0.18);
 }
 .analysis-box button.is-analyzing:disabled {
   color: #fff;
   opacity: 1 !important;
 }
-@keyframes analysis-progress-shimmer {
+@keyframes analysis-wave-drift {
+  0%,
+  100% {
+    transform: translateX(-3%);
+  }
+  50% {
+    transform: translateX(3%);
+  }
+}
+@keyframes analysis-surfer-bob {
   from {
-    background-position: 120% 0;
+    transform: translateX(-50%) rotate(-2deg) translateY(1px);
   }
   to {
-    background-position: -20% 0;
+    transform: translateX(-50%) rotate(2deg) translateY(-2px);
   }
 }
 .analysis-progress-label {
   margin-top: 7px;
-  color: #7565d8;
+  color: #4f80c9;
   font-size: 0.76rem;
   font-weight: 750;
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 @media (prefers-reduced-motion: reduce) {
-  .analysis-box button.is-analyzing {
-    transition: none;
-  }
-  .analysis-box button.is-analyzing::before {
-    transition: none;
-  }
-  .analysis-box button.is-analyzing::after {
+  .analysis-wave-svg,
+  .analysis-surfer {
     animation: none;
+  }
+  .analysis-wave-fill,
+  .analysis-wave-foam {
+    transition: none;
   }
 }
 .result-box {
