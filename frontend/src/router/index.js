@@ -4,6 +4,7 @@ import { useUserStore } from "@/stores/userStore"
 const LandingView = () => import("@/views/auth/LandingView.vue")
 const LoginView = () => import("@/views/auth/LoginView.vue")
 const SignupView = () => import("@/views/auth/SignupView.vue")
+const OnboardingWelcomeView = () => import("@/views/onboarding/OnboardingWelcomeView.vue")
 const AiAssistantView = () => import("@/views/ai/AiAssistantView.vue")
 const AnalysisDashboardView = () => import("@/views/analysis/AnalysisDashboardView.vue")
 const AssetView = () => import("@/views/asset/AssetView.vue")
@@ -57,6 +58,12 @@ const router = createRouter({
       name: "signup",
       component: SignupView,
       meta: { guestOnly: true },
+    },
+    {
+      path: "/onboarding",
+      name: "onboarding-welcome",
+      component: OnboardingWelcomeView,
+      meta: { requiresAuth: true },
     },
     // 첫 로그인 사용자의 통합 자산 연결 페이지로 이동하는 주소임
     {
@@ -213,14 +220,15 @@ router.beforeEach(async (to) => {
     to.meta.requiresAuth &&
     userStore.isAuthenticated &&
     !userStore.user?.connectionCompleted &&
-    to.name !== "connection"
+    to.name !== "connection" &&
+    to.name !== "onboarding-welcome"
   ) {
-    return { name: "connection", replace: true }
+    return { name: "onboarding-welcome", replace: true }
   }
 
   if (to.meta.guestOnly && userStore.isAuthenticated) {
     return {
-      name: userStore.user?.connectionCompleted ? "dashboard" : "connection",
+      name: userStore.user?.connectionCompleted ? "dashboard" : "onboarding-welcome",
       replace: true,
     }
   }
