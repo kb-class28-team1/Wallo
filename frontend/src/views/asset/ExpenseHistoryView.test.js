@@ -82,9 +82,9 @@ const globalStubs = {
       '<div data-testid="transaction-list"><button v-if="editable && transactions.length" data-testid="edit-category" @click="$emit(\'edit-category\', transactions[0])">edit</button></div>',
   },
   ExpenseCategoryEditModal: {
-    props: ["visible", "transaction", "mode"],
+    props: ["visible", "transaction", "mode", "initialCategories"],
     template:
-      "<div v-if=\"visible\" :data-testid=\"mode === 'filter' ? 'category-filter-modal' : 'category-edit-modal'\"><button :data-testid=\"mode === 'filter' ? 'save-filter-category' : 'save-category'\" @click=\"$emit('save', mode === 'filter' ? { category: 'FOOD' } : { transactionId: transaction.transactionId, category: 'FOOD' })\">save</button></div>",
+      "<div v-if=\"visible\" :data-testid=\"mode === 'filter' ? 'category-filter-modal' : 'category-edit-modal'\"><button :data-testid=\"mode === 'filter' ? 'save-filter-category' : 'save-category'\" @click=\"$emit('save', mode === 'filter' ? { categories: ['FOOD', 'CAFE'] } : { transactionId: transaction.transactionId, category: 'FOOD' })\">save</button></div>",
   },
   ExpenseCategoryBreakdown: { template: '<div data-testid="category-breakdown" />' },
 }
@@ -243,8 +243,9 @@ describe("ExpenseHistoryView manual synchronization", () => {
     expect(getExpenses.mock.calls[1][0]).toMatchObject({
       page: 0,
       size: 20,
-      category: "FOOD",
+      category: "FOOD,CAFE",
     })
+    expect(wrapper.get('[data-testid="open-category-filter"]').text()).toContain("식비, 카페")
 
     await wrapper.get(".view-toggle .btn:nth-child(1)").trigger("click")
     await wrapper.get('[data-testid="select-date"]').trigger("click")

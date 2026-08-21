@@ -49,7 +49,7 @@ const createEmptyExpenseData = () => ({
 const now = new Date()
 const selectedMonth = ref(new Date(now.getFullYear(), now.getMonth(), 1))
 const activeView = ref("calendar")
-const selectedListCategory = ref("ALL")
+const selectedListCategories = ref([])
 const expenseData = ref(createEmptyExpenseData())
 const hasLoadedExpenseData = ref(false)
 const isLoading = ref(false)
@@ -108,11 +108,16 @@ const listCategoryOptions = computed(() => [
   })),
 ])
 
-const selectedListCategoryLabel = computed(
-  () =>
-    listCategoryOptions.value.find((option) => option.value === selectedListCategory.value)
-      ?.label || "전체",
-)
+const selectedListCategoryLabel = computed(() => {
+  if (selectedListCategories.value.length === 0) return "전체"
+
+  const labels = selectedListCategories.value
+    .map((category) => listCategoryOptions.value.find((option) => option.value === category)?.label)
+    .filter(Boolean)
+
+  if (labels.length <= 2) return labels.join(", ")
+  return `${labels.slice(0, 2).join(", ")} 외 ${labels.length - 2}개`
+})
 
 const canEditBudget = computed(
   () => isCurrentMonth.value && !isBudgetLoading.value && !budgetError.value,
@@ -207,7 +212,10 @@ const fetchExpensePage = async (page, append = false) => {
       ...dateRange.value,
       page,
       size: PAGE_SIZE,
-      category: selectedListCategory.value,
+      category:
+        selectedListCategories.value.length > 0
+          ? selectedListCategories.value.join(",")
+          : "ALL",
     })
 
     if (currentRequest !== requestVersion) return
@@ -266,10 +274,24 @@ const closeCategoryFilter = () => {
   isCategoryFilterModalVisible.value = false
 }
 
-const applyCategoryFilter = async ({ category }) => {
+const applyCategoryFilter = async ({ categories, category }) => {
   if (isCategoryFilterSaving.value) return
 
-  selectedListCategory.value = category || "ALL"
+  const selectedValues = Array.isArray(categories)
+    ? categories
+    : category && category !== "ALL"
+      ? [category]
+      : []
+  const validCategories = new Set(
+    listCategoryOptions.value.filter((option) => option.value !== "ALL").map((option) => option.value),
+  )
+  selectedListCategories.value = [
+    ...new Set(
+      selectedValues
+        .map((value) => String(value || "").trim().toUpperCase())
+        .filter((value) => validCategories.has(value)),
+    ),
+  ]
   isCategoryFilterSaving.value = true
   try {
     await changeListCategory()
@@ -613,7 +635,7 @@ onMounted(async () => {
                   @click="openCategoryFilter"
                 >
                   <span>카테고리 필터</span>
-                  <span v-if="selectedListCategory !== 'ALL'" class="category-filter-current">
+                  <span v-if="selectedListCategories.length > 0" class="category-filter-current">
                     {{ selectedListCategoryLabel }}
                   </span>
                   <i class="bi bi-chevron-down" aria-hidden="true"></i>
@@ -681,7 +703,7 @@ onMounted(async () => {
     <ExpenseCategoryEditModal
       :visible="isCategoryFilterModalVisible"
       mode="filter"
-      :initial-category="selectedListCategory"
+      :initial-categories="selectedListCategories"
       :is-saving="isCategoryFilterSaving"
       @close="closeCategoryFilter"
       @save="applyCategoryFilter"
