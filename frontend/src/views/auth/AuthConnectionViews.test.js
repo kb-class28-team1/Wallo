@@ -128,7 +128,7 @@ describe("auth and asset connection views", () => {
 
     expect(mocks.router.replace).toHaveBeenCalledWith({
       name: "login",
-      query: { redirect: "/connections/mydata" },
+      query: { redirect: "/onboarding" },
     })
   })
 
