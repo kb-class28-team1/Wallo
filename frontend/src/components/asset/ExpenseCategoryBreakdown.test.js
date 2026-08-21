@@ -165,5 +165,8 @@ describe("ExpenseCategoryBreakdown category chart", () => {
 
     expect(wrapper.findAll(".category-list li")).toHaveLength(7);
     expect(wrapper.find(".category-list").classes()).toContain("category-list-two-columns");
+    expect(wrapper.find(".category-list").attributes("style")).toContain(
+      "--category-list-row-count: 4",
+    );
   });
 });

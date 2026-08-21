@@ -73,6 +73,7 @@ const categories = computed(() => {
 });
 
 const hasTwoCategoryColumns = computed(() => categories.value.length > 6);
+const categoryListRowCount = computed(() => Math.ceil(categories.value.length / 2));
 
 const hoveredCategory = computed(() =>
   hoveredIndex.value === null ? null : categories.value[hoveredIndex.value] ?? null,
@@ -209,6 +210,7 @@ const progressWidth = (rate) => {
           <ul
             class="category-list list-unstyled mb-0"
             :class="{ 'category-list-two-columns': hasTwoCategoryColumns }"
+            :style="{ '--category-list-row-count': categoryListRowCount }"
           >
             <li
               v-for="(category, index) in categories"
@@ -421,15 +423,13 @@ const progressWidth = (rate) => {
 
 .category-list-two-columns {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(var(--category-list-row-count), auto);
+  grid-auto-flow: column;
   column-gap: 16px;
 }
 
 .category-list-two-columns li {
   min-width: 0;
-}
-
-.category-list-two-columns .category-value {
-  gap: 12px;
 }
 
 .category-list li {
@@ -466,17 +466,20 @@ const progressWidth = (rate) => {
 
 .category-list strong {
   color: #343044;
+  text-align: right;
   white-space: nowrap;
 }
 
 .category-value {
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: 48px 100px;
   align-items: center;
-  gap: 28px;
+  flex: 0 0 auto;
+  column-gap: 10px;
 }
 
 .category-rate {
-  min-width: 38px;
+  min-width: 0;
   color: #8a90a2;
   font-size: 0.82rem;
   font-weight: 700;
@@ -506,6 +509,7 @@ const progressWidth = (rate) => {
 
 .budget-category-list {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -559,6 +563,12 @@ const progressWidth = (rate) => {
   }
 
   .category-list-two-columns {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    grid-auto-flow: row;
+  }
+
+  .budget-category-list {
     grid-template-columns: minmax(0, 1fr);
   }
 }
