@@ -1,15 +1,18 @@
 import { computed } from "vue";
 import { getExpenseCategoryMeta } from "@/features/financial/financialCategories";
 
+const ASSET_TREND_LINE_COLOR = "#4f8fe8";
+const ASSET_TREND_AREA_COLOR = "#eaf4ff";
+
 const createAssetTrendChartData = (assetTrend = []) => ({
   labels: assetTrend.map((item) => item.month),
   datasets: [
     {
       label: "총 자산",
       data: assetTrend.map((item) => item.amount),
-      borderColor: "#8170FF",
-      backgroundColor: "rgba(129, 112, 255, 0.14)",
-      pointBackgroundColor: "#8170FF",
+      borderColor: ASSET_TREND_LINE_COLOR,
+      backgroundColor: ASSET_TREND_AREA_COLOR,
+      pointBackgroundColor: ASSET_TREND_LINE_COLOR,
       pointBorderColor: "#FFFFFF",
       pointBorderWidth: 2,
       pointRadius: 4,
