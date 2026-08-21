@@ -21,8 +21,11 @@
 - [기술 스택](#-기술-스택)
 - [프로젝트 구조](#-프로젝트-구조)
 - [데이터베이스 설계](#-데이터베이스-설계)
+- [주요 플로우](#-주요-플로우)
+- [API 연동](#-api-연동)
 - [시작하기](#-시작하기)
 - [환경 변수](#-환경-변수)
+- [Contributing](#-contributing)
 - [팀](#-팀)
 
 <br/>
@@ -33,9 +36,7 @@
 
 정해진 입력 폼 대신 자연어 대화로 금융 목표를 설정하고, 실행 가능한 저축 계획을 받아볼 수 있습니다. 매일 수집되는 금융 뉴스는 AI가 자동으로 리포트를 생성하고 관련 금융용어를 함께 보여주며, 소비 습관 개선은 챌린지·미션 기반의 게이미피케이션으로 유도합니다.
 
-<p align="center">
-  <img src="docs/screenshots/onboarding-welcome.png" alt="Wallo 온보딩" width="700" />
-</p>
+![Wallo 온보딩](docs/screenshots/onboarding-welcome.png)
 
 <br/>
 
@@ -45,35 +46,27 @@
 - 마이데이터(Codef 연동) 기반 계좌·카드 자산 통합 조회
 - 자산·소비 내역 자동 분류 및 소비 리포트 생성
 
-<p align="center">
-  <img src="docs/screenshots/asset-connect-complete.png" alt="자산 연결 완료" width="700" />
-</p>
+![자산 연결 완료](docs/screenshots/asset-connect-complete.png)
 
 ### 🤖 AI 금융 챗봇
 - Groq 기반 LLM Tool Calling으로 자산 분석, 소비 코칭, 금융상품 추천 등 목적별 응답 생성
 - 채팅 첫 대화 내용을 기반으로 채팅방 제목 자동 생성
 
-<p align="center">
-  <img src="docs/screenshots/ai-chat.png" alt="AI 금융 챗봇" width="700" />
-</p>
+![AI 금융 챗봇](docs/screenshots/ai-chat.png)
 
 ### 🎯 자연어 기반 금융 목표 설정
 - 정해진 질문 순서 없이 자연어 한 문장에서 목표 금액·시점·현재 준비금 등을 한 번에 추출
 - 부족한 정보만 이어서 질문하고, 목표일까지 필요한 월 납입액을 자동 계산
 - Groq 응답 실패 시 로컬 규칙 기반 파서로 즉시 대체(불필요한 재호출 방지)
 
-<p align="center">
-  <img src="docs/screenshots/goal-setting.png" alt="금융 목표 설정" width="700" />
-</p>
+![금융 목표 설정](docs/screenshots/goal-setting.png)
 
 ### 📰 금융 뉴스 리포트 & 금융용어 사전
 - 뉴스 크롤링 → AI 리포트 생성 → 금융용어 매칭까지 자동 파이프라인(스케줄러 기반)
 - 한국은행·금융감독원·재정경제부 용어사전(약 4,100건)을 기반으로 기사 속 금융용어를 자동 매칭
 - 동일 뉴스라도 사용자 자산·소비 상황에 맞춰 영향도·대응전략을 개인화해서 별도 저장
 
-<p align="center">
-  <img src="docs/screenshots/financial-report-detail.png" alt="금융 리포트 상세" width="700" />
-</p>
+![금융 리포트 상세](docs/screenshots/financial-report-detail.png)
 
 ### 🏆 챌린지 & 미션
 - 그룹/솔로 챌린지 생성 및 초대코드 참여, 절약 인증 피드 업로드
@@ -81,77 +74,18 @@
 - 인증 방식(AI 분석/거래내역/자가 체크)별 일일 미션과 포인트 적립, 포인트 상점
 - 주간 랭킹(절약 금액·좋아요 수 기준)에 따라 순위별 포인트를 자동 지급
 
-<p align="center">
-  <img src="docs/screenshots/challenge-feed.png" alt="절약 챌린지 피드" width="700" />
-</p>
+![절약 챌린지 피드](docs/screenshots/challenge-feed.png)
 
 ### 🛍️ 금융상품 추천
 - 금융상품 정보 기반 AI 추천
 
-<p align="center">
-  <img src="docs/screenshots/product-recommendation.png" alt="금융상품 추천" width="700" />
-</p>
+![금융상품 추천](docs/screenshots/product-recommendation.png)
 
 <br/>
 
 ## 🏗 시스템 아키텍처
 
-```mermaid
-flowchart LR
-    User(["🧑‍💻 사용자<br/>Web Browser"])
-
-    subgraph FE["프론트엔드 · JavaScript<br/>Vue 3 SPA"]
-        direction TB
-        FE1["Vue 3.5.13<br/>Composition API"]
-        FE2["Vue Router 4.5.0"]
-        FE3["Pinia 2.3.1<br/>전역 상태 관리"]
-        FE4["Axios 1.7.9"]
-        FE5["Bootstrap 5.3.3"]
-        FE6["Chart.js 4.5.1"]
-        FE7["Vite 6.4.3 · Vitest 4.1.10"]
-    end
-
-    subgraph BE["메인 백엔드 · Java 17<br/>Spring Legacy"]
-        direction TB
-        BE1["Spring Framework 5.3.39<br/>Java Config"]
-        BE2["Spring MVC · WebSocket<br/>REST API · /ws"]
-        BE3["JWT · BCrypt<br/>HMAC-SHA256 인증"]
-        BE4["MyBatis 3.5.16<br/>Mapper Interface + XML"]
-        BE5["Spring JDBC · HikariCP"]
-        BE6["Spring Batch 4.3.10<br/>스케줄러"]
-        BE7["Selenium · Springfox<br/>크롤링 · Swagger"]
-        BE8["Tomcat 9 · Gradle WAR"]
-    end
-
-    DB[("MySQL 8<br/>wallo 스키마<br/>Connector/J 8.4.0")]
-
-    subgraph AI["AI 서버 · Python<br/>도메인별 Agent"]
-        direction TB
-        AI1["FastAPI · Uvicorn"]
-        AI2["Pydantic 요청 검증"]
-        AI3["Groq Python SDK"]
-        AI4["Domain AI Agents<br/>금융상담·목표·카테고리·자산리포트·미션"]
-        AI5["Tool Registry"]
-    end
-
-    subgraph EXT["외부 서비스"]
-        direction TB
-        EXT1["Groq API · LLM<br/>AI 응답 생성"]
-        EXT2["Google Gemini API<br/>피드 사진·영상 분석"]
-        EXT3["SerpApi<br/>상품·음식 시세 검색"]
-        EXT4["매일경제 뉴스<br/>크롤링"]
-        EXT5["CODEF 계좌 연동<br/>(현재: Local Mock)"]
-    end
-
-    User --> FE1
-    FE4 -- "REST · JSON" --> BE2
-    FE2 -. "WebSocket · /ws" .-> BE2
-    BE5 -- "JDBC · SQL" --> DB
-    BE2 -- "HTTP · JSON" --> AI1
-    AI3 -- "HTTPS · LLM" --> EXT1
-    BE7 -. "뉴스 수집" .-> EXT4
-    BE1 -. "Gemini · SerpApi · CODEF 호출" .-> EXT
-```
+![Wallo 시스템 아키텍처](docs/diagrams/architecture.svg)
 
 프론트엔드는 백엔드와만 통신하며, 백엔드가 AI 서버·외부 API·DB를 중계하는 구조입니다.
 
@@ -268,60 +202,85 @@ Wallo/
 
 기능 도메인별로 테이블을 묶어서 본 개요입니다(발표용 요약이며, 도메인 간 연결선은 생략했습니다).
 
-```mermaid
-flowchart LR
-    USERS(["👤 USERS<br/>모든 기능의 기준 사용자"])
+![Wallo 데이터베이스 도메인 개요](docs/diagrams/database-erd.svg)
 
-    subgraph ASSET["자산 · 예산"]
-        direction TB
-        INSTITUTIONS["INSTITUTIONS<br/>금융기관 정보"] --> CONNECTIONS["CONNECTIONS<br/>계좌 연동 정보"]
-        CONNECTIONS --> ACCOUNTS["ACCOUNTS<br/>연결된 계좌"]
-        CONNECTIONS --> CARDS["CARDS<br/>연결된 카드"]
-        ACCOUNTS --> TRANSACTIONS["TRANSACTIONS<br/>소비·입출금 내역"]
-        CARDS --> TRANSACTIONS
-        BUDGETS["BUDGETS<br/>예산 목표"] --> BUDGET_PLANS["BUDGET_PLANS<br/>예산 실행 계획"]
-        BUDGET_PLANS --> BUDGET_PLAN_CATEGORIES["BUDGET_PLAN_CATEGORIES<br/>예산별 카테고리"]
-        ASSET_SNAPSHOTS["ASSET_SNAPSHOTS<br/>월별 자산 스냅샷"]
-        POINT_HISTORY["POINT_HISTORY<br/>포인트 적립·사용 이력"]
-        USER_INVENTORY["USER_INVENTORY<br/>보상 보관함"]
-    end
+<br/>
 
-    subgraph AIGOAL["AI 상담 · 목표"]
-        direction TB
-        CONVERSATIONS["CONVERSATIONS<br/>AI 상담 세션"] --> CHAT_MESSAGES["CHAT_MESSAGES<br/>상담 메시지"]
-        CHAT_MESSAGES --> ASSET_ANALYSIS["ASSET_ANALYSIS_RESULTS<br/>자산 분석 결과"]
-        CHAT_MESSAGES --> CONSUMPTION_ANALYSIS["CONSUMPTION_ANALYSIS_RESULTS<br/>소비 분석 결과"]
-        CHAT_MESSAGES --> PRODUCT_REC["PRODUCT_RECOMMENDATION_RESULTS<br/>상품 추천 결과"]
-        GOAL_INTERVIEW["GOAL_INTERVIEW_SESSIONS<br/>목표 설문 세션"] --> FINANCIAL_GOALS["FINANCIAL_GOALS<br/>금융 목표"]
-        FINANCIAL_GOALS --> GOAL_ROADMAPS["GOAL_ROADMAPS<br/>목표 달성 로드맵"]
-        FINANCIAL_GOALS --> FINANCIAL_GOAL_ACCOUNTS["FINANCIAL_GOAL_ACCOUNTS<br/>목표 연결 계좌"]
-    end
+## 📋 주요 플로우
 
-    subgraph CHALLENGE["챌린지 · 미션"]
-        direction TB
-        CHALLENGE_T["CHALLENGE<br/>챌린지 정보"] --> FEED["FEED<br/>인증 게시물"]
-        FEED --> FEED_ANALYSIS["FEED_ANALYSIS<br/>인증 분석 결과"]
-        FEED_ANALYSIS --> FEED_ANALYSIS_FEEDBACK["FEED_ANALYSIS_FEEDBACK<br/>분석 피드백"]
-        CHALLENGE_T --> MESSAGE["MESSAGE<br/>챌린지 메시지"]
-        DAILY_MISSIONS["DAILY_MISSIONS<br/>일일 절약 미션"] --> MISSION_VERIFICATIONS["MISSION_VERIFICATIONS<br/>미션 인증 기록"]
-        FEED_PRICE_REFERENCE["FEED_PRICE_REFERENCE<br/>상품 시세 기준"]
-        FEED_DISH_RECIPE["FEED_DISH_RECIPE_INGREDIENT<br/>음식 레시피 재료"]
-        FEED_FOOD_COST["FEED_FOOD_COST_REFERENCE<br/>음식 재료비 기준"]
-    end
+### 1. 자산 연동 플로우
 
-    subgraph NEWS["뉴스 · 금융 용어"]
-        direction TB
-        NEWS_T["NEWS<br/>금융 뉴스 원문"] --> NEWS_REPORT["NEWS_REPORT<br/>AI 뉴스 리포트"]
-        NEWS_T --> NEWS_REPORT_PERS["NEWS_REPORT_PERSONALIZATION<br/>사용자별 개인화 영향·대응전략"]
-        NEWS_T --> NEWS_TERM["NEWS_TERM<br/>뉴스 연결 용어"]
-        FINANCIAL_TERM["FINANCIAL_TERM<br/>금융 용어 사전"] --> NEWS_TERM
-    end
-
-    USERS --> ASSET
-    USERS --> AIGOAL
-    USERS --> CHALLENGE
-    USERS --> NEWS
 ```
+온보딩 → 금융기관 선택 → CODEF 연동(Mock) → 계좌·카드·거래내역 동기화 → 대시보드 반영
+```
+
+### 2. AI 금융 상담 플로우
+
+```
+메시지 입력 → 의도 분류(Financial Agent) → Tool 실행(자산분석·소비코칭·상품추천 등) → 응답 생성
+```
+
+### 3. 금융 목표 설정 플로우
+
+```
+자연어 목표 입력 → 정보 추출·누락 필드 질문 → 목표 확정 → 목표 계좌 연결 → AI 로드맵 생성
+```
+
+### 4. 절약 챌린지 인증 플로우
+
+```
+챌린지 참여 → 절약 인증 피드 업로드 → AI 영상 분석 → 포인트 적립·주간 랭킹 반영
+```
+
+### 5. 금융 뉴스 리포트 플로우
+
+```
+뉴스 크롤링(스케줄러) → AI 리포트 생성 → 금융용어 매칭 → /reports 화면 노출
+```
+
+<br/>
+
+## 🌐 API 연동
+
+총 **87개 REST API**와 **WebSocket 1개**(챌린지 실시간 채팅)로 구성되어 있습니다. 전체 요청/응답 명세는 팀 API 명세서를 참고하거나, 백엔드 실행 후 Swagger UI(`http://localhost:8080/swagger-ui/`)에서 확인할 수 있습니다.
+
+### 도메인별 구성
+
+| 도메인 | 개수 | 설명 |
+| --- | --- | --- |
+| 인증 | 5 | 회원가입, 로그인/로그아웃, 토큰 재발급, 내 정보 조회 |
+| 사용자 · 프로필 | 7 | 프로필 조회/수정, 비밀번호 변경, 프로필 이미지, 연봉 정보 |
+| 자산 · 예산 · 연동 | 12 | 자산 통합 조회, 소비 내역, 예산 설정, 금융기관 연동 |
+| AI 금융 상담 | 8 | 채팅, 대화방 관리, 메시지, 목표 인터뷰 조회 |
+| 금융 목표 | 7 | 목표 조회/요약, 목표 계좌 선택, 로드맵 조회·진행 |
+| 챌린지 · 피드 · 미션 | 22 | 챌린지 생성/참여, 랭킹, 피드 업로드/분석, 일일 미션 인증 |
+| 리포트 · 소비 인사이트 | 10 | 소비 인사이트, 세금정산, 뉴스 리포트 생성/조회, 크롤링 테스트 |
+| 포인트 상점 | 7 | 상점 조회, 박스 뽑기, 포인트 내역, 인벤토리 |
+| 상품추천 · CODEF 연동 | 9 | 금융상품 추천, CODEF Mock API(계좌·카드·증권·거래내역·소득증명) |
+
+### 대표 엔드포인트
+
+| Method | Endpoint | 설명 |
+| --- | --- | --- |
+| POST | `/api/auth/login` | 로그인, accessToken 발급 + refresh 토큰 쿠키 설정 |
+| GET | `/api/assets` | 계좌·카드·증권 통합 자산 조회 |
+| POST | `/api/connections` | 선택한 금융기관 전체 자산 연동(CODEF) |
+| POST | `/api/chat` | AI 금융 챗봇 메시지 전송 |
+| POST | `/api/conversations/{conversationId}/messages` | 대화방에 메시지 전송(목표 인터뷰 포함) |
+| GET | `/api/goals/{goalId}/roadmap` | AI 목표 로드맵 조회 |
+| POST | `/api/challenges/{challengeId}/feeds` | 절약 인증 피드 업로드(AI 분석 포함) |
+| GET | `/api/challenges/rankings/weekly` | 챌린지 주간 랭킹 조회 |
+| POST | `/api/missions/{dailyMissionId}/verify` | AI 기반 일일 미션 인증 |
+| GET | `/api/reports` | 금융 뉴스 리포트 목록 조회 |
+| GET | `/api/product-recommendations/latest` | 최근 금융상품 추천 결과 조회 |
+| WS | `/ws/challenges/{challengeId}` | 챌린지 실시간 채팅 메시지(WebSocket) |
+
+### 공통 규칙
+
+- **인증**: `Authorization: Bearer {accessToken}` 헤더 사용, refresh token은 `WALLO_REFRESH_TOKEN` HttpOnly 쿠키로 관리
+- **응답 형식**: 대부분의 API는 `CommonResponse{success, data, error{code, message}}` 구조로 응답
+- **날짜/시간**: ISO 형식 직렬화(JavaTimeModule)
+- **WebSocket**: `/ws/challenges/{challengeId}`는 handshake 시 `accessToken`을 쿼리 파라미터로 전달해 인증
 
 <br/>
 
@@ -386,6 +345,25 @@ npm run dev
 | AI Server | `ai/.env` (`ai/.env.example` 참고) | `GROQ_API_KEY`, `GROQ_MODEL`, `AI_REPORT_MOCK_ENABLED` 등 |
 
 > ⚠️ 실제 API 키·비밀번호는 절대 커밋하지 마세요.
+
+<br/>
+
+## 🤝 Contributing
+
+1. 작업할 이슈를 생성하거나 기존 이슈를 확인합니다.
+2. `develop`에서 브랜치를 생성합니다.
+   ```bash
+   git checkout -b feat/기능명   # 버그 수정은 fix/버그명
+   ```
+3. 변경 사항을 커밋합니다. 이 프로젝트는 `[Feat]`, `[Fix]`, `[Bug]`, `[Refactor]` 접두사(PR 단위) 또는 `feat:`, `fix:`, `docs:`, `chore:`, `refactor:` 접두사(개별 커밋)를 사용합니다.
+   ```bash
+   git commit -m "[Feat] 자산 연동 UI 개선 (#123)"
+   ```
+4. 브랜치를 push합니다.
+   ```bash
+   git push origin feat/기능명
+   ```
+5. `develop`을 대상으로 Pull Request를 생성합니다. [PR 템플릿](.github/PULL_REQUEST_TEMPLATE.md)에 맞춰 연관 이슈와 작업 내용을 작성해주세요.
 
 <br/>
 
