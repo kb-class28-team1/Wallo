@@ -73,10 +73,16 @@ onMounted(refreshAll)
       title="AI 분석 결과"
     >
       <template #actions>
-        <AppButton variant="outline" :disabled="isLoading" @click="refreshAll">
-          <template #leading><i class="bi bi-arrow-clockwise" aria-hidden="true"></i></template>
+        <button
+          type="button"
+          class="btn app-action-link"
+          data-testid="analysis-refresh-button"
+          :disabled="isLoading"
+          @click="refreshAll"
+        >
+          <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>
           새로고침
-        </AppButton>
+        </button>
       </template>
     </AppPageHeader>
 
@@ -143,6 +149,7 @@ onMounted(refreshAll)
             v-else
             compact
             type="empty"
+            hide-icon
             title="저장된 자산분석이 없습니다."
             message="AI 채팅에서 자산분석을 진행하면 이곳에서 다시 볼 수 있어요."
           >
@@ -162,6 +169,7 @@ onMounted(refreshAll)
             v-else
             compact
             type="empty"
+            hide-icon
             title="저장된 소비분석이 없습니다."
             message="AI 채팅에서 소비분석을 진행하면 이곳에서 다시 볼 수 있어요."
           >
@@ -198,6 +206,7 @@ onMounted(refreshAll)
             v-else
             compact
             type="empty"
+            hide-icon
             title="저장된 금융상품 추천이 없습니다."
             message="AI 채팅에서 상품 추천을 요청하면 이곳에서 다시 볼 수 있어요."
           >
@@ -257,6 +266,10 @@ onMounted(refreshAll)
   color: #fff;
   background: var(--wallo-color-primary);
   box-shadow: 0 6px 16px rgb(79 143 232 / 24%);
+}
+
+.analysis-switcher :deep(.app-tabs__tab--active:hover:not(:disabled)) {
+  color: #fff;
 }
 
 .analysis-panel {

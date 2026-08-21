@@ -73,6 +73,7 @@ const categories = computed(() => {
 });
 
 const hasTwoCategoryColumns = computed(() => categories.value.length > 6);
+const categoryListRowCount = computed(() => Math.ceil(categories.value.length / 2));
 
 const hoveredCategory = computed(() =>
   hoveredIndex.value === null ? null : categories.value[hoveredIndex.value] ?? null,
@@ -131,6 +132,18 @@ const clearHoveredCategory = async () => {
 
 const hasConfiguredBudget = computed(
   () => Number(props.budgetSummary?.totalAmount ?? 0) > 0,
+);
+
+const budgetEmptyState = computed(() =>
+  props.canEditBudget
+    ? {
+        title: "아직 설정된 예산이 없습니다.",
+        message: "예산을 설정해주세요",
+      }
+    : {
+        title: "이 달에 설정된 예산이 없습니다.",
+        message: "예산은 현재 달부터 설정하고 관리할 수 있습니다.",
+      },
 );
 
 const budgetCategories = computed(() => (props.budgetSummary?.categories ?? [])
@@ -197,6 +210,7 @@ const progressWidth = (rate) => {
           <ul
             class="category-list list-unstyled mb-0"
             :class="{ 'category-list-two-columns': hasTwoCategoryColumns }"
+            :style="{ '--category-list-row-count': categoryListRowCount }"
           >
             <li
               v-for="(category, index) in categories"
@@ -229,16 +243,16 @@ const progressWidth = (rate) => {
         <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
           <div>
             <h3 class="h5 fw-bold mb-1">카테고리별 예산</h3>
-            <p class="text-secondary small mb-0">지출, 잔액, 예산 소진율을 함께 확인하세요.</p>
           </div>
           <button
             v-if="canEditBudget"
             type="button"
-            class="btn btn-outline-primary btn-sm"
+            class="btn app-action-link"
             data-testid="budget-action"
             @click="emit('edit-budget')"
           >
             {{ hasConfiguredBudget ? "예산 수정" : "예산 설정하기" }}
+            <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
           </button>
         </div>
 
@@ -354,8 +368,8 @@ const progressWidth = (rate) => {
           class="budget-state"
           data-testid="budget-empty-state"
           type="empty"
-          title="아직 설정된 예산이 없습니다."
-          message="예산을 설정해주세요"
+          :title="budgetEmptyState.title"
+          :message="budgetEmptyState.message"
           compact
           hide-icon
         />
@@ -409,15 +423,13 @@ const progressWidth = (rate) => {
 
 .category-list-two-columns {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(var(--category-list-row-count), auto);
+  grid-auto-flow: column;
   column-gap: 16px;
 }
 
 .category-list-two-columns li {
   min-width: 0;
-}
-
-.category-list-two-columns .category-value {
-  gap: 12px;
 }
 
 .category-list li {
@@ -454,17 +466,20 @@ const progressWidth = (rate) => {
 
 .category-list strong {
   color: #343044;
+  text-align: right;
   white-space: nowrap;
 }
 
 .category-value {
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: 48px 100px;
   align-items: center;
-  gap: 28px;
+  flex: 0 0 auto;
+  column-gap: 10px;
 }
 
 .category-rate {
-  min-width: 38px;
+  min-width: 0;
   color: #8a90a2;
   font-size: 0.82rem;
   font-weight: 700;
@@ -494,6 +509,7 @@ const progressWidth = (rate) => {
 
 .budget-category-list {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -547,6 +563,12 @@ const progressWidth = (rate) => {
   }
 
   .category-list-two-columns {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    grid-auto-flow: row;
+  }
+
+  .budget-category-list {
     grid-template-columns: minmax(0, 1fr);
   }
 }

@@ -46,7 +46,7 @@ class GoalRoadmap(BaseModel):
 
     summary: str = Field(min_length=1, max_length=500)
     strategy: str = Field(min_length=1, max_length=1000)
-    steps: list[RoadmapStep] = Field(min_length=2, max_length=24)
+    steps: list[RoadmapStep] = Field(min_length=2, max_length=10)
 
     def validate_for(self, goal: RoadmapGoal) -> "GoalRoadmap":
         expected_sequence = list(range(1, len(self.steps) + 1))

@@ -74,6 +74,7 @@ describe("TaxDeductionTrackerCard", () => {
 
     expect(wrapper.find("#manualAnnualSalary").exists()).toBe(true)
     expect(wrapper.find(".manual-salary-form").exists()).toBe(true)
+    expect(wrapper.find(".manual-salary-state i").exists()).toBe(false)
     expect(wrapper.find(".btn-outline-danger").exists()).toBe(false)
 
     await wrapper.find("#manualAnnualSalary").setValue("50000000")

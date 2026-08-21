@@ -7,14 +7,14 @@
   "data": {
     "accounts": [
       {
-        "resAccountName": "현금·적금 등 나머지 자산",
-        "resAccount": "987654-01-321098",
-        "resAccountDisplay": "987654-**-***098",
-        "resAccountBalance": "11100000",
-        "resAccountEvalAmount": "11100000",
+        "resAccountName": "장기 투자 계좌",
+        "resAccount": "88888888-08",
+        "resAccountDisplay": "888888**-**",
+        "resAccountBalance": "1800000",
+        "resAccountEvalAmount": "6800000",
         "resAccountCurrency": "KRW",
         "resAccountStatus": "1",
-        "resAccountSubtype": "SAVINGS"
+        "resAccountSubtype": "STOCK"
       }
     ],
     "loans": [],

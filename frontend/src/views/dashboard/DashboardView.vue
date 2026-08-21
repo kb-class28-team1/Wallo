@@ -55,7 +55,7 @@ const hasDashboardData = computed(() =>
 
 const handleBudgetSettings = async () => {
   await router.push({
-    name: "expenses",
+    name: "category-expenses",
     query: { budget: "edit" },
   })
 }

@@ -34,19 +34,22 @@
     </sql>
 
     <sql id="categoryFilterCondition">
-        <if test="condition.category != null and condition.category != ''">
-            <choose>
-                <when test="condition.category == 'ETC'">
-                    AND t.category IN ('OTHER', 'ETC')
-                </when>
-                <when test="condition.category == 'RECEIVE' or condition.category == 'SEND'">
-                    AND t.type = 'TRANSFER'
-                    AND t.category = #{condition.category}
-                </when>
-                <otherwise>
-                    AND t.category = #{condition.category}
-                </otherwise>
-            </choose>
+        <if test="condition.categories != null and condition.categories.size() > 0">
+            AND (
+            <foreach collection="condition.categories" item="selectedCategory" separator=" OR ">
+                <choose>
+                    <when test="selectedCategory == 'ETC'">
+                        t.category IN ('OTHER', 'ETC')
+                    </when>
+                    <when test="selectedCategory == 'RECEIVE' or selectedCategory == 'SEND'">
+                        (t.type = 'TRANSFER' AND t.category = #{selectedCategory})
+                    </when>
+                    <otherwise>
+                        t.category = #{selectedCategory}
+                    </otherwise>
+                </choose>
+            </foreach>
+            )
         </if>
     </sql>
 
