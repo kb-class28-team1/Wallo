@@ -1,4 +1,4 @@
-from app.agents.financial.asset_analysis_cache import build_cache_key
+from app.financial_assistant.asset_analysis_cache import build_cache_key
 
 
 def _database_tool_data(*, as_of: str, total_assets: int = 100_000_000) -> dict:

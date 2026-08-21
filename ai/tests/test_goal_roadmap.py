@@ -3,11 +3,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.agents.roadmap.generator import (
+from app.goals.roadmap.generator import (
     ROADMAP_MAX_COMPLETION_TOKENS,
     generate_goal_roadmap,
 )
-from app.agents.roadmap.models import RoadmapGoal
+from app.goals.roadmap.models import RoadmapGoal
 
 
 class FakeCompletions:

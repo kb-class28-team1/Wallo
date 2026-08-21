@@ -1,6 +1,6 @@
 from groq import Groq
 
-from app.agents.roadmap.models import GoalRoadmap, RoadmapGoal
+from app.goals.roadmap.models import GoalRoadmap, RoadmapGoal
 from app.core.ai_timing import timed_groq_completion
 from app.core.config import get_groq_model
 

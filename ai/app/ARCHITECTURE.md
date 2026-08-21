@@ -8,53 +8,42 @@
 ```text
 app/
 ├─ application.py              # FastAPI 앱 생성, 공통 예외 처리, Router 등록
-├─ agents/                     # 도메인별 전문 Agent와 Tool
-│  ├─ base.py                  # Tool 공통 실행 결과 모델
-│  ├─ category/
-│  │  ├─ __init__.py           # 카테고리 Agent 공개 인터페이스
-│  │  └─ agent.py              # 단건·배치 분류, 요청당 LLM 1회 호출
-│  ├─ asset_reports/
-│  │  ├─ __init__.py           # 소비 인사이트 Agent 공개 인터페이스
-│  │  └─ agent.py              # 집계 소비 리포트 생성, 요청당 LLM 1회 호출
-│  ├─ financial/
-│     ├─ agent.py              # 금융 Agent의 Tool Calling 흐름
-│     ├─ prompts.py            # 금융 Agent 시스템 프롬프트
-│     └─ tools/
-│        ├─ registry.py        # Tool 명세와 실행 함수 등록
-│        ├─ pending.py         # 미구현 Tool 공통 응답
-│        ├─ asset_analysis.py
-│        ├─ spending_coach.py
-│        ├─ financial_goal.py
-│        ├─ goal_roadmap.py
-│        ├─ product_recommendation.py
-│        └─ financial_report.py
-│  ├─ goal/                    # 다회차 목표 인터뷰 Agent
-│  └─ roadmap/                 # 확정 목표 로드맵 생성기
 ├─ chat/
 │  ├─ router.py                # `/api/chat` HTTP 요청·응답
 │  ├─ schemas.py               # 채팅 Pydantic 요청·응답 모델
 │  ├─ service.py               # 답변 및 제목 생성 흐름
 │  ├─ title_service.py         # 첫 대화의 채팅방 제목 생성
-│  └─ prompts.py               # 제목 생성 프롬프트
+│  └─ summary_service.py        # 대화 요약
 ├─ category/
 │  ├─ router.py                # `/api/category` HTTP 요청·응답
 │  ├─ schemas.py               # 카테고리 분류 Pydantic 요청·응답 모델
 │  ├─ service.py               # CategoryAgent 생성과 API 호환 위임
-│  └─ prompts.py               # 단건·배치 분류 프롬프트
+│  ├─ prompts.py               # 단건·배치 분류 프롬프트
+│  └─ agent.py                 # 단건·배치 분류 Agent
 ├─ asset_reports/
 │  ├─ router.py                # `/api/asset-reports/insights` HTTP 요청·응답
 │  ├─ schemas.py               # 소비 리포트 Pydantic 요청·응답 모델
 │  ├─ service.py               # ConsumptionInsightAgent 생성과 API 호환 위임
-│  └─ prompts.py               # 집계 소비 데이터 기반 생성 프롬프트
+│  ├─ prompts.py               # 집계 소비 데이터 기반 생성 프롬프트
+│  └─ agent.py                 # 소비 인사이트 생성 Agent
+├─ financial_assistant/
+│  ├─ agent.py                 # 금융 대화 Tool Calling 흐름
+│  ├─ prompts.py               # 금융 Agent 시스템 프롬프트
+│  ├─ tool_result.py           # Tool 실행 결과 모델
+│  └─ tools/                   # 금융 대화 Tool
+├─ goals/
+│  ├─ interview/               # 다회차 목표 인터뷰
+│  └─ roadmap/                 # 확정 목표 로드맵 생성
 ├─ clients/
-│  ├─ groq_client.py           # Groq 클라이언트 생성
+│  └─ groq_client.py           # Groq 클라이언트 생성
 ├─ core/
-│  └─ config.py                # 환경변수와 모델 설정
+│  ├─ config.py                # 환경변수와 모델 설정
+│  ├─ ai_guard.py              # 토큰·동시성 보호
+│  └─ ai_timing.py             # AI 요청 로깅과 측정
 ├─ health/
 │  └─ router.py                # `/api/health` 상태 확인 API
-└─ reports/
-   ├─ router.py                # 금융 뉴스 리포트 생성 API
-   └─ prompts.py               # 금융 뉴스 리포트 프롬프트
+├─ missions/                   # 개인화 미션 생성 기능
+└─ reports/                    # 금융 뉴스 리포트 생성 기능
 ```
 
 `__init__.py`와 Python이 자동 생성하는 `__pycache__`는 위 트리에서 생략했다.
@@ -96,10 +85,10 @@ app/
 - Groq 등 외부 서비스 클라이언트를 생성한다.
 - API 키와 모델명은 하드코딩하지 않고 `core/config.py`에서 읽는다.
 
-### `agents/`
+### 기능 패키지의 `agent.py`
 
-- `financial/`은 사용자 요청에 따라 Tool을 선택하고 실행하는 대화형 Agent다.
-- `category/`와 `asset_reports/`는 하나의 명확한 목적을 처리하는 전문 Agent다.
+- `financial_assistant/`는 사용자 요청에 따라 Tool을 선택하고 실행하는 대화형 Agent 기능이다.
+- `category/`와 `asset_reports/`는 전문 Agent를 각 기능 패키지 내부에 둔다.
 - 전문 Agent는 요청·응답 계약, 프롬프트, 외부 LLM 호출, 응답 검증을 캡슐화한다.
 - 전문 Agent는 요청 1건당 LLM을 1회 호출한다. batch 요청도 전체 항목을 하나의 호출로 처리한다.
 - Tool 선택 후 재호출하는 다단계 흐름, self-reflection loop, 항목별 개별 호출은 전문 Agent에 사용하지 않는다.
@@ -125,7 +114,7 @@ API Router는 HTTP 요청과 상태 코드만 담당하고, Service는 기존 �
 4. Tool 선택 후 최종 답변을 위해 다시 호출하지 않는다.
 5. self-reflection loop와 거래 항목별 개별 호출을 사용하지 않는다.
 
-`goal/`의 `GoalAgent`는 대화 상태와 `GoalDraft`를 유지하는 다회차 인터뷰 Agent이므로,
+`goals/interview/`의 `GoalAgent`는 대화 상태와 `GoalDraft`를 유지하는 다회차 인터뷰 Agent이므로,
 이번 단일 호출 기반 전문 Agent 전환 대상에 포함하지 않는다.
 
 ## 새 Tool 추가 방법
@@ -133,14 +122,14 @@ API Router는 HTTP 요청과 상태 코드만 담당하고, Service는 기존 �
 예를 들어 월별 예산 분석 Tool을 추가한다면 다음 파일을 만든다.
 
 ```text
-agents/financial/tools/monthly_budget.py
+app/financial_assistant/tools/monthly_budget.py
 ```
 
 ```python
 from typing import Any
 
-from app.agents.base import ToolResult
-from app.agents.financial.tools.pending import build_tool_schema
+from app.financial_assistant.tool_result import ToolResult
+from app.financial_assistant.tools.pending import build_tool_schema
 
 NAME = "analyze_monthly_budget"
 SCHEMA = build_tool_schema(NAME, "사용자의 월별 예산 사용 상태를 분석한다.")
@@ -160,7 +149,7 @@ def execute(tool_name: str, arguments: dict[str, Any]) -> ToolResult:
 아직 실제 연동이 준비되지 않았다면 다음 형태로 스켈레톤만 추가할 수 있다.
 
 ```python
-from app.agents.financial.tools.pending import build_tool_schema, pending_result
+from app.financial_assistant.tools.pending import build_tool_schema, pending_result
 
 NAME = "analyze_monthly_budget"
 SCHEMA = build_tool_schema(NAME, "사용자의 월별 예산 사용 상태를 분석한다.")
@@ -171,19 +160,19 @@ execute = pending_result
 
 ## 새 Agent 추가 방법
 
-Tool의 목적과 데이터가 기존 금융 Agent와 크게 다르면 별도 Agent로 분리한다.
+Tool의 목적과 데이터가 기존 금융 Agent와 크게 다르면 별도 기능 패키지로 분리한다.
 
 ```text
-agents/
-└─ goal/
+app/new_feature/
+├─ __init__.py
+├─ router.py
+├─ service.py
+├─ schemas.py
+├─ agent.py
+├─ prompts.py
+└─ tools/
    ├─ __init__.py
-   ├─ agent.py
-   ├─ prompts.py
-   └─ tools/
-      ├─ __init__.py
-      ├─ registry.py
-      ├─ create_goal.py
-      └─ create_roadmap.py
+   └─ registry.py
 ```
 
 새 Agent는 다음 책임을 가진다.
@@ -295,7 +284,7 @@ app.include_router(category_router)
 선정한 카테고리와 지난달 동일 기간의 집계 금액, 계산된 변화율, 예산 상태만
 전달하며, 이번 달·전체 지출의 절대 금액과 거래처명·원본 거래내역은 AI 서버로 전달하지 않는다.
 `service.py`는 기존 호출부와의 호환성을 유지하고, 실제 생성은
-`agents/asset_reports/agent.py`의 `ConsumptionInsightAgent`에 위임한다.
+`asset_reports/agent.py`의 `ConsumptionInsightAgent`에 위임한다.
 
 | Method | Path | 역할 |
 | --- | --- | --- |

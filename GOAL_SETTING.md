@@ -260,10 +260,10 @@ AI:     ...
 
 | 영역 | 위치 |
 | --- | --- |
-| 목표 상태 모델 | `ai/app/agents/goal/models.py` |
-| 자연어 추출 및 로컬 보조 파서 | `ai/app/agents/goal/extractor.py` |
-| 누락 필드 선택과 달성 가능성 계산 | `ai/app/agents/goal/service.py` |
-| 목표 인터뷰 프롬프트 | `ai/app/agents/goal/prompts.py` |
+| 목표 상태 모델 | `ai/app/goals/interview/models.py` |
+| 자연어 추출 및 로컬 보조 파서 | `ai/app/goals/interview/extractor.py` |
+| 누락 필드 선택과 달성 가능성 계산 | `ai/app/goals/interview/service.py` |
+| 목표 인터뷰 프롬프트 | `ai/app/goals/interview/prompts.py` |
 | AI 채팅 진입 및 확정·취소 처리 | `ai/app/chat/service.py` |
 | Groq 429 처리 | `ai/app/chat/router.py` |
 | 자산 컨텍스트 생성 | `backend/src/main/java/com/wallo/asset/service/AssetService.java` |

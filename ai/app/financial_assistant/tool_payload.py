@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from app.agents.base import ToolResult
+from app.financial_assistant.tool_result import ToolResult
 
 
 MAX_LIST_ITEMS = 5

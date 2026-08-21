@@ -1,7 +1,7 @@
 import json
 from datetime import date
 
-from app.agents.goal.models import GoalDraft
+from app.goals.interview.models import GoalDraft
 
 
 EXTRACTION_SYSTEM_PROMPT = """

@@ -3,7 +3,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from app.agents.base import ToolResult
+from app.financial_assistant.tool_result import ToolResult
 
 
 NAME = "recommend_financial_products"
@@ -63,7 +63,7 @@ SCHEMA = {
     },
 }
 
-AI_ROOT = Path(__file__).resolve().parents[4]
+AI_ROOT = Path(__file__).resolve().parents[3]
 DATA_FILES = {
     "deposit": AI_ROOT / "data" / "raw" / "finlife_deposit_products.csv",
     "saving": AI_ROOT / "data" / "raw" / "finlife_saving_products.csv",
