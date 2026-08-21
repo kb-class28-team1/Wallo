@@ -25,7 +25,6 @@
 - [API 연동](#-api-연동)
 - [시작하기](#-시작하기)
 - [환경 변수](#-환경-변수)
-- [Contributing](#-contributing)
 - [팀](#-팀)
 
 <br/>
@@ -85,7 +84,7 @@
 
 ## 🏗 시스템 아키텍처
 
-![Wallo 시스템 아키텍처](docs/diagrams/architecture.svg)
+![Wallo 시스템 아키텍처](docs/diagrams/architecture.png)
 
 프론트엔드는 백엔드와만 통신하며, 백엔드가 AI 서버·외부 API·DB를 중계하는 구조입니다.
 
@@ -202,41 +201,21 @@ Wallo/
 
 기능 도메인별로 테이블을 묶어서 본 개요입니다(발표용 요약이며, 도메인 간 연결선은 생략했습니다).
 
-![Wallo 데이터베이스 도메인 개요](docs/diagrams/database-erd.svg)
+![Wallo 데이터베이스 도메인 개요](docs/diagrams/database-erd.png)
 
 <br/>
 
 ## 📋 주요 플로우
 
-### 1. 자산 연동 플로우
+![자산 연동 플로우](docs/diagrams/flows/flow-01-asset.png)
 
-```
-온보딩 → 금융기관 선택 → CODEF 연동(Mock) → 계좌·카드·거래내역 동기화 → 대시보드 반영
-```
+![AI 금융 상담 플로우](docs/diagrams/flows/flow-02-ai-chat.png)
 
-### 2. AI 금융 상담 플로우
+![금융 목표 설정 플로우](docs/diagrams/flows/flow-03-goal.png)
 
-```
-메시지 입력 → 의도 분류(Financial Agent) → Tool 실행(자산분석·소비코칭·상품추천 등) → 응답 생성
-```
+![절약 챌린지 인증 플로우](docs/diagrams/flows/flow-04-challenge.png)
 
-### 3. 금융 목표 설정 플로우
-
-```
-자연어 목표 입력 → 정보 추출·누락 필드 질문 → 목표 확정 → 목표 계좌 연결 → AI 로드맵 생성
-```
-
-### 4. 절약 챌린지 인증 플로우
-
-```
-챌린지 참여 → 절약 인증 피드 업로드 → AI 영상 분석 → 포인트 적립·주간 랭킹 반영
-```
-
-### 5. 금융 뉴스 리포트 플로우
-
-```
-뉴스 크롤링(스케줄러) → AI 리포트 생성 → 금융용어 매칭 → /reports 화면 노출
-```
+![금융 뉴스 리포트 플로우](docs/diagrams/flows/flow-05-report.png)
 
 <br/>
 
@@ -345,25 +324,6 @@ npm run dev
 | AI Server | `ai/.env` (`ai/.env.example` 참고) | `GROQ_API_KEY`, `GROQ_MODEL`, `AI_REPORT_MOCK_ENABLED` 등 |
 
 > ⚠️ 실제 API 키·비밀번호는 절대 커밋하지 마세요.
-
-<br/>
-
-## 🤝 Contributing
-
-1. 작업할 이슈를 생성하거나 기존 이슈를 확인합니다.
-2. `develop`에서 브랜치를 생성합니다.
-   ```bash
-   git checkout -b feat/기능명   # 버그 수정은 fix/버그명
-   ```
-3. 변경 사항을 커밋합니다. 이 프로젝트는 `[Feat]`, `[Fix]`, `[Bug]`, `[Refactor]` 접두사(PR 단위) 또는 `feat:`, `fix:`, `docs:`, `chore:`, `refactor:` 접두사(개별 커밋)를 사용합니다.
-   ```bash
-   git commit -m "[Feat] 자산 연동 UI 개선 (#123)"
-   ```
-4. 브랜치를 push합니다.
-   ```bash
-   git push origin feat/기능명
-   ```
-5. `develop`을 대상으로 Pull Request를 생성합니다. [PR 템플릿](.github/PULL_REQUEST_TEMPLATE.md)에 맞춰 연관 이슈와 작업 내용을 작성해주세요.
 
 <br/>
 
