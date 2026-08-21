@@ -19,6 +19,24 @@ body {
   font-family: "TMoneyDungunbaram", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   color: var(--wallo-color-text);
   background: var(--wallo-color-bg);
+  caret-color: transparent;
+}
+
+.page-enter-active,
+.page-leave-active {
+  transition: opacity 200ms ease-out;
+}
+
+.page-enter-from,
+.page-leave-to {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-enter-active,
+  .page-leave-active {
+    transition: none;
+  }
 }
 
 h1,
@@ -35,6 +53,13 @@ input,
 select,
 textarea {
   font-family: inherit;
+}
+
+input,
+textarea,
+select,
+[contenteditable="true"] {
+  caret-color: auto;
 }
 
 .app-page {
@@ -160,7 +185,7 @@ textarea {
 }
 
 .security-note-title strong {
-  color: #5651a8;
+  color: #3f6595;
   font-size: 16pt;
 }
 
@@ -178,7 +203,7 @@ textarea {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #6d66c8;
+  color: #5c8fd5;
   font-size: 16pt;
   font-weight: 900;
 }
@@ -387,4 +412,3 @@ textarea {
     padding: 48px 28px 64px;
   }
 }
-

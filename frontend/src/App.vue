@@ -4,15 +4,21 @@ import { RouterView, useRoute } from "vue-router"
 import SideNavigation from "@/components/navigation/SideNavigation.vue"
 import TopHeader from "@/components/navigation/TopHeader.vue"
 import AppToast from "@/components/common/AppToast.vue"
+import PointEarnedNotice from "@/components/common/PointEarnedNotice.vue"
 import { useModalEnter } from "@/composables/useModalEnter"
 
 const route = useRoute()
 const usesAppShell = computed(() => Boolean(route.meta.appShell))
+const getRouteViewKey = (viewRoute) =>
+  viewRoute.matched.length > 1
+    ? viewRoute.matched[0]?.path || viewRoute.path
+    : viewRoute.path
 useModalEnter()
 </script>
 
 <template>
   <AppToast />
+  <PointEarnedNotice />
   <div v-if="usesAppShell" class="app-shell d-flex min-vh-100">
     <SideNavigation />
     <div class="app-shell-body d-flex flex-grow-1 flex-column">
@@ -22,12 +28,20 @@ useModalEnter()
         :class="{ 'page-content--challenge-entry': route.name === 'current-challenge' }"
       >
         <div class="page-view">
-          <RouterView />
+          <RouterView v-slot="{ Component, route: viewRoute }">
+            <Transition name="page" mode="out-in">
+              <component :is="Component" :key="getRouteViewKey(viewRoute)" />
+            </Transition>
+          </RouterView>
         </div>
       </main>
     </div>
   </div>
-  <RouterView v-else />
+  <RouterView v-else v-slot="{ Component, route: viewRoute }">
+    <Transition name="page" mode="out-in">
+      <component :is="Component" :key="getRouteViewKey(viewRoute)" />
+    </Transition>
+  </RouterView>
 </template>
 
 <style scoped>

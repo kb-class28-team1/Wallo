@@ -32,6 +32,31 @@ class ConsumptionAnalysisPeriodContext(BaseModel):
     compare_end: str = Field(alias="compareEnd")
 
 
+class AssetCompositionContext(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    category: str
+    amount: int
+    share_percent: float = Field(alias="sharePercent")
+
+
+class AssetAnalysisContext(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    total_assets: int = Field(alias="totalAssets")
+    total_debt: int = Field(alias="totalDebt")
+    net_assets: int = Field(alias="netAssets")
+    monthly_income: int = Field(alias="monthlyIncome")
+    monthly_expense: int = Field(alias="monthlyExpense")
+    monthly_saving: int = Field(alias="monthlySaving")
+    saving_rate_percent: float | None = Field(default=None, alias="savingRatePercent")
+    asset_composition: list[AssetCompositionContext] = Field(
+        default_factory=list,
+        alias="assetComposition",
+    )
+    as_of: str | None = Field(default=None, alias="asOf")
+
+
 class ChatRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
@@ -43,6 +68,10 @@ class ChatRequest(BaseModel):
     financial_context: FinancialContext | None = Field(
         default=None,
         alias="financialContext",
+    )
+    asset_analysis_context: AssetAnalysisContext | None = Field(
+        default=None,
+        alias="assetAnalysisContext",
     )
     goal_draft: GoalDraft | None = Field(default=None, alias="goalDraft")
     goal_already_exists: bool = Field(default=False, alias="goalAlreadyExists")

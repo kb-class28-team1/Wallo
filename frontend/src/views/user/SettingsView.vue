@@ -35,9 +35,11 @@ const isActiveTab = (tabName) => route.name === tabName
 
     <main class="settings-content">
       <RouterView v-slot="{ Component }">
-        <KeepAlive>
-          <component :is="Component" :key="route.name" />
-        </KeepAlive>
+        <Transition name="page" mode="out-in">
+          <KeepAlive>
+            <component :is="Component" :key="route.name" />
+          </KeepAlive>
+        </Transition>
       </RouterView>
     </main>
   </section>
@@ -48,7 +50,7 @@ const isActiveTab = (tabName) => route.name === tabName
   width: 100%;
   max-width: 980px;
   margin: 0 auto;
-  padding: var(--wallo-space-6) var(--wallo-space-4);
+  padding: 0 0 var(--wallo-space-6);
 }
 
 .settings-navigation {
@@ -103,8 +105,7 @@ const isActiveTab = (tabName) => route.name === tabName
 
 @media (max-width: 575.98px) {
   .settings-view {
-    padding-right: var(--wallo-space-3);
-    padding-left: var(--wallo-space-3);
+    padding-bottom: var(--wallo-space-5);
   }
 
   .settings-tabs {

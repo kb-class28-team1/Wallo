@@ -38,6 +38,40 @@ const analysis = {
 }
 
 describe("AssetAnalysisResult", () => {
+  it("can hide the introductory copy when embedded in chat", () => {
+    const wrapper = mount(AssetAnalysisResult, {
+      props: { analysis, showIntro: false },
+    })
+
+    expect(wrapper.find(".asset-analysis__intro").exists()).toBe(false)
+    expect(wrapper.text()).not.toContain("현재 자산 상태를 한눈에 확인해보세요")
+    expect(wrapper.text()).toContain("자산 현황")
+  })
+
+  it("shows a concise non-repeating report in compact mode", () => {
+    const wrapper = mount(AssetAnalysisResult, {
+      props: {
+        compact: true,
+        analysis: {
+          ...analysis,
+          direction: { riskSignals: ["부채 비중을 확인하세요."] },
+          priorityActions: [{ title: "비상금 점검", description: "생활비 3개월분을 준비하세요." }],
+        },
+      },
+    })
+
+    expect(wrapper.text()).toContain("현재 순자산")
+    expect(wrapper.text()).toContain("월 잉여금")
+    expect(wrapper.text()).toContain("비상금 점검")
+    expect(wrapper.text()).toContain("부채 비중을 확인하세요.")
+    expect(wrapper.text()).toContain("자산 구성")
+    expect(wrapper.text()).toContain("추천 행동")
+    expect(wrapper.find(".asset-analysis-card").exists()).toBe(false)
+    expect(wrapper.find(".analysis-detail-toggle").exists()).toBe(false)
+    expect(wrapper.text().match(/총자산/g)).toHaveLength(1)
+    expect(wrapper.text().match(/월 잉여금/g)).toHaveLength(1)
+  })
+
   it("renders summary, cashflow, and composition cards", () => {
     const wrapper = mount(AssetAnalysisResult, {
       props: { analysis },

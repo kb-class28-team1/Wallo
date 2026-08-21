@@ -4,7 +4,6 @@ import { storeToRefs } from "pinia"
 import { useRoute, useRouter } from "vue-router"
 import ExpenseCalendar from "@/components/asset/ExpenseCalendar.vue"
 import CategoryBudgetEditor from "@/components/asset/CategoryBudgetEditor.vue"
-import ExpenseCategoryBreakdown from "@/components/asset/ExpenseCategoryBreakdown.vue"
 import ExpenseCategoryEditModal from "@/components/asset/ExpenseCategoryEditModal.vue"
 import ExpenseTransactionList from "@/components/asset/ExpenseTransactionList.vue"
 import AppAlert from "@/components/ui/AppAlert.vue"
@@ -29,8 +28,6 @@ const { isSyncing, syncError } = storeToRefs(assetStore)
 const {
   categorySummary: budgetSummary,
   error: budgetError,
-  initialLoading: budgetInitialLoading,
-  refreshing: budgetRefreshing,
   isLoading: isBudgetLoading,
   isSaving: isBudgetSaving,
 } = storeToRefs(budgetStore)
@@ -123,10 +120,6 @@ const canEditBudget = computed(
 
 const isExpenseInitialLoading = computed(() => isLoading.value && !hasLoadedExpenseData.value)
 const isExpenseRefreshing = computed(() => isLoading.value && hasLoadedExpenseData.value)
-const isBudgetInitialLoading = computed(() => budgetInitialLoading?.value ?? isBudgetLoading.value)
-const isBudgetRefreshing = computed(() => budgetRefreshing?.value ?? false)
-const displayedBudgetError = computed(() => (budgetSummary.value ? "" : budgetError.value))
-const isBudgetRefreshError = computed(() => Boolean(budgetSummary.value && budgetError.value))
 
 const openBudgetEditor = async () => {
   if (!canEditBudget.value) {
@@ -660,25 +653,6 @@ onMounted(async () => {
         </div>
       </AppCard>
 
-      <div v-if="isBudgetRefreshing" class="small text-secondary mb-3" role="status">
-        <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
-        카테고리별 예산을 최신 상태로 갱신하고 있습니다.
-      </div>
-
-      <AppAlert v-if="isBudgetRefreshError" class="mb-3" variant="warning">
-        <span>최신 예산 정보를 갱신하지 못했습니다. 기존 예산을 표시하고 있습니다.</span>
-        <AppButton variant="outline" size="sm" @click="loadSelectedMonth">다시 시도</AppButton>
-      </AppAlert>
-
-      <ExpenseCategoryBreakdown
-        :breakdown="expenseData.expenseCategoryBreakdown"
-        :total-expense="expenseData.totalExpense"
-        :budget-summary="budgetSummary"
-        :budget-loading="isBudgetInitialLoading"
-        :budget-error="displayedBudgetError"
-        :can-edit-budget="canEditBudget"
-        @edit-budget="openBudgetEditor"
-      />
     </template>
 
     <CategoryBudgetEditor
@@ -749,7 +723,7 @@ onMounted(async () => {
 <style scoped>
 .expense-history-view {
   width: 100%;
-  padding: var(--wallo-space-6) var(--wallo-space-4);
+  padding: 0 0 var(--wallo-space-6);
 }
 
 .expense-sync-button {
@@ -782,13 +756,13 @@ onMounted(async () => {
 .back-button:focus,
 .month-button:hover,
 .month-button:focus {
-  color: #6b5bd2;
-  background: #f0edff;
+  color: #4d82d6;
+  background: #edf6ff;
 }
 
 .view-toggle {
   padding: 4px;
-  border: 1px solid #e4e1f4;
+  border: 1px solid #e7f1fa;
   border-radius: 12px;
   background: #ffffff;
 }
@@ -802,8 +776,8 @@ onMounted(async () => {
 }
 
 .view-toggle .btn.active {
-  color: #6b5bd2;
-  background: #f0edff;
+  color: #4d82d6;
+  background: #edf6ff;
 }
 
 .category-filter-trigger {
@@ -813,7 +787,7 @@ onMounted(async () => {
   justify-content: space-between;
   gap: 12px;
   padding: 7px 11px;
-  border: 1px solid #e4e1f4;
+  border: 1px solid #e7f1fa;
   border-radius: 10px;
   color: #343044;
   background: #ffffff;
@@ -823,19 +797,19 @@ onMounted(async () => {
 
 .category-filter-current {
   margin-left: 2px;
-  color: #6b5bd2;
+  color: #4d82d6;
   font-size: 0.78rem;
 }
 
 .category-filter-trigger:hover:not(:disabled),
 .category-filter-trigger:focus-visible {
   border-color: #b9b0f2;
-  color: #6b5bd2;
-  background: #faf9ff;
+  color: #4d82d6;
+  background: #f8fbff;
 }
 
 .category-filter-trigger:focus-visible {
-  outline: 2px solid #6b5bd2;
+  outline: 2px solid #4d82d6;
   outline-offset: 2px;
 }
 
@@ -933,8 +907,7 @@ onMounted(async () => {
 
 @media (max-width: 575.98px) {
   .expense-history-view {
-    padding-right: var(--wallo-space-3);
-    padding-left: var(--wallo-space-3);
+    padding-bottom: var(--wallo-space-5);
   }
 
   .page-header {

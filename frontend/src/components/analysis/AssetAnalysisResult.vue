@@ -9,6 +9,8 @@ import {
 
 const props = defineProps({
   analysis: { type: Object, required: true },
+  compact: { type: Boolean, default: false },
+  showIntro: { type: Boolean, default: true },
 })
 
 const emptyAnalysis = {
@@ -98,11 +100,14 @@ const surplusClass = computed(() =>
     ? "text-success"
     : "text-danger",
 )
+const primaryRisk = computed(() => direction.value.riskSignals[0] || null)
+const compactActions = computed(() => priorityActions.value.slice(0, 2))
+const compactComposition = computed(() => composition.value.slice(0, 4))
 </script>
 
 <template>
   <section class="asset-analysis" aria-label="자산분석 결과">
-    <div class="asset-analysis__intro">
+    <div v-if="showIntro" class="asset-analysis__intro">
       <span class="asset-analysis__eyebrow">
         <i class="bi bi-pie-chart-fill me-1" aria-hidden="true"></i>
         AI 자산분석
@@ -110,6 +115,83 @@ const surplusClass = computed(() =>
       <strong>현재 자산 상태를 한눈에 확인해보세요</strong>
     </div>
 
+    <div v-if="compact && hasCards" class="asset-overview">
+      <div class="asset-overview__summary">
+        <div class="asset-overview__hero">
+          <span>현재 순자산</span>
+          <strong>{{ formatAssetAmount(summary.netAssetsKrw) }}</strong>
+          <small>보유 자산에서 부채를 제외한 금액이에요.</small>
+        </div>
+        <div class="asset-overview__balance">
+          <div><span>총자산</span><strong>{{ formatAssetAmount(summary.totalAssetsKrw) }}</strong></div>
+          <div><span>총부채</span><strong>{{ formatAssetAmount(summary.totalDebtKrw) }}</strong></div>
+        </div>
+      </div>
+      <div class="asset-overview__metrics">
+        <div>
+          <span>월 잉여금</span>
+          <strong :class="surplusClass">{{ formatAssetAmount(cashflow.monthlySurplusKrw) }}</strong>
+        </div>
+        <div>
+          <span>저축률</span>
+          <strong>{{ formatRate(cashflow.savingRatePercent) }}</strong>
+        </div>
+      </div>
+
+      <div v-if="compactComposition.length" class="asset-overview__section">
+        <div class="asset-overview__section-heading">
+          <div><span>자산 구성</span><strong>어디에 자산이 모여 있을까요?</strong></div>
+        </div>
+        <div class="asset-overview__composition">
+          <div
+            v-for="(item, index) in compactComposition"
+            :key="`${item.category || 'asset'}-${item.name || index}`"
+            class="asset-overview__composition-row"
+          >
+            <div class="d-flex align-items-center justify-content-between gap-3">
+              <span class="text-truncate">{{ item.name || assetCategoryLabel(item.category) }}</span>
+              <strong>{{ formatRate(item.sharePercent) }}</strong>
+            </div>
+            <div class="progress" aria-hidden="true">
+              <div class="progress-bar" :style="{ width: progressWidth(item.sharePercent) }"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="hasDirection" class="asset-overview__section asset-overview__diagnosis">
+        <div class="asset-overview__section-heading">
+          <div><span>AI 진단</span><strong>{{ direction.currentStage || "현재 자산 관리 방향" }}</strong></div>
+        </div>
+        <p v-if="direction.headline">{{ direction.headline }}</p>
+        <div v-if="direction.firstChange" class="asset-overview__next-step">
+          <i class="bi bi-arrow-right-circle" aria-hidden="true"></i>
+          <div><span>먼저 바꿔볼 것</span><strong>{{ direction.firstChange }}</strong></div>
+        </div>
+      </div>
+
+      <div v-if="compactActions.length" class="asset-overview__section">
+        <div class="asset-overview__section-heading">
+          <div><span>추천 행동</span><strong>지금부터 이렇게 시작해보세요</strong></div>
+        </div>
+        <ol class="asset-overview__actions">
+          <li v-for="(action, index) in compactActions" :key="action.title || index">
+            <span>{{ index + 1 }}</span>
+            <div>
+              <strong>{{ action.title || action.description }}</strong>
+              <small v-if="action.title">{{ action.description }}</small>
+            </div>
+          </li>
+        </ol>
+      </div>
+
+      <div v-if="primaryRisk" class="asset-insight asset-insight--risk">
+        <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+        <div><span>확인이 필요한 부분</span><strong>{{ primaryRisk }}</strong></div>
+      </div>
+    </div>
+
+    <div v-if="!compact" class="asset-analysis__details">
     <div v-if="hasSummary" class="asset-analysis-card">
       <div class="asset-analysis-card__heading">
         <span class="asset-analysis-card__eyebrow">핵심 요약</span>
@@ -306,6 +388,7 @@ const surplusClass = computed(() =>
         </div>
       </div>
     </div>
+    </div>
 
     <div v-if="!hasCards && !hasNotes" class="alert alert-light border rounded-4 mb-0" role="status">
       <i class="bi bi-info-circle me-2" aria-hidden="true"></i>
@@ -323,6 +406,46 @@ const surplusClass = computed(() =>
   margin-bottom: 0.75rem;
 }
 
+.asset-analysis__details { display: flex; flex-direction: column; gap: 0.65rem; }
+.asset-overview { display: grid; gap: 0.75rem; }
+.asset-overview__summary { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(180px, 0.8fr); overflow: hidden; background: linear-gradient(135deg, #eff7ff, #f8fbff); border: 1px solid var(--wallo-color-border); border-radius: 1rem; }
+.asset-overview__hero { padding: 1.4rem; }
+.asset-overview__balance { display: flex; flex-direction: column; justify-content: center; padding: 1rem 1.25rem; border-left: 1px solid var(--wallo-color-border); }
+.asset-overview__balance > div { padding: 0.65rem 0; }
+.asset-overview__balance > div + div { border-top: 1px solid var(--wallo-color-border-soft); }
+.asset-overview__balance span, .asset-overview__balance strong { display: block; }
+.asset-overview__balance span { color: var(--wallo-color-text-muted); font-size: 0.72rem; }
+.asset-overview__balance strong { margin-top: 0.2rem; font-size: 0.95rem; }
+.asset-overview__hero span, .asset-overview__hero small, .asset-overview__metrics span, .asset-insight span { display: block; color: var(--wallo-color-text-muted); font-size: 0.76rem; }
+.asset-overview__hero strong { display: block; margin: 0.35rem 0; color: var(--wallo-color-primary-hover); font-size: clamp(1.6rem, 4vw, 2.2rem); }
+.asset-overview__metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
+.asset-overview__metrics > div { padding: 1rem; background: var(--wallo-color-surface-soft); border-radius: 0.85rem; }
+.asset-overview__metrics strong { display: block; margin-top: 0.3rem; font-size: 1.05rem; }
+.asset-overview__section { padding: 1.1rem; background: var(--wallo-color-surface); border: 1px solid var(--wallo-color-border-soft); border-radius: 0.95rem; }
+.asset-overview__section-heading span, .asset-overview__section-heading strong { display: block; }
+.asset-overview__section-heading span { color: var(--wallo-color-primary); font-size: 0.72rem; font-weight: 700; }
+.asset-overview__section-heading strong { margin-top: 0.2rem; color: var(--wallo-color-text); }
+.asset-overview__composition { display: grid; gap: 0.8rem; margin-top: 1rem; }
+.asset-overview__composition-row { color: var(--wallo-color-text-muted); font-size: 0.84rem; }
+.asset-overview__composition-row strong { color: var(--wallo-color-text); }
+.asset-overview__composition-row .progress { height: 0.38rem; margin-top: 0.35rem; background: var(--wallo-color-progress-track); }
+.asset-overview__composition-row .progress-bar { background: var(--wallo-color-primary); border-radius: 999px; }
+.asset-overview__diagnosis { background: var(--wallo-color-surface-soft); }
+.asset-overview__diagnosis > p { margin: 0.85rem 0 0; color: var(--wallo-color-text); line-height: 1.65; }
+.asset-overview__next-step { display: flex; gap: 0.65rem; padding: 0.8rem; margin-top: 0.85rem; color: var(--wallo-color-primary-hover); background: var(--wallo-color-info-bg); border-radius: 0.75rem; }
+.asset-overview__next-step span, .asset-overview__next-step strong { display: block; }
+.asset-overview__next-step span { font-size: 0.72rem; }
+.asset-overview__next-step strong { margin-top: 0.2rem; color: var(--wallo-color-text); font-size: 0.88rem; line-height: 1.5; }
+.asset-overview__actions { display: grid; gap: 0.75rem; padding: 0; margin: 1rem 0 0; list-style: none; }
+.asset-overview__actions li { display: flex; align-items: flex-start; gap: 0.75rem; }
+.asset-overview__actions li > span { display: inline-flex; width: 1.7rem; height: 1.7rem; flex: 0 0 1.7rem; align-items: center; justify-content: center; color: #fff; background: var(--wallo-color-primary); border-radius: 50%; font-size: 0.75rem; font-weight: 700; }
+.asset-overview__actions strong, .asset-overview__actions small { display: block; }
+.asset-overview__actions small { margin-top: 0.2rem; color: var(--wallo-color-text-muted); line-height: 1.5; }
+.asset-insight { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.9rem 1rem; border-radius: 0.85rem; }
+.asset-insight i { margin-top: 0.1rem; }
+.asset-insight strong, .asset-insight small { display: block; margin-top: 0.2rem; line-height: 1.5; }
+.asset-insight--risk { color: #805d18; background: #fff9e9; }
+
 .asset-analysis__intro {
   display: flex;
   flex-direction: column;
@@ -333,7 +456,7 @@ const surplusClass = computed(() =>
 
 .asset-analysis__eyebrow,
 .asset-analysis-card__eyebrow {
-  color: #7062de;
+  color: #4f8fe8;
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.03em;
@@ -341,15 +464,15 @@ const surplusClass = computed(() =>
 
 .asset-analysis-card {
   padding: 1rem;
-  background: #fff;
-  border: 1px solid #e9e6f3;
+  background: var(--wallo-color-surface);
+  border: 1px solid var(--wallo-color-border);
   border-radius: 1rem;
-  box-shadow: 0 0.25rem 0.8rem rgba(57, 45, 110, 0.06);
+  box-shadow: var(--wallo-shadow-card);
 }
 
 .asset-analysis-card--direction {
-  border-color: #dcd7fb;
-  background: linear-gradient(145deg, #fff, #faf9ff);
+  border-color: var(--wallo-color-border);
+  background: linear-gradient(145deg, #fff, #f8fbff);
 }
 
 .asset-analysis-card--warning {
@@ -378,7 +501,7 @@ const surplusClass = computed(() =>
   flex-direction: column;
   gap: 0.25rem;
   padding: 0.75rem;
-  background: #f8f7fc;
+  background: var(--wallo-color-surface-soft);
   border-radius: 0.75rem;
 }
 
@@ -393,11 +516,11 @@ const surplusClass = computed(() =>
 }
 
 .asset-metric--accent {
-  background: #f0eefe;
+  background: #eff7ff;
 }
 
 .asset-metric--accent strong {
-  color: #5749c5;
+  color: #3f78cd;
 }
 
 .asset-metric--compact strong {
@@ -406,7 +529,7 @@ const surplusClass = computed(() =>
 
 .asset-direction__headline {
   margin: 0;
-  color: #403778;
+  color: var(--wallo-color-text);
   font-size: 1.05rem;
   font-weight: 700;
   line-height: 1.5;
@@ -419,7 +542,7 @@ const surplusClass = computed(() =>
 .asset-direction__label {
   display: block;
   margin-bottom: 0.35rem;
-  color: #5c5780;
+  color: var(--wallo-color-text-muted);
   font-size: 0.8rem;
 }
 
@@ -469,15 +592,15 @@ const surplusClass = computed(() =>
 
 .asset-priority-action {
   padding: 0.8rem 0.85rem;
-  background: #f8f7fc;
-  border-left: 0.2rem solid #7062de;
+  background: var(--wallo-color-surface-soft);
+  border-left: 0.2rem solid #4f8fe8;
   border-radius: 0.7rem;
 }
 
 .asset-priority-action__period {
   display: block;
   margin-bottom: 0.2rem;
-  color: #7062de;
+  color: #4f8fe8;
   font-size: 0.72rem;
   font-weight: 700;
 }
@@ -506,16 +629,16 @@ const surplusClass = computed(() =>
 .asset-rate .progress,
 .asset-composition-progress {
   height: 0.45rem;
-  background: #eceaf5;
+  background: var(--wallo-color-progress-track);
 }
 
 .asset-composition-progress .progress-bar {
-  background: #7062de;
+  background: #4f8fe8;
 }
 
 .asset-composition-item {
   padding: 0.7rem 0;
-  border-bottom: 1px solid #ece9f3;
+  border-bottom: 1px solid var(--wallo-color-border-soft);
 }
 
 .asset-composition-item:first-child {
@@ -528,6 +651,10 @@ const surplusClass = computed(() =>
 }
 
 @media (max-width: 640px) {
+  .asset-overview__summary { grid-template-columns: 1fr; }
+  .asset-overview__balance { display: grid; grid-template-columns: repeat(2, 1fr); border-top: 1px solid var(--wallo-color-border); border-left: 0; }
+  .asset-overview__balance > div { padding: 0 0.6rem; }
+  .asset-overview__balance > div + div { border-top: 0; border-left: 1px solid var(--wallo-color-border-soft); }
   .asset-analysis-card {
     padding: 0.85rem;
   }

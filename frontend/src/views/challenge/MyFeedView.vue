@@ -285,7 +285,10 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
           </div>
 
           <div class="feed-result">
-            <span class="like-count">♥ {{ formatNumber(feed.likeCount) }}</span>
+            <span class="like-count">
+              <i class="bi bi-heart-fill" aria-hidden="true"></i>
+              {{ formatNumber(feed.likeCount) }}
+            </span>
             <span class="comment-count">💬 {{ formatNumber(feed.commentCount) }}</span>
             <strong>{{ formatWon(feed.savingAmount) }}</strong>
           </div>
@@ -337,8 +340,8 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
 
 .back-button:hover,
 .back-button:focus {
-  color: #6b5bd2;
-  background: #f0edff;
+  color: #4d82d6;
+  background: #edf6ff;
 }
 
 .back-button i {
@@ -350,17 +353,12 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
   color: #27304f;
 }
 
-.page-heading :deep(.app-page-header__title) {
-  font-size: 28px;
-  font-weight: 800;
-}
-
 .overview-card,
 .feed-card,
 .page-state-card {
   border-radius: 18px;
   background: #fff;
-  box-shadow: 0 5px 20px rgb(48 60 110 / 5%);
+  box-shadow: 0 5px 20px rgb(52 106 162 / 5%);
 }
 
 .overview-card {
@@ -408,8 +406,8 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
 }
 
 .filter-group .form-select:focus {
-  border-color: #9f96f8;
-  box-shadow: 0 0 0 3px rgb(126 113 246 / 12%);
+  border-color: #8fb8ed;
+  box-shadow: 0 0 0 3px rgb(102 164 235 / 12%);
 }
 
 .summary-grid {
@@ -425,7 +423,7 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
   place-content: center;
   gap: 5px;
   border-radius: 13px;
-  background: #f8f8ff;
+  background: #f7fbff;
   text-align: center;
 }
 
@@ -444,7 +442,7 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
 }
 
 .summary-comment strong {
-  color: #7667ef;
+  color: #6e9ee9;
 }
 
 .summary-saving strong {
@@ -479,7 +477,7 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
 .feed-card:hover,
 .feed-card:focus-visible {
   outline: 0;
-  box-shadow: 0 10px 26px rgb(71 66 143 / 12%);
+  box-shadow: 0 10px 26px rgb(57 95 140 / 12%);
   transform: translateY(-2px);
 }
 
@@ -506,7 +504,7 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
   place-items: center;
   overflow: hidden;
   border-radius: 14px;
-  background: #f2f0ff;
+  background: #eaf4ff;
   font-size: 25px;
 }
 
@@ -547,8 +545,8 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
 .category-badge {
   padding: 3px 8px;
   border-radius: 999px;
-  background: #f1efff;
-  color: #7769ed;
+  background: #edf6ff;
+  color: #719fe8;
   font-size: 11px;
   font-weight: 700;
 }
@@ -593,7 +591,7 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
   margin-top: 16px;
   padding: 10px 14px;
   border-radius: 10px;
-  background: #f8f8ff;
+  background: #f7fbff;
   font-size: 13px;
 }
 
@@ -614,14 +612,14 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
 
 .retry-button,
 .page-button {
-  border: 1px solid #8478f5;
-  color: #7065eb;
+  border: 1px solid #88b3ed;
+  color: #6698e3;
   font-weight: 700;
 }
 
 .retry-button:hover,
 .page-button:hover:not(:disabled) {
-  background: #7b70f5;
+  background: #6b9ee9;
   color: #fff;
 }
 

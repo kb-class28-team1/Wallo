@@ -14,6 +14,7 @@ const primaryMenus = [
   { icon: "bi bi-house-fill", label: "대시보드", to: "/dashboard" },
   { icon: "bi bi-bar-chart-line", label: "자산관리", to: "/assets" },
   { icon: "bi bi-robot", label: "AI 컨설팅", to: "/ai-consulting" },
+  { icon: "bi bi-stars", label: "AI 분석 결과", to: "/ai-analysis" },
 ]
 
 const utilityMenus = [
@@ -110,6 +111,9 @@ const assetCollapseIconClass = computed(() => ({
 const monthlyReportClass = computed(() => ({
   "submenu-link-active": route.path === "/assets/expenses",
 }))
+const categoryExpenseClass = computed(() => ({
+  "submenu-link-active": route.path === "/assets/categories",
+}))
 const challengeGroupClass = computed(() => ({
   "challenge-group-active": isChallengeRoute.value,
 }))
@@ -119,9 +123,6 @@ const collapseIconClass = computed(() => ({
 const weeklyRankingClass = computed(() => ({
   "submenu-link-active": route.path === "/challenges/rankings/weekly",
 }))
-const challengeFeedClass = computed(() => ({
-  "submenu-link-active": route.name === "challenge-feed" || route.path === "/challenges/current",
-}))
 const myChallengeClass = computed(() => ({
   "submenu-link-active": route.path === "/users/me/challenge-dashboard",
 }))
@@ -129,13 +130,11 @@ const myFeedsClass = computed(() => ({
   "submenu-link-active": route.path === "/my-feeds",
 }))
 
-// 챌린지 관련 페이지에서는 새로고침 후에도 하위 메뉴가 펼쳐짐
+// 챌린지 관련 페이지에서는 하위 메뉴를 펼치고, 외부 페이지에서는 닫음
 watch(
   isChallengeRoute,
   (isActive) => {
-    if (isActive) {
-      isChallengeOpen.value = true
-    }
+    isChallengeOpen.value = isActive
   },
   { immediate: true },
 )
@@ -144,12 +143,14 @@ watch(
 watch(
   isAssetRoute,
   (isActive) => {
-    if (isActive) {
-      isAssetOpen.value = true
-    }
+    isAssetOpen.value = isActive
   },
   { immediate: true },
 )
+
+const openAssetMenu = () => {
+  isAssetOpen.value = true
+}
 
 const toggleAsset = () => {
   isAssetOpen.value = !isAssetOpen.value
@@ -263,6 +264,7 @@ const handleLogout = async () => {
               <RouterLink
                 to="/assets"
                 class="menu-item menu-link asset-title d-flex flex-grow-1 align-items-center"
+                @click="openAssetMenu"
               >
                 <span class="menu-icon" aria-hidden="true">
                   <i :class="menu.icon"></i>
@@ -297,6 +299,14 @@ const handleLogout = async () => {
                   <span class="submenu-dot" aria-hidden="true"></span>
                   월별 리포트
                 </RouterLink>
+                <RouterLink
+                  to="/assets/categories"
+                  class="submenu-item submenu-link d-flex align-items-center"
+                  :class="categoryExpenseClass"
+                >
+                  <span class="submenu-dot" aria-hidden="true"></span>
+                  카테고리별 소비
+                </RouterLink>
               </div>
             </Transition>
           </div>
@@ -308,9 +318,8 @@ const handleLogout = async () => {
           <button
             type="button"
             class="menu-item challenge-title d-flex flex-grow-1 align-items-center"
-            :aria-expanded="isChallengeOpen"
-            aria-controls="challenge-submenu"
-            @click="toggleChallenge"
+            :disabled="isChallengeChecking"
+            @click="moveToChallengeFeed"
           >
             <span class="menu-icon" aria-hidden="true">
               <i class="bi bi-cash-coin"></i>
@@ -337,18 +346,6 @@ const handleLogout = async () => {
 
         <Transition name="submenu">
           <div v-if="isChallengeOpen" id="challenge-submenu" class="submenu d-flex flex-column">
-            <AppButton
-              class="submenu-item submenu-link d-flex align-items-center"
-              variant="ghost"
-              size="sm"
-              :class="challengeFeedClass"
-              :disabled="isChallengeChecking"
-              @click="moveToChallengeFeed"
-            >
-              <template #leading><span class="submenu-dot" aria-hidden="true"></span></template>
-              피드 목록
-            </AppButton>
-
             <AppButton
               class="submenu-item submenu-link d-flex align-items-center"
               variant="ghost"
@@ -428,7 +425,9 @@ const handleLogout = async () => {
       </AppButton>
 
       <AppCard as="div" class="sidebar-card text-center" padding="none">
-        <img :src="thinkingPenguin" class="sidebar-card-image" alt="생각하는 왈로 캐릭터" />
+        <div class="sidebar-card-image-frame">
+          <img :src="thinkingPenguin" class="sidebar-card-image" alt="생각하는 왈로 캐릭터" />
+        </div>
         <p class="sidebar-card-text mb-0" :title="dailySavingsTip" aria-live="polite">
           {{ dailySavingsTip }}
         </p>
@@ -450,8 +449,8 @@ const handleLogout = async () => {
   top: 0;
   bottom: 0;
   left: 0;
-  flex: 0 0 273px;
-  width: 273px;
+  flex: 0 0 var(--wallo-sidebar-width);
+  width: var(--wallo-sidebar-width);
   height: 100vh;
   padding: 20px 25px 30px;
   overflow-y: auto;
@@ -500,7 +499,7 @@ const handleLogout = async () => {
 .menu-link:hover,
 .menu-link.router-link-active,
 .menu-link.router-link-exact-active {
-  color: #7062de;
+  color: #4f8fe8;
 }
 
 .sidebar :deep(.app-button--ghost:hover:not(:disabled)) {
@@ -526,13 +525,13 @@ const handleLogout = async () => {
 
 .asset-title:hover,
 .asset-group-active .asset-title {
-  color: #5f50d2;
+  color: #3e7bd1;
   font-weight: 700;
 }
 
 .asset-title:focus-visible {
   border-radius: 4px;
-  outline: 2px solid #7062de;
+  outline: 2px solid #4f8fe8;
   outline-offset: 4px;
 }
 
@@ -558,14 +557,14 @@ const handleLogout = async () => {
 
 .challenge-title:hover,
 .challenge-group-active .challenge-title {
-  color: #5f50d2;
+  color: #3e7bd1;
   font-weight: 700;
 }
 
 .challenge-title:focus-visible,
 .collapse-toggle:focus-visible {
   border-radius: 4px;
-  outline: 2px solid #7062de;
+  outline: 2px solid #4f8fe8;
   outline-offset: 4px;
 }
 
@@ -640,7 +639,7 @@ const handleLogout = async () => {
 .submenu-link:hover,
 .submenu-link.router-link-exact-active,
 .submenu-link-active {
-  color: #7062de;
+  color: #4f8fe8;
 }
 
 .submenu-link:disabled {
@@ -713,7 +712,7 @@ const handleLogout = async () => {
 }
 
 .sidebar-logout.app-button:hover:not(:disabled) {
-  color: #6b5bd2;
+  color: #4d82d6;
   background: transparent;
 }
 
@@ -729,12 +728,16 @@ const handleLogout = async () => {
   background: #ffffff;
 }
 
+.sidebar-card-image-frame {
+  width: 109px;
+  margin: 0 auto 8px;
+}
+
 .sidebar-card-image {
   display: block;
-  width: 128px;
+  width: 109px;
   max-width: 100%;
   height: auto;
-  margin: 0 auto 8px;
 }
 
 .sidebar-card-text {
@@ -746,8 +749,8 @@ const handleLogout = async () => {
 
 @media (max-width: 767.98px) {
   .sidebar {
-    flex-basis: 273px;
-    width: 273px;
+    flex-basis: var(--wallo-sidebar-width);
+    width: var(--wallo-sidebar-width);
   }
 }
 </style>

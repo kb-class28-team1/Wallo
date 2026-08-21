@@ -80,4 +80,30 @@ public class AssetAnalysisResultService {
         }
         return result;
     }
+
+    @Transactional(readOnly = true)
+    public AssetAnalysisResultDto.LatestResponse findLatestByUserId(long userId) {
+        AssetAnalysisResultDto.LatestStoredResult stored = mapper.findLatestByUserId(userId);
+        if (stored == null) {
+            return null;
+        }
+        return new AssetAnalysisResultDto.LatestResponse(
+                stored.getAssistantMessageId(),
+                stored.getRequestMessage(),
+                parseAnalysis(stored.getCalculatedResultJson()),
+                stored.getAiResponse(),
+                stored.getGeneratedAt()
+        );
+    }
+
+    private AssetAnalysisView parseAnalysis(String calculatedResultJson) {
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> calculation = objectMapper.readValue(
+                    calculatedResultJson, Map.class);
+            return viewAssembler.assemble(calculation);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("저장된 자산분석 결과를 읽지 못했습니다.", exception);
+        }
+    }
 }

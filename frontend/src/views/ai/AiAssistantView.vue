@@ -3,7 +3,6 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue"
 import { useRouter } from "vue-router"
 import { storeToRefs } from "pinia"
 import { useGoalStore } from "@/stores/goalStore"
-import { useProductRecommendationStore } from "@/stores/productRecommendationStore"
 import { useUserStore } from "@/stores/userStore"
 import {
   completeSelfCheckMission,
@@ -21,11 +20,10 @@ import AppButton from "@/components/ui/AppButton.vue"
 import AppCard from "@/components/ui/AppCard.vue"
 import AppPageHeader from "@/components/ui/AppPageHeader.vue"
 import AppState from "@/components/ui/AppState.vue"
-import ProductRecommendationResult from "@/components/analysis/ProductRecommendationResult.vue"
+import { announcePointEarned } from "@/utils/pointRewardNotice"
 
 const router = useRouter()
 const goalStore = useGoalStore()
-const productRecommendationStore = useProductRecommendationStore()
 const userStore = useUserStore()
 const {
   goals,
@@ -37,13 +35,6 @@ const {
   roadmapError,
   isRoadmapProgressSaving,
 } = storeToRefs(goalStore)
-const {
-  productRecommendation,
-  requestMessage,
-  generatedAt,
-  status: productRecommendationStatus,
-  error: productRecommendationError,
-} = storeToRefs(productRecommendationStore)
 const { user } = storeToRefs(userStore)
 
 const walloCharacter = "/images/profiles/thinking-penguin.svg"
@@ -89,10 +80,12 @@ const getMissionVerificationInfo = (mission) => {
       guide: "미션 수행 증빙을 제출하면 확인 후 달성 여부가 결정됩니다.",
     },
   }
-  return typeGuides[verificationType] || {
-    label: "달성 방법",
-    guide: mission?.evidenceGuide || "미션 안내에 따라 실천해 주세요.",
-  }
+  return (
+    typeGuides[verificationType] || {
+      label: "달성 방법",
+      guide: mission?.evidenceGuide || "미션 안내에 따라 실천해 주세요.",
+    }
+  )
 }
 
 const parseGoalDate = (value) => {
@@ -225,15 +218,29 @@ const loadTodayMissionList = async () => {
       const results = await Promise.allSettled(
         transactionMissions.map((mission) => verifyTransactionMission(mission.id)),
       )
-      if (results.some(
-        (result) => result.status === "fulfilled" && result.value?.decision === "PASS",
-      )) {
+      results.forEach((result) => {
+        const rewardedPoint = Number(
+          result.status === "fulfilled" ? result.value?.rewardedPoint : 0,
+        )
+        if (
+          result.status === "fulfilled" &&
+          result.value?.decision === "PASS" &&
+          rewardedPoint > 0
+        ) {
+          announcePointEarned(rewardedPoint)
+        }
+      })
+      if (
+        results.some((result) => result.status === "fulfilled" && result.value?.decision === "PASS")
+      ) {
         const refreshed = await getTodayMissions()
         missions.value = refreshed.missions
         missionStatus.value = refreshed.status || "READY"
-        window.dispatchEvent(new CustomEvent("wallo:mission-updated", {
-          detail: { missionResponse: refreshed },
-        }))
+        window.dispatchEvent(
+          new CustomEvent("wallo:mission-updated", {
+            detail: { missionResponse: refreshed },
+          }),
+        )
       }
     }
   } catch (missionLoadError) {
@@ -248,14 +255,6 @@ const applyMissionResponse = (response) => {
   missions.value = response?.missions || []
   missionStatus.value = response?.status || "READY"
   missionError.value = ""
-}
-
-const loadLatestProductRecommendation = ({ force = false } = {}) =>
-  productRecommendationStore.fetchLatest({ force })
-
-const formatRecommendationDate = (value) => {
-  if (!value) return ""
-  return String(value).replace("T", " ").slice(0, 16)
 }
 
 const startGoalSetting = async () => {
@@ -290,7 +289,11 @@ const runMissionAction = async (mission) => {
   if (mission.verificationType !== "SELF_CHECK") return
   missionActionId.value = mission.id
   try {
-    await completeSelfCheckMission(mission.id)
+    const response = await completeSelfCheckMission(mission.id)
+    const rewardedPoint = Number(response?.rewardedPoint || 0)
+    if (response?.decision === "PASS" && rewardedPoint > 0) {
+      announcePointEarned(rewardedPoint)
+    }
     await loadTodayMissionList()
     window.dispatchEvent(new CustomEvent("wallo:mission-updated"))
   } catch (missionActionError) {
@@ -320,7 +323,6 @@ onMounted(() => {
   window.addEventListener("focus", handlePageVisibility)
   document.addEventListener("visibilitychange", handlePageVisibility)
   void loadGoalPage({ force: true })
-  void loadLatestProductRecommendation({ force: true })
   void loadTodayMissionList()
   scheduleNextMissionDateRefresh()
 })
@@ -335,10 +337,7 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="assistant-page">
-    <AppPageHeader
-      class="assistant-header"
-      title="AI 컨설팅"
-    />
+    <AppPageHeader class="assistant-header" title="AI 컨설팅" />
 
     <AppAlert
       v-if="refreshing"
@@ -388,7 +387,7 @@ onBeforeUnmount(() => {
             <div class="card-body p-4">
               <h2 class="section-title h5 fw-bold">
                 나의 목표
-                <i class="bi bi-info-circle ms-1 text-secondary" aria-hidden="true"></i>
+                <i class="bi ms-1 text-secondary" aria-hidden="true"></i>
               </h2>
 
               <div class="goal-empty-box mt-3">
@@ -414,9 +413,7 @@ onBeforeUnmount(() => {
                     <i class="bi bi-stars" aria-hidden="true"></i>
                     AI 한줄 코칭
                   </span>
-                  <p class="mb-0">
-                    목표가 있어야 방향이 생겨요! 작은 목표부터 함께 시작해봐요.
-                  </p>
+                  <p class="mb-0">목표가 있어야 방향이 생겨요! 작은 목표부터 함께 시작해봐요.</p>
                 </div>
                 <img :src="walloCharacter" alt="" aria-hidden="true" />
               </div>
@@ -447,7 +444,10 @@ onBeforeUnmount(() => {
                 variant="danger"
                 :message="missionError"
               />
-              <div v-else-if="missionStatus === 'WAITING_ANALYSIS'" class="mission-empty mt-4">
+              <div
+                v-else-if="missionStatus === 'WAITING_ANALYSIS'"
+                class="mission-empty mission-empty-analysis mt-4"
+              >
                 소비 분석이 완료되면 오늘의 미션이 생성됩니다.
                 <AppButton
                   class="mt-3"
@@ -483,10 +483,7 @@ onBeforeUnmount(() => {
                       :class="mission.completed ? 'bi-check-circle-fill' : 'bi-circle'"
                       :aria-label="mission.completed ? '완료' : '미완료'"
                     ></i>
-                    <span
-                      class="mission-guide"
-                      :title="getMissionVerificationInfo(mission).guide"
-                    >
+                    <span class="mission-guide" :title="getMissionVerificationInfo(mission).guide">
                       <b>{{ getMissionVerificationInfo(mission).label }}</b>
                       {{ getMissionVerificationInfo(mission).guide }}
                     </span>
@@ -513,7 +510,7 @@ onBeforeUnmount(() => {
         <div class="card-body p-4 p-lg-5">
           <h2 class="section-title h5 fw-bold">
             목표 달성을 위한 로드맵
-            <i class="bi bi-info-circle ms-1 text-secondary" aria-hidden="true"></i>
+            <i class="bi ms-1 text-secondary" aria-hidden="true"></i>
           </h2>
 
           <ol class="roadmap-list list-unstyled mt-4 mb-0">
@@ -664,7 +661,10 @@ onBeforeUnmount(() => {
                 variant="danger"
                 :message="missionError"
               />
-              <div v-else-if="missionStatus === 'WAITING_ANALYSIS'" class="mission-empty mt-4">
+              <div
+                v-else-if="missionStatus === 'WAITING_ANALYSIS'"
+                class="mission-empty mission-empty-analysis mt-4"
+              >
                 소비 분석이 완료되면 오늘의 미션이 생성됩니다.
                 <AppButton
                   class="mt-3"
@@ -700,10 +700,7 @@ onBeforeUnmount(() => {
                       :class="mission.completed ? 'bi-check-circle-fill' : 'bi-circle'"
                       :aria-label="mission.completed ? '완료' : '미완료'"
                     ></i>
-                    <span
-                      class="mission-guide"
-                      :title="getMissionVerificationInfo(mission).guide"
-                    >
+                    <span class="mission-guide" :title="getMissionVerificationInfo(mission).guide">
                       <b>{{ getMissionVerificationInfo(mission).label }}</b>
                       {{ getMissionVerificationInfo(mission).guide }}
                     </span>
@@ -877,72 +874,6 @@ onBeforeUnmount(() => {
       </AppCard>
     </div>
 
-    <AppCard
-      v-if="productRecommendationStatus === 'loading'"
-      class="content-card latest-product-recommendation-card mt-4"
-      padding="none"
-    >
-      <div class="card-body p-4 p-lg-5">
-        <h2 class="section-title h5 fw-bold">최신 상품 추천</h2>
-        <AppState
-          class="latest-product-recommendation-state mt-3"
-          type="loading"
-          compact
-          title="최신 상품 추천을 불러오는 중입니다."
-          message="저장된 추천 결과를 확인하고 있습니다."
-        />
-      </div>
-    </AppCard>
-
-    <AppAlert
-      v-else-if="productRecommendationStatus === 'error'"
-      class="latest-product-recommendation-error mt-4"
-      variant="warning"
-    >
-      <div class="assistant-error-content">
-        <span>{{ productRecommendationError }}</span>
-        <AppButton
-          variant="outline"
-          size="sm"
-          @click="loadLatestProductRecommendation({ force: true })"
-        >
-          다시 시도
-        </AppButton>
-      </div>
-    </AppAlert>
-
-    <AppCard
-      v-else-if="productRecommendationStatus === 'success'"
-      class="content-card latest-product-recommendation-card mt-4"
-      padding="none"
-    >
-      <div class="card-body p-4 p-lg-5">
-        <div class="latest-product-recommendation-heading">
-          <div>
-            <h2 class="section-title h5 fw-bold">최신 상품 추천</h2>
-            <p class="text-secondary mb-0 mt-2">
-              채팅에서 저장된 가장 최근의 상품 추천 결과예요.
-            </p>
-          </div>
-          <div class="latest-product-recommendation-meta">
-            <small v-if="generatedAt" class="latest-product-recommendation-date">
-              {{ formatRecommendationDate(generatedAt) }} 기준
-            </small>
-            <p v-if="requestMessage" class="latest-product-recommendation-request mb-0 mt-3">
-              추천 요청: {{ requestMessage }}
-            </p>
-          </div>
-        </div>
-
-        <ProductRecommendationResult
-        class="mt-4"
-        full-width
-        :show-intro="false"
-        :recommendation="productRecommendation"
-      />
-
-      </div>
-    </AppCard>
   </section>
 </template>
 
@@ -952,11 +883,6 @@ onBeforeUnmount(() => {
   color: #1c2440;
 }
 
-.assistant-header :deep(.app-page-header__title) {
-  font-size: clamp(1.75rem, 3vw, 2.35rem);
-  letter-spacing: -0.045em;
-}
-
 .assistant-header :deep(.app-page-header__description) {
   font-size: 1.05rem;
 }
@@ -964,31 +890,6 @@ onBeforeUnmount(() => {
 .assistant-refresh-status,
 .assistant-refresh-error {
   margin-bottom: var(--wallo-space-3);
-}
-
-.latest-product-recommendation-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.latest-product-recommendation-meta {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.35rem;
-  text-align: right;
-}
-
-.latest-product-recommendation-date,
-.latest-product-recommendation-request {
-  color: #85899b;
-  font-size: 0.78rem;
-}
-
-.latest-product-recommendation-state {
-  min-height: 140px;
 }
 
 .assistant-error-content {
@@ -1025,9 +926,9 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 2rem;
   padding: 1.35rem 1.5rem;
-  border: 2px dashed #c9c5ff;
+  border: 2px dashed var(--wallo-color-border);
   border-radius: 20px;
-  background: linear-gradient(135deg, #fff 0%, #f7f6ff 100%);
+  background: linear-gradient(135deg, #fff 0%, #f5faff 100%);
 }
 
 .character-wrap {
@@ -1046,7 +947,7 @@ onBeforeUnmount(() => {
   position: absolute;
   top: -24px;
   right: 4px;
-  color: #8a7df2;
+  color: #7fa9e8;
   font-size: 2.75rem;
   font-weight: 800;
 }
@@ -1063,15 +964,15 @@ onBeforeUnmount(() => {
   border: 0;
   border-radius: 14px;
   color: #fff;
-  background: linear-gradient(135deg, #7769f5, #6453e8);
-  box-shadow: 0 10px 24px rgb(100 83 232 / 22%);
+  background: linear-gradient(135deg, #71a1e8, #5a91dc);
+  box-shadow: 0 10px 24px rgb(79 143 232 / 22%);
   font-weight: 700;
 }
 
 .goal-button:hover,
 .goal-button:focus {
   color: #fff;
-  background: linear-gradient(135deg, #695ce6, #5644d8);
+  background: linear-gradient(135deg, #6599e2, #477fc8);
 }
 
 .goal-coaching-inline {
@@ -1081,9 +982,9 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   gap: 1.5rem;
   padding: 0.85rem 1.15rem;
-  border: 1px solid #dedafd;
+  border: 1px solid var(--wallo-color-border);
   border-radius: 18px;
-  background: linear-gradient(135deg, #f7f6ff 0%, #eeecff 100%);
+  background: linear-gradient(135deg, #f5faff 0%, #eaf4ff 100%);
 }
 
 .goal-coaching-copy {
@@ -1095,7 +996,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 0.4rem;
   margin-bottom: 0.45rem;
-  color: #6555df;
+  color: #4d85dd;
   font-size: 0.82rem;
   font-weight: 800;
 }
@@ -1140,15 +1041,15 @@ onBeforeUnmount(() => {
   justify-content: center;
   border-radius: 50%;
   color: #fff;
-  background: linear-gradient(135deg, #7769f5, #5f4fd9);
-  box-shadow: 0 8px 18px rgb(100 83 232 / 20%);
+  background: linear-gradient(135deg, #71a1e8, #4d86d1);
+  box-shadow: 0 8px 18px rgb(79 143 232 / 20%);
   font-size: 0.68rem;
 }
 
 .mission-state,
 .mission-empty {
   border-radius: 16px;
-  background: #f8f8fe;
+  background: #f6faff;
 }
 
 .mission-empty {
@@ -1156,6 +1057,10 @@ onBeforeUnmount(() => {
   color: #73798d;
   line-height: 1.65;
   text-align: center;
+}
+
+.mission-empty-analysis {
+  background: transparent;
 }
 
 .mission-panel {
@@ -1179,12 +1084,12 @@ onBeforeUnmount(() => {
   padding: 0.9rem;
   border: 1px solid #e7e7f2;
   border-radius: 15px;
-  background: #fcfcff;
+  background: var(--wallo-color-surface);
 }
 
 .mission-list-item.completed {
   border-color: #cec9fa;
-  background: #f8f7ff;
+  background: #f6faff;
 }
 
 .mission-icon {
@@ -1195,7 +1100,7 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   border-radius: 12px;
-  background: #eeecff;
+  background: #eaf4ff;
   font-size: 1.2rem;
 }
 
@@ -1231,7 +1136,7 @@ onBeforeUnmount(() => {
   overflow: hidden;
   padding: 0.45rem 0.55rem;
   border-radius: 9px;
-  background: #f3f1ff;
+  background: #eef7ff;
   color: #555d73;
   font-size: 0.76rem;
   line-height: 1.45;
@@ -1241,7 +1146,7 @@ onBeforeUnmount(() => {
 
 .mission-guide b {
   margin-right: 0.25rem;
-  color: #6555df;
+  color: #4d85dd;
   font-size: 0.72rem;
 }
 
@@ -1264,7 +1169,9 @@ onBeforeUnmount(() => {
 }
 
 .mission-list-item > :not(.mission-action-button) {
-  transition: opacity 160ms ease, filter 160ms ease;
+  transition:
+    opacity 160ms ease,
+    filter 160ms ease;
 }
 
 .mission-list-item:has(.mission-action-button):hover > :not(.mission-action-button),
@@ -1286,8 +1193,8 @@ onBeforeUnmount(() => {
     grid-column: 1 / -1;
     min-height: 34px;
     opacity: 1;
-    color: #6555df;
-    background: #f3f1ff;
+    color: #4d85dd;
+    background: #eef7ff;
     pointer-events: auto;
   }
 
@@ -1309,7 +1216,7 @@ onBeforeUnmount(() => {
 }
 
 .mission-list-item.completed .mission-check-icon {
-  color: #7162eb;
+  color: #548be0;
 }
 
 .roadmap-list {
@@ -1326,7 +1233,7 @@ onBeforeUnmount(() => {
   scroll-behavior: smooth;
   scroll-padding-inline: 0.5rem;
   scroll-snap-type: x mandatory;
-  scrollbar-color: #c8c3fb #f1f0fa;
+  scrollbar-color: #c7ddf7 var(--wallo-color-surface-soft);
   scrollbar-width: thin;
 }
 
@@ -1368,7 +1275,7 @@ onBeforeUnmount(() => {
   padding: 0;
   border: 0;
   border-radius: var(--wallo-radius-md);
-  color: #6555df;
+  color: #4d85dd;
   background: transparent;
   pointer-events: auto;
   transform: translateY(-50%);
@@ -1382,8 +1289,8 @@ onBeforeUnmount(() => {
 
 .roadmap-navigation-button:hover,
 .roadmap-navigation-button:focus-visible {
-  color: #7567e9;
-  background: rgb(112 98 222 / 8%);
+  color: #6a9ce3;
+  background: rgb(79 143 232 / 8%);
 }
 
 .roadmap-navigation-button:first-child {
@@ -1407,8 +1314,8 @@ onBeforeUnmount(() => {
 }
 
 .roadmap-item.active {
-  border: 2px solid #7a6df0;
-  background: #fbfaff;
+  border: 2px solid #77a8e7;
+  background: #f7fbff;
 }
 
 .step-number {
@@ -1428,7 +1335,7 @@ onBeforeUnmount(() => {
 
 .active .step-number {
   color: #fff;
-  background: #7162eb;
+  background: #548be0;
 }
 
 .step-icon {
@@ -1445,8 +1352,8 @@ onBeforeUnmount(() => {
 }
 
 .active .step-icon {
-  color: #6b5ce8;
-  background: #ebe9ff;
+  color: #659be8;
+  background: #e8f3ff;
 }
 
 .step-copy {
@@ -1476,14 +1383,14 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 1.25rem;
   padding: 1.5rem;
-  border: 1px solid #e8e8f4;
+  border: 1px solid #e7f1f9;
   border-radius: 18px;
-  background: linear-gradient(135deg, #fff, #faf9ff);
+  background: linear-gradient(135deg, #fff, #f8fbff);
 }
 
 .benefit-icon {
   flex: 0 0 auto;
-  color: #7162eb;
+  color: #548be0;
   font-size: 3rem;
 }
 
@@ -1495,17 +1402,17 @@ onBeforeUnmount(() => {
 .goal-status-badge {
   padding: 0.4rem 0.75rem;
   border-radius: 999px;
-  color: #6555df;
-  background: #eeecff;
+  color: #4d85dd;
+  background: #eaf4ff;
   font-size: 0.8rem;
   font-weight: 700;
 }
 
 .goal-chat-button {
   padding: 0.55rem 0.9rem;
-  border: 1px solid #7567e9;
+  border: 1px solid #6a9ce3;
   border-radius: 12px;
-  color: #6555df;
+  color: #4d85dd;
   background: #fff;
   font-size: 0.85rem;
   font-weight: 700;
@@ -1513,9 +1420,9 @@ onBeforeUnmount(() => {
 
 .goal-chat-button:hover,
 .goal-chat-button:focus {
-  border-color: #6555df;
+  border-color: #4d85dd;
   color: #fff;
-  background: #6555df;
+  background: #4d85dd;
 }
 
 .goal-summary {
@@ -1532,13 +1439,13 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   border-radius: 22px;
-  color: #6d5dea;
-  background: #eeecff;
+  color: #568bd6;
+  background: #eaf4ff;
   font-size: 1.75rem;
 }
 
 .goal-type {
-  color: #7568e7;
+  color: #6b9ee5;
   font-size: 0.8rem;
   font-weight: 700;
 }
@@ -1546,11 +1453,11 @@ onBeforeUnmount(() => {
 .goal-progress-panel {
   padding: 1rem 1.2rem;
   border-radius: 18px;
-  background: #f8f8fe;
+  background: #f6faff;
 }
 
 .goal-current-amount {
-  color: #5f50d8;
+  color: var(--wallo-color-primary);
   font-size: 1.35rem;
   font-weight: 800;
 }
@@ -1562,19 +1469,19 @@ onBeforeUnmount(() => {
 }
 
 .goal-rate {
-  color: #6455df;
+  color: #4e84d5;
   font-size: 1.1rem;
 }
 
 .goal-progress {
   height: 0.7rem;
   border-radius: 999px;
-  background: #e6e4fb;
+  background: var(--wallo-color-progress-track);
 }
 
 .goal-progress .progress-bar {
   border-radius: inherit;
-  background: linear-gradient(90deg, #7567ee, #5e4fde);
+  background: linear-gradient(90deg, #6e9fe8, #4b87d8);
 }
 
 .goal-meta > div {
@@ -1590,24 +1497,24 @@ onBeforeUnmount(() => {
 }
 
 .roadmap-item.completed:not(.active) {
-  border-color: #c8c3fb;
-  background: #faf9ff;
+  border-color: #c7ddf7;
+  background: #f8fbff;
 }
 
 .roadmap-item.completed .step-number {
   color: #fff;
-  background: #8275ec;
+  background: #7da9e5;
 }
 
 .step-date {
-  color: #7162e4 !important;
+  color: #6095dc !important;
   font-weight: 700;
 }
 
 .roadmap-state {
   padding: 1.5rem;
   border-radius: 16px;
-  background: #f8f8fe;
+  background: #f6faff;
   text-align: center;
 }
 
@@ -1627,9 +1534,9 @@ onBeforeUnmount(() => {
   align-items: flex-start;
   gap: 1rem;
   padding: 1.4rem;
-  border: 1px solid #e8e8f4;
+  border: 1px solid #e7f1f9;
   border-radius: 18px;
-  background: #fcfcff;
+  background: var(--wallo-color-surface);
 }
 
 .action-icon {
@@ -1640,8 +1547,8 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   border-radius: 14px;
-  color: #6d5dea;
-  background: #eeecff;
+  color: #568bd6;
+  background: #eaf4ff;
   font-size: 1.35rem;
 }
 
@@ -1704,15 +1611,6 @@ onBeforeUnmount(() => {
   .goal-heading-actions {
     width: 100%;
     justify-content: space-between;
-  }
-
-  .latest-product-recommendation-heading {
-    flex-direction: column;
-  }
-
-  .latest-product-recommendation-meta {
-    align-items: flex-start;
-    text-align: left;
   }
 
   .roadmap-list {

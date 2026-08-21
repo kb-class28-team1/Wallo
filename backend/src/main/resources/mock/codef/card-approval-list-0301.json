@@ -12,8 +12,7 @@
       "resApprovalNo": "93000001",
       "resMemberName": "국민카드 온라인몰",
       "resUsedAmount": "27500",
-      "resMemberSector": "온라인쇼핑",
-      "resCardType": "1"
+      "resMemberSector": "온라인쇼핑"
     },
     {
       "resCardNo": "2468-0000-0000-1357",
@@ -22,8 +21,7 @@
       "resApprovalNo": "93000002",
       "resMemberName": "국민카드 편의점",
       "resUsedAmount": "6500",
-      "resMemberSector": "편의점",
-      "resCardType": "1"
+      "resMemberSector": "편의점"
     },
     {
       "resCardNo": "1357-0000-0000-2468",
@@ -32,8 +30,7 @@
       "resApprovalNo": "93000003",
       "resMemberName": "국민카드 서점",
       "resUsedAmount": "22000",
-      "resMemberSector": "서점",
-      "resCardType": "1"
+      "resMemberSector": "서점"
     }
   ]
 }

@@ -226,7 +226,7 @@ onMounted(() => loadInsight({ force: props.forceRefresh }))
 }
 
 .report-alert {
-  color: var(--wallo-color-finance-decrease);
+  color: var(--wallo-color-danger);
   font-size: 1.08rem;
   line-height: 1.5;
 }

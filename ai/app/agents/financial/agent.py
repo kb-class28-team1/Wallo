@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import json
 import logging
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from groq import Groq
 
@@ -29,6 +31,9 @@ from app.agents.financial.spending_intent import (
     build_spending_arguments,
     is_spending_request,
 )
+
+if TYPE_CHECKING:
+    from app.chat.schemas import AssetAnalysisContext
 
 logger = logging.getLogger("wallo_ai")
 ASSET_ANALYSIS_TOOL = "analyze_assets"
@@ -230,6 +235,7 @@ class FinancialAgent:
         financial_context: FinancialContext | None = None,
         consumption_context: ConsumptionContext | None = None,
         previous_consumption_period: dict[str, Any] | None = None,
+        asset_analysis_context: AssetAnalysisContext | None = None,
     ) -> str:
         self.selected_tool = None
         self.selected_tool_result = None
@@ -263,7 +269,10 @@ class FinancialAgent:
                 user_message, previous_consumption_period
             )
             tool_result = execute_tool(
-                SPENDING_ANALYSIS_TOOL, arguments, consumption_context
+                SPENDING_ANALYSIS_TOOL,
+                arguments,
+                consumption_context=consumption_context,
+                asset_analysis_context=asset_analysis_context,
             )
             self.selected_tool = SPENDING_ANALYSIS_TOOL
             if tool_result.status == "success" and isinstance(tool_result.data, dict):
@@ -327,7 +336,8 @@ class FinancialAgent:
         tool_result = execute_tool(
             tool_call.function.name,
             parse_tool_arguments(tool_call.function.arguments),
-            consumption_context,
+            consumption_context=consumption_context,
+            asset_analysis_context=asset_analysis_context,
         )
         logger.info("[AI TOOL] selected=%s status=%s", tool_call.function.name, tool_result.status)
         tool_result_original_content = json.dumps(
@@ -350,8 +360,8 @@ class FinancialAgent:
             if cached_answer is not None:
                 attach_asset_direction(tool_result.data, cached_answer)
                 logger.info(
-                    "[AI ASSET CACHE] hit profileId=%s",
-                    tool_result.data.get("profileId"),
+                    "[AI ASSET CACHE] hit dataMode=%s",
+                    tool_result.data.get("dataMode"),
                 )
                 return cached_answer
         messages.extend([
@@ -425,6 +435,13 @@ class FinancialAgent:
         return answer
 
 
-def generate_answer(client: Groq, user_message: str) -> str:
+def generate_answer(
+    client: Groq,
+    user_message: str,
+    asset_analysis_context: AssetAnalysisContext | None = None,
+) -> str:
     """기존 호출부와 테스트를 위한 얇은 호환 함수."""
-    return FinancialAgent(client).run(user_message)
+    return FinancialAgent(client).run(
+        user_message,
+        asset_analysis_context=asset_analysis_context,
+    )

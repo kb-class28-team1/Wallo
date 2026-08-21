@@ -9,6 +9,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.TemporalAdjusters;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -33,9 +34,9 @@ public class WeeklyRankingRewardServiceImpl implements WeeklyRankingRewardServic
     /** 테스트 버튼에서 기다리지 않고 현재 주 랭킹의 보상을 지급함. */
     @Override
     @Transactional
-    public WeeklyRankingRewardResponse grantCurrentWeekRewardsForTest() {
+    public WeeklyRankingRewardResponse grantCurrentWeekRewardsForTest(Long currentUserId) {
         // 테스트 버튼은 클릭할 때마다 지급되도록 중복 체크를 적용하지 않음.
-        return grantRewards(currentWeekStartDate(), false);
+        return grantRewards(currentWeekStartDate(), false, currentUserId);
     }
 
     /** 매주 월요일 00시(KST)에 직전 주 랭킹 보상을 자동 지급함. */
@@ -43,12 +44,14 @@ public class WeeklyRankingRewardServiceImpl implements WeeklyRankingRewardServic
     @Transactional
     public void grantPreviousWeekRewards() {
         // 스케줄러 지급은 같은 주차에 한 번만 지급되도록 중복 체크를 적용함.
-        grantRewards(currentWeekStartDate().minusWeeks(1), true);
+        grantRewards(currentWeekStartDate().minusWeeks(1), true, null);
     }
 
-    private WeeklyRankingRewardResponse grantRewards(LocalDate weekStartDate, boolean preventDuplicate) {
+    private WeeklyRankingRewardResponse grantRewards(
+            LocalDate weekStartDate, boolean preventDuplicate, Long currentUserId) {
         List<WeeklyRanking> rankings = weeklyRankingRewardMapper.findWeeklyRankingsForWeek(weekStartDate);
         int rewardedCount = 0;
+        int currentUserRewardPoint = 0;
 
         for (WeeklyRanking ranking : rankings) {
             int rewardPoint = rewardPointForRank(ranking.getRankPosition());
@@ -83,10 +86,13 @@ public class WeeklyRankingRewardServiceImpl implements WeeklyRankingRewardServic
                     throw new IllegalStateException("랭킹 보상 포인트 지급에 실패했습니다.");
                 }
                 rewardedCount++;
+                if (Objects.equals(ranking.getUserId(), currentUserId)) {
+                    currentUserRewardPoint += rewardPoint;
+                }
             }
         }
 
-        return WeeklyRankingRewardResponse.of(weekStartDate, rewardedCount);
+        return WeeklyRankingRewardResponse.of(weekStartDate, rewardedCount, currentUserRewardPoint);
     }
 
     private LocalDate currentWeekStartDate() {

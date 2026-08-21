@@ -9,18 +9,18 @@ import AppDialog from "@/components/common/AppDialog.vue"
 import AuthenticatedImage from "@/components/common/AuthenticatedImage.vue"
 import AppAlert from "@/components/ui/AppAlert.vue"
 import AppButton from "@/components/ui/AppButton.vue"
-import AppCard from "@/components/ui/AppCard.vue"
 import AppPageHeader from "@/components/ui/AppPageHeader.vue"
 import AppState from "@/components/ui/AppState.vue"
 import { leaveChallenge as leaveChallengeRequest } from "@/api/challengeApi"
 import { getTodayMissions, verifyMissionWithFeed } from "@/api/missionApi"
 import {
-  analyzeFeed,
   createFeed,
   deleteFeed,
+  getAnalyzeFeedProgress,
   getFeeds,
   getRoomMessages,
   addFeedLike,
+  startAnalyzeFeed,
 } from "@/api/feedApi"
 import {
   EXPENSE_CATEGORY_META,
@@ -32,6 +32,7 @@ import {
   hasInFlightResource,
   invalidateResource,
 } from "@/utils/resourceCache"
+import { announcePointEarned } from "@/utils/pointRewardNotice"
 
 const route = useRoute()
 const router = useRouter()
@@ -43,6 +44,7 @@ const messages = ref([])
 const challengeName = ref("챌린지")
 const inviteCode = ref("")
 const mySavingTotal = ref(0)
+const newlyCreatedFeedId = ref(null)
 const activeTab = ref(String(route.query.scope || "ALL").toUpperCase() === "ME" ? "mine" : "all")
 const initialLoading = ref(true)
 const refreshing = ref(false)
@@ -51,11 +53,14 @@ const isLoading = computed(() => initialLoading.value || refreshing.value)
 const errorMessage = ref("")
 const modalOpen = ref(false)
 const isAnalyzing = ref(false)
+const analysisProgress = ref(0)
+const analysisStageMessage = ref("분석 준비 중...")
 const isUploading = ref(false)
 const todayMissions = ref([])
 const isMissionLoading = ref(false)
 const likingFeedId = ref(null)
 const likeBursts = ref([])
+const pageHeartBursts = ref([])
 const unmutedFeedIds = ref(new Set())
 const deletingFeedId = ref(null)
 const chatInput = ref("")
@@ -78,7 +83,28 @@ let chatReconnectAttempts = 0
 let shouldReconnectChat = true
 let likeBurstSequence = 0
 const likeBurstTimers = new Set()
+const pageHeartMilestones = new Map()
+let pageHeartCelebrationTimer = null
+let newFeedAnimationTimer = null
 let dialogResolver = null
+let analysisRequestSequence = 0
+let analysisProgressTimer = null
+
+const stopAnalysisProgress = () => {
+  if (analysisProgressTimer) {
+    window.clearInterval(analysisProgressTimer)
+    analysisProgressTimer = null
+  }
+}
+const startAnalysisProgress = () => {
+  stopAnalysisProgress()
+  analysisProgressTimer = window.setInterval(() => {
+    if (!isAnalyzing.value || analysisProgress.value >= 90) return
+    const remaining = 90 - analysisProgress.value
+    const increment = Math.max(0.2, Math.min(0.45, remaining * 0.02))
+    analysisProgress.value = Math.min(90, analysisProgress.value + increment)
+  }, 100)
+}
 
 const FEED_STALE_TIME = 30 * 1000
 const MESSAGE_STALE_TIME = 15 * 1000
@@ -157,7 +183,10 @@ const isMyFeed = (feed) => Number(feed.userId) === Number(userStore.user?.id)
 
 // 내 게시물에서 전달한 feedId와 현재 피드의 id가 같은지 확인함.
 const isFocusedFeed = (feed) => String(feed.id) === focusedFeedId.value
-const getFeedCardClass = (feed) => (isFocusedFeed(feed) ? "focused-feed" : "")
+const getFeedCardClass = (feed) => ({
+  "focused-feed": isFocusedFeed(feed),
+  "new-feed-card": String(feed.id) === String(newlyCreatedFeedId.value),
+})
 const setFocusedFeedElement = (element, feed) => {
   if (isFocusedFeed(feed)) {
     focusedFeedElement.value = element
@@ -410,6 +439,11 @@ const openModal = async () => {
 }
 const closeModal = () => {
   modalOpen.value = false
+  analysisRequestSequence += 1
+  stopAnalysisProgress()
+  isAnalyzing.value = false
+  analysisProgress.value = 0
+  analysisStageMessage.value = "분석 준비 중..."
   if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
   previewUrl.value = ""
   Object.assign(form, {
@@ -429,6 +463,28 @@ const closeModal = () => {
   })
   if (fileInput.value) fileInput.value.value = ""
 }
+const triggerPageHeartCelebration = (milestone) => {
+  const progress = Math.min(Math.max((milestone - 50) / 950, 0), 1)
+  const heartCount = Math.round(8 + progress * 20)
+  const baseSize = 14 + progress * 18
+  const durationMs = 1600 + Math.round(progress * 350)
+  const celebrationId = Date.now()
+  pageHeartBursts.value = Array.from({ length: heartCount }, (_, index) => ({
+    id: `${celebrationId}-${index}`,
+    left: 7 + ((index * 31) % 87),
+    delay: (index * 47) % 300,
+    size: Math.round(baseSize + ((index * 13) % 8)),
+    drift: ((index * 53) % 81) - 40,
+    rotate: ((index * 29) % 51) - 25,
+    duration: durationMs,
+    rise: 45 + Math.round(progress * 20),
+  }))
+  if (pageHeartCelebrationTimer) window.clearTimeout(pageHeartCelebrationTimer)
+  pageHeartCelebrationTimer = window.setTimeout(() => {
+    pageHeartBursts.value = []
+    pageHeartCelebrationTimer = null
+  }, durationMs + 520)
+}
 const addLike = async (feed) => {
   if (likingFeedId.value !== null) return
   likingFeedId.value = feed.id
@@ -436,6 +492,17 @@ const addLike = async (feed) => {
     const result = await addFeedLike(challengeId.value, feed.id)
     feed.likeCount = result.likeCount
     invalidateFeedCaches()
+    const likeCount = Number(feed.likeCount)
+    const milestone = Math.floor(likeCount / 10) * 10
+    if (
+      likeCount >= 50 &&
+      likeCount <= 1000 &&
+      likeCount % 50 === 0 &&
+      pageHeartMilestones.get(feed.id) !== milestone
+    ) {
+      pageHeartMilestones.set(feed.id, milestone)
+      triggerPageHeartCelebration(milestone)
+    }
     const id = ++likeBurstSequence
     likeBursts.value.push({
       id,
@@ -505,6 +572,9 @@ const handleFile = async (event) => {
   form.analysisDetails = ""
   form.analysisStatus = "IDLE"
   form.analysisFailed = false
+  stopAnalysisProgress()
+  analysisProgress.value = 0
+  analysisStageMessage.value = "분석 준비 중..."
 }
 const selectCategory = (category) => {
   form.category = category
@@ -517,6 +587,9 @@ const selectCategory = (category) => {
   form.analysisDetails = ""
   form.analysisStatus = "IDLE"
   form.analysisFailed = false
+  stopAnalysisProgress()
+  analysisProgress.value = 0
+  analysisStageMessage.value = "분석 준비 중..."
 }
 const validationMessage = ({ requireCaption = false, requireAnalysis = true } = {}) => {
   if (!form.file) return "사진이나 영상을 선택해 주세요."
@@ -535,13 +608,39 @@ const makeFormData = () => {
   data.append("category", form.category)
   return data
 }
+const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds))
+const waitForAnalysis = async (requestSequence) => {
+  const { jobId } = await startAnalyzeFeed(challengeId.value, makeFormData())
+  if (!jobId) throw new Error("분석 작업을 시작하지 못했습니다.")
+
+  while (requestSequence === analysisRequestSequence) {
+    const progress = await getAnalyzeFeedProgress(challengeId.value, jobId)
+    if (requestSequence !== analysisRequestSequence) return null
+
+    analysisStageMessage.value = progress.message || "분석 중..."
+    if (progress.status === "COMPLETED") {
+      analysisProgress.value = 100
+      return progress.result
+    }
+    if (progress.status === "FAILED") {
+      throw new Error(progress.error || "AI 분석에 실패했습니다.")
+    }
+    await wait(400)
+  }
+  return null
+}
 const requestAnalysis = async () => {
   const invalid = validationMessage({ requireAnalysis: false })
   if (invalid) return openDialog({ message: invalid })
+  const requestSequence = ++analysisRequestSequence
   form.analysisStatus = "ANALYZING"
   isAnalyzing.value = true
+  analysisProgress.value = 0
+  analysisStageMessage.value = "분석 준비 중..."
+  startAnalysisProgress()
   try {
-    const result = await analyzeFeed(challengeId.value, makeFormData())
+    const result = await waitForAnalysis(requestSequence)
+    if (!result || requestSequence !== analysisRequestSequence) return
     form.analysisFailed = false
     form.analysisStatus = "AI_COMPLETED"
     form.aiEstimatedSavingAmount = Number(result.estimatedSavingAmount) || 0
@@ -552,6 +651,7 @@ const requestAnalysis = async () => {
     form.confidenceScore = result.confidenceScore
     form.analysisDetails = JSON.stringify(result)
   } catch (error) {
+    if (requestSequence !== analysisRequestSequence) return
     form.analysisFailed = true
     form.analysisStatus = "AI_FAILED"
     form.aiEstimatedSavingAmount = 0
@@ -565,6 +665,7 @@ const requestAnalysis = async () => {
       message: `${error.message}\n절약 금액을 직접 입력하면 피드는 계속 올릴 수 있어요.`,
     })
   } finally {
+    stopAnalysisProgress()
     isAnalyzing.value = false
   }
 }
@@ -652,7 +753,18 @@ const uploadFeed = async () => {
     closeModal()
     invalidatePageCaches()
     await loadPage({ force: true, forceScroll: true })
+    newlyCreatedFeedId.value = createdFeed.id
+    await nextTick()
+    if (newFeedAnimationTimer) window.clearTimeout(newFeedAnimationTimer)
+    newFeedAnimationTimer = window.setTimeout(() => {
+      newlyCreatedFeedId.value = null
+      newFeedAnimationTimer = null
+    }, 700)
     if (verificationResult) {
+      const rewardedPoint = Number(verificationResult.rewardedPoint || 0)
+      if (verificationResult.decision === "PASS" && rewardedPoint > 0) {
+        announcePointEarned(rewardedPoint)
+      }
       const resultMessage =
         verificationResult.decision === "PASS"
           ? `미션을 달성했습니다! +${verificationResult.rewardedPoint}P`
@@ -762,13 +874,35 @@ onMounted(async () => {
 })
 onBeforeUnmount(() => {
   disconnectChatSocket()
+  analysisRequestSequence += 1
+  stopAnalysisProgress()
   likeBurstTimers.forEach((timer) => window.clearTimeout(timer))
+  if (pageHeartCelebrationTimer) window.clearTimeout(pageHeartCelebrationTimer)
+  if (newFeedAnimationTimer) window.clearTimeout(newFeedAnimationTimer)
   if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
 })
 </script>
 
 <template>
   <section class="feed-page">
+    <div v-if="pageHeartBursts.length" class="page-heart-celebration" aria-hidden="true">
+      <span
+        v-for="heart in pageHeartBursts"
+        :key="heart.id"
+        class="page-heart"
+        :style="{
+          '--heart-left': `${heart.left}%`,
+          '--heart-delay': `${heart.delay}ms`,
+          '--heart-size': `${heart.size}px`,
+          '--heart-drift': `${heart.drift}px`,
+          '--heart-rotate': `${heart.rotate}deg`,
+          '--heart-duration': `${heart.duration}ms`,
+          '--heart-rise': `${heart.rise}vh`,
+        }"
+      >
+        <i class="bi bi-heart-fill" aria-hidden="true"></i>
+      </span>
+    </div>
     <AppAlert
       v-if="refreshing"
       class="feed-refresh-status"
@@ -803,63 +937,53 @@ onBeforeUnmount(() => {
       @action="loadPage({ force: true })"
     />
     <template v-else>
-      <AppPageHeader
-        class="feed-header"
-        :title="challengeName"
-        compact
-      />
-
-      <div class="feed-layout">
-        <main class="feed-column">
-          <div class="feed-toolbar">
-            <nav class="feed-tabs">
+      <header class="feed-header">
+        <AppPageHeader class="feed-page-header" :title="challengeName">
+          <template #actions>
+            <div class="saving-total">
+              <small>누적 절약 금액</small><strong>{{ formatWon(mySavingTotal) }}</strong>
+            </div>
+          </template>
+        </AppPageHeader>
+        <div class="feed-header-bottom">
+          <nav class="feed-tabs">
+            <AppButton
+              variant="ghost"
+              size="sm"
+              :class="{ active: activeTab === 'all' }"
+              @click="changeTab('all')"
+            >
+              전체 피드
+            </AppButton>
+            <AppButton
+              variant="ghost"
+              size="sm"
+              :class="{ active: activeTab === 'mine' }"
+              @click="changeTab('mine')"
+            >
+              내 피드
+            </AppButton>
+          </nav>
+          <div v-if="inviteCode" class="feed-header-actions">
+            <div class="feed-invite-panel">
               <AppButton
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                :class="{ active: activeTab === 'all' }"
-                @click="changeTab('all')"
-              >
-                전체 피드
-              </AppButton>
-              <AppButton
-                variant="ghost"
-                size="sm"
-                :class="{ active: activeTab === 'mine' }"
-                @click="changeTab('mine')"
-              >
-                내 피드
-              </AppButton>
-            </nav>
-            <div class="feed-header-actions">
-              <div v-if="inviteCode" class="feed-invite-panel">
-                <AppButton
-                  variant="outline"
-                  size="sm"
-                  aria-label="초대 코드 복사"
-                  @click="copyInviteCode"
-                >
-                  <template #leading>
-                    <i class="bi bi-copy" aria-hidden="true"></i>
-                  </template>
-                  초대코드 복사
-                </AppButton>
-              </div>
-              <AppButton
-                class="feed-leave-button"
-                variant="ghost"
-                size="sm"
-                title="챌린지 나가기"
-                aria-label="챌린지 나가기"
-                :disabled="isLeavingChallenge"
-                @click="leaveCurrentChallenge"
+                aria-label="초대 코드 복사"
+                @click="copyInviteCode"
               >
                 <template #leading>
-                  <i class="bi bi-door-open" aria-hidden="true"></i>
-                  <i class="bi bi-door-open-fill" aria-hidden="true"></i>
+                  <i class="bi bi-copy" aria-hidden="true"></i>
                 </template>
+                초대코드 복사
               </AppButton>
             </div>
           </div>
+        </div>
+      </header>
+
+      <div class="feed-layout">
+        <main class="feed-column">
           <div v-if="!feeds.length" class="empty-feed">
             <span>📷</span><strong>아직 등록된 피드가 없어요</strong>
             <p>오른쪽 아래 + 버튼을 눌러 첫 절약 기록을 남겨보세요.</p>
@@ -922,7 +1046,7 @@ onBeforeUnmount(() => {
                   class="like-burst"
                   :style="{ '--like-drift': `${burst.drift}px` }"
                 >
-                  ♥
+                  <i class="bi bi-heart-fill" aria-hidden="true"></i>
                 </span>
               </div>
               <div class="feed-like-row">
@@ -943,7 +1067,9 @@ onBeforeUnmount(() => {
                   aria-label="좋아요 추가"
                   @click.stop="addLike(feed)"
                 >
-                  <span aria-hidden="true">♥</span>
+                  <span class="like-icon" aria-hidden="true">
+                    <i class="bi bi-heart-fill"></i>
+                  </span>
                   <strong>{{ feed.likeCount || 0 }}</strong>
                 </button>
               </div>
@@ -966,16 +1092,23 @@ onBeforeUnmount(() => {
         </main>
 
         <aside class="feed-sidebar">
-          <AppCard as="div" class="saving-total" variant="accent" padding="none">
-            <small>나의 누적 절약 금액</small><strong>{{ formatWon(mySavingTotal) }}</strong>
-          </AppCard>
           <section class="chat-room">
             <header>
-              <span class="online-dot"></span>
-              <div>
+              <div class="chat-room-heading">
+                <span class="online-dot"></span>
                 <h2>{{ roomTitle }}</h2>
-                <small>피드와 이야기를 함께 나눠요</small>
               </div>
+              <AppButton
+                class="feed-leave-button"
+                variant="ghost"
+                size="sm"
+                title="챌린지 나가기"
+                aria-label="챌린지 나가기"
+                :disabled="isLeavingChallenge"
+                @click="leaveCurrentChallenge"
+              >
+                나가기
+              </AppButton>
             </header>
             <div ref="messagesElement" class="messages">
               <div
@@ -1160,9 +1293,20 @@ onBeforeUnmount(() => {
             <div>
               <b>🤖 AI 분석</b><span>선택 정보와 미디어를 외부 AI 분석기로 전달합니다.</span>
             </div>
-            <button type="button" :disabled="isAnalyzing" @click="requestAnalysis">
-              {{ isAnalyzing ? "분석 중..." : "✨ AI에게 분석 맡기기" }}
+            <button
+              type="button"
+              :class="{ 'is-analyzing': isAnalyzing }"
+              :style="isAnalyzing ? { '--analysis-progress': `${analysisProgress}%` } : undefined"
+              :disabled="isAnalyzing"
+              @click="requestAnalysis"
+            >
+              <span class="analysis-button-label">
+                {{ isAnalyzing ? analysisStageMessage : "✨ AI에게 분석 맡기기" }}
+              </span>
             </button>
+            <div v-if="isAnalyzing" class="analysis-progress-label" aria-live="polite">
+              분석 진행률 {{ Math.round(analysisProgress) }}%
+            </div>
           </div>
           <div class="result-box" :class="{ ready: form.analysisSummary }">
             <span>{{ form.analysisFailed ? "✍️ 직접 입력 금액" : "🤖 AI 추정 금액" }}</span
@@ -1254,7 +1398,7 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .feed-page {
-  min-height: calc(100vh - 130px);
+  min-height: calc(100vh - 124px);
   position: relative;
   color: #202840;
 }
@@ -1279,27 +1423,10 @@ onBeforeUnmount(() => {
   width: calc(100% - 352px);
   margin-bottom: 24px;
 }
-.feed-header :deep(.app-page-header__title) {
-  justify-self: start;
-  min-width: 0;
-  max-width: 100%;
-  margin: 8px 0 4px;
-  overflow: hidden;
-  color: inherit;
-  font-size: 2rem;
-  font-weight: 900;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 .feed-header-actions {
   display: flex;
   align-items: center;
   gap: 12px;
-}
-.feed-header :deep(.app-page-header__description) {
-  margin: 8px 0 0;
-  color: #939bad;
-  font-size: 0.67rem;
 }
 .feed-leave-button.app-button {
   display: inline-flex !important;
@@ -1342,22 +1469,22 @@ onBeforeUnmount(() => {
   opacity: 0.6;
 }
 .saving-total {
-  width: 100%;
+  width: max-content;
   box-sizing: border-box;
-  padding: 18px 22px;
-  background: #f0edff;
-  border-radius: 16px;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
 }
 .saving-total small,
 .saving-total strong {
   display: block;
 }
 .saving-total small {
-  color: #8e87ba;
+  color: #829fba;
 }
 .saving-total strong {
   margin-top: 4px;
-  color: #6758d6;
+  color: #5a8fd8;
   font-size: 1.35rem;
 }
 .feed-layout {
@@ -1406,7 +1533,7 @@ onBeforeUnmount(() => {
 }
 .feed-tabs button.active {
   color: #fff;
-  background: #6f61dc;
+  background: #4f8fdc;
 }
 .feed-invite-panel {
   display: flex;
@@ -1420,11 +1547,11 @@ onBeforeUnmount(() => {
   width: auto;
   height: 36px;
   padding: 0 12px;
-  color: #6f61dc;
-  background: #f0edff;
-  border: 1px solid #dcd6ff;
+  color: #4f8fdc;
+  background: #edf6ff;
+  border: 1px solid #d5e6f8;
   border-radius: 10px;
-  font-size: 0.78rem;
+  font-size: calc(0.78rem + 1px);
   font-weight: 800;
   white-space: nowrap;
 }
@@ -1460,10 +1587,13 @@ onBeforeUnmount(() => {
     box-shadow 180ms ease,
     transform 180ms ease;
 }
+.feed-card.new-feed-card {
+  animation: feed-card-enter 650ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
 .feed-card.focused-feed {
-  border-color: #8d80ff;
+  border-color: #8bb6ef;
   box-shadow:
-    0 0 0 5px #8d80ff2e,
+    0 0 0 5px #8bb6ef2e,
     0 18px 38px #29315a35;
   transform: translateY(-2px);
   animation: focus-pulse 900ms ease-out;
@@ -1475,7 +1605,7 @@ onBeforeUnmount(() => {
   z-index: 2;
   padding: 5px 10px;
   color: #fff;
-  background: #796bea;
+  background: #70a0e5;
   border-radius: 999px;
   font-size: 0.72rem;
   font-weight: 850;
@@ -1506,7 +1636,7 @@ onBeforeUnmount(() => {
 }
 .saving-badge {
   padding: 7px 11px;
-  color: #dcd7ff;
+  color: #d7e7f8;
   background: #ffffff18;
   border-radius: 999px;
   font-size: 0.82rem;
@@ -1514,7 +1644,7 @@ onBeforeUnmount(() => {
 }
 .feed-media-wrap {
   position: relative;
-  background: #09122d;
+  background: #eaf4ff;
 }
 .feed-media,
 .feed-media-wrap > video {
@@ -1522,7 +1652,7 @@ onBeforeUnmount(() => {
   width: 100%;
   max-height: 560px;
   object-fit: contain;
-  background: #09122d;
+  background: #eaf4ff;
 }
 .feed-like-row {
   position: absolute;
@@ -1550,12 +1680,12 @@ onBeforeUnmount(() => {
   font-size: 1rem;
 }
 .feed-sound-toggle:hover {
-  background: #7162de;
+  background: #4e88d8;
 }
 .like-burst-layer {
   position: absolute;
   inset: 0;
-  z-index: 2;
+  z-index: 5;
   overflow: hidden;
   pointer-events: none;
 }
@@ -1563,12 +1693,38 @@ onBeforeUnmount(() => {
   position: absolute;
   left: 24px;
   bottom: 28px;
+  display: inline-grid;
+  width: 1.25rem;
+  height: 1.25rem;
+  place-items: center;
   color: #ff6387;
-  font-size: 2rem;
+  font-size: 1.15rem;
   line-height: 1;
   opacity: 0;
   text-shadow: 0 3px 12px #ff638766;
   animation: like-heart-rise 950ms ease-out forwards;
+}
+.page-heart-celebration {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  overflow: hidden;
+  pointer-events: none;
+}
+.page-heart {
+  position: absolute;
+  left: var(--heart-left);
+  bottom: 24%;
+  color: #ff6387;
+  font-size: var(--heart-size);
+  line-height: 1;
+  opacity: 0;
+  text-shadow: 0 2px 7px #ff638744;
+  animation: page-heart-pop var(--heart-duration) ease-out var(--heart-delay) forwards;
+}
+.page-heart i {
+  display: block;
+  font-style: normal;
 }
 .like-button {
   order: 1;
@@ -1617,13 +1773,13 @@ onBeforeUnmount(() => {
   transform: translateY(2px);
 }
 .mention-feed-button:hover {
-  color: #dcd7ff;
+  color: #d7e7f8;
   background: transparent;
 }
 @keyframes like-heart-rise {
   0% {
     opacity: 0;
-    transform: translate3d(0, 12px, 0) scale(0.45) rotate(-10deg);
+    transform: translate3d(0, 12px, 0) scale(0.65) rotate(-10deg);
   }
   16% {
     opacity: 1;
@@ -1631,7 +1787,22 @@ onBeforeUnmount(() => {
   }
   100% {
     opacity: 0;
-    transform: translate3d(var(--like-drift), -150px, 0) scale(1.25) rotate(12deg);
+    transform: translate3d(var(--like-drift), -150px, 0) scale(1.05) rotate(12deg);
+  }
+}
+@keyframes page-heart-pop {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0) scale(0.45) rotate(0deg);
+  }
+  18% {
+    opacity: 0.72;
+    transform: translate3d(0, 0, 0) scale(0.88) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--heart-drift), calc(var(--heart-rise) * -1), 0) scale(0.72)
+      rotate(var(--heart-rotate));
   }
 }
 .feed-card footer {
@@ -1786,7 +1957,7 @@ onBeforeUnmount(() => {
   width: fit-content;
   max-width: 100%;
   padding: 8px 12px;
-  color: #f1f2ff;
+  color: #eff6ff;
   background: #2b385e;
   border-radius: 13px 13px 13px 4px;
   white-space: pre-wrap;
@@ -1794,7 +1965,7 @@ onBeforeUnmount(() => {
 }
 .message.mine .message-bubble {
   margin-left: auto;
-  background: #7162de;
+  background: #4e88d8;
   border-radius: 13px 13px 4px 13px;
 }
 .message p {
@@ -1825,7 +1996,7 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: space-between;
   padding: 8px 14px;
-  color: #c7c1ff;
+  color: #b9d5f4;
   background: #27224c;
   font-size: 0.76rem;
 }
@@ -1862,7 +2033,7 @@ onBeforeUnmount(() => {
   display: grid;
   place-items: center;
   color: #fff;
-  background: #7162de;
+  background: #4e88d8;
   border: 0;
   border-radius: 50%;
   font-weight: 800;
@@ -1878,15 +2049,15 @@ onBeforeUnmount(() => {
 }
 .floating-add {
   position: fixed;
-  right: 34px;
-  bottom: 30px;
+  right: calc(max(16px, calc((100vw - 1453px) / 2)) + 394px);
+  bottom: 24px;
   z-index: 40;
   width: 58px;
   height: 58px;
   min-height: 0;
   padding: 0;
   font-size: 2rem;
-  box-shadow: 0 10px 28px #6658cf66;
+  box-shadow: 0 10px 28px #5d92d866;
 }
 .modal-layer {
   position: fixed;
@@ -1995,9 +2166,9 @@ onBeforeUnmount(() => {
   font-weight: 750;
 }
 .chip-row button.selected {
-  color: #6557d5;
-  background: #eeebff;
-  border-color: #8a7ee8;
+  color: #4e85ce;
+  background: #e9f3ff;
+  border-color: #89ace2;
 }
 .custom-input,
 textarea {
@@ -2010,8 +2181,8 @@ textarea {
 .analysis-box {
   margin-top: 20px;
   padding: 17px;
-  background: #f3f0ff;
-  border: 1px solid #d8d1ff;
+  background: #edf6ff;
+  border: 1px solid #d4e5f7;
   border-radius: 18px;
 }
 
@@ -2041,10 +2212,83 @@ textarea {
   width: 100%;
   padding: 13px;
   color: #fff;
-  background: linear-gradient(90deg, #705ef0, #bd36f5);
+  background: linear-gradient(90deg, #4f8fe8, #78aaf0);
   border: 0;
   border-radius: 13px;
   font-weight: 850;
+}
+.analysis-box button.is-analyzing {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background: #c986ed;
+  color: #fff;
+  opacity: 1;
+}
+.analysis-box button.is-analyzing::before,
+.analysis-box button.is-analyzing::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+  clip-path: inset(0 calc(100% - var(--analysis-progress)) 0 0 round 13px);
+}
+.analysis-box button.is-analyzing::before {
+  z-index: 0;
+  background: linear-gradient(90deg, #705ef0, #bd36f5);
+  will-change: clip-path;
+  transition: clip-path 1400ms cubic-bezier(0.22, 0.7, 0.28, 1);
+}
+.analysis-box button.is-analyzing::after {
+  z-index: 0;
+  background: linear-gradient(
+    110deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.3) 50%,
+    transparent 65%
+  );
+  background-size: 220% 100%;
+  animation: analysis-progress-shimmer 1.8s ease-in-out infinite;
+}
+.analysis-button-label {
+  position: relative;
+  z-index: 1;
+  color: #fff !important;
+  font-size: inherit;
+  font-weight: inherit;
+  opacity: 1 !important;
+  text-shadow: 0 1px 2px rgba(44, 27, 105, 0.18);
+}
+.analysis-box button.is-analyzing:disabled {
+  color: #fff;
+  opacity: 1 !important;
+}
+@keyframes analysis-progress-shimmer {
+  from {
+    background-position: 120% 0;
+  }
+  to {
+    background-position: -20% 0;
+  }
+}
+.analysis-progress-label {
+  margin-top: 7px;
+  color: #7565d8;
+  font-size: 0.76rem;
+  font-weight: 750;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+@media (prefers-reduced-motion: reduce) {
+  .analysis-box button.is-analyzing {
+    transition: none;
+  }
+  .analysis-box button.is-analyzing::before {
+    transition: none;
+  }
+  .analysis-box button.is-analyzing::after {
+    animation: none;
+  }
 }
 .result-box {
   margin-top: 12px;
@@ -2163,7 +2407,7 @@ textarea {
 }
 .submit {
   color: #fff;
-  background: #6d5ddd;
+  background: #5a93df;
   border: 0;
 }
 .submit:disabled,
@@ -2173,12 +2417,22 @@ textarea {
 }
 @keyframes focus-pulse {
   from {
-    box-shadow: 0 0 0 12px #8d80ff35;
+    box-shadow: 0 0 0 12px #8bb6ef35;
   }
   to {
     box-shadow:
-      0 0 0 5px #8d80ff2e,
+      0 0 0 5px #8bb6ef2e,
       0 18px 38px #29315a35;
+  }
+}
+@keyframes feed-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 @media (max-width: 1200px) {
@@ -2207,9 +2461,6 @@ textarea {
   .feed-header {
     width: 100%;
     margin-bottom: 20px;
-  }
-  .feed-header :deep(.app-page-header__title) {
-    font-size: 1.35rem;
   }
   .feed-alert-content {
     align-items: flex-start;
@@ -2243,6 +2494,356 @@ textarea {
   }
   .feed-owner-actions {
     align-self: flex-end;
+  }
+}
+
+/* Dashboard-style visual treatment for the challenge feed. */
+:global(.page-content:has(.feed-page)) {
+  background: #f6f8fb;
+}
+
+.feed-page {
+  padding: 0 0 22px;
+  border: 0;
+  border-radius: 30px;
+  background: #f6f8fb;
+}
+
+.feed-header {
+  width: calc(100% - 380px);
+  box-sizing: border-box;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  display: block;
+}
+
+.feed-header-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 0;
+  margin-bottom: 22px;
+}
+
+.feed-layout {
+  grid-template-columns: minmax(0, 1fr) minmax(350px, 380px);
+  gap: 0;
+}
+
+.feed-sidebar {
+  position: fixed;
+  top: calc(var(--wallo-page-top-offset) + 22px);
+  right: max(16px, calc((100vw - 1453px) / 2));
+  width: 380px;
+  height: calc(100vh - var(--wallo-page-top-offset) - 46px);
+}
+
+.feed-toolbar {
+  padding: 9px;
+  margin-bottom: 16px;
+  border: 1px solid #dfe8f7;
+  border-radius: 17px;
+  background: rgb(255 255 255 / 88%);
+  box-shadow: 0 8px 20px rgb(88 117 170 / 8%);
+}
+
+.feed-tabs {
+  background: #eef2fb;
+  box-shadow: 0 4px 10px rgb(92 122 194 / 12%);
+}
+
+.feed-tabs button {
+  color: #8292ae;
+}
+
+.feed-tabs button.active {
+  background: linear-gradient(135deg, #668cf0, #83afe8);
+  box-shadow: none;
+}
+
+.feed-invite-panel button {
+  color: #4775c4;
+  background: #f0f5ff;
+  border-color: #cfdef8;
+  box-shadow: 0 4px 10px rgb(92 122 194 / 16%);
+}
+
+.feed-header-actions,
+.feed-invite-panel {
+  width: auto;
+}
+
+.feed-invite-panel button {
+  width: auto;
+}
+
+.feed-leave-button.app-button {
+  color: #e26b7d;
+}
+
+.saving-total {
+  display: flex;
+  position: relative;
+  top: 0;
+  height: auto;
+  min-height: 0;
+  box-sizing: border-box;
+  width: max-content;
+  min-width: max-content;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  flex-shrink: 0;
+  padding: 0;
+  text-align: left;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  white-space: nowrap;
+}
+
+.saving-total small {
+  color: #5f7fdb;
+  font-size: 0.65rem;
+}
+
+.saving-total strong {
+  color: #5f7fdb;
+  font-size: 1.525rem;
+  letter-spacing: -0.04em;
+  white-space: nowrap;
+}
+
+.empty-feed {
+  border-color: #d7e6f8;
+  background: rgb(255 255 255 / 85%);
+  box-shadow: 0 12px 28px rgb(88 117 170 / 8%);
+}
+
+.feed-card {
+  border: 1px solid #dce6f3;
+  border-radius: 23px;
+  background: #fff;
+  box-shadow: 0 14px 28px rgb(75 100 143 / 12%);
+}
+
+.feed-card header {
+  padding: 17px 20px;
+  color: #273b61;
+  border-bottom: 1px solid #eef4fa;
+}
+
+.feed-card header img {
+  box-shadow: 0 0 0 4px #f1f5ff;
+}
+
+.feed-card header small {
+  color: #7d8ead;
+}
+
+.saving-badge {
+  color: #456fca;
+  background: #edf3ff;
+}
+
+.feed-media-wrap,
+.feed-media,
+.feed-media-wrap > video {
+  background: #eef5ff;
+}
+
+.feed-like-row {
+  bottom: 15px;
+}
+
+.like-button {
+  color: #e46682;
+}
+
+.like-button span,
+.like-button strong {
+  color: #e46682;
+}
+
+.like-button .like-icon {
+  display: inline-grid;
+  width: 1.25rem;
+  height: 1.25rem;
+  place-items: center;
+  font-family: "bootstrap-icons" !important;
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.like-button .like-icon i,
+.like-burst i {
+  font-family: "bootstrap-icons" !important;
+  font-style: normal;
+  line-height: 1;
+}
+
+.mention-feed-button {
+  color: #fff;
+}
+
+.feed-card footer {
+  color: #273b61;
+  background: #fff;
+}
+
+.feed-card footer span {
+  color: #8292ae;
+}
+
+.chat-room {
+  color: #273b61;
+  border: 1px solid #dce7f7;
+  border-radius: 22px;
+  background: #f6f8fb;
+  box-shadow: 0 14px 28px rgb(75 100 143 / 10%);
+}
+
+.chat-room > header {
+  padding: 19px;
+  border-bottom-color: #dfe8f7;
+  background: #fff;
+  justify-content: space-between;
+}
+
+.chat-room-heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.chat-room .feed-leave-button.app-button {
+  width: auto;
+  height: 36px;
+  padding: 0 4px;
+  color: #f04f5f;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.chat-room .feed-leave-button.app-button :deep(.app-button__label) {
+  display: inline;
+}
+
+.chat-room h2 {
+  color: #273b61;
+}
+
+.chat-room header small {
+  color: #7d8ead;
+}
+
+.messages {
+  background: #f6f8fb;
+  scrollbar-color: #c5d5ee transparent;
+}
+
+.message-author {
+  color: #3d91a2;
+}
+
+.message.mine .message-author {
+  color: #b48642;
+}
+
+.message-bubble {
+  color: #435878;
+  background: #f0f5fc;
+}
+
+.message.mine .message-bubble {
+  color: #fff;
+  background: #718fe8;
+}
+
+.chat-form {
+  align-items: center;
+  gap: 10px;
+  padding: 16px 14px 18px;
+  background: #fff;
+  border-radius: 0 0 22px 22px;
+}
+
+.chat-form textarea {
+  min-height: 56px;
+  padding: 15px 18px;
+  color: #30486e;
+  background: #fff;
+  border: 1px solid #dce6f5;
+  border-radius: 24px;
+  font-size: 1rem;
+}
+
+.chat-form button,
+.floating-add {
+  background: linear-gradient(135deg, #668cf0, #83afe8);
+  box-shadow: 0 10px 22px rgb(102 140 240 / 24%);
+}
+
+.chat-form button {
+  width: 56px;
+  height: 56px;
+  flex: 0 0 56px;
+  font-size: 1.3rem;
+}
+
+@media (max-width: 1200px) {
+  .feed-page {
+    padding: 16px 0;
+  }
+
+  .feed-header {
+    width: 100%;
+  }
+
+  .feed-sidebar {
+    position: static;
+    width: auto;
+    height: auto;
+  }
+}
+
+@media (max-width: 650px) {
+  .feed-page {
+    padding: 0 0 10px;
+    border-radius: 20px;
+  }
+
+  .feed-header {
+    border-radius: 0;
+  }
+
+  .feed-header .saving-total {
+    width: max-content;
+    top: 0;
+  }
+
+  .feed-header-bottom {
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+
+  .feed-header-bottom .feed-tabs {
+    flex: 1 1 auto;
+  }
+
+  .feed-header-bottom .feed-header-actions {
+    flex: 0 0 auto;
   }
 }
 </style>

@@ -11,15 +11,21 @@ export const useToastStore = defineStore("toast", () => {
     toasts.value = toasts.value.filter((toast) => toast.id !== toastId)
   }
 
-  const show = (message, { variant = "danger", duration = DEFAULT_DURATION_MS } = {}) => {
+  const show = (
+    message,
+    { variant = "danger", duration = DEFAULT_DURATION_MS, kind = "default", detail = "" } = {},
+  ) => {
     if (!message) return null
 
     const toastId = ++nextToastId
-    toasts.value.push({
+    const toast = {
       id: toastId,
       message,
       variant,
-    })
+    }
+    if (kind !== "default") toast.kind = kind
+    if (detail) toast.detail = detail
+    toasts.value.push(toast)
 
     if (duration > 0) {
       setTimeout(() => remove(toastId), duration)

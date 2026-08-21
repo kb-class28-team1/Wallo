@@ -3,12 +3,15 @@ package com.wallo.feed.controller;
 import com.wallo.auth.CurrentUserProvider;
 import com.wallo.feed.domain.Feed;
 import com.wallo.feed.dto.FeedDtos.AnalysisResponse;
+import com.wallo.feed.dto.FeedDtos.AnalysisJobStartResponse;
+import com.wallo.feed.dto.FeedDtos.AnalysisProgressResponse;
 import com.wallo.feed.dto.FeedDtos.FeedListResponse;
 import com.wallo.feed.dto.FeedDtos.MessageRequest;
 import com.wallo.feed.dto.FeedDtos.RoomResponse;
 import com.wallo.feed.dto.FeedDtos.LikeResponse;
 import com.wallo.feed.dto.FeedDtos.UpdateFeedRequest;
 import com.wallo.feed.service.FeedService;
+import com.wallo.feed.service.FeedAnalysisJobService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -19,10 +22,15 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping("/api/challenges/{challengeId}")
 public class FeedController {
     private final FeedService feedService;
+    private final FeedAnalysisJobService feedAnalysisJobService;
     private final CurrentUserProvider currentUserProvider;
 
-    public FeedController(FeedService feedService, CurrentUserProvider currentUserProvider) {
+    public FeedController(
+            FeedService feedService,
+            FeedAnalysisJobService feedAnalysisJobService,
+            CurrentUserProvider currentUserProvider) {
         this.feedService = feedService;
+        this.feedAnalysisJobService = feedAnalysisJobService;
         this.currentUserProvider = currentUserProvider;
     }
 
@@ -39,6 +47,25 @@ public class FeedController {
                                     @RequestParam String category) {
         return feedService.analyze(currentUserProvider.getCurrentUserId(), challengeId,
                 media, spendingType, category);
+    }
+
+    @PostMapping(value = "/feeds/analyze/start", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public AnalysisJobStartResponse startAnalysis(
+            @PathVariable Long challengeId,
+            @RequestParam MultipartFile media,
+            @RequestParam String spendingType,
+            @RequestParam String category) {
+        return feedAnalysisJobService.start(
+                currentUserProvider.getCurrentUserId(), challengeId,
+                media, spendingType, category);
+    }
+
+    @GetMapping("/feeds/analyze/{jobId}")
+    public AnalysisProgressResponse analysisProgress(
+            @PathVariable Long challengeId,
+            @PathVariable String jobId) {
+        return feedAnalysisJobService.getProgress(
+                currentUserProvider.getCurrentUserId(), challengeId, jobId);
     }
 
     @PostMapping(value = "/feeds", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

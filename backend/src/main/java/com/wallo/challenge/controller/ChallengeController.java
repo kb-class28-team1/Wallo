@@ -100,7 +100,7 @@ public class ChallengeController {
     /** 실제 월요일을 기다리지 않고 현재 주 랭킹 보상을 지급하는 개발용 API임. */
     @PostMapping("/rankings/weekly/reward/test")
     public ResponseEntity<WeeklyRankingRewardResponse> grantWeeklyRankingRewardForTest() {
-        currentUserProvider.getCurrentUserId();
-        return ResponseEntity.ok(weeklyRankingRewardService.grantCurrentWeekRewardsForTest());
+        Long currentUserId = currentUserProvider.getCurrentUserId();
+        return ResponseEntity.ok(weeklyRankingRewardService.grantCurrentWeekRewardsForTest(currentUserId));
     }
 }

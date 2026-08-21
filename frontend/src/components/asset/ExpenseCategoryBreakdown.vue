@@ -8,6 +8,7 @@ import {
   normalizeExpenseCategory,
 } from "@/features/financial/financialCategories";
 import { formatWon } from "@/utils/formatters";
+import AppState from "@/components/ui/AppState.vue";
 
 ChartJS.register(ArcElement, Tooltip);
 
@@ -128,18 +129,24 @@ const clearHoveredCategory = async () => {
   chart?.update();
 };
 
-const budgetCategories = computed(() => (props.budgetSummary?.categories ?? []).map((category) => {
-  const categoryCode = normalizeExpenseCategory(category.category);
-  const meta = getExpenseCategoryMeta(categoryCode);
+const hasConfiguredBudget = computed(
+  () => Number(props.budgetSummary?.totalAmount ?? 0) > 0,
+);
 
-  return {
-    ...category,
-    categoryCode,
-    label: categoryCode === "ETC" ? "기타·미배정" : meta.label,
-    color: meta.color,
-    icon: meta.icon,
-  };
-}));
+const budgetCategories = computed(() => (props.budgetSummary?.categories ?? [])
+  .filter((category) => Number(category.budgetAmount) > 0)
+  .map((category) => {
+    const categoryCode = normalizeExpenseCategory(category.category);
+    const meta = getExpenseCategoryMeta(categoryCode);
+
+    return {
+      ...category,
+      categoryCode,
+      label: categoryCode === "ETC" ? "기타·미배정" : meta.label,
+      color: meta.color,
+      icon: meta.icon,
+    };
+  }));
 
 const formatUsageRate = (rate, spentAmount = 0) => {
   if (rate === null || rate === undefined) return spentAmount > 0 ? "예산 없음" : "0%";
@@ -159,7 +166,11 @@ const progressWidth = (rate) => {
 <template>
   <article class="card category-card border-0 shadow-sm">
     <div class="card-body category-card-body">
-      <h2 class="h5 fw-bold mb-0">카테고리별 소비 내역</h2>
+      <div class="category-card-heading">
+        <slot name="header">
+          <h2 class="h5 fw-bold mb-0">카테고리별 소비 내역</h2>
+        </slot>
+      </div>
 
       <div
         v-if="categories.length"
@@ -224,9 +235,10 @@ const progressWidth = (rate) => {
             v-if="canEditBudget"
             type="button"
             class="btn btn-outline-primary btn-sm"
+            data-testid="budget-action"
             @click="emit('edit-budget')"
           >
-            예산 수정
+            {{ hasConfiguredBudget ? "예산 수정" : "예산 설정하기" }}
           </button>
         </div>
 
@@ -241,7 +253,7 @@ const progressWidth = (rate) => {
           {{ budgetError }}
         </div>
 
-        <template v-else-if="budgetSummary">
+        <template v-else-if="budgetSummary && hasConfiguredBudget">
           <div
             class="budget-overview rounded-3 p-3 mb-3"
             :class="{ 'budget-overview-over': budgetSummary.overBudget }"
@@ -337,9 +349,16 @@ const progressWidth = (rate) => {
           </ul>
         </template>
 
-        <div v-else class="budget-state text-center py-4">
-          <p class="text-secondary mb-0">카테고리별 예산 정보가 없습니다.</p>
-        </div>
+        <AppState
+          v-else
+          class="budget-state"
+          data-testid="budget-empty-state"
+          type="empty"
+          title="아직 설정된 예산이 없습니다."
+          message="예산을 설정해주세요"
+          compact
+          hide-icon
+        />
       </section>
     </div>
   </article>
@@ -412,7 +431,7 @@ const progressWidth = (rate) => {
 }
 
 .category-list li.active {
-  background: #f5f3ff;
+  background: #f2f8ff;
   transform: translateX(3px);
 }
 
@@ -519,7 +538,7 @@ const progressWidth = (rate) => {
 }
 
 .budget-category-progress .progress-bar {
-  background: #8170ff;
+  background: #6b9be3;
 }
 
 @media (max-width: 575.98px) {

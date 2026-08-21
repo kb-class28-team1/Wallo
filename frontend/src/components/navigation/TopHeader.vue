@@ -368,11 +368,11 @@ const handleMissionFocusOut = (event) => {
   z-index: 1020;
   top: 0;
   right: 0;
-  left: 273px;
+  left: var(--wallo-sidebar-width);
   height: 68px;
   min-height: 68px;
   padding: 0 32px;
-  background: #f1f2ff;
+  background: #e2efff;
 }
 
 .top-header-content {
@@ -402,10 +402,10 @@ const handleMissionFocusOut = (event) => {
   gap: 6px;
   min-height: 36px;
   padding: 5px 9px;
-  border: 1px solid #d9daf3;
+  border: 1px solid #d9e5f5;
   border-radius: 999px;
   background: #fff;
-  color: #6a61dc;
+  color: #4f86d8;
   font-size: 13px;
   font-weight: 700;
   white-space: nowrap;
@@ -415,16 +415,16 @@ const handleMissionFocusOut = (event) => {
   justify-content: flex-start;
   min-height: 36px;
   padding: 5px 9px;
-  border: 1px solid #d9daf3;
+  border: 1px solid #d9e5f5;
   border-radius: 999px;
   background: #fff;
 }
 
 .mission-trigger.app-button:hover:not(:disabled),
 .mission-trigger.app-button:focus-visible {
-  border-color: #7062de;
+  border-color: #4f8fe8;
   color: #ffffff;
-  background: #7062de;
+  background: #4f8fe8;
 }
 
 .mission-trigger.app-button:hover:not(:disabled) strong,
@@ -444,11 +444,11 @@ const handleMissionFocusOut = (event) => {
 }
 
 .mission-trigger strong {
-  color: #6559db;
+  color: #4c80cf;
 }
 
 .mission-planned-label {
-  color: #8178dd;
+  color: #729edf;
   font-size: 11px;
   font-weight: 700;
 }
@@ -464,7 +464,7 @@ const handleMissionFocusOut = (event) => {
   height: 16px;
   place-items: center;
   border-radius: 4px;
-  background: #7565ed;
+  background: #5b94e7;
   color: #fff;
   font-size: 11px;
 }
@@ -479,7 +479,7 @@ const handleMissionFocusOut = (event) => {
   border: 1px solid #e3e6f2;
   border-radius: 18px;
   background: #fff;
-  box-shadow: 0 16px 36px rgb(39 48 79 / 18%);
+  box-shadow: 0 16px 36px rgb(40 72 112 / 18%);
 }
 
 .mission-popover::before {
@@ -507,8 +507,8 @@ const handleMissionFocusOut = (event) => {
 .mission-popover-heading span {
   padding: 5px 9px;
   border-radius: 999px;
-  background: #f0efff;
-  color: #6754e8;
+  background: #eaf4ff;
+  color: #4a82d6;
   font-size: 12px;
   font-weight: 700;
 }
@@ -593,7 +593,7 @@ const handleMissionFocusOut = (event) => {
 }
 
 .completed .mission-item-status {
-  color: #6b5ee8;
+  color: #4f86d7;
 }
 
 .mission-loading,
@@ -663,9 +663,9 @@ const handleMissionFocusOut = (event) => {
   gap: 5px;
   height: 32px;
   padding: 4px 11px;
-  border: 1px solid #c8c2ff;
+  border: 1px solid #c7dcf4;
   border-radius: 999px;
-  color: #5648c4;
+  color: #477fcb;
   background: #ffffff;
   font-size: 14px;
   font-weight: 700;
@@ -681,9 +681,9 @@ const handleMissionFocusOut = (event) => {
 
 .point-badge:hover,
 .point-badge:focus-visible {
-  border-color: #7062de;
+  border-color: #4f8fe8;
   color: #fff;
-  background: #7062de;
+  background: #4f8fe8;
 }
 
 @media (max-width: 991.98px) {

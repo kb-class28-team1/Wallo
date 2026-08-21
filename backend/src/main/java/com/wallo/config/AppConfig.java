@@ -266,6 +266,23 @@ public class AppConfig {
         return Executors.newFixedThreadPool(Math.max(1, Math.min(3, maxConcurrency)));
     }
 
+    @Bean(name = "feedAnalysisExecutor", destroyMethod = "shutdown")
+    public Executor feedAnalysisExecutor(
+            @Value("${feed.analysis.async.core-pool-size:2}") int corePoolSize,
+            @Value("${feed.analysis.async.max-pool-size:4}") int maxPoolSize,
+            @Value("${feed.analysis.async.queue-capacity:10}") int queueCapacity) {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        int normalizedCorePoolSize = Math.max(1, corePoolSize);
+        executor.setCorePoolSize(normalizedCorePoolSize);
+        executor.setMaxPoolSize(Math.max(normalizedCorePoolSize, maxPoolSize));
+        executor.setQueueCapacity(Math.max(1, queueCapacity));
+        executor.setThreadNamePrefix("feed-analysis-");
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(30);
+        executor.initialize();
+        return executor;
+    }
+
     @Bean(name = "missionGenerationExecutor", destroyMethod = "shutdown")
     public Executor missionGenerationExecutor(
             @Value("${mission.generation.async.core-pool-size:2}") int corePoolSize,

@@ -10,7 +10,6 @@ from app.chat.router import router as chat_router
 from app.category.router import router as category_router
 from app.asset_reports.router import router as asset_reports_router
 from app.core.ai_guard import ApplicationGuardError
-from app.demo.router import router as demo_router
 from app.health.router import router as health_router
 from app.reports.router import router as financial_report_router
 from app.missions.router import router as mission_router
@@ -38,7 +37,6 @@ def create_app() -> FastAPI:
     app.include_router(chat_router)
     app.include_router(category_router)
     app.include_router(asset_reports_router)
-    app.include_router(demo_router)
     app.include_router(financial_report_router)
     app.include_router(mission_router)
 

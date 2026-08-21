@@ -148,9 +148,15 @@ const formatLastSync = (lastSyncAt) => {
 
 const getAssetTypeLabel = (connection) => {
   if (connection.assetKind === "CARD") {
-    return connection.assetType === "CHECK" || connection.assetType === "DEBIT"
-      ? "체크카드"
-      : "신용카드"
+    if (connection.assetType === "CHECK") {
+      return "체크카드"
+    }
+
+    if (connection.assetType === "CREDIT") {
+      return "신용카드"
+    }
+
+    return "카드 유형 확인 필요"
   }
 
   return (
@@ -740,9 +746,16 @@ onMounted(loadConnections)
   text-decoration: none;
 }
 
-.connection-add-button:hover {
-  border-color: #6366f1;
-  color: #4f46c7;
+.connection-add-button:hover,
+.connection-add-button:focus-visible {
+  border-color: #5c94df;
+  color: #3e7bd1;
+  background: #f5faff;
+}
+
+.connection-add-button:focus-visible {
+  outline: 3px solid rgb(79 143 232 / 22%);
+  outline-offset: 2px;
 }
 
 .connection-modal-backdrop {

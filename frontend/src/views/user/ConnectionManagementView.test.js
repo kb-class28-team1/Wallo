@@ -111,6 +111,38 @@ describe("ConnectionManagementView", () => {
     expect(document.activeElement).toBe(tabs[1].element)
   })
 
+  it("shows an explicit confirmation state for non-canonical card types", async () => {
+    getConnections.mockResolvedValueOnce({
+      connections: [
+        connectedAssets[1],
+        { ...connectedAssets[1], assetId: 104, assetName: "체크카드", assetType: "CHECK" },
+        { ...connectedAssets[1], assetId: 105, assetName: "레거시 직불카드", assetType: "DEBIT" },
+        { ...connectedAssets[1], assetId: 106, assetName: "알 수 없는 카드", assetType: "UNKNOWN" },
+      ],
+    })
+    wrapper = mount(ConnectionManagementView, {
+      attachTo: document.body,
+      global: {
+        stubs: {
+          RouterLink: { template: "<a><slot /></a>" },
+        },
+      },
+    })
+    await flushPromises()
+
+    await wrapper.findAll('[role="tab"]')[1].trigger("click")
+
+    const labels = wrapper
+      .findAll(".connection-asset .connection-information strong")
+      .map((element) => element.text())
+    expect(labels).toEqual([
+      "신용카드",
+      "체크카드",
+      "카드 유형 확인 필요",
+      "카드 유형 확인 필요",
+    ])
+  })
+
   it("groups an institution into one disconnect modal and refreshes assets", async () => {
     wrapper = mount(ConnectionManagementView, {
       attachTo: document.body,
