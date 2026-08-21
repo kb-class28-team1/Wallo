@@ -9,7 +9,7 @@ import {
   getTodayMissions,
   verifyTransactionMission,
 } from "@/api/missionApi"
-import { formatWon } from "@/utils/formatters"
+import { formatRoadmapText, formatWon } from "@/utils/formatters"
 import {
   getGoalAchievementRate,
   getGoalCurrentAmount,
@@ -121,10 +121,10 @@ const goalRoadmapSteps = computed(() => {
   return steps.map((step, index) => ({
     number: step.stepNumber ?? index + 1,
     icon: index === steps.length - 1 ? "bi-flag" : "bi-clipboard-check",
-    title: step.title,
+    title: formatRoadmapText(step.title),
     date: formatGoalDate(step.targetDate),
-    description: step.description,
-    actionItems: step.actionItems ?? [],
+    description: formatRoadmapText(step.description),
+    actionItems: (step.actionItems ?? []).map(formatRoadmapText),
     completed: completedSteps.has(step.stepNumber ?? index + 1),
     active:
       !completedSteps.has(step.stepNumber ?? index + 1) &&

@@ -1,3 +1,5 @@
+import re
+
 from groq import Groq
 
 from app.agents.roadmap.models import GoalRoadmap, RoadmapGoal
@@ -14,6 +16,8 @@ SYSTEM_PROMPT = """
 targetDate와 targetAmount와 정확히 같아야 합니다. 입력에 없는 수익률은 가정하지 마세요.
 각 단계에는 stepNumber, description, targetDate, targetAmount, actionItems를 반드시 작성하세요.
 title과 monthlyContribution도 가능한 한 작성하고, 모든 설명과 actionItems는 한국어로 작성하세요.
+금액을 제목·설명·행동 항목에 쓸 때 M, K 같은 영문 약어를 사용하지 말고
+`3M`은 `3백만원`, `1M`은 `1백만원`처럼 한국어 단위로 작성하세요.
 각 단계의 제목·목적·행동은 서로 달라야 하며 동일한 문구를 반복하지 마세요.
 
 goalType이 EMERGENCY_FUND이면 다음 행동을 단계별로 자연스럽게 배치하세요.
@@ -37,6 +41,16 @@ TOOL_SCHEMA = {
 }
 
 ROADMAP_MAX_COMPLETION_TOKENS = 1600
+MILLION_AMOUNT_PATTERN = re.compile(
+    r"(?<![A-Za-z0-9])(?P<amount>\d+(?:[.,]\d+)?)\s*"
+    r"(?:[mM]|million)(?:\s*원)?(?![A-Za-z0-9])"
+)
+
+
+def normalize_roadmap_text(value: str | None) -> str | None:
+    if value is None:
+        return None
+    return MILLION_AMOUNT_PATTERN.sub(r"\g<amount>백만원", value)
 
 
 def generate_goal_roadmap(
@@ -75,7 +89,14 @@ def generate_goal_roadmap(
         roadmap = GoalRoadmap.model_validate_json(tool_calls[0].function.arguments)
         normalized_steps = [
             step.model_copy(update={
-                "title": step.title or f"{step.sequence}단계 목표",
+                "title": normalize_roadmap_text(
+                    step.title or f"{step.sequence}단계 목표"
+                ),
+                "description": normalize_roadmap_text(step.description),
+                "action_items": [
+                    normalize_roadmap_text(action_item)
+                    for action_item in step.action_items
+                ],
                 "monthly_contribution": (
                     step.monthly_contribution
                     if step.monthly_contribution is not None
@@ -84,5 +105,9 @@ def generate_goal_roadmap(
             })
             for step in roadmap.steps
         ]
-        roadmap = roadmap.model_copy(update={"steps": normalized_steps})
+        roadmap = roadmap.model_copy(update={
+            "summary": normalize_roadmap_text(roadmap.summary),
+            "strategy": normalize_roadmap_text(roadmap.strategy),
+            "steps": normalized_steps,
+        })
         return roadmap.validate_for(goal)
