@@ -259,6 +259,10 @@ onMounted(refreshAll)
   box-shadow: 0 6px 16px rgb(79 143 232 / 24%);
 }
 
+.analysis-switcher :deep(.app-tabs__tab--active:hover:not(:disabled)) {
+  color: #fff;
+}
+
 .analysis-panel {
   min-height: 260px;
 }
