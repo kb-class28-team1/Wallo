@@ -1,33 +1,33 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { createChallenge, getCurrentChallenge, joinChallenge } from '@/api/challengeApi'
-import AppDialog from '@/components/common/AppDialog.vue'
-import AppPageHeader from '@/components/ui/AppPageHeader.vue'
-import { useToastStore } from '@/stores/toastStore'
+import { computed, onMounted, reactive, ref } from "vue"
+import { useRouter } from "vue-router"
+import { createChallenge, getCurrentChallenge, joinChallenge } from "@/api/challengeApi"
+import AppDialog from "@/components/common/AppDialog.vue"
+import AppPageHeader from "@/components/ui/AppPageHeader.vue"
+import { useToastStore } from "@/stores/toastStore"
 
 const router = useRouter()
 const toastStore = useToastStore()
 
 const isLoading = ref(true)
 const isSubmitting = ref(false)
-const errorMessage = ref('')
+const errorMessage = ref("")
 const currentChallenge = ref(null)
-const activeForm = ref('create')
+const activeForm = ref("create")
 const dialogVisible = ref(false)
-const dialogMessage = ref('')
+const dialogMessage = ref("")
 const dialogNextRoute = ref(null)
-const dialogImageSrc = ref('')
-const dialogImageAlt = ref('')
+const dialogImageSrc = ref("")
+const dialogImageAlt = ref("")
 
 const createForm = reactive({
-  name: '',
+  name: "",
 })
-const inviteCode = ref('')
+const inviteCode = ref("")
 
 const hasChallenge = computed(() => currentChallenge.value?.joined === true)
 
-const showDialog = (message, nextRoute = null, imageSrc = '', imageAlt = '') => {
+const showDialog = (message, nextRoute = null, imageSrc = "", imageAlt = "") => {
   dialogMessage.value = message
   dialogNextRoute.value = nextRoute
   dialogImageSrc.value = imageSrc
@@ -39,14 +39,14 @@ const closeDialog = async () => {
   const nextRoute = dialogNextRoute.value
   dialogNextRoute.value = null
   dialogVisible.value = false
-  dialogImageSrc.value = ''
-  dialogImageAlt.value = ''
+  dialogImageSrc.value = ""
+  dialogImageAlt.value = ""
   if (nextRoute) await router.push(nextRoute)
 }
 
 const loadCurrentChallenge = async () => {
   isLoading.value = true
-  errorMessage.value = ''
+  errorMessage.value = ""
 
   try {
     currentChallenge.value = await getCurrentChallenge()
@@ -60,7 +60,7 @@ const loadCurrentChallenge = async () => {
 const submitCreate = async () => {
   const name = createForm.name.trim()
   if (!name) {
-    showDialog('챌린지 이름을 입력해 주세요.')
+    showDialog("챌린지 이름을 입력해 주세요.")
     return
   }
 
@@ -69,9 +69,9 @@ const submitCreate = async () => {
     const createdChallenge = await createChallenge({
       name,
     })
-    toastStore.show('챌린지가 만들어졌습니다.', { variant: 'success' })
+    toastStore.show("챌린지가 만들어졌습니다.", { variant: "success" })
     await router.push({
-      name: 'challenge-feed',
+      name: "challenge-feed",
       params: { challengeId: createdChallenge.id },
     })
   } catch (error) {
@@ -84,24 +84,24 @@ const submitCreate = async () => {
 const submitJoin = async () => {
   const code = inviteCode.value.trim()
   if (!code) {
-    showDialog('초대 코드를 입력해 주세요.')
+    showDialog("초대 코드를 입력해 주세요.")
     return
   }
 
   isSubmitting.value = true
   try {
     const joinedChallenge = await joinChallenge(code)
-    showDialog('챌린지에 참여했습니다.', {
-      name: 'challenge-feed',
+    showDialog("챌린지에 참여했습니다.", {
+      name: "challenge-feed",
       params: { challengeId: joinedChallenge.id },
     })
   } catch (error) {
-    const isInvalidInviteCode = error.message === '유효하지 않은 초대 코드입니다.'
+    const isInvalidInviteCode = error.message === "유효하지 않은 초대 코드입니다."
     showDialog(
-      isInvalidInviteCode ? '코드가 맞는지 확인해주세요!' : error.message,
+      isInvalidInviteCode ? "코드가 맞는지 확인해주세요!" : error.message,
       null,
-      isInvalidInviteCode ? '/images/profiles/challenge-missingcode.svg' : '',
-      isInvalidInviteCode ? '초대 코드가 일치하지 않아 당황한 펭귄 이미지' : '',
+      isInvalidInviteCode ? "/images/profiles/challenge-missingcode.svg" : "",
+      isInvalidInviteCode ? "초대 코드가 일치하지 않아 당황한 펭귄 이미지" : "",
     )
   } finally {
     isSubmitting.value = false
@@ -111,7 +111,7 @@ const submitJoin = async () => {
 const copyInviteCode = async () => {
   try {
     await navigator.clipboard.writeText(currentChallenge.value.inviteCode)
-    showDialog('초대 코드가 복사되었습니다.')
+    showDialog("초대 코드가 복사되었습니다.")
   } catch {
     showDialog(`초대 코드: ${currentChallenge.value.inviteCode}`)
   }
@@ -378,7 +378,7 @@ onMounted(loadCurrentChallenge)
   display: grid;
   place-items: center;
   color: #fff;
-  background: #7062de;
+  background: #4f8fe8;
   border-radius: 50%;
   font-size: 1.5rem;
   font-weight: 900;
@@ -387,7 +387,7 @@ onMounted(loadCurrentChallenge)
 .retry-button {
   padding: 11px 22px;
   color: #fff;
-  background: #7062de;
+  background: #4f8fe8;
   border-radius: 12px;
   font-weight: 700;
 }
@@ -397,8 +397,37 @@ onMounted(loadCurrentChallenge)
   line-height: 1.75;
 }
 
-.entry-hero-title-accent {
-  color: #7568da;
+.page-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.eyebrow {
+  display: block;
+  margin-bottom: 12px;
+  color: #5c8fd5;
+  font-size: 0.78rem;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+}
+
+.page-heading h1,
+.entry-hero h1 {
+  margin: 0;
+  color: #1e2538;
+  font-size: clamp(2rem, 4vw, 3.35rem);
+  font-weight: 900;
+  letter-spacing: -0.055em;
+}
+
+.page-heading p,
+.entry-hero p {
+  margin: 14px 0 0;
+  color: #8c94a8;
+  font-size: 1rem;
+  font-weight: 600;
 }
 
 .status-badge {
@@ -425,7 +454,7 @@ onMounted(loadCurrentChallenge)
   grid-template-columns: 1fr minmax(260px, 0.45fr);
   gap: 28px;
   padding: 34px;
-  background: linear-gradient(135deg, #6e62d9 0%, #8479e6 100%);
+  background: linear-gradient(135deg, #4d89d3 0%, #86b3e8 100%);
   border-radius: 26px;
   box-shadow: 0 18px 42px rgba(100, 88, 201, 0.2);
 }
@@ -465,7 +494,7 @@ onMounted(loadCurrentChallenge)
 
 .invite-panel {
   padding: 20px 24px;
-  color: #6d62cc;
+  color: #4f7fc8;
   background: #fff;
   border-radius: 18px;
 }
@@ -495,8 +524,8 @@ onMounted(loadCurrentChallenge)
   height: 38px;
   display: grid;
   place-items: center;
-  color: #7569da;
-  background: #f1effd;
+  color: #5d8fd5;
+  background: #ebf4ff;
   border: 0;
   border-radius: 11px;
 }
@@ -534,8 +563,8 @@ onMounted(loadCurrentChallenge)
   height: 44px;
   display: grid;
   place-items: center;
-  color: #7467da;
-  background: #f1effd;
+  color: #5d8fd5;
+  background: #ebf4ff;
   border-radius: 13px;
   font-size: 1.1rem;
 }
@@ -577,7 +606,20 @@ onMounted(loadCurrentChallenge)
   align-items: center;
   min-height: calc(100vh - var(--wallo-header-height));
   box-sizing: border-box;
-  padding: 0;
+  padding: 0px 18px;
+}
+
+.entry-hero h1 {
+  line-height: 1.2;
+}
+
+.entry-hero h1 span {
+  color: #5c8fd5;
+}
+
+.entry-hero p {
+  max-width: 430px;
+  line-height: 1.75;
 }
 
 .entry-card {
@@ -607,7 +649,7 @@ onMounted(loadCurrentChallenge)
 }
 
 .form-tabs button.active {
-  color: #6255ce;
+  color: #4b7fc7;
   background: #fff;
   box-shadow: 0 5px 14px rgba(52, 44, 110, 0.08);
 }
@@ -647,8 +689,8 @@ onMounted(loadCurrentChallenge)
   display: grid;
   flex: 0 0 42px;
   place-items: center;
-  color: #7568da;
-  background: #eeebff;
+  color: #5c8fd5;
+  background: #e9f3ff;
   border-radius: 13px;
   font-size: 0.8rem;
   font-weight: 850;
@@ -685,7 +727,7 @@ onMounted(loadCurrentChallenge)
 
 .challenge-input:focus {
   background-color: #fff;
-  border-color: #867be4;
+  border-color: #8aaee0;
   box-shadow: 0 0 0 4px rgba(118, 104, 218, 0.1);
 }
 
@@ -709,7 +751,7 @@ onMounted(loadCurrentChallenge)
   min-height: 54px;
   margin-top: auto;
   color: #fff;
-  background: #7062dc;
+  background: #4f8fe8;
   border: 0;
   border-radius: 14px;
   font-weight: 800;
