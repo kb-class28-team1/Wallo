@@ -85,7 +85,7 @@ def test_generates_short_structured_consumption_insight():
         "type": "json_object",
     }
     assert client.chat.completions.kwargs["reasoning_effort"] == "low"
-    assert client.chat.completions.kwargs["max_completion_tokens"] == 2000
+    assert client.chat.completions.kwargs["max_completion_tokens"] == 1024
     assert client.chat.completions.call_count == 1
 
 
