@@ -1,4 +1,4 @@
-import { ref } from "vue"
+import { nextTick, ref } from "vue"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { flushPromises, mount } from "@vue/test-utils"
 import ConsumptionReportCard from "./ConsumptionReportCard.vue"
@@ -57,6 +57,32 @@ describe("ConsumptionReportCard", () => {
     expect(wrapper.get(".app-action-link").attributes("href")).toBe("/assets/expenses")
     expect(wrapper.find(".report-detail-link").exists()).toBe(false)
     expect(store.fetchInsight).toHaveBeenCalledWith({ force: false })
+  })
+
+  it("keeps the refresh message below the title without moving the report content", async () => {
+    store.insight.value = {
+      category: "FOOD",
+      reportTitle: "이번 달 소비 리포트",
+      reportContent: "지출 내역을 점검해보세요.",
+      generationMode: "AI",
+    }
+    store.refreshingInsight.value = true
+
+    const wrapper = mount(ConsumptionReportCard, {
+      global: { stubs: globalStubs },
+    })
+    await flushPromises()
+
+    expect(wrapper.find(".consumption-report-header .report-refresh-status").text()).toContain(
+      "소비 리포트를 최신 상태로 갱신하고 있습니다.",
+    )
+    expect(wrapper.find(".report-content .report-refresh-status").exists()).toBe(false)
+
+    store.refreshingInsight.value = false
+    await nextTick()
+
+    expect(wrapper.find(".consumption-report-header .report-refresh-status").exists()).toBe(true)
+    expect(wrapper.find(".report-content").exists()).toBe(true)
   })
 
   it("shows the shared error state and retries with a forced request", async () => {

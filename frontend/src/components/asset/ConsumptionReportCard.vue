@@ -98,12 +98,24 @@ onMounted(() => loadInsight({ force: props.forceRefresh }))
 <template>
   <AppCard class="consumption-report-card h-100" padding="none">
     <div class="consumption-report-body">
-      <div class="d-flex align-items-start justify-content-between gap-3">
-        <h2 class="h5 fw-bold mb-2">소비 리포트</h2>
-        <RouterLink to="/assets/expenses" class="btn app-action-link">
-          더보기
-          <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
-        </RouterLink>
+      <div class="consumption-report-header">
+        <div class="d-flex align-items-start justify-content-between gap-3">
+          <h2 class="h5 fw-bold mb-2">소비 리포트</h2>
+          <RouterLink to="/assets/expenses" class="btn app-action-link">
+            더보기
+            <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
+          </RouterLink>
+        </div>
+
+        <div class="report-refresh-status" role="status" aria-live="polite">
+          <template v-if="isRefreshing">
+            <span
+              class="spinner-border spinner-border-sm text-primary me-2"
+              aria-hidden="true"
+            ></span>
+            소비 리포트를 최신 상태로 갱신하고 있습니다.
+          </template>
+        </div>
       </div>
 
       <AppState
@@ -137,14 +149,6 @@ onMounted(() => loadInsight({ force: props.forceRefresh }))
       </AppState>
 
       <div v-else-if="insight" class="report-content" :class="{ 'has-report-image': reportImage }">
-        <div v-if="isRefreshing" class="small text-secondary mb-3" role="status">
-          <span
-            class="spinner-border spinner-border-sm text-primary me-2"
-            aria-hidden="true"
-          ></span>
-          소비 리포트를 최신 상태로 갱신하고 있습니다.
-        </div>
-
         <AppAlert
           v-if="insightError"
           class="report-sync-alert"
@@ -202,6 +206,15 @@ onMounted(() => loadInsight({ force: props.forceRefresh }))
   padding: var(--wallo-space-6);
 }
 
+.report-refresh-status {
+  display: flex;
+  min-height: 48px;
+  align-items: flex-start;
+  color: var(--wallo-color-text-muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
 .report-sync-alert {
   margin-bottom: var(--wallo-space-4);
 }
@@ -211,7 +224,6 @@ onMounted(() => loadInsight({ force: props.forceRefresh }))
   display: flex;
   flex: 1;
   flex-direction: column;
-  padding-top: 48px;
 }
 
 .report-content.has-report-image {
