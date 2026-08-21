@@ -104,7 +104,7 @@ const formatGoalDate = (date) => {
 
         <RouterLink
           :to="accountSettingsLink"
-          class="btn dashboard-action-button flex-shrink-0 ms-auto"
+          class="btn app-action-link flex-shrink-0 ms-auto"
         >
           {{ goals.length > 0 ? "계좌 설정" : "목표 설정하기" }}
           <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
@@ -262,23 +262,6 @@ const formatGoalDate = (date) => {
   margin-bottom: 0 !important;
 }
 
-.dashboard-action-button {
-  border: 1px solid var(--wallo-color-finance-info);
-  border-radius: var(--wallo-radius-md);
-  color: var(--wallo-color-finance-info);
-  background: var(--wallo-color-surface);
-  transition:
-    color 0.2s ease,
-    background-color 0.2s ease;
-}
-
-.dashboard-action-button:hover,
-.dashboard-action-button:focus {
-  border-color: var(--wallo-color-finance-info-hover);
-  color: var(--wallo-color-surface);
-  background: var(--wallo-color-finance-info);
-}
-
 .goal-state {
   min-height: 120px;
   display: flex;
@@ -434,7 +417,7 @@ const formatGoalDate = (date) => {
     padding: 30px;
   }
 
-  .goal-summary-card .dashboard-action-button {
+  .goal-summary-card .app-action-link {
     padding: 0.35rem 0.6rem;
     font-size: 0.8rem;
   }

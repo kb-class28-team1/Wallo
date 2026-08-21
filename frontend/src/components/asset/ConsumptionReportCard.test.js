@@ -36,7 +36,7 @@ describe("ConsumptionReportCard", () => {
     vi.clearAllMocks()
   })
 
-  it("shows the loaded report and the monthly report link", async () => {
+  it("shows the loaded report and the dashboard-style more link", async () => {
     store.insight.value = {
       category: "FOOD",
       reportTitle: "이번 달 소비 리포트",
@@ -53,7 +53,9 @@ describe("ConsumptionReportCard", () => {
     expect(wrapper.find(".report-content").exists()).toBe(true)
     expect(wrapper.text()).toContain("이번 달 소비 리포트")
     expect(wrapper.text()).toContain("지출 내역을 점검해보세요.")
-    expect(wrapper.get(".report-detail-link").attributes("href")).toBe("/assets/expenses")
+    expect(wrapper.get(".app-action-link").text()).toContain("더보기")
+    expect(wrapper.get(".app-action-link").attributes("href")).toBe("/assets/expenses")
+    expect(wrapper.find(".report-detail-link").exists()).toBe(false)
     expect(store.fetchInsight).toHaveBeenCalledWith({ force: false })
   })
 

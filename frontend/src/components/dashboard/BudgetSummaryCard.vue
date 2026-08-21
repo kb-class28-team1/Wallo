@@ -39,7 +39,7 @@ const budgetRemaining = computed(
         <h2 class="h5 fw-bold mb-0">이번 달 예산</h2>
         <button
           type="button"
-          class="btn dashboard-action-button"
+          class="btn app-action-link"
           @click="emit('open-budget-settings')"
         >
           설정하기
@@ -126,23 +126,6 @@ const budgetRemaining = computed(
   align-items: center;
   justify-content: center;
   text-align: center;
-}
-
-.dashboard-action-button {
-  border: 1px solid var(--wallo-color-finance-info);
-  border-radius: var(--wallo-radius-md);
-  color: var(--wallo-color-finance-info);
-  background: var(--wallo-color-surface);
-  transition:
-    color 0.2s ease,
-    background-color 0.2s ease;
-}
-
-.dashboard-action-button:hover,
-.dashboard-action-button:focus {
-  border-color: var(--wallo-color-finance-info-hover);
-  color: var(--wallo-color-surface);
-  background: var(--wallo-color-finance-info);
 }
 
 @media (max-width: 991.98px) {

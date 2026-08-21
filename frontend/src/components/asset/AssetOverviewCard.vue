@@ -104,7 +104,10 @@ const chartOptions = {
 <template>
   <AppCard class="asset-overview-card" padding="none">
     <div class="asset-overview-body">
-      <RouterLink to="/users/profile/connections" class="btn connection-management-button">
+      <RouterLink
+        to="/users/profile/connections"
+        class="btn app-action-link connection-management-button"
+      >
         연동관리
         <i class="bi bi-gear ms-1" aria-hidden="true"></i>
       </RouterLink>
@@ -222,18 +225,6 @@ const chartOptions = {
   z-index: 1;
   top: var(--wallo-space-6);
   right: var(--wallo-space-6);
-  border: 1px solid var(--wallo-color-primary);
-  border-radius: var(--wallo-radius-md);
-  color: var(--wallo-color-primary);
-  background: var(--wallo-color-surface);
-  font-weight: 700;
-}
-
-.connection-management-button:hover,
-.connection-management-button:focus {
-  border-color: var(--wallo-color-primary-hover);
-  color: var(--wallo-color-surface);
-  background: var(--wallo-color-primary);
 }
 
 .asset-total {

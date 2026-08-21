@@ -111,6 +111,21 @@ select,
   font-weight: 700;
 }
 
+.app-action-link {
+  border: 1px solid var(--wallo-color-primary);
+  border-radius: var(--wallo-radius-md);
+  color: var(--wallo-color-primary);
+  background: var(--wallo-color-surface);
+  font-weight: 500;
+}
+
+.app-action-link:hover,
+.app-action-link:focus {
+  border-color: var(--wallo-color-primary-hover);
+  color: var(--wallo-color-surface);
+  background: var(--wallo-color-primary);
+}
+
 .progress {
   height: 12px;
   background: var(--wallo-color-progress-track);

@@ -786,7 +786,7 @@ onMounted(async () => {
 .back-button:hover,
 .back-button:focus,
 .month-button:hover,
-.month-button:focus {
+.month-button:focus-visible {
   color: #4d82d6;
   background: #edf6ff;
 }

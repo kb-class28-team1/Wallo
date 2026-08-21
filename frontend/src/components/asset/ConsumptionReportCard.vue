@@ -98,7 +98,13 @@ onMounted(() => loadInsight({ force: props.forceRefresh }))
 <template>
   <AppCard class="consumption-report-card h-100" padding="none">
     <div class="consumption-report-body">
-      <h2 class="h5 fw-bold mb-0">소비 리포트</h2>
+      <div class="d-flex align-items-start justify-content-between gap-3">
+        <h2 class="h5 fw-bold mb-2">소비 리포트</h2>
+        <RouterLink to="/assets/expenses" class="btn app-action-link">
+          더보기
+          <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
+        </RouterLink>
+      </div>
 
       <AppState
         v-if="isInitialLoading"
@@ -169,10 +175,6 @@ onMounted(() => loadInsight({ force: props.forceRefresh }))
           </span>
         </p>
 
-        <RouterLink to="/assets/expenses" class="report-detail-link">
-          월별 리포트 보기
-          <span aria-hidden="true">&gt;</span>
-        </RouterLink>
       </div>
 
       <AppState
@@ -247,22 +249,6 @@ onMounted(() => loadInsight({ force: props.forceRefresh }))
 
 .report-content.has-report-image .report-description {
   max-width: none;
-}
-
-.report-detail-link {
-  align-self: flex-start;
-  margin-top: auto;
-  padding-top: 24px;
-  color: var(--wallo-color-primary);
-  font-weight: 700;
-  text-decoration: none;
-}
-
-.report-detail-link:hover,
-.report-detail-link:focus {
-  color: var(--wallo-color-primary-hover);
-  text-decoration: underline;
-  text-underline-offset: 4px;
 }
 
 .report-state {

@@ -73,7 +73,7 @@ const expenseCategoryRate = (amount) => {
           <h2 class="h5 fw-bold mb-2">이번 달 총 지출</h2>
           <strong class="expense-total">{{ formatWon(expenses.totalExpense) }}</strong>
         </div>
-        <RouterLink to="/assets/expenses" class="btn dashboard-action-button">
+        <RouterLink to="/assets/expenses" class="btn app-action-link">
           더보기
           <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
         </RouterLink>
@@ -130,23 +130,6 @@ const expenseCategoryRate = (amount) => {
 .expense-total {
   color: var(--wallo-color-text);
   font-size: clamp(1.75rem, 3vw, 2.25rem);
-}
-
-.dashboard-action-button {
-  border: 1px solid var(--wallo-color-finance-info);
-  border-radius: var(--wallo-radius-md);
-  color: var(--wallo-color-finance-info);
-  background: var(--wallo-color-surface);
-  transition:
-    color 0.2s ease,
-    background-color 0.2s ease;
-}
-
-.dashboard-action-button:hover,
-.dashboard-action-button:focus {
-  border-color: var(--wallo-color-finance-info-hover);
-  color: var(--wallo-color-surface);
-  background: var(--wallo-color-finance-info);
 }
 
 .expense-doughnut-chart {
