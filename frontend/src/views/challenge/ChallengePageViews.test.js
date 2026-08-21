@@ -266,6 +266,52 @@ describe("challenge page views", () => {
     secondWrapper.unmount()
   })
 
+  it("hides my nickname from my own chat messages", async () => {
+    getRoomMessages.mockResolvedValueOnce({
+      ...messagePayload,
+      messages: [
+        {
+          id: 1,
+          userId: 1,
+          nickname: "내 닉네임",
+          content: "내가 보낸 일반 메시지",
+        },
+        {
+          id: 2,
+          userId: 2,
+          nickname: "다른 참여자",
+          content: "다른 사람이 보낸 메시지",
+        },
+        {
+          id: 3,
+          userId: 1,
+          nickname: "내 닉네임",
+          messageType: "FEED_SHARE",
+          referenceFeedId: 101,
+          thumbnailUrl: "",
+          mediaUrl: "",
+        },
+        {
+          id: 4,
+          userId: 1,
+          nickname: "내 닉네임",
+          content: "내가 언급한 피드",
+          referenceFeedId: 101,
+        },
+      ],
+    })
+
+    const wrapper = mountFeed()
+    await flushPromises()
+
+    expect(wrapper.findAll(".message-author")).toHaveLength(1)
+    expect(wrapper.find(".message-author").text()).toBe("다른 참여자")
+    expect(wrapper.findAll(".message.mine")).toHaveLength(3)
+    expect(wrapper.findAll(".message.mine").every((message) => !message.find(".message-author").exists())).toBe(true)
+
+    wrapper.unmount()
+  })
+
   it("reuses the cached dashboard and keeps it visible while changing the period", async () => {
     const firstWrapper = mountMyChallenge()
 

@@ -1118,7 +1118,7 @@ onBeforeUnmount(() => {
                 :class="{ mine: isMyMessage(item) }"
               >
                 <div v-if="isFeedShareMessage(item)" class="feed-share-message">
-                  <strong class="message-author">{{ item.nickname }}</strong>
+                  <strong v-if="!isMyMessage(item)" class="message-author">{{ item.nickname }}</strong>
                   <div class="feed-attachment">
                     <small class="feed-attachment-label">피드 #{{ item.referenceFeedId }}</small>
                     <button type="button" class="shared-feed" @click="mentionFeed(item)">
@@ -1141,7 +1141,7 @@ onBeforeUnmount(() => {
                   </div>
                 </div>
                 <template v-else-if="isFeedMentionMessage(item)">
-                  <strong class="message-author">{{ item.nickname }}</strong>
+                  <strong v-if="!isMyMessage(item)" class="message-author">{{ item.nickname }}</strong>
                   <div class="feed-mention">
                     <div class="feed-attachment">
                       <small class="feed-attachment-label">피드 #{{ item.referenceFeedId }}</small>
@@ -1168,7 +1168,7 @@ onBeforeUnmount(() => {
                 </template>
                 <template v-else>
                   <div class="message-content">
-                    <strong class="message-author">{{ item.nickname }}</strong>
+                    <strong v-if="!isMyMessage(item)" class="message-author">{{ item.nickname }}</strong>
                     <p v-if="item.content" class="message-bubble">{{ item.content }}</p>
                   </div>
                 </template>
