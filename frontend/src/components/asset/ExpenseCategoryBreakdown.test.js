@@ -82,8 +82,11 @@ describe("ExpenseCategoryBreakdown budget section", () => {
       },
     });
 
-    expect(wrapper.get('[data-testid="budget-action"]').text()).toContain("예산 수정");
-    await wrapper.get('[data-testid="budget-action"]').trigger("click");
+    const budgetAction = wrapper.get('[data-testid="budget-action"]');
+    expect(budgetAction.text()).toContain("예산 수정");
+    expect(budgetAction.classes()).toContain("app-action-link");
+    expect(budgetAction.find(".bi-arrow-right").exists()).toBe(true);
+    await budgetAction.trigger("click");
     expect(wrapper.emitted("edit-budget")).toHaveLength(1);
 
     const readOnlyWrapper = mount(ExpenseCategoryBreakdown, {

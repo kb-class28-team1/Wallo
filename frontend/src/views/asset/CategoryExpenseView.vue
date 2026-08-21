@@ -349,16 +349,16 @@ onMounted(async () => {
   height: 32px;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--wallo-color-border-soft);
-  border-radius: var(--wallo-radius-sm);
-  color: var(--wallo-color-text-muted);
-  background: var(--wallo-color-surface);
+  border: 0;
+  border-radius: 10px;
+  color: #555b6e;
+  background: transparent;
 }
 
 .month-button:hover,
 .month-button:focus-visible {
-  border-color: var(--wallo-color-primary);
-  color: var(--wallo-color-primary);
+  color: #4d82d6;
+  background: #edf6ff;
 }
 
 .month-button:focus-visible {

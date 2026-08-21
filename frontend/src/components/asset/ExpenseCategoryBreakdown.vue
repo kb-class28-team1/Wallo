@@ -229,16 +229,16 @@ const progressWidth = (rate) => {
         <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
           <div>
             <h3 class="h5 fw-bold mb-1">카테고리별 예산</h3>
-            <p class="text-secondary small mb-0">지출, 잔액, 예산 소진율을 함께 확인하세요.</p>
           </div>
           <button
             v-if="canEditBudget"
             type="button"
-            class="btn btn-outline-primary btn-sm"
+            class="btn app-action-link"
             data-testid="budget-action"
             @click="emit('edit-budget')"
           >
             {{ hasConfiguredBudget ? "예산 수정" : "예산 설정하기" }}
+            <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
           </button>
         </div>
 
