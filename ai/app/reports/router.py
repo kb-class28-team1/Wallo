@@ -15,7 +15,7 @@ from app.reports.prompts import COMMON_REPORT_INSTRUCTIONS, PERSONALIZATION_INST
 
 logger = logging.getLogger("wallo_ai")
 router = APIRouter(prefix="/api")
-REPORT_MAX_COMPLETION_TOKENS = 4000
+REPORT_MAX_COMPLETION_TOKENS = 1500
 JSON_VALIDATION_MAX_RETRIES = 1
 
 
