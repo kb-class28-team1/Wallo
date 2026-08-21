@@ -579,11 +579,7 @@ onBeforeUnmount(() => {
               </div>
 
               <div class="goal-summary mt-3">
-                <div class="goal-summary-icon" aria-hidden="true">
-                  <i class="bi bi-bullseye"></i>
-                </div>
                 <div class="goal-summary-copy">
-                  <p class="goal-type mb-1">{{ currentGoal.goalType || "금융 목표" }}</p>
                   <h3 class="h4 fw-bold mb-2">{{ currentGoal.title }}</h3>
                   <p class="mb-0 text-secondary">
                     {{ formatGoalDate(currentGoal.targetDate) }}까지
@@ -1429,25 +1425,6 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 1.25rem;
-}
-
-.goal-summary-icon {
-  display: inline-flex;
-  width: 60px;
-  height: 60px;
-  flex: 0 0 60px;
-  align-items: center;
-  justify-content: center;
-  border-radius: 22px;
-  color: #568bd6;
-  background: #eaf4ff;
-  font-size: 1.75rem;
-}
-
-.goal-type {
-  color: #6b9ee5;
-  font-size: 0.8rem;
-  font-weight: 700;
 }
 
 .goal-progress-panel {

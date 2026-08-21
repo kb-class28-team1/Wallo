@@ -224,6 +224,9 @@ describe("AiAssistantView", () => {
 
     expect(wrapper.text()).toContain("2,500,000원")
     expect(wrapper.text()).toContain("25%")
+    expect(wrapper.text()).not.toContain("EMERGENCY_FUND")
+    expect(wrapper.find(".goal-summary-icon").exists()).toBe(false)
+    expect(wrapper.find(".goal-type").exists()).toBe(false)
     expect(wrapper.text()).toContain("최종 목표 달성")
     expect(wrapper.text()).not.toContain("AI가 생성한 맞춤 계획")
     expect(wrapper.find(".goal-roadmap-card").exists()).toBe(true)
