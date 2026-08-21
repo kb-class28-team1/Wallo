@@ -30,7 +30,7 @@ public class CodefMockServiceTest {
 
         assertSuccess(response);
         CodefDto.AssetData data = objectMapper.convertValue(response.getData(), CodefDto.AssetData.class);
-        assertEquals(3, data.getAccounts().size());
+        assertEquals(1, data.getAccounts().size());
         assertEquals("111111-01-222222", data.getAccounts().get(0).getResAccount());
         assertEquals(1, data.getLoans().size());
         assertEquals(0, data.getTransactions().size());
@@ -46,8 +46,9 @@ public class CodefMockServiceTest {
 
         assertSuccess(response);
         CodefDto.AssetData data = objectMapper.convertValue(response.getData(), CodefDto.AssetData.class);
-        assertEquals(3, data.getAccounts().size());
-        assertEquals("111111-01-222222", data.getAccounts().get(0).getResAccount());
+        assertEquals(1, data.getAccounts().size());
+        assertEquals("222222-01-333333", data.getAccounts().get(0).getResAccount());
+        assertEquals(0, data.getLoans().size());
     }
 
     @Test
@@ -58,7 +59,8 @@ public class CodefMockServiceTest {
 
         assertSuccess(response);
         CodefDto.AssetData data = objectMapper.convertValue(response.getData(), CodefDto.AssetData.class);
-        assertEquals(2, data.getCards().size());
+        assertEquals(1, data.getCards().size());
+        assertEquals("4555-0000-0000-1222", data.getCards().get(0).getResCardNo());
         assertNull(data.getTransactions());
     }
 
@@ -83,7 +85,7 @@ public class CodefMockServiceTest {
         );
 
         assertEquals("4555-0000-0000-1222", hanaData.getCards().get(0).getResCardNo());
-        assertEquals("4555-0000-0000-1222", kbData.getCards().get(0).getResCardNo());
+        assertEquals("5666-0000-0000-2333", kbData.getCards().get(0).getResCardNo());
     }
 
     @Test
@@ -114,17 +116,16 @@ public class CodefMockServiceTest {
 
     @Test
     public void cardApprovalsAreFilteredByInclusiveDateRange() {
-        CodefDto.Response response = service.getCardApprovals(cardRequest("20260702", "20260704"));
+        CodefDto.Response response = service.getCardApprovals(cardRequest("20260701", "20260704"));
 
         assertSuccess(response);
         List<CodefDto.CardApproval> approvals = objectMapper.convertValue(
                 response.getData(),
                 new TypeReference<List<CodefDto.CardApproval>>() { }
         );
-        assertEquals(3, approvals.size());
-        assertEquals("GOAL-SAVER-CARD-202607-0002", approvals.get(0).getResApprovalNo());
-        assertEquals("GOAL-SAVER-CARD-202607-0003", approvals.get(1).getResApprovalNo());
-        assertEquals("GOAL-SAVER-CARD-202607-0004", approvals.get(2).getResApprovalNo());
+        assertEquals(2, approvals.size());
+        assertEquals("GOAL-SAVER-CARD-202607-0001", approvals.get(0).getResApprovalNo());
+        assertEquals("GOAL-SAVER-CARD-202607-0004", approvals.get(1).getResApprovalNo());
     }
 
     @Test
@@ -186,10 +187,10 @@ public class CodefMockServiceTest {
     public void bankTransactionsUseOrganizationSpecificFixtures() {
         CodefDto.BankTransactionRequest shinhanRequest = bankRequest("20260801", "20260804");
         shinhanRequest.setOrganization("0088");
-        shinhanRequest.setAccount("111111-01-222222");
+        shinhanRequest.setAccount("222222-01-333333");
         CodefDto.BankTransactionRequest hanaRequest = bankRequest("20260801", "20260804");
         hanaRequest.setOrganization("0081");
-        hanaRequest.setAccount("111111-01-222222");
+        hanaRequest.setAccount("333333-01-444444");
 
         CodefDto.Response shinhanResponse = service.getBankTransactions(shinhanRequest);
         CodefDto.Response hanaResponse = service.getBankTransactions(hanaRequest);
@@ -205,10 +206,10 @@ public class CodefMockServiceTest {
                 new TypeReference<List<CodefDto.BankTransaction>>() { }
         );
 
-        assertEquals(3, shinhanTransactions.size());
-        assertEquals("GOAL-SAVER-BANK-202608-0001", shinhanTransactions.get(0).getResTrNo());
-        assertEquals(3, hanaTransactions.size());
-        assertEquals("GOAL-SAVER-BANK-202608-0001", hanaTransactions.get(0).getResTrNo());
+        assertEquals(1, shinhanTransactions.size());
+        assertEquals("GOAL-SAVER-BANK-202608-0012", shinhanTransactions.get(0).getResTrNo());
+        assertEquals(1, hanaTransactions.size());
+        assertEquals("GOAL-SAVER-BANK-202608-0013", hanaTransactions.get(0).getResTrNo());
     }
 
     @Test
@@ -224,7 +225,7 @@ public class CodefMockServiceTest {
 
     @Test
     public void additionalActiveCardUsesCardApprovalFixture() {
-        CodefDto.CardApprovalRequest request = cardRequest("20260711", "20260712");
+        CodefDto.CardApprovalRequest request = cardRequest("20260702", "20260703");
         request.setOrganization("0301");
 
         CodefDto.Response response = service.getCardApprovals(request);
@@ -235,7 +236,7 @@ public class CodefMockServiceTest {
                 new TypeReference<List<CodefDto.CardApproval>>() { }
         );
         assertEquals(2, approvals.size());
-        assertEquals("GOAL-SAVER-CARD-202607-0011", approvals.get(0).getResApprovalNo());
+        assertEquals("GOAL-SAVER-CARD-202607-0002", approvals.get(0).getResApprovalNo());
     }
 
     @Test
@@ -261,7 +262,7 @@ public class CodefMockServiceTest {
         assertEquals(1, hanaApprovals.size());
         assertEquals("GOAL-SAVER-CARD-0005", hanaApprovals.get(0).getResApprovalNo());
         assertEquals(1, kbApprovals.size());
-        assertEquals("GOAL-SAVER-CARD-0005", kbApprovals.get(0).getResApprovalNo());
+        assertEquals("GOAL-SAVER-CARD-0006", kbApprovals.get(0).getResApprovalNo());
     }
 
     @Test
@@ -276,9 +277,9 @@ public class CodefMockServiceTest {
     }
 
     @Test
-    public void savingsAccountWithoutTransactionsReturnsEmptySuccessData() {
+    public void loanAccountWithoutTransactionsReturnsEmptySuccessData() {
         CodefDto.BankTransactionRequest request = bankRequest("20260701", "20260731");
-        request.setAccount("222222-01-333333");
+        request.setAccount("LOAN-2021-0007");
 
         CodefDto.Response response = service.getBankTransactions(
                 request
@@ -323,7 +324,7 @@ public class CodefMockServiceTest {
     public void incomeProofEndpointLoadsPreviousYearFixture() {
         CodefDto.Response response = service.getIncomeProof(
                 new CodefDto.IncomeProofRequest(
-                        "0001", "1", "mock_id", "mock_password", "2026", "2026"
+                        "0001", "1", "mock_id", "mock_password", "2025", "2025"
                 )
         );
 
@@ -333,6 +334,7 @@ public class CodefMockServiceTest {
                 CodefDto.IncomeProofData.class
         );
         assertEquals(1, data.getResPaymentDetailsStatusList().size());
+        assertEquals("2025", data.getResPaymentDetailsStatusList().get(0).getResAttrYear());
         assertEquals("38400000", data.getResPaymentDetailsStatusList().get(0).getResPaidTotalAmt());
     }
 
@@ -340,7 +342,7 @@ public class CodefMockServiceTest {
     public void incomeProofEndpointRejectsYearWithoutFixture() {
         CodefDto.Response response = service.getIncomeProof(
                 new CodefDto.IncomeProofRequest(
-                        "0001", "1", "mock_id", "mock_password", "2025", "2025"
+                        "0001", "1", "mock_id", "mock_password", "2024", "2024"
                 )
         );
 

@@ -142,6 +142,31 @@ class ExpenseMapperIntegrationTest {
     }
 
     @Test
+    void filtersTransactionsByMultipleCategories() {
+        ExpenseDto.SearchCondition condition = new ExpenseDto.SearchCondition(
+                "2026-07-01", "2026-07-03", 0, 20, "FOOD,ETC", 0
+        );
+
+        List<ExpenseDto.Transaction> transactions = expenseMapper.selectTransactions(7L, condition);
+
+        assertEquals(4, transactions.size());
+        assertEquals(6L, transactions.get(0).getTransactionId());
+        assertEquals(9L, transactions.get(1).getTransactionId());
+        assertEquals(8L, transactions.get(2).getTransactionId());
+        assertEquals(1L, transactions.get(3).getTransactionId());
+        assertEquals(4L, expenseMapper.countTransactions(7L, condition));
+        assertEquals(260L, expenseMapper.selectTotalExpense(7L, condition));
+
+        List<ExpenseDto.CategoryBreakdown> categories =
+                expenseMapper.selectExpenseCategoryBreakdown(7L, condition);
+        assertEquals(2, categories.size());
+        assertEquals("FOOD", categories.get(0).getCategory());
+        assertEquals(150L, categories.get(0).getAmount());
+        assertEquals("ETC", categories.get(1).getCategory());
+        assertEquals(110L, categories.get(1).getAmount());
+    }
+
+    @Test
     void monthlyCashflowUsesOnlyActiveInstitutionTransactions() {
         ExpenseDto.MonthlyCashflow cashflow = expenseMapper.selectMonthlyCashflow(
                 9L,
