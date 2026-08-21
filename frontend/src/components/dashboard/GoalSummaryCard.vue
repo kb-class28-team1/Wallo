@@ -92,7 +92,10 @@ const formatGoalDate = (date) => {
 <template>
   <AppCard class="goal-summary-card" padding="none">
     <div class="goal-card-body">
-      <div class="goal-card-header d-flex align-items-start justify-content-between gap-3 mb-4">
+      <div
+        class="goal-card-header d-flex align-items-start justify-content-between gap-3 mb-4"
+        :class="{ 'goal-card-header--goal': selectedGoal && !loading && !error }"
+      >
         <div v-if="selectedGoal" class="min-w-0">
           <h2 class="h5 fw-bold mb-0 text-truncate">
             {{ selectedGoal.title || "제목 없는 목표" }}
@@ -138,7 +141,6 @@ const formatGoalDate = (date) => {
           class="goal-item"
         >
           <div class="goal-progress-summary mb-4">
-            <p class="goal-progress-caption mb-1">목표 설정 당시 준비금 기준</p>
             <div class="d-flex align-items-baseline justify-content-between gap-3">
               <div class="goal-progress-amount">
                 <strong>{{ formatWon(getGoalCurrentAmount(selectedGoal)) }}</strong>
@@ -179,7 +181,6 @@ const formatGoalDate = (date) => {
           </dl>
 
           <div class="goal-account-summary" aria-label="설정된 계좌">
-            <div class="goal-account-label">설정된 계좌</div>
             <div v-if="accountsLoading" class="small text-secondary" role="status">
               <span
                 class="spinner-border spinner-border-sm text-primary me-2"
@@ -255,6 +256,10 @@ const formatGoalDate = (date) => {
 
 .goal-card-header {
   margin-bottom: 1.5rem !important;
+}
+
+.goal-card-header--goal {
+  margin-bottom: 0 !important;
 }
 
 .dashboard-action-button {
@@ -363,11 +368,12 @@ const formatGoalDate = (date) => {
 }
 
 .goal-progress-summary {
+  margin-top: auto;
   margin-bottom: 1.5rem !important;
 }
 
 .goal-account-summary {
-  margin-top: 1.25rem;
+  margin-top: auto;
 }
 
 .goal-account-label {
@@ -406,7 +412,7 @@ const formatGoalDate = (date) => {
 
 .goal-progress-rate {
   color: var(--wallo-color-primary);
-  font-size: 1rem;
+  font-size: 1.65rem;
 }
 
 .goal-progress {
