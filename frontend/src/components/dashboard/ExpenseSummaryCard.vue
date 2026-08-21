@@ -4,7 +4,10 @@ import { Doughnut } from "vue-chartjs"
 import { ArcElement, Chart as ChartJS, Legend, Tooltip } from "chart.js"
 import AppCard from "@/components/ui/AppCard.vue"
 import AppState from "@/components/ui/AppState.vue"
-import { getExpenseCategoryLabel } from "@/features/financial/financialCategories"
+import {
+  getExpenseCategoryLabel,
+  getExpenseCategoryMeta,
+} from "@/features/financial/financialCategories"
 import { formatWon } from "@/utils/formatters"
 
 ChartJS.register(ArcElement, Tooltip, Legend)
@@ -47,11 +50,7 @@ const chartOptions = {
 }
 
 const expenseCategoryColor = (category) => {
-  const categoryIndex = (props.expenses.expenseCategoryBreakdown ?? []).findIndex(
-    (item) => item.category === category,
-  )
-
-  return props.chartData.datasets[0].backgroundColor[categoryIndex] ?? "#6b9be3"
+  return getExpenseCategoryMeta(category).color
 }
 
 const expenseCategoryRate = (amount) => {

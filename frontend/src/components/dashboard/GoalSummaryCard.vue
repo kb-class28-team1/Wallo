@@ -101,6 +101,7 @@ const formatGoalDate = (date) => {
             {{ selectedGoal.title || "제목 없는 목표" }}
           </h2>
         </div>
+        <h2 v-else class="h5 fw-bold mb-0">나의 목표</h2>
 
         <RouterLink
           :to="accountSettingsLink"
@@ -126,7 +127,7 @@ const formatGoalDate = (date) => {
 
       <AppState
         v-else-if="goals.length === 0"
-        class="goal-state"
+        class="goal-state goal-state--empty"
         type="empty"
         title="아직 확정된 금융 목표가 없습니다."
         message="AI 컨설팅에서 목표를 설정해보세요."
@@ -269,6 +270,12 @@ const formatGoalDate = (date) => {
   align-items: center;
   justify-content: center;
   text-align: center;
+}
+
+.goal-state--empty {
+  width: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
 }
 
 .goal-list {
