@@ -113,7 +113,6 @@ const chartOptions = {
         <section class="col-lg-4 asset-summary-panel" aria-label="자산 금액 요약">
           <h2 class="h5 fw-bold mb-3">자산 한눈에 보기</h2>
           <div class="asset-summary-content">
-            <p class="asset-total-label mb-1">총 보유자산</p>
             <strong class="asset-total d-block">{{ formatWon(totalHoldings) }}</strong>
             <div class="asset-balance-summary mt-3">
               <div>
@@ -187,21 +186,33 @@ const chartOptions = {
 
 .asset-overview-body {
   position: relative;
+  display: flex;
+  flex-direction: column;
   min-height: 310px;
   padding: var(--wallo-space-6);
 }
 
 .asset-content-row {
+  flex: 1 1 auto;
   min-height: 238px;
 }
 
 .asset-summary-panel {
-  align-self: flex-start;
+  display: flex;
+  align-self: stretch;
+  flex-direction: column;
+  justify-content: flex-start;
   padding-top: 0;
-  padding-bottom: 12px;
+  padding-bottom: 0;
 }
 
-.asset-summary-content,
+.asset-summary-content {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  transform: none;
+}
+
 .asset-visual-panel {
   transform: translateY(10px);
 }
@@ -228,6 +239,7 @@ const chartOptions = {
 .asset-total {
   color: var(--wallo-color-text);
   font-size: clamp(1.75rem, 3vw, 2.25rem);
+  transform: translateY(10px);
 }
 
 .asset-total-label {
@@ -240,6 +252,7 @@ const chartOptions = {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  margin-top: var(--wallo-space-8) !important;
 }
 
 .asset-balance-summary > div {
@@ -362,7 +375,7 @@ const chartOptions = {
   }
 
   .asset-summary-panel {
-    padding-bottom: 4px;
+    padding-bottom: 0;
   }
 }
 

@@ -144,7 +144,7 @@ const formatGoalDate = (date) => {
             <div class="d-flex align-items-baseline justify-content-between gap-3">
               <div class="goal-progress-amount">
                 <strong>{{ formatWon(getGoalCurrentAmount(selectedGoal)) }}</strong>
-                <span>/ {{ formatWon(selectedGoal.targetAmount) }}</span>
+                <span> / {{ formatWon(selectedGoal.targetAmount) }}</span>
               </div>
               <strong class="goal-progress-rate"
                 >{{ getGoalAchievementRate(selectedGoal) }}%</strong
