@@ -526,20 +526,15 @@ onMounted(async () => {
         </span>
       </template>
       <template #actions>
-        <AppButton
-          class="expense-sync-button"
-          variant="primary"
+        <button
           type="button"
+          class="expense-sync-button btn app-action-link"
           :disabled="isSyncing || isExpenseInitialLoading || isExpenseRefreshing || isDailyLoading"
           @click="syncCurrentMonth"
         >
-          <span
-            v-if="isSyncing"
-            class="spinner-border spinner-border-sm me-2"
-            aria-hidden="true"
-          ></span>
-          {{ isSyncing ? "동기화 중..." : "거래내역 새로고침" }}
-        </AppButton>
+          <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>
+          새로고침
+        </button>
       </template>
     </AppPageHeader>
 
@@ -752,10 +747,6 @@ onMounted(async () => {
 .expense-history-view {
   width: 100%;
   padding: 0 0 var(--wallo-space-6);
-}
-
-.expense-sync-button {
-  min-width: 172px;
 }
 
 .expense-page-title {

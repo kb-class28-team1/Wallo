@@ -80,20 +80,15 @@ onMounted(loadAssets)
   <section class="asset-view">
     <AppPageHeader title="자산관리">
       <template #actions>
-        <AppButton
-          class="asset-sync-button"
-          variant="primary"
+        <button
           type="button"
+          class="asset-sync-button btn app-action-link"
           :disabled="isSyncing || isInitialLoading || isRefreshing"
           @click="syncAssets"
         >
-          <span
-            v-if="isSyncing"
-            class="spinner-border spinner-border-sm me-2"
-            aria-hidden="true"
-          ></span>
-          {{ isSyncing ? "동기화 중..." : "거래내역 새로고침" }}
-        </AppButton>
+          <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>
+          새로고침
+        </button>
       </template>
     </AppPageHeader>
 
@@ -175,10 +170,6 @@ onMounted(loadAssets)
 .asset-view {
   width: 100%;
   padding: 0 0 var(--wallo-space-6);
-}
-
-.asset-sync-button {
-  min-width: 172px;
 }
 
 .asset-sync-status,

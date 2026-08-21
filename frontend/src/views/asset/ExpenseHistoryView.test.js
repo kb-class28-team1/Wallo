@@ -120,7 +120,9 @@ describe("ExpenseHistoryView manual synchronization", () => {
   it("syncs assets and reloads the selected month from the first page", async () => {
     expect(wrapper.find(".page-header").classes()).toContain("app-page-header")
     expect(wrapper.find(".history-card").classes()).toContain("app-card")
-    expect(wrapper.find(".expense-sync-button").classes()).toContain("app-button")
+    expect(wrapper.find(".expense-sync-button").classes()).toContain("app-action-link")
+    expect(wrapper.find(".expense-sync-button").text()).toContain("새로고침")
+    expect(wrapper.find(".expense-sync-button .bi-arrow-clockwise").exists()).toBe(true)
     expect(wrapper.find('[data-testid="category-breakdown"]').exists()).toBe(false)
 
     await wrapper.get(".expense-sync-button").trigger("click")
@@ -171,7 +173,7 @@ describe("ExpenseHistoryView manual synchronization", () => {
     await flushPromises()
 
     expect(syncButton.element.disabled).toBe(true)
-    expect(syncButton.text()).toContain("동기화 중")
+    expect(syncButton.text()).toContain("새로고침")
 
     finishSync({
       syncedAt: "2026-08-12T10:00:00",

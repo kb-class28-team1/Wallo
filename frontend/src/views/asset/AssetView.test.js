@@ -51,7 +51,9 @@ describe("AssetView manual synchronization", () => {
 
   it("syncs assets and refreshes the displayed data", async () => {
     expect(wrapper.find(".app-page-header__title").text()).toBe("자산관리")
-    expect(wrapper.find(".asset-sync-button").classes()).toContain("app-button")
+    expect(wrapper.find(".asset-sync-button").classes()).toContain("app-action-link")
+    expect(wrapper.find(".asset-sync-button").text()).toContain("새로고침")
+    expect(wrapper.find(".asset-sync-button .bi-arrow-clockwise").exists()).toBe(true)
     expect(wrapper.find(".asset-report-grid").exists()).toBe(true)
     expect(wrapper.find('[data-testid="consumption-report-card"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="tax-deduction-card"]').exists()).toBe(true)
@@ -85,7 +87,7 @@ describe("AssetView manual synchronization", () => {
     await flushPromises()
 
     expect(syncButton.element.disabled).toBe(true)
-    expect(syncButton.text()).toContain("동기화 중")
+    expect(syncButton.text()).toContain("새로고침")
 
     finishSync({
       syncedAt: "2026-08-12T10:00:00",
