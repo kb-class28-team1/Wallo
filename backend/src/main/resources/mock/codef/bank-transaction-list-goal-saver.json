@@ -1,0 +1,399 @@
+{
+  "result": {
+    "code": "CF-00000",
+    "message": "성공",
+    "extraMessage": ""
+  },
+  "data": [
+    {
+      "resAccount": "111111-01-222222",
+      "resTrNo": "GOAL-SAVER-BANK-202606-0001",
+      "resTrDate": "20260603",
+      "resTrTime": "090000",
+      "resAccountIn": "3200000",
+      "resAccountOut": "0",
+      "resAccountDesc": "급여",
+      "transactionKind": "INCOME"
+    },
+    {
+      "resAccount": "111111-01-222222",
+      "resTrNo": "GOAL-SAVER-BANK-202606-0002",
+      "resTrDate": "20260603",
+      "resTrTime": "091000",
+      "resAccountIn": "0",
+      "resAccountOut": "300000",
+      "resAccountDesc": "비상금 통장 자동이체",
+      "transactionKind": "TRANSFER"
+    },
+    {
+      "resAccount": "111111-01-222222",
+      "resTrNo": "GOAL-SAVER-BANK-202606-0003",
+      "resTrDate": "20260603",
+      "resTrTime": "091500",
+      "resAccountIn": "0",
+      "resAccountOut": "150000",
+      "resAccountDesc": "여행 적금 자동이체",
+      "transactionKind": "TRANSFER"
+    },
+    {
+      "resAccount": "111111-01-222222",
+      "resTrNo": "GOAL-SAVER-BANK-202606-0004",
+      "resTrDate": "20260604",
+      "resTrTime": "100000",
+      "resAccountIn": "0",
+      "resAccountOut": "850000",
+      "resAccountDesc": "월세",
+      "transactionKind": "TRANSFER"
+    },
+    {
+      "resAccount": "111111-01-222222",
+      "resTrNo": "GOAL-SAVER-BANK-202606-0005",
+      "resTrDate": "20260604",
+      "resTrTime": "101000",
+      "resAccountIn": "0",
+      "resAccountOut": "120000",
+      "resAccountDesc": "관리비",
+      "transactionKind": "TRANSFER"
+    },
+    {
+      "resAccount": "111111-01-222222",
+      "resTrNo": "GOAL-SAVER-BANK-202606-0006",
+      "resTrDate": "20260605",
+      "resTrTime": "090000",
+      "resAccountIn": "0",
+      "resAccountOut": "55000",
+      "resAccountDesc": "휴대폰 요금",
+      "transactionKind": "CARD_PAYMENT"
+    },
+    {
+      "resAccount": "111111-01-222222",
+      "resTrNo": "GOAL-SAVER-BANK-202606-0007",
+      "resTrDate": "20260606",
+      "resTrTime": "080000",
+      "resAccountIn": "0",
+      "resAccountOut": "39900",
+      "resAccountDesc": "넷플릭스 구독",
+      "transactionKind": "CARD_PAYMENT"
+    },
+    {
+      "resAccount": "111111-01-222222",
+      "resTrNo": "GOAL-SAVER-BANK-202606-0008",
+      "resTrDate": "20260607",
+      "resTrTime": "180000",
+      "resAccountIn": "0",
+      "resAccountOut": "200000",
+      "resAccountDesc": "투자계좌 자동이체",
+      "transactionKind": "TRANSFER"
+    },
+    {
+      "resAccount": "111111-01-222222",
+      "resTrNo": "GOAL-SAVER-BANK-202606-0009",
+      "resTrDate": "20260608",
+      "resTrTime": "120000",
+      "resAccountIn": "0",
+      "resAccountOut": "100000",
+      "resAccountDesc": "부모님 용돈",
+      "transactionKind": "TRANSFER"
+    },
+    {
+      "resAccount": "111111-01-222222",
+      "resTrNo": "GOAL-SAVER-BANK-202606-0010",
+      "resTrDate": "20260609",
+      "resTrTime": "140000",
+      "resAccountIn": "0",
+      "resAccountOut": "80000",
+      "resAccountDesc": "보험료",
+      "transactionKind": "TRANSFER"
+    },
+    {
+      "resAccount": "111111-01-222222",
+      "resTrNo": "GOAL-SAVER-BANK-202606-0011",
+      "resTrDate": "20260612",
+      "resTrTime": "090000",
+      "resAccountIn": "0",
+      "resAccountOut": "60000",
+      "resAccountDesc": "전기·가스요금",
+      "transactionKind": "CARD_PAYMENT"
+    },
+    {
+      "resAccount": "222222-01-333333",
+      "resTrNo": "GOAL-SAVER-BANK-202606-0012",
+      "resTrDate": "20260603",
+      "resTrTime": "091000",
+      "resAccountIn": "300000",
+      "resAccountOut": "0",
+      "resAccountDesc": "월급 통장에서 비상금 이체",
+      "transactionKind": "TRANSFER"
+    },
+    {
+      "resAccount": "333333-01-444444",
+      "resTrNo": "GOAL-SAVER-BANK-202606-0013",
+      "resTrDate": "20260603",
+      "resTrTime": "091500",
+      "resAccountIn": "150000",
+      "resAccountOut": "0",
+      "resAccountDesc": "월급 통장에서 적금 이체",
+      "transactionKind": "TRANSFER"
+    },
+    {
+      "resAccount": "111111-01-222222",
+      "resTrNo": "GOAL-SAVER-BANK-202607-0001",
+      "resTrDate": "20260703",
+      "resTrTime": "090000",
+      "resAccountIn": "3200000",
+      "resAccountOut": "0",
+      "resAccountDesc": "급여",
+      "transactionKind": "INCOME"
+    },
+    {
+      "resAccount": "111111-01-222222",
+      "resTrNo": "GOAL-SAVER-BANK-202607-0002",
+      "resTrDate": "20260703",
+      "resTrTime": "091000",
+      "resAccountIn": "0",
+      "resAccountOut": "300000",
+      "resAccountDesc": "비상금 통장 자동이체",
+      "transactionKind": "TRANSFER"
+    },
+    {
+      "resAccount": "111111-01-222222",
+      "resTrNo": "GOAL-SAVER-BANK-202607-0003",
+      "resTrDate": "20260703",
+      "resTrTime": "091500",
+      "resAccountIn": "0",
+      "resAccountOut": "150000",
+      "resAccountDesc": "여행 적금 자동이체",
+      "transactionKind": "TRANSFER"
+    },
+    {
+      "resAccount": "111111-01-222222",
+      "resTrNo": "GOAL-SAVER-BANK-202607-0004",
+      "resTrDate": "20260704",
+      "resTrTime": "100000",
+      "resAccountIn": "0",
+      "resAccountOut": "850000",
+      "resAccountDesc": "월세",
+      "transactionKind": "TRANSFER"
+    },
+    {
+      "resAccount": "111111-01-222222",
+      "resTrNo": "GOAL-SAVER-BANK-202607-0005",
+      "resTrDate": "20260704",
+      "resTrTime": "101000",
+      "resAccountIn": "0",
+      "resAccountOut": "120000",
+      "resAccountDesc": "관리비",
+      "transactionKind": "TRANSFER"
+    },
+    {
+      "resAccount": "111111-01-222222",
+      "resTrNo": "GOAL-SAVER-BANK-202607-0006",
+      "resTrDate": "20260705",
+      "resTrTime": "090000",
+      "resAccountIn": "0",
+      "resAccountOut": "55000",
+      "resAccountDesc": "휴대폰 요금",
+      "transactionKind": "CARD_PAYMENT"
+    },
+    {
+      "resAccount": "111111-01-222222",
+      "resTrNo": "GOAL-SAVER-BANK-202607-0007",
+      "resTrDate": "20260706",
+      "resTrTime": "080000",
+      "resAccountIn": "0",
+      "resAccountOut": "39900",
+      "resAccountDesc": "넷플릭스 구독",
+      "transactionKind": "CARD_PAYMENT"
+    },
+    {
+      "resAccount": "111111-01-222222",
+      "resTrNo": "GOAL-SAVER-BANK-202607-0008",
+      "resTrDate": "20260707",
+      "resTrTime": "180000",
+      "resAccountIn": "0",
+      "resAccountOut": "200000",
+      "resAccountDesc": "투자계좌 자동이체",
+      "transactionKind": "TRANSFER"
+    },
+    {
+      "resAccount": "111111-01-222222",
+      "resTrNo": "GOAL-SAVER-BANK-202607-0009",
+      "resTrDate": "20260708",
+      "resTrTime": "120000",
+      "resAccountIn": "0",
+      "resAccountOut": "100000",
+      "resAccountDesc": "부모님 용돈",
+      "transactionKind": "TRANSFER"
+    },
+    {
+      "resAccount": "111111-01-222222",
+      "resTrNo": "GOAL-SAVER-BANK-202607-0010",
+      "resTrDate": "20260709",
+      "resTrTime": "140000",
+      "resAccountIn": "0",
+      "resAccountOut": "80000",
+      "resAccountDesc": "보험료",
+      "transactionKind": "TRANSFER"
+    },
+    {
+      "resAccount": "111111-01-222222",
+      "resTrNo": "GOAL-SAVER-BANK-202607-0011",
+      "resTrDate": "20260712",
+      "resTrTime": "090000",
+      "resAccountIn": "0",
+      "resAccountOut": "60000",
+      "resAccountDesc": "전기·가스요금",
+      "transactionKind": "CARD_PAYMENT"
+    },
+    {
+      "resAccount": "222222-01-333333",
+      "resTrNo": "GOAL-SAVER-BANK-202607-0012",
+      "resTrDate": "20260703",
+      "resTrTime": "091000",
+      "resAccountIn": "300000",
+      "resAccountOut": "0",
+      "resAccountDesc": "월급 통장에서 비상금 이체",
+      "transactionKind": "TRANSFER"
+    },
+    {
+      "resAccount": "333333-01-444444",
+      "resTrNo": "GOAL-SAVER-BANK-202607-0013",
+      "resTrDate": "20260703",
+      "resTrTime": "091500",
+      "resAccountIn": "150000",
+      "resAccountOut": "0",
+      "resAccountDesc": "월급 통장에서 적금 이체",
+      "transactionKind": "TRANSFER"
+    },
+    {
+      "resAccount": "111111-01-222222",
+      "resTrNo": "GOAL-SAVER-BANK-202608-0001",
+      "resTrDate": "20260803",
+      "resTrTime": "090000",
+      "resAccountIn": "3200000",
+      "resAccountOut": "0",
+      "resAccountDesc": "급여",
+      "transactionKind": "INCOME"
+    },
+    {
+      "resAccount": "111111-01-222222",
+      "resTrNo": "GOAL-SAVER-BANK-202608-0002",
+      "resTrDate": "20260803",
+      "resTrTime": "091000",
+      "resAccountIn": "0",
+      "resAccountOut": "300000",
+      "resAccountDesc": "비상금 통장 자동이체",
+      "transactionKind": "TRANSFER"
+    },
+    {
+      "resAccount": "111111-01-222222",
+      "resTrNo": "GOAL-SAVER-BANK-202608-0003",
+      "resTrDate": "20260803",
+      "resTrTime": "091500",
+      "resAccountIn": "0",
+      "resAccountOut": "150000",
+      "resAccountDesc": "여행 적금 자동이체",
+      "transactionKind": "TRANSFER"
+    },
+    {
+      "resAccount": "111111-01-222222",
+      "resTrNo": "GOAL-SAVER-BANK-202608-0004",
+      "resTrDate": "20260804",
+      "resTrTime": "100000",
+      "resAccountIn": "0",
+      "resAccountOut": "850000",
+      "resAccountDesc": "월세",
+      "transactionKind": "TRANSFER"
+    },
+    {
+      "resAccount": "111111-01-222222",
+      "resTrNo": "GOAL-SAVER-BANK-202608-0005",
+      "resTrDate": "20260804",
+      "resTrTime": "101000",
+      "resAccountIn": "0",
+      "resAccountOut": "120000",
+      "resAccountDesc": "관리비",
+      "transactionKind": "TRANSFER"
+    },
+    {
+      "resAccount": "111111-01-222222",
+      "resTrNo": "GOAL-SAVER-BANK-202608-0006",
+      "resTrDate": "20260805",
+      "resTrTime": "090000",
+      "resAccountIn": "0",
+      "resAccountOut": "55000",
+      "resAccountDesc": "휴대폰 요금",
+      "transactionKind": "CARD_PAYMENT"
+    },
+    {
+      "resAccount": "111111-01-222222",
+      "resTrNo": "GOAL-SAVER-BANK-202608-0007",
+      "resTrDate": "20260806",
+      "resTrTime": "080000",
+      "resAccountIn": "0",
+      "resAccountOut": "39900",
+      "resAccountDesc": "넷플릭스 구독",
+      "transactionKind": "CARD_PAYMENT"
+    },
+    {
+      "resAccount": "111111-01-222222",
+      "resTrNo": "GOAL-SAVER-BANK-202608-0008",
+      "resTrDate": "20260807",
+      "resTrTime": "180000",
+      "resAccountIn": "0",
+      "resAccountOut": "200000",
+      "resAccountDesc": "투자계좌 자동이체",
+      "transactionKind": "TRANSFER"
+    },
+    {
+      "resAccount": "111111-01-222222",
+      "resTrNo": "GOAL-SAVER-BANK-202608-0009",
+      "resTrDate": "20260808",
+      "resTrTime": "120000",
+      "resAccountIn": "0",
+      "resAccountOut": "100000",
+      "resAccountDesc": "부모님 용돈",
+      "transactionKind": "TRANSFER"
+    },
+    {
+      "resAccount": "111111-01-222222",
+      "resTrNo": "GOAL-SAVER-BANK-202608-0010",
+      "resTrDate": "20260809",
+      "resTrTime": "140000",
+      "resAccountIn": "0",
+      "resAccountOut": "80000",
+      "resAccountDesc": "보험료",
+      "transactionKind": "TRANSFER"
+    },
+    {
+      "resAccount": "111111-01-222222",
+      "resTrNo": "GOAL-SAVER-BANK-202608-0011",
+      "resTrDate": "20260812",
+      "resTrTime": "090000",
+      "resAccountIn": "0",
+      "resAccountOut": "60000",
+      "resAccountDesc": "전기·가스요금",
+      "transactionKind": "CARD_PAYMENT"
+    },
+    {
+      "resAccount": "222222-01-333333",
+      "resTrNo": "GOAL-SAVER-BANK-202608-0012",
+      "resTrDate": "20260803",
+      "resTrTime": "091000",
+      "resAccountIn": "300000",
+      "resAccountOut": "0",
+      "resAccountDesc": "월급 통장에서 비상금 이체",
+      "transactionKind": "TRANSFER"
+    },
+    {
+      "resAccount": "333333-01-444444",
+      "resTrNo": "GOAL-SAVER-BANK-202608-0013",
+      "resTrDate": "20260803",
+      "resTrTime": "091500",
+      "resAccountIn": "150000",
+      "resAccountOut": "0",
+      "resAccountDesc": "월급 통장에서 적금 이체",
+      "transactionKind": "TRANSFER"
+    }
+  ]
+}

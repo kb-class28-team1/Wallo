@@ -1,0 +1,37 @@
+{
+  "result": {
+    "code": "CF-00000",
+    "message": "성공",
+    "extraMessage": ""
+  },
+  "data": {
+    "accounts": [
+      {
+        "resAccountName": "장기 투자 계좌",
+        "resAccount": "88888888-08",
+        "resAccountDisplay": "888888**-**",
+        "resAccountBalance": "1800000",
+        "resAccountEvalAmount": "6800000",
+        "resAccountCurrency": "KRW",
+        "resAccountStatus": "1",
+        "resAccountSubtype": "STOCK"
+      }
+    ],
+    "loans": [],
+    "assetSnapshots": [
+      {
+        "snapshotMonth": "2026-06",
+        "totalAssets": "5900000"
+      },
+      {
+        "snapshotMonth": "2026-07",
+        "totalAssets": "6300000"
+      },
+      {
+        "snapshotMonth": "2026-08",
+        "totalAssets": "6800000"
+      }
+    ],
+    "transactions": []
+  }
+}
