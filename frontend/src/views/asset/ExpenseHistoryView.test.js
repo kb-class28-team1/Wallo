@@ -4,6 +4,7 @@ import { flushPromises, mount } from "@vue/test-utils"
 import ExpenseHistoryView from "./ExpenseHistoryView.vue"
 import { getExpenses } from "@/api/assetApi"
 import { useAssetStore } from "@/stores/assetStore"
+import { useFinancialInvalidationStore } from "@/stores/financialInvalidationStore"
 
 vi.mock("@/api/assetApi", () => ({
   getExpenses: vi.fn(),
@@ -13,6 +14,10 @@ vi.mock("@/api/assetApi", () => ({
 
 vi.mock("@/stores/assetStore", () => ({
   useAssetStore: vi.fn(),
+}))
+
+vi.mock("@/stores/financialInvalidationStore", () => ({
+  useFinancialInvalidationStore: vi.fn(),
 }))
 
 vi.mock("@/stores/budgetStore", () => ({
@@ -93,6 +98,7 @@ describe("ExpenseHistoryView manual synchronization", () => {
   let wrapper
   let store
   let budgetStore
+  let financialInvalidationStore
 
   beforeEach(async () => {
     getExpenses.mockResolvedValue(createExpenseResponse())
@@ -100,6 +106,9 @@ describe("ExpenseHistoryView manual synchronization", () => {
     updateExpenseCategory.mockResolvedValue({ success: true, data: null })
     store = createStore()
     budgetStore = createBudgetStore()
+    financialInvalidationStore = {
+      markChanged: vi.fn(),
+    }
     store.syncAssets.mockResolvedValue({
       syncedAt: "2026-08-12T10:00:00",
       inserted: 3,
@@ -107,6 +116,7 @@ describe("ExpenseHistoryView manual synchronization", () => {
       failedConnections: 0,
     })
     useAssetStore.mockReturnValue(store)
+    useFinancialInvalidationStore.mockReturnValue(financialInvalidationStore)
     useBudgetStore.mockReturnValue(budgetStore)
     wrapper = mount(ExpenseHistoryView, { global: { stubs: globalStubs } })
     await flushPromises()
@@ -134,6 +144,7 @@ describe("ExpenseHistoryView manual synchronization", () => {
     expect(budgetStore.fetchCategoryBudgets).toHaveBeenCalledTimes(2)
     expect(budgetStore.fetchCategoryBudgets).toHaveBeenLastCalledWith("2026-08", {
       notifyError: false,
+      force: true,
     })
     expect(wrapper.find(".expense-sync-status").classes()).toContain("app-alert")
     expect(wrapper.find(".expense-sync-status").classes()).toContain("app-alert--success")
@@ -190,9 +201,10 @@ describe("ExpenseHistoryView manual synchronization", () => {
   it("keeps the month refresh status beside the title while changing months", async () => {
     let resolveRefresh
     getExpenses.mockImplementationOnce(
-      () => new Promise((resolve) => {
-        resolveRefresh = resolve
-      }),
+      () =>
+        new Promise((resolve) => {
+          resolveRefresh = resolve
+        }),
     )
 
     await wrapper.get('[aria-label="다음 달"]').trigger("click")
@@ -265,6 +277,7 @@ describe("ExpenseHistoryView manual synchronization", () => {
     await flushPromises()
 
     expect(updateExpenseCategory).toHaveBeenCalledWith(1, "FOOD")
+    expect(financialInvalidationStore.markChanged).toHaveBeenCalledOnce()
     expect(getExpenses).toHaveBeenCalledTimes(2)
     expect(getExpenses.mock.calls[1][0]).toMatchObject({
       page: 0,
