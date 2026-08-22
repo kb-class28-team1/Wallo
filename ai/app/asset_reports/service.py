@@ -1,4 +1,4 @@
-from app.agents.asset_reports.agent import (
+from app.asset_reports.agent import (
     CONSUMPTION_INSIGHT_MAX_COMPLETION_TOKENS,
     ConsumptionInsightAgent,
     InvalidConsumptionInsightResponseError,

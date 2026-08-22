@@ -2,9 +2,9 @@ from collections.abc import Callable
 import re
 from typing import Any
 
-from app.agents.base import ToolResult
-from app.agents.financial.consumption_models import ConsumptionContext
-from app.agents.financial.tools import (
+from app.financial_assistant.tool_result import ToolResult
+from app.financial_assistant.consumption_models import ConsumptionContext
+from app.financial_assistant.tools import (
     asset_analysis,
     financial_goal,
     financial_report,

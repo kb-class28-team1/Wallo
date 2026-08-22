@@ -1,7 +1,7 @@
-"""금융 목표 인터뷰 Agent 도메인."""
+"""금융 목표 인터뷰 기능."""
 
-from app.agents.goal.agent import GoalAgent
-from app.agents.goal.models import (
+from app.goals.interview.agent import GoalAgent
+from app.goals.interview.models import (
     FeasibilityResult,
     FeasibilityStatus,
     GoalDraft,
