@@ -57,10 +57,12 @@ describe("AiAssistantView", () => {
     expect(wrapper.find(".content-card").classes()).toContain("app-card")
     expect(wrapper.find(".goal-main-card").classes()).toContain("h-100")
     expect(wrapper.find(".goal-button").classes()).toContain("app-button")
+    expect(wrapper.find(".goal-main-card h2").text()).toBe("나의 목표")
     expect(wrapper.text()).toContain("목표 달성을 위한 로드맵")
     expect(wrapper.text()).toContain("나에게 맞는 로드맵")
     expect(wrapper.text()).toContain("추천 금융 상품")
     expect(wrapper.text()).toContain("오늘의 미션")
+    expect(wrapper.find(".goal-roadmap-card .roadmap-state .app-state__icon").exists()).toBe(false)
   })
 
   it("shows today's missions in the right-hand dashboard card", async () => {
@@ -242,6 +244,7 @@ describe("AiAssistantView", () => {
     expect(wrapper.text()).toContain("3백만원 잔액 확인")
     expect(wrapper.text()).not.toContain("현재 3M에 1M 추가")
     expect(wrapper.text()).toContain("25%")
+    expect(wrapper.find(".goal-main-card h2").text()).toBe("비상금 1,000만 원 만들기")
     expect(wrapper.text()).not.toContain("EMERGENCY_FUND")
     expect(wrapper.find(".goal-summary-icon").exists()).toBe(false)
     expect(wrapper.find(".goal-type").exists()).toBe(false)

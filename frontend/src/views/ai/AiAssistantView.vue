@@ -492,7 +492,9 @@ onMounted(() => {
           <AppCard as="article" class="content-card goal-main-card" padding="none">
             <div class="card-body p-4">
               <div class="goal-card-heading d-flex align-items-start justify-content-between gap-3">
-                <h2 class="section-title h5 fw-bold">나의 목표</h2>
+                <h2 class="section-title h5 fw-bold">
+                  {{ currentGoal.title || "제목 없는 목표" }}
+                </h2>
                 <div class="goal-heading-actions d-flex align-items-center gap-2">
                   <span class="goal-status-badge">진행 중</span>
                   <AppButton
@@ -751,6 +753,7 @@ onMounted(() => {
             class="roadmap-state mt-4"
             type="empty"
             compact
+            hide-icon
             title="아직 생성된 로드맵이 없습니다."
             message="목표를 저장하면 AI가 맞춤 로드맵을 준비합니다."
           />
