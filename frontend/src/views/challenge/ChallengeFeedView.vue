@@ -1,7 +1,9 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue"
+import { storeToRefs } from "pinia"
 import { useRoute, useRouter } from "vue-router"
 import { useUserStore } from "@/stores/userStore"
+import { useMissionStore } from "@/stores/missionStore"
 import { getAccessToken } from "@/api/authToken"
 import { refreshAccessToken } from "@/api/authApi"
 import { formatWon } from "@/utils/formatters"
@@ -12,7 +14,6 @@ import AppButton from "@/components/ui/AppButton.vue"
 import AppPageHeader from "@/components/ui/AppPageHeader.vue"
 import AppState from "@/components/ui/AppState.vue"
 import { leaveChallenge as leaveChallengeRequest } from "@/api/challengeApi"
-import { getTodayMissions, verifyMissionWithFeed } from "@/api/missionApi"
 import {
   createFeed,
   deleteFeed,
@@ -37,6 +38,7 @@ import { announcePointEarned } from "@/utils/pointRewardNotice"
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
+const missionStore = useMissionStore()
 const challengeId = computed(() => Number(route.params.challengeId))
 const focusedFeedId = computed(() => String(route.query.focusFeedId || ""))
 const feeds = ref([])
@@ -56,8 +58,15 @@ const isAnalyzing = ref(false)
 const analysisProgress = ref(0)
 const analysisStageMessage = ref("분석 준비 중...")
 const isUploading = ref(false)
-const todayMissions = ref([])
-const isMissionLoading = ref(false)
+const { missions: missionList, isLoading: isMissionLoading } = storeToRefs(missionStore)
+const todayMissions = computed(() =>
+  missionList.value.filter(
+    (mission) =>
+      ["MEDIA_AI", "HYBRID"].includes(mission.verificationType) &&
+      !mission.completed &&
+      mission.status !== "VERIFYING",
+  ),
+)
 const likingFeedId = ref(null)
 const likeBursts = ref([])
 const pageHeartBursts = ref([])
@@ -421,20 +430,10 @@ const leaveCurrentChallenge = async () => {
 
 const openModal = async () => {
   modalOpen.value = true
-  isMissionLoading.value = true
   try {
-    const response = await getTodayMissions()
-    todayMissions.value = response.missions.filter(
-      (mission) =>
-        ["MEDIA_AI", "HYBRID"].includes(mission.verificationType) &&
-        !mission.completed &&
-        mission.status !== "VERIFYING",
-    )
+    await missionStore.fetchTodayMissions({ notifyError: false })
   } catch (error) {
-    todayMissions.value = []
     await openDialog({ message: error.message })
-  } finally {
-    isMissionLoading.value = false
   }
 }
 const closeModal = () => {
@@ -744,9 +743,11 @@ const uploadFeed = async () => {
     let verificationError = null
     if (form.dailyMissionId) {
       try {
-        verificationResult = await verifyMissionWithFeed(form.dailyMissionId, createdFeed.id)
+        verificationResult = await missionStore.verifyMissionWithFeed(
+          form.dailyMissionId,
+          createdFeed.id,
+        )
         await userStore.fetchUserProfile()
-        window.dispatchEvent(new CustomEvent("wallo:mission-updated"))
       } catch (error) {
         verificationError = error
       }

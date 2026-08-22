@@ -1,14 +1,10 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from "vue"
+import { computed, onMounted, ref } from "vue"
 import { useRouter } from "vue-router"
 import { storeToRefs } from "pinia"
 import { useGoalStore } from "@/stores/goalStore"
+import { useMissionStore } from "@/stores/missionStore"
 import { useUserStore } from "@/stores/userStore"
-import {
-  completeSelfCheckMission,
-  getTodayMissions,
-  verifyTransactionMission,
-} from "@/api/missionApi"
 import { formatRoadmapText, formatWon } from "@/utils/formatters"
 import {
   getGoalAchievementRate,
@@ -24,6 +20,7 @@ import { announcePointEarned } from "@/utils/pointRewardNotice"
 
 const router = useRouter()
 const goalStore = useGoalStore()
+const missionStore = useMissionStore()
 const userStore = useUserStore()
 const {
   goals,
@@ -36,17 +33,18 @@ const {
   isRoadmapProgressSaving,
 } = storeToRefs(goalStore)
 const { user } = storeToRefs(userStore)
+const {
+  missions,
+  status: missionStatus,
+  error: missionError,
+  isLoading: isMissionLoading,
+} = storeToRefs(missionStore)
 
 const walloCharacter = "/images/profiles/thinking-penguin.svg"
 const hasGoal = computed(() => goals.value.length > 0)
 const currentGoal = computed(() => goals.value[0] ?? null)
 const roadmapSlider = ref(null)
 const userId = computed(() => user.value?.id ?? null)
-const missions = ref([])
-const missionStatus = ref("READY")
-const missionError = ref("")
-const isMissionLoading = ref(false)
-let missionDateTimer = null
 const missionActionId = ref(null)
 
 const currentAmount = computed(() => getGoalCurrentAmount(currentGoal.value))
@@ -205,56 +203,25 @@ const loadGoalPage = async ({ force = false } = {}) => {
 }
 
 const loadTodayMissionList = async () => {
-  isMissionLoading.value = true
-  missionError.value = ""
   try {
-    const response = await getTodayMissions()
-    missions.value = response.missions
-    missionStatus.value = response.status || "READY"
-    const transactionMissions = missions.value.filter(
-      (mission) => mission.verificationType === "TRANSACTION" && !mission.completed,
-    )
-    if (transactionMissions.length) {
-      const results = await Promise.allSettled(
-        transactionMissions.map((mission) => verifyTransactionMission(mission.id)),
+    const { verificationResults } = await missionStore.refreshTodayMissions({
+      verifyTransactions: true,
+    })
+    verificationResults.forEach((result) => {
+      const rewardedPoint = Number(
+        result.status === "fulfilled" ? result.value?.rewardedPoint : 0,
       )
-      results.forEach((result) => {
-        const rewardedPoint = Number(
-          result.status === "fulfilled" ? result.value?.rewardedPoint : 0,
-        )
-        if (
-          result.status === "fulfilled" &&
-          result.value?.decision === "PASS" &&
-          rewardedPoint > 0
-        ) {
-          announcePointEarned(rewardedPoint)
-        }
-      })
       if (
-        results.some((result) => result.status === "fulfilled" && result.value?.decision === "PASS")
+        result.status === "fulfilled" &&
+        result.value?.decision === "PASS" &&
+        rewardedPoint > 0
       ) {
-        const refreshed = await getTodayMissions()
-        missions.value = refreshed.missions
-        missionStatus.value = refreshed.status || "READY"
-        window.dispatchEvent(
-          new CustomEvent("wallo:mission-updated", {
-            detail: { missionResponse: refreshed },
-          }),
-        )
+        announcePointEarned(rewardedPoint)
       }
-    }
+    })
   } catch (missionLoadError) {
-    missions.value = []
     missionError.value = missionLoadError.message || "오늘의 미션을 불러오지 못했습니다."
-  } finally {
-    isMissionLoading.value = false
   }
-}
-
-const applyMissionResponse = (response) => {
-  missions.value = response?.missions || []
-  missionStatus.value = response?.status || "READY"
-  missionError.value = ""
 }
 
 const startGoalSetting = async () => {
@@ -275,27 +242,16 @@ const startConsumptionAnalysis = async () => {
   })
 }
 
-const handleMissionUpdated = (event) => {
-  const generatedResponse = event?.detail?.missionResponse
-  if (generatedResponse) {
-    applyMissionResponse(generatedResponse)
-    return
-  }
-  void loadTodayMissionList()
-}
-
 const runMissionAction = async (mission) => {
   if (mission.completed || missionActionId.value) return
   if (mission.verificationType !== "SELF_CHECK") return
   missionActionId.value = mission.id
   try {
-    const response = await completeSelfCheckMission(mission.id)
+    const response = await missionStore.completeSelfCheckMission(mission.id)
     const rewardedPoint = Number(response?.rewardedPoint || 0)
     if (response?.decision === "PASS" && rewardedPoint > 0) {
       announcePointEarned(rewardedPoint)
     }
-    await loadTodayMissionList()
-    window.dispatchEvent(new CustomEvent("wallo:mission-updated"))
   } catch (missionActionError) {
     alert(missionActionError.message || "미션 처리에 실패했습니다.")
   } finally {
@@ -303,35 +259,9 @@ const runMissionAction = async (mission) => {
   }
 }
 
-const scheduleNextMissionDateRefresh = () => {
-  if (missionDateTimer) clearTimeout(missionDateTimer)
-  const now = new Date()
-  const nextDate = new Date(now)
-  nextDate.setHours(24, 0, 0, 250)
-  missionDateTimer = setTimeout(async () => {
-    await loadTodayMissionList()
-    scheduleNextMissionDateRefresh()
-  }, nextDate.getTime() - now.getTime())
-}
-
-const handlePageVisibility = () => {
-  if (document.visibilityState === "visible") void loadTodayMissionList()
-}
-
 onMounted(() => {
-  window.addEventListener("wallo:mission-updated", handleMissionUpdated)
-  window.addEventListener("focus", handlePageVisibility)
-  document.addEventListener("visibilitychange", handlePageVisibility)
   void loadGoalPage({ force: true })
   void loadTodayMissionList()
-  scheduleNextMissionDateRefresh()
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener("wallo:mission-updated", handleMissionUpdated)
-  window.removeEventListener("focus", handlePageVisibility)
-  document.removeEventListener("visibilitychange", handlePageVisibility)
-  if (missionDateTimer) clearTimeout(missionDateTimer)
 })
 </script>
 

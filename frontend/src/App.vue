@@ -1,19 +1,38 @@
 <script setup>
-import { computed } from "vue"
+import { computed, onBeforeUnmount, watch } from "vue"
 import { RouterView, useRoute } from "vue-router"
 import SideNavigation from "@/components/navigation/SideNavigation.vue"
 import TopHeader from "@/components/navigation/TopHeader.vue"
 import AppToast from "@/components/common/AppToast.vue"
 import PointEarnedNotice from "@/components/common/PointEarnedNotice.vue"
 import { useModalEnter } from "@/composables/useModalEnter"
+import { useMissionStore } from "@/stores/missionStore"
 
 const route = useRoute()
+const missionStore = useMissionStore()
 const usesAppShell = computed(() => Boolean(route.meta.appShell))
 const getRouteViewKey = (viewRoute) =>
   viewRoute.matched.length > 1
     ? viewRoute.matched[0]?.path || viewRoute.path
     : viewRoute.path
 useModalEnter()
+
+watch(
+  usesAppShell,
+  (isAppShellActive) => {
+    if (isAppShellActive) {
+      missionStore.startLifecycle()
+    } else {
+      missionStore.stopLifecycle()
+      missionStore.reset()
+    }
+  },
+  { immediate: true },
+)
+
+onBeforeUnmount(() => {
+  missionStore.stopLifecycle()
+})
 </script>
 
 <template>

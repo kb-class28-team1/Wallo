@@ -1,6 +1,6 @@
 import { flushPromises, mount } from "@vue/test-utils"
 import { createPinia, setActivePinia } from "pinia"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import AiAssistantView from "./AiAssistantView.vue"
 import { getGoalRoadmap, getGoals } from "@/api/goalApi"
 import {
@@ -8,6 +8,7 @@ import {
   getTodayMissions,
   verifyTransactionMission,
 } from "@/api/missionApi"
+import { useMissionStore } from "@/stores/missionStore"
 
 const push = vi.fn()
 
@@ -24,8 +25,10 @@ vi.mock("@/api/goalApi", () => ({
 }))
 
 vi.mock("@/api/missionApi", () => ({
-  getTodayMissions: vi.fn().mockResolvedValue({ status: "READY", missions: [] }),
   completeSelfCheckMission: vi.fn(),
+  generateNextDayMissions: vi.fn(),
+  getTodayMissions: vi.fn().mockResolvedValue({ status: "READY", missions: [] }),
+  verifyMissionWithFeed: vi.fn(),
   verifyTransactionMission: vi.fn(),
 }))
 
@@ -38,6 +41,11 @@ describe("AiAssistantView", () => {
     getTodayMissions.mockResolvedValue({ status: "READY", missions: [] })
     completeSelfCheckMission.mockResolvedValue({ decision: "PASS" })
     verifyTransactionMission.mockResolvedValue({ decision: "PASS" })
+  })
+
+  afterEach(() => {
+    useMissionStore().stopLifecycle()
+    useMissionStore().reset()
   })
 
   it("shows the goal empty state and roadmap introduction when no goal exists", async () => {
@@ -122,6 +130,7 @@ describe("AiAssistantView", () => {
   it("reflects missions generated for the next development date", async () => {
     const wrapper = mount(AiAssistantView)
     await flushPromises()
+    useMissionStore().startLifecycle()
 
     window.dispatchEvent(
       new CustomEvent("wallo:mission-updated", {
