@@ -551,7 +551,7 @@ const progressWidth = (rate) => {
 
 .budget-overview {
   color: #555b6e;
-  background: #f7f6fc;
+  background: #f6faff;
 }
 
 .budget-overview-over {

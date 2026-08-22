@@ -47,6 +47,7 @@ describe("GoalSummaryCard", () => {
     expect(wrapper.text()).toContain("3,250,000원")
     expect(wrapper.text()).toContain("65%")
     expect(wrapper.find(".goal-progress-summary").exists()).toBe(true)
+    expect(wrapper.find(".goal-progress-caption").text()).toBe("현재 모은 금액")
     expect(wrapper.text()).toContain("월 필요 납입액")
     expect(wrapper.text()).toContain("설정된 계좌가 없습니다.")
     expect(wrapper.text()).not.toContain("진행 중")

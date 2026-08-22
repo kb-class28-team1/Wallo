@@ -41,6 +41,7 @@ const {
 } = storeToRefs(missionStore)
 
 const walloCharacter = "/images/profiles/thinking-penguin.svg"
+const walloAdviceCharacter = "/images/spending/09_저축중.svg"
 const hasGoal = computed(() => goals.value.length > 0)
 const currentGoal = computed(() => goals.value[0] ?? null)
 const roadmapSlider = ref(null)
@@ -208,14 +209,8 @@ const loadTodayMissionList = async () => {
       verifyTransactions: true,
     })
     verificationResults.forEach((result) => {
-      const rewardedPoint = Number(
-        result.status === "fulfilled" ? result.value?.rewardedPoint : 0,
-      )
-      if (
-        result.status === "fulfilled" &&
-        result.value?.decision === "PASS" &&
-        rewardedPoint > 0
-      ) {
+      const rewardedPoint = Number(result.status === "fulfilled" ? result.value?.rewardedPoint : 0)
+      if (result.status === "fulfilled" && result.value?.decision === "PASS" && rewardedPoint > 0) {
         announcePointEarned(rewardedPoint)
       }
     })
@@ -341,11 +336,11 @@ onMounted(() => {
                 <div class="goal-coaching-copy">
                   <span class="goal-coaching-label">
                     <i class="bi bi-stars" aria-hidden="true"></i>
-                    AI 한줄 코칭
+                    왈로의 한마디
                   </span>
                   <p class="mb-0">목표가 있어야 방향이 생겨요! 작은 목표부터 함께 시작해봐요.</p>
                 </div>
-                <img :src="walloCharacter" alt="" aria-hidden="true" />
+                <img :src="walloAdviceCharacter" alt="" aria-hidden="true" />
               </div>
             </div>
           </AppCard>
@@ -492,8 +487,8 @@ onMounted(() => {
           <AppCard as="article" class="content-card goal-main-card" padding="none">
             <div class="card-body p-4">
               <div class="goal-card-heading d-flex align-items-start justify-content-between gap-3">
-                <h2 class="section-title h5 fw-bold">
-                  {{ currentGoal.title || "제목 없는 목표" }}
+                <h2 class="section-title h4 fw-bold">
+                  나의 목표
                 </h2>
                 <div class="goal-heading-actions d-flex align-items-center gap-2">
                   <span class="goal-status-badge">진행 중</span>
@@ -512,10 +507,11 @@ onMounted(() => {
 
               <div class="goal-summary mt-3">
                 <div class="goal-summary-copy">
-                  <h3 class="h4 fw-bold mb-2">{{ currentGoal.title }}</h3>
                   <p class="mb-0 text-secondary">
                     {{ formatGoalDate(currentGoal.targetDate) }}까지
-                    <strong class="text-dark">{{ formatWon(currentGoal.targetAmount) }}</strong>
+                    <strong class="text-dark"
+                      >{{ currentGoal.title }} {{ formatWon(currentGoal.targetAmount) }}</strong
+                    > 모으기
                   </p>
                 </div>
               </div>
@@ -556,11 +552,11 @@ onMounted(() => {
                 <div class="goal-coaching-copy">
                   <span class="goal-coaching-label">
                     <i class="bi bi-stars" aria-hidden="true"></i>
-                    AI 한줄 코칭
+                    왈로의 한마디
                   </span>
                   <p class="mb-0">{{ coachingMessage }}</p>
                 </div>
-                <img :src="walloCharacter" alt="" aria-hidden="true" />
+                <img :src="walloAdviceCharacter" alt="" aria-hidden="true" />
               </div>
             </div>
           </AppCard>
@@ -570,7 +566,7 @@ onMounted(() => {
           <AppCard as="aside" class="content-card mission-card h-100" padding="none">
             <div class="card-body mission-card-body p-4">
               <div class="mission-card-heading">
-                <h2 class="section-title h5 fw-bold">오늘의 미션</h2>
+                <h2 class="section-title h4 fw-bold">오늘의 미션</h2>
                 <strong v-if="missions.length" class="mission-count">
                   {{ completedMissionCount }}/{{ missions.length }}
                 </strong>
@@ -802,7 +798,6 @@ onMounted(() => {
         </div>
       </AppCard>
     </div>
-
   </section>
 </template>
 
@@ -914,23 +909,33 @@ onMounted(() => {
   justify-content: space-between;
   gap: 1.5rem;
   padding: 0.85rem 1.15rem;
-  border: 1px solid var(--wallo-color-border);
   border-radius: 18px;
   background: linear-gradient(135deg, #f5faff 0%, #eaf4ff 100%);
 }
 
 .goal-coaching-copy {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  align-self: stretch;
+  flex-direction: column;
+  justify-content: center;
   min-width: 0;
+  text-align: left;
 }
 
 .goal-coaching-label {
+  position: absolute;
+  top: 0;
+  left: 0;
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
   margin-bottom: 0.45rem;
   color: #4d85dd;
-  font-size: 0.82rem;
+  font-size: 0.9rem;
   font-weight: 800;
+  text-align: left;
 }
 
 .goal-coaching-copy p {
@@ -940,8 +945,8 @@ onMounted(() => {
 }
 
 .goal-coaching-inline img {
-  width: 58px;
-  height: 54px;
+  width: 108px;
+  height: 104px;
   flex: 0 0 auto;
   object-fit: contain;
 }
@@ -976,7 +981,6 @@ onMounted(() => {
   border-radius: 50%;
   color: #fff;
   background: linear-gradient(135deg, #71a1e8, #4d86d1);
-  box-shadow: 0 8px 18px rgb(79 143 232 / 20%);
   font-size: 0.68rem;
 }
 
@@ -1358,11 +1362,11 @@ onMounted(() => {
   font-weight: 700;
 }
 
-.goal-chat-button:hover,
-.goal-chat-button:focus {
-  border-color: #4d85dd;
-  color: #fff;
-  background: #4d85dd;
+.goal-chat-button.app-button--outline:hover:not(:disabled),
+.goal-chat-button.app-button--outline:focus {
+  border-color: var(--wallo-color-primary-hover);
+  color: var(--wallo-color-surface);
+  background: var(--wallo-color-primary);
 }
 
 .goal-summary {
@@ -1517,13 +1521,13 @@ onMounted(() => {
   }
 
   .goal-coaching-inline {
-    align-items: flex-start;
+    align-items: center;
     padding: 1.15rem 1.25rem;
   }
 
   .goal-coaching-inline img {
-    width: 64px;
-    height: 60px;
+    width: 72px;
+    height: 68px;
   }
 
   .goal-card-heading {

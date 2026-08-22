@@ -150,6 +150,7 @@ const formatGoalDate = (date) => {
           class="goal-item"
         >
           <div class="goal-progress-summary mb-4">
+            <div class="goal-progress-caption">현재 모은 금액</div>
             <div class="d-flex align-items-baseline justify-content-between gap-3">
               <div class="goal-progress-amount">
                 <strong>{{ formatWon(getGoalCurrentAmount(selectedGoal)) }}</strong>
@@ -160,7 +161,7 @@ const formatGoalDate = (date) => {
               >
             </div>
             <div
-              class="progress goal-progress mt-2"
+              class="progress goal-progress mt-3"
               role="progressbar"
               :aria-label="`${selectedGoal.title || '금융 목표'} 달성률`"
               :aria-valuenow="getGoalAchievementRate(selectedGoal)"
@@ -386,7 +387,7 @@ const formatGoalDate = (date) => {
 .goal-progress-caption {
   margin-bottom: 0.5rem !important;
   color: var(--wallo-color-text-muted);
-  font-size: 0.8rem;
+  font-size: 0.95rem;
 }
 
 .goal-progress-summary {
@@ -397,13 +398,6 @@ const formatGoalDate = (date) => {
 .goal-account-summary {
   min-height: 3rem;
   margin-top: auto;
-}
-
-.goal-account-label {
-  margin-bottom: 0.35rem;
-  color: var(--wallo-color-text-muted);
-  font-size: 0.8rem;
-  font-weight: 600;
 }
 
 .goal-account-value {
@@ -439,16 +433,15 @@ const formatGoalDate = (date) => {
 }
 
 .goal-progress {
-  margin-top: 0.75rem !important;
   height: 0.7rem;
   overflow: hidden;
-  border-radius: var(--wallo-radius-pill);
-  background: var(--wallo-color-info-bg);
+  border-radius: 999px;
+  background: var(--wallo-color-progress-track);
 }
 
 .goal-progress-bar {
   border-radius: inherit;
-  background: var(--wallo-color-primary);
+  background: linear-gradient(90deg, #6e9fe8, #4b87d8);
 }
 
 @media (max-width: 575.98px) {

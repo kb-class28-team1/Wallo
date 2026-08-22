@@ -80,8 +80,8 @@ const strategyTitle = computed(() =>
 )
 const strategyMessage = computed(() =>
   isThresholdReached.value
-    ? "이제부터 예정된 지출은 체크카드·현금영수증 비중을 늘려보세요."
-    : "공제는 아직 시작되지 않아요. 예정된 지출은 혜택 좋은 신용카드를 우선 사용하세요.",
+    ? "이제부터 체크카드·현금영수증 비중을 늘려보세요."
+    : "공제는 아직 시작되지 않아요. 혜택 좋은 신용카드를 우선 사용하세요.",
 )
 
 const isAnnualSalaryUnavailable = computed(
@@ -203,8 +203,8 @@ onMounted(() => loadTaxSettlement({ force: props.forceRefresh }))
               <strong>최대 공제한도</strong>
               <ul class="tax-guide-list">
                 <li :class="{ 'is-current': salaryBracket === 'under-seven-million' }">
-                  연봉 7,000만 원 이하: 기본 {{ formatTenThousandWon(3_000_000) }} · 추가 항목 포함
-                  최대 {{ formatTenThousandWon(6_000_000) }}
+                  연봉 7,000만 원 이하: 기본 {{ formatTenThousandWon(3_000_000) }} · 최대
+                  {{ formatTenThousandWon(6_000_000) }}
                 </li>
                 <li :class="{ 'is-current': salaryBracket === 'under-twelve-million' }">
                   연봉 7,000만 원 초과 ~ 1억 2,000만 원 이하: 기본
@@ -214,12 +214,6 @@ onMounted(() => loadTaxSettlement({ force: props.forceRefresh }))
                   연봉 1억 2,000만 원 초과: 기본 {{ formatTenThousandWon(2_000_000) }}
                 </li>
               </ul>
-              <p class="tax-guide-current-limit">
-                현재 구간 기준: 기본 {{ formatTenThousandWon(basicDeductionLimit) }}
-                <template v-if="salaryBracket === 'under-seven-million'">
-                  · 추가 항목 포함 최대 {{ formatTenThousandWon(maximumDeductionLimit) }}
-                </template>
-              </p>
             </div>
           </div>
         </div>
@@ -449,7 +443,7 @@ onMounted(() => loadTaxSettlement({ force: props.forceRefresh }))
   flex-wrap: wrap;
   gap: 0.35rem;
   color: var(--wallo-color-text-muted);
-  font-size: 0.78rem;
+  font-size: 0.9rem;
 }
 
 .tax-deduction-usage strong {
@@ -466,11 +460,13 @@ onMounted(() => loadTaxSettlement({ force: props.forceRefresh }))
   padding-top: 12px;
   color: var(--wallo-color-text-muted);
   line-height: 1.7;
+  font-size: 0.9rem;
 }
 
 .tax-deduction-remaining {
   color: var(--wallo-color-primary);
   font-weight: 700;
+  font-size: 1rem;
 }
 
 .tax-strategy {
@@ -492,30 +488,15 @@ onMounted(() => loadTaxSettlement({ force: props.forceRefresh }))
   gap: 0.5rem;
 }
 
-.tax-strategy-badge {
-  padding: 0.22rem 0.45rem;
-  border-radius: 999px;
-  color: #4d85dd;
-  background: #e5f1ff;
-  font-size: 0.68rem;
-  font-weight: 800;
-  white-space: nowrap;
-}
-
-.tax-strategy--reached .tax-strategy-badge {
-  color: #2f8a57;
-  background: #ddf4e4;
-}
-
 .tax-strategy-heading strong {
   color: var(--wallo-color-text);
-  font-size: 0.86rem;
+  font-size: 0.9rem;
 }
 
 .tax-strategy p {
   margin-top: 0.4rem;
   color: var(--wallo-color-text-muted);
-  font-size: 0.78rem;
+  font-size: 0.86rem;
   line-height: 1.55;
 }
 
@@ -528,7 +509,7 @@ onMounted(() => loadTaxSettlement({ force: props.forceRefresh }))
   gap: 0.35rem;
   padding: 0.25rem 0.45rem;
   color: var(--wallo-color-text-muted);
-  font-size: 0.75rem;
+  font-size: 0.86rem;
 }
 
 .tax-guide-toggle:hover,
@@ -548,7 +529,7 @@ onMounted(() => loadTaxSettlement({ force: props.forceRefresh }))
   top: calc(100% + 0.5rem);
   right: 0;
   z-index: 20;
-  width: min(360px, calc(100vw - 2rem));
+  width: min(420px, calc(100vw - 2rem));
   max-height: min(420px, calc(100vh - 2rem));
   overflow: auto;
   padding: 0.85rem 0.9rem;
@@ -556,7 +537,7 @@ onMounted(() => loadTaxSettlement({ force: props.forceRefresh }))
   border-radius: 12px;
   color: var(--wallo-color-text-muted);
   background: #fbfdff;
-  font-size: 0.74rem;
+  font-size: 0.86rem;
   line-height: 1.55;
   box-shadow: var(--wallo-shadow-card);
   opacity: 0;
@@ -587,7 +568,7 @@ onMounted(() => loadTaxSettlement({ force: props.forceRefresh }))
   display: block;
   margin-bottom: 0.25rem;
   color: var(--wallo-color-text);
-  font-size: 0.78rem;
+  font-size: 0.86rem;
 }
 
 .tax-guide-section p {
@@ -602,12 +583,6 @@ onMounted(() => loadTaxSettlement({ force: props.forceRefresh }))
 }
 
 .tax-guide-list li.is-current {
-  color: var(--wallo-color-primary);
-  font-weight: 700;
-}
-
-.tax-guide-current-limit {
-  margin-top: 0.45rem !important;
   color: var(--wallo-color-primary);
   font-weight: 700;
 }

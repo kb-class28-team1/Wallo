@@ -182,7 +182,7 @@ const budgetRemaining = computed(
             </div>
           </div>
           <p class="budget-detail mb-0 mt-3">
-            지출 {{ formatWon(budget.spentAmount) }} / 예산 {{ formatWon(budget.totalAmount) }}
+            지출 <strong>{{ formatWon(budget.spentAmount) }}</strong> / 예산 <strong>{{ formatWon(budget.totalAmount) }}</strong>
           </p>
         </div>
       </template>
@@ -237,7 +237,6 @@ const budgetRemaining = computed(
   min-height: 184px;
   padding: 8px 16px;
   overflow: hidden;
-  border: 1px solid rgba(47, 152, 189, 0.34);
   border-radius: var(--wallo-radius-lg);
   background:
     radial-gradient(circle at 15% 20%, #ffffff 0 22px, rgba(255, 255, 255, 0.24) 23px, transparent 25px),
