@@ -671,9 +671,8 @@ onMounted(async () => {
             class="chat-completed-notice"
             variant="info"
           >
-            <strong>목표 설정이 완료된 채팅입니다.</strong>
-            목표와 연결할 계좌가 저장되어 더 이상 메시지를 입력할 수 없습니다. 새로운 상담은
-            새 채팅에서 시작해 주세요.
+            <strong class="d-block mb-1">목표 설정이 완료된 채팅입니다.</strong>
+            <span>목표 계좌만 수정할 수 있습니다. 새로운 상담은 새 채팅에서 시작해 주세요.</span>
           </AppAlert>
 
           <ChatInput

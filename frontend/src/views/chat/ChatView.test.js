@@ -173,6 +173,7 @@ describe("ChatView", () => {
     expect(wrapper.text()).not.toContain("이대로 확정")
     expect(wrapper.text()).toContain("Wallo Bank")
     expect(wrapper.text()).toContain("목표 설정이 완료된 채팅입니다.")
+    expect(wrapper.get(".chat-completed-notice strong").classes()).toContain("d-block")
     expect(wrapper.find(".stub-input").attributes("data-disabled")).toBe("true")
     expect(getGoalByConversationId).toHaveBeenCalledWith(11)
   })

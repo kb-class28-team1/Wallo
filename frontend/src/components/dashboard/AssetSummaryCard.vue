@@ -15,6 +15,15 @@ import { formatWon } from "@/utils/formatters"
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler)
 
+const EMPTY_ASSETS = Object.freeze({
+  totalAssets: 0,
+  previousMonthTotalAssets: 0,
+})
+const EMPTY_CHART_DATA = Object.freeze({
+  labels: [],
+  datasets: [{ data: [] }],
+})
+
 const props = defineProps({
   assets: {
     type: Object,
@@ -29,12 +38,18 @@ const props = defineProps({
   },
 })
 
+const safeAssets = computed(() => props.assets ?? EMPTY_ASSETS)
+const safeChartData = computed(() => {
+  const chartData = props.chartData
+  return chartData?.datasets?.[0]?.data ? chartData : EMPTY_CHART_DATA
+})
+
 const assetChangeAmount = computed(() => {
-  if (!props.assets.previousMonthTotalAssets) {
+  if (!safeAssets.value.previousMonthTotalAssets) {
     return null
   }
 
-  return props.assets.totalAssets - props.assets.previousMonthTotalAssets
+  return safeAssets.value.totalAssets - safeAssets.value.previousMonthTotalAssets
 })
 const assetChangeMessage = computed(() => {
   if (assetChangeAmount.value === null) {
@@ -54,7 +69,7 @@ const assetChangeClass = computed(() =>
     ? "asset-change-negative"
     : "asset-change-positive",
 )
-const hasTrendData = computed(() => props.chartData.datasets[0].data.length > 0)
+const hasTrendData = computed(() => safeChartData.value.datasets[0].data.length > 0)
 
 const chartOptions = {
   responsive: true,
@@ -89,7 +104,7 @@ const chartOptions = {
       <div class="asset-card-content row g-4 h-100">
         <div class="col-lg-5 d-flex flex-column">
           <p class="asset-label fw-semibold mb-3">총 자산</p>
-          <strong class="asset-total d-block">{{ formatWon(assets.totalAssets) }}</strong>
+          <strong class="asset-total d-block">{{ formatWon(safeAssets.totalAssets) }}</strong>
 
           <div class="asset-change mt-5">
             <p class="asset-change-label mb-2">지난달 대비</p>
@@ -109,7 +124,7 @@ const chartOptions = {
             </div>
 
             <div v-if="hasTrendData" class="asset-trend-chart">
-              <Line :data="chartData" :options="chartOptions" />
+              <Line :data="safeChartData" :options="chartOptions" />
             </div>
             <p v-else class="asset-trend-empty text-center text-secondary mb-0">
               자산 변동 데이터가 없습니다.

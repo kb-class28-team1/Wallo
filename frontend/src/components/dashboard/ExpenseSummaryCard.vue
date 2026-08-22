@@ -12,6 +12,15 @@ import { formatWon } from "@/utils/formatters"
 
 ChartJS.register(ArcElement, Tooltip, Legend)
 
+const EMPTY_EXPENSES = Object.freeze({
+  totalExpense: 0,
+  expenseCategoryBreakdown: [],
+})
+const EMPTY_CHART_DATA = Object.freeze({
+  labels: [],
+  datasets: [{ data: [] }],
+})
+
 const props = defineProps({
   expenses: {
     type: Object,
@@ -26,12 +35,18 @@ const props = defineProps({
   },
 })
 
+const safeExpenses = computed(() => props.expenses ?? EMPTY_EXPENSES)
+const safeChartData = computed(() => {
+  const chartData = props.chartData
+  return chartData?.datasets?.[0]?.data ? chartData : EMPTY_CHART_DATA
+})
+
 const topExpenseCategories = computed(() =>
-  [...(props.expenses.expenseCategoryBreakdown ?? [])]
+  [...(safeExpenses.value.expenseCategoryBreakdown ?? [])]
     .sort((first, second) => Number(second.amount) - Number(first.amount))
     .slice(0, 5),
 )
-const hasExpenseData = computed(() => props.chartData.datasets[0].data.length > 0)
+const hasExpenseData = computed(() => safeChartData.value.datasets[0].data.length > 0)
 const chartOptions = {
   responsive: true,
   maintainAspectRatio: false,
@@ -54,7 +69,7 @@ const expenseCategoryColor = (category) => {
 }
 
 const expenseCategoryRate = (amount) => {
-  const totalExpense = Number(props.expenses.totalExpense ?? 0)
+  const totalExpense = Number(safeExpenses.value.totalExpense ?? 0)
 
   if (totalExpense <= 0) {
     return 0
@@ -70,7 +85,7 @@ const expenseCategoryRate = (amount) => {
       <div class="d-flex align-items-start justify-content-between gap-3">
         <div>
           <h2 class="h5 fw-bold mb-2">이번 달 총 지출</h2>
-          <strong class="expense-total">{{ formatWon(expenses.totalExpense) }}</strong>
+          <strong class="expense-total">{{ formatWon(safeExpenses.totalExpense) }}</strong>
         </div>
         <RouterLink to="/assets/expenses" class="btn app-action-link">
           더보기
@@ -81,7 +96,7 @@ const expenseCategoryRate = (amount) => {
       <div v-if="hasExpenseData" class="row align-items-center g-4 mt-2">
         <div class="col-md-4">
           <div class="expense-doughnut-chart">
-            <Doughnut :data="chartData" :options="chartOptions" />
+            <Doughnut :data="safeChartData" :options="chartOptions" />
             <p class="expense-doughnut-center mb-0">지출 비중<br />TOP 5</p>
           </div>
         </div>

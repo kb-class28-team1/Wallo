@@ -12,18 +12,58 @@ export const useDashboardStore = defineStore("dashboard", () => {
   const invalidationStore = useFinancialInvalidationStore()
   const initialLoading = ref(false)
   const refreshing = ref(false)
-  const isLoading = computed(() => initialLoading.value || refreshing.value)
   const assets = computed(() => assetStore.assets)
+  const assetInitialLoading = computed(() => assetStore.initialLoading)
+  const assetRefreshing = computed(() => assetStore.refreshing)
+  const assetLoading = computed(
+    () => assetInitialLoading.value || assetRefreshing.value,
+  )
+  const assetError = computed(() => assetStore.error)
+  const hasAssetData = computed(() => assets.value !== null)
+  const hasFetchedAssets = computed(() => assetStore.hasFetched)
+
   const budget = ref(null)
+  const budgetInitialLoading = ref(false)
+  const budgetRefreshing = ref(false)
+  const budgetLoading = computed(
+    () => budgetInitialLoading.value || budgetRefreshing.value,
+  )
+  const budgetError = ref(null)
+  const hasFetchedBudget = ref(false)
+  const hasBudgetData = computed(() => budget.value !== null)
+
   const expenses = ref(null)
+  const expenseInitialLoading = ref(false)
+  const expenseRefreshing = ref(false)
+  const expenseLoading = computed(
+    () => expenseInitialLoading.value || expenseRefreshing.value,
+  )
+  const expenseError = ref(null)
+  const hasFetchedExpenses = ref(false)
+  const hasExpenseData = computed(() => expenses.value !== null)
+
+  const isLoading = computed(
+    () =>
+      initialLoading.value ||
+      refreshing.value ||
+      assetLoading.value ||
+      budgetLoading.value ||
+      expenseLoading.value,
+  )
   const error = ref(null)
   const lastFetchedAt = ref(0)
   const lastFetchedRevision = ref(0)
   let inFlight = null
   let inFlightRevision = null
 
+  const hasFetchedDashboardResources = computed(
+    () =>
+      hasFetchedAssets.value &&
+      hasFetchedBudget.value &&
+      hasFetchedExpenses.value,
+  )
   const hasDashboardData = computed(
-    () => assets.value !== null && budget.value !== null && expenses.value !== null,
+    () => hasAssetData.value || hasBudgetData.value || hasExpenseData.value,
   )
 
   const getDashboardSummary = () => ({
@@ -31,6 +71,59 @@ export const useDashboardStore = defineStore("dashboard", () => {
     budget: budget.value,
     expenses: expenses.value,
   })
+
+  const normalizeDashboardResponse = (response, fallbackMessage) => {
+    if (!response || response.success === false) {
+      throw new Error(response?.error?.message || fallbackMessage)
+    }
+
+    return response.data ?? null
+  }
+
+  const loadDashboardResource = async ({
+    requestRevision,
+    load,
+    setData,
+    hasFetched,
+    setInitialLoading,
+    setRefreshing,
+    setError,
+    fallbackMessage,
+  }) => {
+    const isInitialLoad = !hasFetched.value
+    setInitialLoading(isInitialLoad)
+    setRefreshing(!isInitialLoad)
+    setError(null)
+
+    try {
+      const response = await load()
+
+      if (requestRevision !== invalidationStore.revision) {
+        return null
+      }
+
+      const data = normalizeDashboardResponse(response, fallbackMessage)
+      setData(data)
+      hasFetched.value = true
+      return data
+    } catch (caughtError) {
+      if (requestRevision !== invalidationStore.revision) {
+        return null
+      }
+
+      const message = getApiErrorMessage(caughtError, fallbackMessage)
+      if (isInitialLoad) {
+        setData(null)
+      }
+      setError(message)
+      throw caughtError
+    } finally {
+      if (requestRevision === invalidationStore.revision) {
+        setInitialLoading(false)
+        setRefreshing(false)
+      }
+    }
+  }
 
   const fetchDashboardSummary = ({
     force = false,
@@ -44,7 +137,7 @@ export const useDashboardStore = defineStore("dashboard", () => {
     }
 
     const isFresh =
-      hasDashboardData.value &&
+      hasFetchedDashboardResources.value &&
       lastFetchedAt.value > 0 &&
       lastFetchedRevision.value === currentRevision &&
       Date.now() - lastFetchedAt.value < staleTime
@@ -53,7 +146,7 @@ export const useDashboardStore = defineStore("dashboard", () => {
       return Promise.resolve(getDashboardSummary())
     }
 
-    const isInitialLoad = !hasDashboardData.value
+    const isInitialLoad = !hasFetchedDashboardResources.value
     initialLoading.value = isInitialLoad
     refreshing.value = !isInitialLoad
     error.value = null
@@ -61,48 +154,79 @@ export const useDashboardStore = defineStore("dashboard", () => {
 
     let request
     request = (async () => {
-      try {
-        const [, budgetResponse, expensesResponse] = await Promise.all([
-          assetStore.fetchAssets({ notifyError: false }),
-          getBudgets(),
-          getExpenses(),
-        ])
+      const resourceRequests = [
+        assetStore.fetchAssets({ notifyError: false }),
+        loadDashboardResource({
+          requestRevision,
+          load: getBudgets,
+          setData: (data) => {
+            budget.value = data
+          },
+          hasFetched: hasFetchedBudget,
+          setInitialLoading: (value) => {
+            budgetInitialLoading.value = value
+          },
+          setRefreshing: (value) => {
+            budgetRefreshing.value = value
+          },
+          setError: (value) => {
+            budgetError.value = value
+          },
+          fallbackMessage: "예산 정보를 불러오지 못했습니다.",
+        }),
+        loadDashboardResource({
+          requestRevision,
+          load: getExpenses,
+          setData: (data) => {
+            expenses.value = data
+          },
+          hasFetched: hasFetchedExpenses,
+          setInitialLoading: (value) => {
+            expenseInitialLoading.value = value
+          },
+          setRefreshing: (value) => {
+            expenseRefreshing.value = value
+          },
+          setError: (value) => {
+            expenseError.value = value
+          },
+          fallbackMessage: "소비 정보를 불러오지 못했습니다.",
+        }),
+      ]
+      const resourceResults = await Promise.allSettled(resourceRequests)
 
-        if (requestRevision !== invalidationStore.revision) {
-          return getDashboardSummary()
+      if (requestRevision !== invalidationStore.revision) {
+        return getDashboardSummary()
+      }
+
+      const resourceErrors = [
+        assetError.value,
+        budgetError.value,
+        expenseError.value,
+      ].filter(Boolean)
+
+      if (resourceErrors.length > 0) {
+        error.value = [...new Set(resourceErrors)].join("\n")
+        lastFetchedAt.value = 0
+        if (notifyError) {
+          alert(error.value)
         }
-
-        budget.value = budgetResponse.data
-        expenses.value = expensesResponse.data
+      } else {
         lastFetchedAt.value = Date.now()
         lastFetchedRevision.value = requestRevision
-
-        return getDashboardSummary()
-      } catch (caughtError) {
-        if (requestRevision !== invalidationStore.revision) {
-          return null
-        }
-
-        const errorMessage = getApiErrorMessage(
-          caughtError,
-          "대시보드 데이터를 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
-        )
-
-        error.value = errorMessage
-        if (notifyError) {
-          alert(errorMessage)
-        }
-
-        return null
-      } finally {
-        if (inFlight === request) {
-          initialLoading.value = false
-          refreshing.value = false
-          inFlight = null
-          inFlightRevision = null
-        }
       }
-    })()
+
+      return resourceResults.some((result) => result.status === "fulfilled")
+        ? getDashboardSummary()
+        : null
+    })().finally(() => {
+      if (inFlight === request) {
+        initialLoading.value = false
+        refreshing.value = false
+        inFlight = null
+        inFlightRevision = null
+      }
+    })
 
     inFlight = request
     inFlightRevision = requestRevision
@@ -116,6 +240,8 @@ export const useDashboardStore = defineStore("dashboard", () => {
       const response = await putBudget(targetMonth, Number(totalAmount))
 
       budget.value = response.data
+      budgetError.value = null
+      hasFetchedBudget.value = true
       lastFetchedAt.value = 0
       invalidationStore.markChanged()
 
@@ -130,6 +256,7 @@ export const useDashboardStore = defineStore("dashboard", () => {
         "예산을 저장하는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
       )
 
+      budgetError.value = errorMessage
       error.value = errorMessage
       alert(errorMessage)
       throw caughtError
@@ -140,10 +267,29 @@ export const useDashboardStore = defineStore("dashboard", () => {
     isLoading,
     initialLoading,
     refreshing,
+    assetLoading,
+    assetInitialLoading,
+    assetRefreshing,
+    assetError,
+    hasAssetData,
+    hasFetchedAssets,
     assets,
+    budgetLoading,
+    budgetInitialLoading,
+    budgetRefreshing,
+    budgetError,
+    hasBudgetData,
+    hasFetchedBudget,
     budget,
+    expenseLoading,
+    expenseInitialLoading,
+    expenseRefreshing,
+    expenseError,
+    hasExpenseData,
+    hasFetchedExpenses,
     expenses,
     error,
+    hasDashboardData,
     lastFetchedAt,
     fetchDashboardSummary,
     updateBudgetTotal,

@@ -22,6 +22,7 @@ describe("useDashboardStore", () => {
 
   afterEach(() => {
     vi.clearAllMocks()
+    vi.unstubAllGlobals()
   })
 
   it("loads dashboard resources once and exposes the initial loading state", async () => {
@@ -117,5 +118,26 @@ describe("useDashboardStore", () => {
     expect(store.expenses.totalExpense).toBe(220_000)
     expect(store.initialLoading).toBe(false)
     expect(store.refreshing).toBe(false)
+  })
+
+  it("keeps successful resources available when one dashboard request fails", async () => {
+    const alertMock = vi.fn()
+    vi.stubGlobal("alert", alertMock)
+    getBudgets.mockRejectedValueOnce(new Error("예산 조회 실패"))
+
+    const store = useDashboardStore()
+    const summary = await store.fetchDashboardSummary({ notifyError: true })
+
+    expect(summary).toMatchObject({
+      assets: { totalAssets: 1_000_000 },
+      budget: null,
+      expenses: { totalExpense: 120_000 },
+    })
+    expect(store.hasFetchedAssets).toBe(true)
+    expect(store.hasFetchedBudget).toBe(false)
+    expect(store.hasFetchedExpenses).toBe(true)
+    expect(store.budgetError).toBe("예산 조회 실패")
+    expect(store.error).toContain("예산 조회 실패")
+    expect(alertMock).toHaveBeenCalledOnce()
   })
 })
