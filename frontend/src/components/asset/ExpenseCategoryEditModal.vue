@@ -307,43 +307,6 @@ const save = () => {
   font-weight: 600;
 }
 
-.category-type-tabs {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 4px;
-  margin-bottom: 24px;
-  padding: 6px;
-  border-radius: 28px;
-  background: #f1f3f7;
-}
-
-.category-type-tab {
-  min-height: 48px;
-  border: 0;
-  border-radius: 24px;
-  color: #a1a8b7;
-  background: transparent;
-  font: inherit;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.category-type-tab.active {
-  color: #343044;
-  background: #ffffff;
-  box-shadow: 0 4px 12px rgba(49, 54, 74, 0.05);
-}
-
-.category-type-tab:focus-visible {
-  outline: 2px solid #4d82d6;
-  outline-offset: 2px;
-}
-
-.category-type-tab:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
 .category-option-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

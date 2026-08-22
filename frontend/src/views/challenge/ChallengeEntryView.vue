@@ -4,6 +4,7 @@ import { useRouter } from "vue-router"
 import { createChallenge, getCurrentChallenge, joinChallenge } from "@/api/challengeApi"
 import AppDialog from "@/components/common/AppDialog.vue"
 import AppPageHeader from "@/components/ui/AppPageHeader.vue"
+import AppTabs from "@/components/ui/AppTabs.vue"
 import { useToastStore } from "@/stores/toastStore"
 
 const router = useRouter()
@@ -14,6 +15,10 @@ const isSubmitting = ref(false)
 const errorMessage = ref("")
 const currentChallenge = ref(null)
 const activeForm = ref("create")
+const formTabs = [
+  { value: "create", label: "챌린지 만들기" },
+  { value: "join", label: "초대 코드로 참여" },
+]
 const dialogVisible = ref(false)
 const dialogMessage = ref("")
 const dialogNextRoute = ref(null)
@@ -235,26 +240,14 @@ onMounted(loadCurrentChallenge)
       </AppPageHeader>
 
       <div class="entry-card">
-        <div class="form-tabs" role="tablist" aria-label="챌린지 시작 방법">
-          <button
-            type="button"
-            role="tab"
-            :aria-selected="activeForm === 'create'"
-            :class="{ active: activeForm === 'create' }"
-            @click="activeForm = 'create'"
-          >
-            챌린지 만들기
-          </button>
-          <button
-            type="button"
-            role="tab"
-            :aria-selected="activeForm === 'join'"
-            :class="{ active: activeForm === 'join' }"
-            @click="activeForm = 'join'"
-          >
-            초대 코드로 참여
-          </button>
-        </div>
+        <AppTabs
+          v-model="activeForm"
+          class="form-tabs"
+          :items="formTabs"
+          variant="segment"
+          full-width
+          aria-label="챌린지 시작 방법"
+        />
 
         <form v-if="activeForm === 'create'" class="challenge-form" @submit.prevent="submitCreate">
           <img
@@ -630,28 +623,6 @@ onMounted(loadCurrentChallenge)
   border: 1px solid #eceef5;
   border-radius: 26px;
   box-shadow: 0 20px 50px rgba(37, 44, 82, 0.09);
-}
-
-.form-tabs {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  padding: 8px;
-  background: #f5f4fb;
-}
-
-.form-tabs button {
-  padding: 15px;
-  color: #9298a9;
-  background: transparent;
-  border: 0;
-  border-radius: 14px;
-  font-weight: 750;
-}
-
-.form-tabs button.active {
-  color: #4b7fc7;
-  background: #fff;
-  box-shadow: 0 5px 14px rgba(52, 44, 110, 0.08);
 }
 
 .challenge-form {
