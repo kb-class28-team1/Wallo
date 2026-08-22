@@ -73,8 +73,11 @@ const deltaClass = computed(() => Number(props.analysis.summary?.deltaAmount) <=
       <div class="consumption-overview__hero">
         <span>{{ analysis.period?.label || "현재 기간" }} 총지출</span>
         <strong>{{ formatWon(analysis.summary.currentTotal) }}</strong>
-        <small :class="deltaClass">
-          {{ comparisonLabel }}보다 {{ formatWon(Math.abs(analysis.summary.deltaAmount || 0)) }}
+        <small>
+          {{ comparisonLabel }}보다
+          <span :class="['consumption-overview__delta-amount', deltaClass]">
+            {{ formatWon(Math.abs(analysis.summary.deltaAmount || 0)) }}
+          </span>
           {{ Number(analysis.summary.deltaAmount) <= 0 ? "줄었어요" : "늘었어요" }}
         </small>
       </div>
@@ -94,8 +97,8 @@ const deltaClass = computed(() => Number(props.analysis.summary?.deltaAmount) <=
         <div><span>좋은 소비 변화가 보여요</span><small>이 흐름을 다음 기간에도 유지해보세요.</small></div>
       </div>
     </div>
-    <div v-if="!compact || expanded" class="d-flex flex-column gap-2" :class="{ 'mt-2': !analysis.hasEnoughData }">
-      <div v-if="showSummary && analysis.summary" class="analysis-card">
+    <div v-if="!compact || expanded" class="analysis-detail-list" :class="{ 'mt-2': !analysis.hasEnoughData }">
+      <div v-if="showSummary && analysis.summary && !compact" class="analysis-card">
         <SummaryMetrics
           :summary="analysis.summary"
           :period-label="analysis.period?.label"
@@ -190,22 +193,25 @@ const deltaClass = computed(() => Number(props.analysis.summary?.deltaAmount) <=
 .consumption-analysis { display: flex; width: min(100%, 680px); flex-direction: column; margin-bottom: 0.75rem; }
 .consumption-overview { display: grid; gap: 0.75rem; }
 .consumption-overview__hero { padding: 1.4rem; background: linear-gradient(135deg, #eff7ff, #f8fbff); border: 1px solid var(--wallo-color-border); border-radius: 1rem; }
-.consumption-overview__hero span, .consumption-overview__hero small { display: block; }
-.consumption-overview__hero span, .consumption-overview__label { color: var(--wallo-color-text-muted); font-size: 0.76rem; }
+.consumption-overview__hero > span, .consumption-overview__hero > small { display: block; }
+.consumption-overview__hero > span, .consumption-overview__label { color: var(--wallo-color-text-muted); font-size: 0.9rem; }
+.consumption-overview__hero > small { color: var(--wallo-color-text); }
 .consumption-overview__hero strong { display: block; margin: 0.35rem 0; color: var(--wallo-color-text); font-size: clamp(1.6rem, 4vw, 2.2rem); }
-.consumption-top-categories { padding: 1rem; background: var(--wallo-color-surface-soft); border-radius: 0.9rem; }
+.consumption-top-categories { padding: 1rem; background: var(--wallo-color-surface-soft); border: 1px solid var(--wallo-color-border-soft); border-radius: 0.9rem; }
 .consumption-overview__label { margin-bottom: 0.45rem; font-weight: 700; }
 .consumption-category-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.55rem 0; border-bottom: 1px solid var(--wallo-color-border-soft); }
 .consumption-category-row:last-child { border-bottom: 0; }
 .consumption-highlight { display: flex; align-items: flex-start; gap: 0.7rem; padding: 0.9rem 1rem; border-radius: 0.85rem; }
 .consumption-highlight span, .consumption-highlight small { display: block; }
 .consumption-highlight small { margin-top: 0.2rem; }
-.consumption-highlight--warning { color: #805d18; background: #fff9e9; }
+.consumption-highlight--warning { color: #805d18; background: #fff9e9; border: 1px solid #f4e7bd; }
 .consumption-highlight--good { color: #176b4d; background: #f2faf5; }
+.analysis-detail-list { display: flex; flex-direction: column; gap: 0.75rem; }
+.consumption-overview + .analysis-detail-list { margin-top: 0.75rem; }
 .analysis-detail-toggle { display: flex; width: 100%; align-items: center; justify-content: center; gap: 0.45rem; padding: 0.75rem; color: var(--wallo-color-primary-hover); background: transparent; border: 1px solid var(--wallo-color-border); border-radius: 0.8rem; font: inherit; font-size: 0.85rem; font-weight: 700; }
 .analysis-detail-toggle:hover { background: var(--wallo-color-info-bg); }
 .analysis-detail-toggle:focus-visible { outline: 0; box-shadow: var(--wallo-focus-ring); }
-.analysis-card { padding: 1rem; background: var(--wallo-color-surface); border: 1px solid var(--wallo-color-border); border-radius: 1rem; box-shadow: var(--wallo-shadow-card); }
+.analysis-card { padding: 1rem; background: var(--wallo-color-surface); border: 1px solid var(--wallo-color-border); border-radius: 1rem; }
 .analysis-card--good { background: #f3fbf6; border-color: #d7efe0; }
 .analysis-card--caution { background: #fffbef; border-color: #f4e7bd; }
 .subscription-row {
@@ -227,16 +233,14 @@ const deltaClass = computed(() => Number(props.analysis.summary?.deltaAmount) <=
   background: var(--wallo-color-surface-soft);
   border: 1px solid var(--wallo-color-border);
   border-radius: 0.9rem;
-  box-shadow: var(--wallo-shadow-card);
   text-decoration: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  transition: border-color 0.15s ease, transform 0.15s ease;
 }
 .report-link:hover,
 .report-link:focus-visible {
   color: var(--wallo-color-primary-hover);
   background: var(--wallo-color-info-bg);
   border-color: var(--wallo-color-primary);
-  box-shadow: var(--wallo-shadow-card);
   transform: translateY(-1px);
 }
 .report-link:focus-visible { outline: 0; box-shadow: var(--wallo-focus-ring); }

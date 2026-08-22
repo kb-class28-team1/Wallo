@@ -54,6 +54,11 @@ describe("AssetAnalysisResult", () => {
         compact: true,
         analysis: {
           ...analysis,
+          composition: [
+            { name: "STOCK", category: "STOCK", sharePercent: 49.6 },
+            { name: "SAVINGS", category: "SAVINGS", sharePercent: 30.2 },
+            { name: "DEPOSIT", category: "DEPOSIT", sharePercent: 20.2 },
+          ],
           direction: { riskSignals: ["부채 비중을 확인하세요."] },
           priorityActions: [{ title: "비상금 점검", description: "생활비 3개월분을 준비하세요." }],
         },
@@ -62,10 +67,19 @@ describe("AssetAnalysisResult", () => {
 
     expect(wrapper.text()).toContain("현재 순자산")
     expect(wrapper.text()).toContain("월 잉여금")
+    expect(wrapper.text()).toContain("주식")
+    expect(wrapper.text()).toContain("적금")
+    expect(wrapper.text()).toContain("예금")
+    expect(wrapper.text()).not.toContain("STOCK")
+    expect(wrapper.text()).not.toContain("SAVINGS")
+    expect(wrapper.text()).not.toContain("DEPOSIT")
     expect(wrapper.text()).toContain("비상금 점검")
     expect(wrapper.text()).toContain("부채 비중을 확인하세요.")
-    expect(wrapper.text()).toContain("자산 구성")
-    expect(wrapper.text()).toContain("추천 행동")
+    expect(wrapper.text()).not.toContain("자산 구성")
+    expect(wrapper.text()).not.toContain("AI 진단")
+    expect(wrapper.text()).not.toContain("추천 행동")
+    expect(wrapper.findAll(".asset-overview__metrics > div")).toHaveLength(2)
+    expect(wrapper.find(".asset-insight--risk").exists()).toBe(true)
     expect(wrapper.find(".asset-analysis-card").exists()).toBe(false)
     expect(wrapper.find(".analysis-detail-toggle").exists()).toBe(false)
     expect(wrapper.text().match(/총자산/g)).toHaveLength(1)

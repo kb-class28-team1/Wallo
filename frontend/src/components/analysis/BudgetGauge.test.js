@@ -36,5 +36,6 @@ describe("BudgetGauge", () => {
     })
 
     expect(wrapper.text()).toContain("권장 지출액보다 150,000원 덜 쓰고 있어요.")
+    expect(wrapper.get(".text-success").text()).toBe("150,000원")
   })
 })

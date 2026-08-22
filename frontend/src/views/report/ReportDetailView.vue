@@ -140,6 +140,10 @@ const formattedDate = computed(() => {
   })
 })
 
+const reportMeta = computed(() => [report.value?.source, formattedDate.value]
+  .filter(Boolean)
+  .join(" · "))
+
 const loadDetail = async ({ force = false } = {}) => {
   const requestedNewsId = newsId.value
   const requestId = ++loadSequence
@@ -231,8 +235,7 @@ watch(newsId, () => {
 <template>
   <section class="report-detail-view">
     <AppPageHeader
-      eyebrow="금융·경제"
-      title="금융 리포트 상세"
+      :title="report?.title || '금융 리포트'"
       compact
     >
       <template #leading>
@@ -273,27 +276,22 @@ watch(newsId, () => {
         </AppButton>
       </AppAlert>
 
+      <p v-if="reportMeta" class="report-detail-meta">{{ reportMeta }}</p>
+
       <div ref="reportCard" class="report-detail-card-shell">
+        <section v-if="hasReport" class="summary-highlight bg-primary-subtle rounded-4 p-4 mb-4">
+          <h2 class="h6 fw-bold d-flex align-items-center gap-2 mb-3">
+            <i class="bi bi-clipboard-data" aria-hidden="true"></i>
+            핵심 요약
+          </h2>
+          <ul class="summary-points mb-0">
+            <li v-for="(point, index) in report.summaryPoints" :key="index">{{ point }}</li>
+          </ul>
+        </section>
+
         <AppCard class="report-detail-card" padding="lg">
           <div class="report-detail-card-content">
-            <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-              <span class="badge rounded-pill text-bg-light">{{ report.category }}</span>
-            </div>
-
-            <h2 class="h3 fw-bold mb-2">{{ report.title }}</h2>
-            <p class="text-secondary mb-4">{{ report.source }} · {{ formattedDate }}</p>
-
             <template v-if="hasReport">
-              <section class="summary-highlight bg-primary-subtle rounded-4 p-4 mb-4">
-                <h2 class="h6 fw-bold d-flex align-items-center gap-2 mb-3">
-                  <i class="bi bi-clipboard-data" aria-hidden="true"></i>
-                  핵심 요약
-                </h2>
-                <ul class="summary-points mb-0">
-                  <li v-for="(point, index) in report.summaryPoints" :key="index">{{ point }}</li>
-                </ul>
-              </section>
-
               <ReportSection
                 icon="bi-newspaper"
                 title="어떤 일이 있었나요?"
@@ -433,6 +431,12 @@ watch(newsId, () => {
   align-items: center;
 }
 
+.report-detail-meta {
+  margin: 0 0 var(--wallo-space-2);
+  color: var(--wallo-color-text-muted);
+  font-size: 0.875rem;
+}
+
 .report-detail-refresh-error :deep(.app-alert__message) {
   display: flex;
   align-items: center;
@@ -446,6 +450,10 @@ watch(newsId, () => {
 
 .report-detail-card {
   width: 100%;
+}
+
+.summary-highlight {
+  box-shadow: var(--wallo-shadow-card);
 }
 
 .summary-points {

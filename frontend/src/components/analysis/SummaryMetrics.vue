@@ -36,10 +36,16 @@ const rateText = computed(() => {
         {{ rateText }}
       </span>
     </div>
-    <div class="small mt-2" :class="deltaClass">
+    <div class="summary-metrics__delta small mt-2">
       {{ comparisonLabel }}보다
-      {{ formatWon(Math.abs(summary.deltaAmount)) }}
+      <span :class="deltaClass">{{ formatWon(Math.abs(summary.deltaAmount)) }}</span>
       {{ Number(summary.deltaAmount) > 0 ? "더 썼어요" : "덜 썼어요" }}
     </div>
   </div>
 </template>
+
+<style scoped>
+.summary-metrics__delta {
+  color: var(--wallo-color-text);
+}
+</style>

@@ -102,13 +102,9 @@ const FINANCIAL_SUPERVISION_LOGO_URL =
   <section
     class="product-recommendation"
     :class="{ 'product-recommendation--full-width': fullWidth }"
-    aria-label="AI 금융상품 추천 결과"
+    aria-label="금융상품 추천 결과"
   >
     <div v-if="showIntro" class="product-recommendation__intro">
-      <span class="product-recommendation__eyebrow">
-        <i class="bi bi-stars me-1" aria-hidden="true"></i>
-        AI 금융상품 추천
-      </span>
       <strong v-if="hasProducts">조건에 맞는 금융상품을 비교해봤어요</strong>
       <strong v-else>조건에 맞는 금융상품을 찾지 못했어요</strong>
     </div>
@@ -130,9 +126,6 @@ const FINANCIAL_SUPERVISION_LOGO_URL =
             </span>
           </div>
 
-          <small class="product-card__company-group">
-            {{ product.financialGroup || "금융회사" }}
-          </small>
           <h3 class="product-card__title">
             {{ product.productName || "상품명 확인 필요" }}
           </h3>
@@ -173,7 +166,7 @@ const FINANCIAL_SUPERVISION_LOGO_URL =
               </div>
             </div>
             <div v-if="product.afterTaxRatePercent !== null" class="col-12">
-              <div class="d-flex justify-content-between small px-1">
+              <div class="product-card__after-tax-rate small">
                 <span class="text-secondary">세후 금리</span>
                 <strong>{{ formatProductRate(product.afterTaxRatePercent) }}</strong>
               </div>
@@ -244,7 +237,7 @@ const FINANCIAL_SUPERVISION_LOGO_URL =
     </div>
 
     <div v-if="reason" class="product-recommendation__reason">
-      <strong><i class="bi bi-chat-left-text me-1" aria-hidden="true"></i>AI 추천 이유</strong>
+      <strong><i class="bi bi-chat-left-text me-1" aria-hidden="true"></i>추천 이유</strong>
       <div
         class="product-recommendation__reason-markdown"
         v-html="renderedReason"
@@ -298,13 +291,6 @@ const FINANCIAL_SUPERVISION_LOGO_URL =
   gap: 0.2rem;
   padding: 0.1rem 0.2rem;
   color: #3f4660;
-}
-
-.product-recommendation__eyebrow {
-  color: #4f8fe8;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.03em;
 }
 
 .product-card {
@@ -386,10 +372,6 @@ const FINANCIAL_SUPERVISION_LOGO_URL =
   font-weight: 800;
 }
 
-.product-card__company-group {
-  color: #7b849b;
-}
-
 .product-card__title {
   margin: 0.2rem 0 0;
   color: #2f354d;
@@ -446,6 +428,13 @@ const FINANCIAL_SUPERVISION_LOGO_URL =
 
 .product-card__rate--highlight strong {
   color: #3f78cd;
+}
+
+.product-card__after-tax-rate {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0 0.25rem;
 }
 
 .product-card__rate strong {

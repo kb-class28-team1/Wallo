@@ -41,7 +41,7 @@ const spendingGapAmount = computed(() => (
         더 쓰고 있어요.
       </template>
       <template v-else-if="spendingGap < 0">
-        권장 지출액보다 {{ formatWon(spendingGapAmount) }} 덜 쓰고 있어요.
+        권장 지출액보다 <span class="text-success">{{ formatWon(spendingGapAmount) }}</span> 덜 쓰고 있어요.
       </template>
       <template v-else>권장 지출액과 비슷하게 쓰고 있어요.</template>
     </small>
