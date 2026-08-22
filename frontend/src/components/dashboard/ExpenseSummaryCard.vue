@@ -84,7 +84,7 @@ const expenseCategoryRate = (amount) => {
     <div class="expense-card-body">
       <div class="d-flex align-items-start justify-content-between gap-3">
         <div>
-          <h2 class="h5 fw-bold mb-2">이번 달 총 지출</h2>
+          <h2 class="h4 fw-bold mb-2">이번 달 총 지출</h2>
           <strong class="expense-total">{{ formatWon(safeExpenses.totalExpense) }}</strong>
         </div>
         <RouterLink to="/assets/expenses" class="btn app-action-link">

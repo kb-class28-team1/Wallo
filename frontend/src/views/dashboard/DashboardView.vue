@@ -325,7 +325,7 @@ onBeforeUnmount(() => {
 
 .dashboard-card-grid {
   display: grid;
-  grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
+  grid-template-columns: minmax(0, 6fr) minmax(0, 4fr);
   gap: var(--wallo-space-5);
   max-width: var(--wallo-content-max-width);
   margin-top: 0;

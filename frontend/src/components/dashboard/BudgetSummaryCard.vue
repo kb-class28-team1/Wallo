@@ -36,7 +36,7 @@ const budgetRemaining = computed(
   <AppCard class="budget-summary-card" padding="none">
     <div class="budget-card-body">
       <div class="d-flex align-items-start justify-content-between gap-3">
-        <h2 class="h5 fw-bold mb-0">이번 달 예산</h2>
+        <h2 class="h4 fw-bold mb-0">이번 달 예산</h2>
         <button
           type="button"
           class="btn app-action-link"
@@ -49,9 +49,12 @@ const budgetRemaining = computed(
 
       <template v-if="isBudgetConfigured">
         <div class="budget-content">
-          <strong class="budget-total d-block mb-3" :class="{ 'text-danger': isBudgetOver }">
-            {{ formatWon(budgetRemaining) }}
-          </strong>
+          <div class="budget-remaining-summary d-flex align-items-baseline justify-content-between gap-3 mb-3">
+            <span class="budget-remaining-label">남은 예산</span>
+            <strong class="budget-total" :class="{ 'text-danger': isBudgetOver }">
+              {{ formatWon(budgetRemaining) }}
+            </strong>
+          </div>
 
           <div
             class="ice-budget-meter"
@@ -217,15 +220,24 @@ const budgetRemaining = computed(
   margin-top: 24px;
 }
 
-.budget-balance-label,
 .budget-detail,
 .budget-remaining-rate {
   color: var(--wallo-color-text);
 }
 
 .budget-total {
+  flex: 0 0 auto;
   color: var(--wallo-color-text);
   font-size: clamp(1.75rem, 3vw, 2.25rem);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.budget-remaining-label {
+  min-width: 0;
+  color: var(--wallo-color-text);
+  font-size: 1.15rem;
+  font-weight: 600;
 }
 
 .ice-budget-meter {
@@ -234,7 +246,7 @@ const budgetRemaining = computed(
   grid-template-columns: minmax(155px, 58%) minmax(92px, 1fr);
   align-items: center;
   gap: clamp(0.4rem, 1.5vw, 0.85rem);
-  min-height: 184px;
+  min-height: 128px;
   padding: 8px 16px;
   overflow: hidden;
   border-radius: var(--wallo-radius-lg);
@@ -289,13 +301,16 @@ const budgetRemaining = computed(
   z-index: 1;
   width: 100%;
   max-width: 260px;
-  height: 174px;
+  height: 128px;
+  overflow: hidden;
+  transform: translateY(-12px);
 }
 
 .iceberg {
   display: block;
   width: 100%;
-  height: 100%;
+  height: 174px;
+  transform: translateY(-7px);
 }
 
 .meltwater {
@@ -369,7 +384,6 @@ const budgetRemaining = computed(
 .ice-face--light { fill: #c9eef7; }
 .ice-face--mid { fill: #78c9df; }
 .ice-face--deep { fill: #3199bd; }
-.ice-face--shine { fill: rgba(255, 255, 255, 0.78); }
 
 .ice-budget-copy {
   position: relative;
@@ -460,9 +474,17 @@ const budgetRemaining = computed(
   .ice-budget-meter {
     grid-template-columns: minmax(124px, 54%) minmax(78px, 1fr);
     gap: 0.5rem;
+    min-height: 138px;
     padding-inline: 10px;
   }
-  .ice-visual { height: 150px; }
+  .ice-visual {
+    height: 138px;
+    transform: translateY(-8px);
+  }
+  .iceberg {
+    height: 162px;
+    transform: translateY(-6px);
+  }
   .ice-budget-caption { font-size: 0.76rem; }
 }
 

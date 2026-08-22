@@ -97,11 +97,11 @@ const formatGoalDate = (date) => {
         :class="{ 'goal-card-header--goal': selectedGoal && !loading && !error }"
       >
         <div v-if="selectedGoal" class="min-w-0">
-          <h2 class="h5 fw-bold mb-0 text-truncate">
+          <h2 class="h4 fw-bold mb-0 text-truncate">
             {{ selectedGoal.title || "제목 없는 목표" }}
           </h2>
         </div>
-        <h2 v-else class="h5 fw-bold mb-0">나의 목표</h2>
+        <h2 v-else class="h4 fw-bold mb-0">나의 목표</h2>
 
         <RouterLink
           v-if="goals.length > 0"

@@ -173,19 +173,25 @@ const getLogoText = (connection) => {
   return name.replace(/\s/g, "").slice(0, 2)
 }
 
-const getConnectionLogoUrl = (connection) =>
-  connection.logoUrl ||
+const getLocalConnectionLogoUrl = (connection) =>
   getLocalInstitutionLogo(
     connection.financialGroupCode,
     connection.financialGroupName || connection.institutionName,
   )
 
+const getConnectionLogoUrl = (connection) => {
+  const localLogoUrl = getLocalConnectionLogoUrl(connection)
+
+  if (connection.financialGroupCode?.toUpperCase() === "KB" && localLogoUrl) {
+    return localLogoUrl
+  }
+
+  return connection.logoUrl || localLogoUrl
+}
+
 const getConnectionFallbackLogoUrl = (connection) =>
   connection.logoUrl
-    ? getLocalInstitutionLogo(
-        connection.financialGroupCode,
-        connection.financialGroupName || connection.institutionName,
-      )
+    ? getLocalConnectionLogoUrl(connection)
     : ""
 
 const getLogoFallbackClass = (logoUrl) => (logoUrl ? "d-none" : "")

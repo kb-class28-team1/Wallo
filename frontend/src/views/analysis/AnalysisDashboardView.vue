@@ -291,7 +291,6 @@ onMounted(refreshAll)
   padding-bottom: 0.75rem;
   margin-bottom: 1.1rem;
   color: var(--wallo-color-text-muted);
-  border-bottom: 1px solid var(--wallo-color-border-soft);
 }
 
 .analysis-request {

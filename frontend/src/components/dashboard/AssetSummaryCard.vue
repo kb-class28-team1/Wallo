@@ -103,7 +103,7 @@ const chartOptions = {
     <div class="asset-card-body">
       <div class="asset-card-content row g-4 h-100">
         <div class="col-lg-5 d-flex flex-column">
-          <p class="asset-label fw-semibold mb-3">총 자산</p>
+          <p class="asset-label h4 fw-semibold mb-3">총 자산</p>
           <strong class="asset-total d-block">{{ formatWon(safeAssets.totalAssets) }}</strong>
 
           <div class="asset-change mt-5">
@@ -143,17 +143,23 @@ const chartOptions = {
 }
 
 .asset-card-body {
+  display: flex;
+  flex-direction: column;
   min-height: 312px;
   padding: var(--wallo-space-5) var(--wallo-space-6);
 }
 
 .asset-card-content {
+  flex: 1 1 auto;
   min-height: 232px;
 }
 
 .asset-label,
 .asset-change-label {
   color: var(--wallo-color-text);
+}
+
+.asset-change-label {
   font-size: 1.25rem;
 }
 
@@ -166,6 +172,7 @@ const chartOptions = {
 
 .asset-change {
   margin-top: auto !important;
+  font-size: 1.25rem;
 }
 
 .asset-change-positive {

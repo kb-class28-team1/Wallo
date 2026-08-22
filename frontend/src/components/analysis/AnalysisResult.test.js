@@ -112,8 +112,8 @@ describe("AnalysisResult", () => {
       },
     })
 
-    expect(weeklyWrapper.text()).toContain("저번 주보다 266,000원 줄었어요")
-    expect(customWrapper.text()).toContain("이전 기간보다 266,000원 줄었어요")
+    expect(weeklyWrapper.text()).toContain("저번 주보다 266,000원 덜 썼어요")
+    expect(customWrapper.text()).toContain("이전 기간보다 266,000원 덜 썼어요")
   })
 
   it("반복 소비는 카테고리명 옆 아이콘으로 표시한다", () => {

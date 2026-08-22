@@ -143,6 +143,29 @@ describe("ConnectionManagementView", () => {
     ])
   })
 
+  it("prioritizes the local KB logo over an API logo URL", async () => {
+    getConnections.mockResolvedValueOnce({
+      connections: [
+        {
+          ...connectedAssets[0],
+          logoUrl: "https://www.kbstar.com/favicon.ico",
+        },
+      ],
+    })
+    wrapper = mount(ConnectionManagementView, {
+      global: {
+        stubs: {
+          RouterLink: { template: "<a><slot /></a>" },
+        },
+      },
+    })
+    await flushPromises()
+
+    expect(wrapper.find(".asset-logo-image").attributes("src")).toBe(
+      "/images/institutions/kb.png",
+    )
+  })
+
   it("groups an institution into one disconnect modal and refreshes assets", async () => {
     wrapper = mount(ConnectionManagementView, {
       attachTo: document.body,
