@@ -398,7 +398,7 @@ onBeforeUnmount(() => {
                 <div class="goal-empty-copy">
                   <h3 class="h4 fw-bold mb-2">아직 목표가 설정되지 않았어요!</h3>
                   <p class="mb-0 text-secondary">
-                    목표를 설정하면 AI가 당신만의 로드맵을 만들어 드릴게요.
+                    목표를 설정하면 당신만의 로드맵을 만들어 드릴게요.
                   </p>
                 </div>
                 <AppButton class="goal-button" variant="primary" @click="startGoalSetting">

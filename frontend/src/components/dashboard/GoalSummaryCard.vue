@@ -104,10 +104,11 @@ const formatGoalDate = (date) => {
         <h2 v-else class="h5 fw-bold mb-0">나의 목표</h2>
 
         <RouterLink
+          v-if="goals.length > 0"
           :to="accountSettingsLink"
           class="btn app-action-link flex-shrink-0 ms-auto"
         >
-          {{ goals.length > 0 ? "계좌 설정" : "목표 설정하기" }}
+          계좌 설정
           <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
         </RouterLink>
       </div>
@@ -133,7 +134,14 @@ const formatGoalDate = (date) => {
         message="AI 컨설팅에서 목표를 설정해보세요."
         compact
         hide-icon
-      />
+      >
+        <template #actions>
+          <RouterLink :to="accountSettingsLink" class="goal-button">
+            목표 설정하기
+            <i class="bi bi-arrow-right ms-2" aria-hidden="true"></i>
+          </RouterLink>
+        </template>
+      </AppState>
 
       <div v-else class="goal-list">
         <section
@@ -276,6 +284,30 @@ const formatGoalDate = (date) => {
   width: 100%;
   min-height: 0;
   flex: 1 1 auto;
+}
+
+.goal-button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  padding: 0.85rem 1.5rem;
+  border: 0;
+  border-radius: 14px;
+  color: #fff;
+  background: linear-gradient(135deg, #71a1e8, #5a91dc);
+  box-shadow: 0 10px 24px rgb(79 143 232 / 22%);
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.goal-button:hover,
+.goal-button:focus {
+  color: #fff;
+  background: linear-gradient(135deg, #6599e2, #477fc8);
+  text-decoration: none;
 }
 
 .goal-list {
