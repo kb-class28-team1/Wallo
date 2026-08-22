@@ -7,7 +7,7 @@ import PositiveSignalList from "./PositiveSignalList.vue"
 import RecurringPatternCard from "./RecurringPatternCard.vue"
 import SpendingSignalList from "./SpendingSignalList.vue"
 import SummaryMetrics from "./SummaryMetrics.vue"
-import { categoryLabel, formatWon } from "@/types/consumptionAnalysis"
+import { categoryLabel, comparisonPeriodLabel, formatWon } from "@/types/consumptionAnalysis"
 
 const SPENDING_REPORT_IMAGES = [
   "03_스트레칭.png",
@@ -36,6 +36,7 @@ const expanded = ref(false)
 const spendingReportImage = randomSpendingReportImage()
 const signals = computed(() => props.analysis.signals || {})
 const focus = computed(() => props.analysis.focus || "OVERVIEW")
+const comparisonLabel = computed(() => comparisonPeriodLabel(props.analysis.period))
 const has = (items) => Array.isArray(items) && items.length > 0
 const allows = (...values) => focus.value === "OVERVIEW" || values.includes(focus.value)
 const showCaution = computed(() =>
@@ -73,7 +74,7 @@ const deltaClass = computed(() => Number(props.analysis.summary?.deltaAmount) <=
         <span>{{ analysis.period?.label || "현재 기간" }} 총지출</span>
         <strong>{{ formatWon(analysis.summary.currentTotal) }}</strong>
         <small :class="deltaClass">
-          전 기간보다 {{ formatWon(Math.abs(analysis.summary.deltaAmount || 0)) }}
+          {{ comparisonLabel }}보다 {{ formatWon(Math.abs(analysis.summary.deltaAmount || 0)) }}
           {{ Number(analysis.summary.deltaAmount) <= 0 ? "줄었어요" : "늘었어요" }}
         </small>
       </div>
@@ -95,7 +96,11 @@ const deltaClass = computed(() => Number(props.analysis.summary?.deltaAmount) <=
     </div>
     <div v-if="!compact || expanded" class="d-flex flex-column gap-2" :class="{ 'mt-2': !analysis.hasEnoughData }">
       <div v-if="showSummary && analysis.summary" class="analysis-card">
-        <SummaryMetrics :summary="analysis.summary" :period-label="analysis.period?.label" />
+        <SummaryMetrics
+          :summary="analysis.summary"
+          :period-label="analysis.period?.label"
+          :comparison-label="comparisonLabel"
+        />
       </div>
       <div v-if="showBudget && signals.budget?.hasBudget" class="analysis-card">
         <BudgetGauge :budget="signals.budget" />
@@ -112,6 +117,7 @@ const deltaClass = computed(() => Number(props.analysis.summary?.deltaAmount) <=
         <CategoryOverview
           :categories="signals.categoryOverview"
           :repeating-categories="signals.repeatingCategories"
+          :comparison-label="comparisonLabel"
         />
       </div>
       <div v-if="showGood" class="analysis-card analysis-card--good">
@@ -142,11 +148,15 @@ const deltaClass = computed(() => Number(props.analysis.summary?.deltaAmount) <=
       </div>
       <div v-if="showSubscriptions && has(signals.subscriptions)" class="analysis-card">
         <strong class="d-block mb-2"><i class="bi bi-arrow-repeat me-2"></i>정기결제 후보</strong>
-        <div v-for="item in signals.subscriptions" :key="item.merchant" class="d-flex justify-content-between small py-1">
-          <span>{{ item.merchant }} · {{ item.count }}회 반복</span>
-          <strong>{{ formatWon(item.amount) }}</strong>
+        <div
+          v-for="item in signals.subscriptions"
+          :key="item.merchant"
+          class="subscription-row small py-1"
+        >
+          <span class="subscription-row__merchant">{{ item.merchant }}</span>
+          <span class="subscription-row__count">{{ item.count }}회 반복</span>
+          <strong class="subscription-row__amount">{{ formatWon(item.amount) }}</strong>
         </div>
-        <small class="text-secondary">정기결제로 확정하기 전에 사용자 확인이 필요해요.</small>
       </div>
       <div v-else-if="focus === 'SUBSCRIPTION'" class="analysis-card">
         <strong class="d-block mb-1">정기결제 후보</strong>
@@ -198,6 +208,15 @@ const deltaClass = computed(() => Number(props.analysis.summary?.deltaAmount) <=
 .analysis-card { padding: 1rem; background: var(--wallo-color-surface); border: 1px solid var(--wallo-color-border); border-radius: 1rem; box-shadow: var(--wallo-shadow-card); }
 .analysis-card--good { background: #f3fbf6; border-color: #d7efe0; }
 .analysis-card--caution { background: #fffbef; border-color: #f4e7bd; }
+.subscription-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 5rem 6.5rem;
+  align-items: center;
+  column-gap: 0.75rem;
+}
+.subscription-row__merchant { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.subscription-row__count { color: var(--wallo-color-text-muted); white-space: nowrap; }
+.subscription-row__amount { text-align: right; white-space: nowrap; }
 .report-link {
   display: flex;
   width: 100%;
