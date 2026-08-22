@@ -187,6 +187,7 @@ onMounted(loadAssets)
 
 .asset-overview-section {
   width: 100%;
+  --asset-overview-card-height: 312px;
 }
 
 .asset-report-grid {
@@ -197,7 +198,7 @@ onMounted(loadAssets)
 }
 
 .asset-state {
-  min-height: 360px;
+  min-height: var(--asset-overview-card-height);
 }
 
 .asset-connect-link {
@@ -213,7 +214,7 @@ onMounted(loadAssets)
 }
 
 .asset-error {
-  min-height: 110px;
+  min-height: var(--asset-overview-card-height);
   align-items: center;
   justify-content: space-between;
 }

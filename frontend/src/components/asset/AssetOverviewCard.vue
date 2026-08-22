@@ -184,6 +184,7 @@ const chartOptions = {
 <style scoped>
 .asset-overview-card {
   width: 100%;
+  min-height: var(--asset-overview-card-height, 312px);
   border-radius: var(--wallo-radius-xl);
 }
 
@@ -191,7 +192,7 @@ const chartOptions = {
   position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 310px;
+  min-height: calc(var(--asset-overview-card-height, 312px) - 2px);
   padding: var(--wallo-space-6);
 }
 
