@@ -79,6 +79,15 @@ onMounted(loadAssets)
 <template>
   <section class="asset-view">
     <AppPageHeader title="자산관리">
+      <template #title>
+        <span class="asset-page-title">
+          <span>자산관리</span>
+          <span v-if="isRefreshing" class="asset-refresh-status" role="status">
+            <span class="spinner-border spinner-border-sm text-primary" aria-hidden="true"></span>
+            <span class="asset-refresh-status__text">자산 정보를 최신 상태로 갱신하고 있습니다.</span>
+          </span>
+        </span>
+      </template>
       <template #actions>
         <button
           type="button"
@@ -99,11 +108,6 @@ onMounted(loadAssets)
       :message="syncStatus.message"
       role="status"
     />
-
-    <div v-if="isRefreshing" class="asset-refresh-status" role="status">
-      <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
-      자산 정보를 최신 상태로 갱신하고 있습니다.
-    </div>
 
     <section class="asset-overview-section" aria-label="자산 현황">
       <AppState
@@ -172,17 +176,34 @@ onMounted(loadAssets)
   padding: 0 0 var(--wallo-space-6);
 }
 
-.asset-sync-status,
-.asset-refresh-alert {
-  margin-bottom: var(--wallo-space-4);
+.asset-page-title {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: var(--wallo-space-3);
 }
 
 .asset-refresh-status {
   display: inline-flex;
+  min-width: 0;
   align-items: center;
-  margin-bottom: var(--wallo-space-4);
+  gap: var(--wallo-space-2);
+  overflow: hidden;
   color: var(--wallo-color-text-muted);
-  font-size: 0.875rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.asset-refresh-status__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.asset-sync-status,
+.asset-refresh-alert {
+  margin-bottom: var(--wallo-space-4);
 }
 
 .asset-overview-section {
