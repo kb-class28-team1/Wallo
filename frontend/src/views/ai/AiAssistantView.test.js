@@ -165,7 +165,13 @@ describe("AiAssistantView", () => {
       (button) => button.text().includes("소비분석 하러가기"),
     )
     expect(analysisButton).toBeTruthy()
+    expect(analysisButton.classes()).toContain("mission-analysis-button")
+    expect(analysisButton.classes()).toContain("app-button--primary")
+    expect(analysisButton.find(".bi-arrow-right").exists()).toBe(true)
     expect(wrapper.find(".mission-empty-analysis").exists()).toBe(true)
+    expect(wrapper.find(".mission-analysis-copy").text()).toBe(
+      "소비 분석이 완료되면 오늘의 미션이 생성됩니다.",
+    )
     await analysisButton.trigger("click")
 
     expect(push).toHaveBeenCalledWith({

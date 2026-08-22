@@ -423,7 +423,7 @@ onBeforeUnmount(() => {
 
         <div class="col-xl-5">
           <AppCard as="aside" class="content-card mission-card h-100" padding="none">
-            <div class="card-body p-4">
+            <div class="card-body mission-card-body p-4">
               <div class="mission-card-heading">
                 <h2 class="section-title h5 fw-bold">오늘의 미션</h2>
                 <strong v-if="missions.length" class="mission-count">
@@ -448,16 +448,16 @@ onBeforeUnmount(() => {
                 v-else-if="missionStatus === 'WAITING_ANALYSIS'"
                 class="mission-empty mission-empty-analysis mt-4"
               >
-                소비 분석이 완료되면 오늘의 미션이 생성됩니다.
+                <p class="mission-analysis-copy mb-0">
+                  소비 분석이 완료되면 오늘의 미션이 생성됩니다.
+                </p>
                 <AppButton
-                  class="mt-3"
-                  variant="outline"
-                  size="sm"
-                  block
+                  class="mission-analysis-button"
+                  variant="primary"
                   @click="startConsumptionAnalysis"
                 >
-                  <i class="bi bi-bar-chart-line me-1" aria-hidden="true"></i>
                   소비분석 하러가기
+                  <i class="bi bi-arrow-right ms-2" aria-hidden="true"></i>
                 </AppButton>
               </div>
               <div v-else-if="!missions.length" class="mission-empty mt-4">
@@ -636,7 +636,7 @@ onBeforeUnmount(() => {
 
         <div class="col-xl-5">
           <AppCard as="aside" class="content-card mission-card h-100" padding="none">
-            <div class="card-body p-4">
+            <div class="card-body mission-card-body p-4">
               <div class="mission-card-heading">
                 <h2 class="section-title h5 fw-bold">오늘의 미션</h2>
                 <strong v-if="missions.length" class="mission-count">
@@ -661,16 +661,16 @@ onBeforeUnmount(() => {
                 v-else-if="missionStatus === 'WAITING_ANALYSIS'"
                 class="mission-empty mission-empty-analysis mt-4"
               >
-                소비 분석이 완료되면 오늘의 미션이 생성됩니다.
+                <p class="mission-analysis-copy mb-0">
+                  소비 분석이 완료되면 오늘의 미션이 생성됩니다.
+                </p>
                 <AppButton
-                  class="mt-3"
-                  variant="outline"
-                  size="sm"
-                  block
+                  class="mission-analysis-button"
+                  variant="primary"
                   @click="startConsumptionAnalysis"
                 >
-                  <i class="bi bi-bar-chart-line me-1" aria-hidden="true"></i>
                   소비분석 하러가기
+                  <i class="bi bi-arrow-right ms-2" aria-hidden="true"></i>
                 </AppButton>
               </div>
               <div v-else-if="!missions.length" class="mission-empty mt-4">
@@ -954,7 +954,8 @@ onBeforeUnmount(() => {
   line-height: 1.75;
 }
 
-.goal-button {
+.goal-button,
+.mission-analysis-button {
   flex: 0 0 auto;
   padding: 0.85rem 1.5rem;
   border: 0;
@@ -966,7 +967,9 @@ onBeforeUnmount(() => {
 }
 
 .goal-button:hover,
-.goal-button:focus {
+.goal-button:focus,
+.mission-analysis-button:hover,
+.mission-analysis-button:focus {
   color: #fff;
   background: linear-gradient(135deg, #6599e2, #477fc8);
 }
@@ -1012,6 +1015,8 @@ onBeforeUnmount(() => {
 
 .mission-card :deep(.app-card__body),
 .mission-card .card-body {
+  display: flex;
+  flex-direction: column;
   height: 100%;
 }
 
@@ -1056,6 +1061,12 @@ onBeforeUnmount(() => {
 }
 
 .mission-empty-analysis {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
   background: transparent;
 }
 
@@ -1567,7 +1578,8 @@ onBeforeUnmount(() => {
     flex-basis: auto;
   }
 
-  .goal-button {
+  .goal-button,
+  .mission-analysis-button {
     width: 100%;
   }
 
