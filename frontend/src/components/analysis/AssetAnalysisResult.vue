@@ -92,6 +92,40 @@ const formatRate = (value) => {
   })}%`
 }
 
+const analysisTimestampPattern = /(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}:\d{2})(?:\.(\d+))?(Z|[+-]\d{2}:\d{2})/g
+
+const formatAnalysisTimestamp = (timestamp) => {
+  const [, datePart, timePart, fractionPart = "", zonePart] = timestamp.match(
+    /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}:\d{2})(?:\.(\d+))?(Z|[+-]\d{2}:\d{2})$/,
+  ) || []
+  if (!datePart || !timePart || !zonePart) return timestamp
+
+  const normalizedFraction = fractionPart ? `.${fractionPart.slice(0, 3).padEnd(3, "0")}` : ""
+  const parsed = new Date(`${datePart}T${timePart}${normalizedFraction}${zonePart}`)
+  if (Number.isNaN(parsed.getTime())) return timestamp
+
+  const parts = new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(parsed)
+  const values = Object.fromEntries(
+    parts
+      .filter(({ type }) => type !== "literal")
+      .map(({ type, value }) => [type, value]),
+  )
+  const hour = Number(values.hour)
+
+  return `${values.year}년 ${values.month}월 ${values.day}일 ${hour >= 12 ? "오후" : "오전"} ${hour % 12 || 12}:${values.minute}`
+}
+
+const formatAnalysisNote = (note) =>
+  String(note).replace(analysisTimestampPattern, (timestamp) => formatAnalysisTimestamp(timestamp))
+
 const progressWidth = (value) =>
   `${Math.min(100, Math.max(0, Number(value) || 0))}%`
 
@@ -103,6 +137,15 @@ const surplusClass = computed(() =>
 const primaryRisk = computed(() => direction.value.riskSignals[0] || null)
 const compactActions = computed(() => priorityActions.value.slice(0, 2))
 const compactComposition = computed(() => composition.value.slice(0, 4))
+
+const splitPriorityActionTitle = (title) => {
+  const text = String(title || "")
+  const accent = ["가장 먼저", "3개월", "1년"].find((prefix) => text.startsWith(prefix)) || ""
+  return {
+    accent,
+    rest: text.slice(accent.length),
+  }
+}
 </script>
 
 <template>
@@ -194,7 +237,6 @@ const compactComposition = computed(() => composition.value.slice(0, 4))
     <div v-if="!compact" class="asset-analysis__details">
     <div v-if="hasSummary" class="asset-analysis-card">
       <div class="asset-analysis-card__heading">
-        <span class="asset-analysis-card__eyebrow">핵심 요약</span>
         <h3 class="asset-analysis-card__title">자산 현황</h3>
       </div>
       <div class="row g-2">
@@ -221,7 +263,6 @@ const compactComposition = computed(() => composition.value.slice(0, 4))
 
     <div v-if="hasCashflow" class="asset-analysis-card">
       <div class="asset-analysis-card__heading">
-        <span class="asset-analysis-card__eyebrow">월간 현금흐름</span>
         <h3 class="asset-analysis-card__title">소득과 저축</h3>
       </div>
       <div class="row g-2">
@@ -268,7 +309,6 @@ const compactComposition = computed(() => composition.value.slice(0, 4))
 
     <div v-if="hasComposition" class="asset-analysis-card">
       <div class="asset-analysis-card__heading">
-        <span class="asset-analysis-card__eyebrow">자산 구성</span>
         <h3 class="asset-analysis-card__title">보유 자산별 비중</h3>
       </div>
       <div class="d-flex flex-column gap-2">
@@ -278,20 +318,16 @@ const compactComposition = computed(() => composition.value.slice(0, 4))
           class="asset-composition-item"
         >
           <div class="d-flex align-items-start justify-content-between gap-3">
-            <div class="min-w-0">
-              <strong class="d-block text-truncate">{{ item.name || "자산 항목" }}</strong>
-              <small class="text-secondary">
-                {{ assetCategoryLabel(item.category) }}
-                <span v-if="item.estimated" class="badge text-bg-warning-subtle text-warning-emphasis ms-1">
-                  추정
-                </span>
-              </small>
-            </div>
-            <div class="text-end flex-shrink-0">
-              <strong>{{ formatAssetAmountRange(item) }}</strong>
-              <small v-if="item.sharePercent !== null" class="d-block text-secondary">
+            <div class="asset-composition-item__summary">
+              <strong class="asset-composition-item__name text-truncate">
+                {{ assetCategoryLabel(item.category || item.name) }}
+              </strong>
+              <small v-if="item.sharePercent !== null" class="asset-composition-item__share">
                 {{ formatRate(item.sharePercent) }}
               </small>
+              <strong class="asset-composition-item__amount">
+                {{ formatAssetAmountRange(item) }}
+              </strong>
             </div>
           </div>
           <div v-if="item.sharePercent !== null" class="progress asset-composition-progress mt-2">
@@ -306,7 +342,6 @@ const compactComposition = computed(() => composition.value.slice(0, 4))
 
     <div v-if="hasDirection" class="asset-analysis-card asset-analysis-card--direction">
       <div class="asset-analysis-card__heading">
-        <span class="asset-analysis-card__eyebrow">AI 진단 방향</span>
         <h3 class="asset-analysis-card__title">
           {{ direction.currentStage || "앞으로의 자산 관리 방향" }}
         </h3>
@@ -341,7 +376,6 @@ const compactComposition = computed(() => composition.value.slice(0, 4))
 
     <div v-if="hasPriorityActions" class="asset-analysis-card">
       <div class="asset-analysis-card__heading">
-        <span class="asset-analysis-card__eyebrow">우선 실행</span>
         <h3 class="asset-analysis-card__title">자산을 바꾸는 다음 행동</h3>
       </div>
       <div class="asset-priority-list">
@@ -350,11 +384,14 @@ const compactComposition = computed(() => composition.value.slice(0, 4))
           :key="`${action.period || 'action'}-${action.title || index}`"
           class="asset-priority-action"
         >
-          <span v-if="action.period" class="asset-priority-action__period">
-            {{ action.period }}
-          </span>
           <strong v-if="action.title" class="asset-priority-action__title">
-            {{ action.title }}
+            <span
+              v-if="splitPriorityActionTitle(action.title).accent"
+              class="asset-priority-action__title-accent"
+            >
+              {{ splitPriorityActionTitle(action.title).accent }}
+            </span>
+            {{ splitPriorityActionTitle(action.title).rest }}
           </strong>
           <p class="asset-priority-action__description">{{ action.description }}</p>
         </div>
@@ -377,13 +414,13 @@ const compactComposition = computed(() => composition.value.slice(0, 4))
       </div>
     </div>
 
-    <div v-if="hasNotes" class="alert alert-warning-subtle border rounded-4 mb-0" role="note">
+    <div v-if="hasNotes" class="asset-analysis-card asset-analysis-card--notes" role="note">
       <div class="d-flex gap-2">
         <i class="bi bi-info-circle fs-5" aria-hidden="true"></i>
         <div>
           <strong class="d-block mb-1">분석 참고</strong>
           <ul class="small mb-0 ps-3">
-            <li v-for="note in notes" :key="note">{{ note }}</li>
+            <li v-for="note in notes" :key="note">{{ formatAnalysisNote(note) }}</li>
           </ul>
         </div>
       </div>
@@ -482,6 +519,11 @@ const compactComposition = computed(() => composition.value.slice(0, 4))
 
 .asset-analysis-card--warning .asset-analysis-card__eyebrow {
   color: #a46d13;
+}
+
+.asset-analysis-card--notes {
+  border-color: #f0dfb4;
+  background: #fffdf7;
 }
 
 .asset-analysis-card__heading {
@@ -597,18 +639,14 @@ const compactComposition = computed(() => composition.value.slice(0, 4))
   border-radius: 0.7rem;
 }
 
-.asset-priority-action__period {
-  display: block;
-  margin-bottom: 0.2rem;
-  color: #4f8fe8;
-  font-size: 0.72rem;
-  font-weight: 700;
-}
-
 .asset-priority-action__title {
   display: block;
   color: #343a50;
   font-size: 0.9rem;
+}
+
+.asset-priority-action__title-accent {
+  color: var(--wallo-color-primary);
 }
 
 .asset-priority-action__description {
@@ -639,6 +677,31 @@ const compactComposition = computed(() => composition.value.slice(0, 4))
 .asset-composition-item {
   padding: 0.7rem 0;
   border-bottom: 1px solid var(--wallo-color-border-soft);
+}
+
+.asset-composition-item__summary {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: baseline;
+  gap: var(--wallo-space-3);
+}
+
+.asset-composition-item__name {
+  min-width: 0;
+  flex: 1 1 auto;
+  color: var(--wallo-color-text);
+}
+
+.asset-composition-item__share {
+  flex: 0 0 auto;
+  color: var(--wallo-color-text-muted);
+  font-size: 0.82rem;
+}
+
+.asset-composition-item__amount {
+  flex: 0 0 auto;
+  color: var(--wallo-color-text);
 }
 
 .asset-composition-item:first-child {
