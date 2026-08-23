@@ -119,10 +119,22 @@ DELETE FROM GOAL_INTERVIEW_SESSIONS WHERE user_id = @before_user_id;
 -- 시연 시작 시 채팅방은 비워 두고, 목표 설정·분석 채팅을 화면에서 직접 생성합니다.
 DELETE FROM CONVERSATIONS WHERE user_id = @before_user_id;
 
--- 자산연동 시 생성된 이전 계좌가 남지 않도록 before 사용자의 자산 데이터를 초기화합니다.
--- 거래를 먼저 삭제한 뒤 연결을 삭제해야 계좌·카드의 외래키 정리와 시드 재등록이 일관됩니다.
--- CONNECTIONS 삭제 시 ACCOUNTS와 CARDS는 ON DELETE CASCADE로 함께 삭제됩니다.
+-- 자산연동 시 생성된 이전 계좌가 남지 않도록 before 사용자의 자산 데이터를 전체 초기화합니다.
+-- 거래·카드·계좌를 명시적으로 삭제한 뒤 연결을 삭제해, 이전 mock 대출을 포함한
+-- 모든 연결 자산이 시드 데이터와 중복되지 않도록 합니다.
 DELETE FROM TRANSACTIONS WHERE user_id = @before_user_id;
+DELETE FROM CARDS
+WHERE connection_id IN (
+    SELECT connection_id
+    FROM CONNECTIONS
+    WHERE user_id = @before_user_id
+);
+DELETE FROM ACCOUNTS
+WHERE connection_id IN (
+    SELECT connection_id
+    FROM CONNECTIONS
+    WHERE user_id = @before_user_id
+);
 DELETE FROM CONNECTIONS WHERE user_id = @before_user_id;
 
 INSERT INTO CONNECTIONS (

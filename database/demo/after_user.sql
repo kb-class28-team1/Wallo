@@ -13,13 +13,6 @@ START TRANSACTION;
 SET @demo_password_hash = '$2a$10$dJdOCr9Sm0qBbq3QJ7U4VOkGzVgvrlO5bLtM/oxqQEjt8umS78Coq';
 SET @after_user_id = 910002;
 SET @after_conversation_id = 920101;
-SET @after_consumption_message_id = 920111;
-SET @after_recommendation_user_message_id = 920112;
-SET @after_recommendation_message_id = 920113;
-SET @after_asset_message_id = 920114;
-SET @after_consumption_result_id = 920121;
-SET @after_asset_result_id = 920122;
-SET @after_recommendation_result_id = 920123;
 SET @after_goal_session_id = 920131;
 SET @after_goal_id = 920132;
 SET @after_roadmap_id = 920133;
@@ -39,14 +32,22 @@ SET @after_budget_plan_id = 920502;
 SET @after_mission_1_id = 920601;
 SET @after_mission_2_id = 920602;
 SET @after_mission_3_id = 920603;
+SET @after_july_start = DATE_SUB(
+    STR_TO_DATE(DATE_FORMAT(CURDATE(), '%Y-%m-01'), '%Y-%m-%d'),
+    INTERVAL 1 MONTH
+);
+SET @after_june_start = DATE_SUB(
+    STR_TO_DATE(DATE_FORMAT(CURDATE(), '%Y-%m-01'), '%Y-%m-%d'),
+    INTERVAL 2 MONTH
+);
 
--- 기존 DB가 이전 기관 목록으로 만들어졌어도 After 시연에서 우리은행을 표시할 수 있도록 보장합니다.
+-- 기존 DB가 이전 기관 목록으로 만들어졌어도 After 시연에서 국민은행을 표시할 수 있도록 보장합니다.
 INSERT INTO INSTITUTIONS (
     codef_organization_code, type, name, financial_group_code,
     financial_group_name, logo_url, services, is_active, display_order
 ) VALUES (
-    '0200', 'BANK', '우리은행', 'WOORI', '우리금융', NULL,
-    JSON_ARRAY('입출금', '적금', '대출'), 1, 20
+    '0004', 'BANK', '국민은행', 'KB', '국민금융', 'https://www.kbstar.com/favicon.ico',
+    JSON_ARRAY('입출금', '적금', '대출'), 1, 10
 )
 ON DUPLICATE KEY UPDATE
     name = VALUES(name),
@@ -58,7 +59,7 @@ ON DUPLICATE KEY UPDATE
     display_order = VALUES(display_order);
 
 -- The recommended product is a savings-bank product, so keep its connection
--- separate from the existing Woori Bank accounts.
+-- separate from the existing KB Bank accounts.
 INSERT INTO INSTITUTIONS (
     codef_organization_code, type, name, financial_group_code,
     financial_group_name, logo_url, services, is_active, display_order
@@ -78,7 +79,7 @@ ON DUPLICATE KEY UPDATE
 SET @after_bank_institution_id = (
     SELECT institution_id
     FROM INSTITUTIONS
-    WHERE codef_organization_code = '0200'
+    WHERE codef_organization_code = '0004'
       AND type = 'BANK'
     LIMIT 1
 );
@@ -146,8 +147,15 @@ ON DUPLICATE KEY UPDATE
     consent_agreed_at = VALUES(consent_agreed_at),
     updated_at = CURRENT_TIMESTAMP;
 
--- 목표·분석 결과가 conversation_id를 참조하므로 연결 행은 유지하되,
--- after 사용자의 채팅 목록에는 시드 상담방이 보이지 않도록 삭제 상태로 둡니다.
+-- 자산분석·소비분석·상품추천 결과는 촬영 중 AI 채팅에서 직접 생성합니다.
+-- 기존 결과와 시드 채팅이 남아 있어도 After SQL 재실행 시 함께 정리합니다.
+DELETE FROM CONSUMPTION_ANALYSIS_RESULTS WHERE user_id = @after_user_id;
+DELETE FROM ASSET_ANALYSIS_RESULTS WHERE user_id = @after_user_id;
+DELETE FROM PRODUCT_RECOMMENDATION_RESULTS WHERE user_id = @after_user_id;
+DELETE FROM CHAT_MESSAGES WHERE conversation_id = @after_conversation_id;
+
+-- 목표 데이터가 conversation_id를 참조하므로 연결 행은 유지하되,
+-- after 사용자의 채팅 목록에는 내부 상담방이 보이지 않도록 삭제 상태로 둡니다.
 INSERT INTO CONVERSATIONS (
     conversation_id, user_id, title, summary, status, created_at, updated_at
 ) VALUES (
@@ -165,190 +173,6 @@ ON DUPLICATE KEY UPDATE
     summary = VALUES(summary),
     status = VALUES(status),
     updated_at = CURRENT_TIMESTAMP;
-
-INSERT INTO CHAT_MESSAGES (
-    message_id, conversation_id, role, content, created_at
-) VALUES
-    (
-        @after_consumption_message_id,
-        @after_conversation_id,
-        'ASSISTANT',
-        '최근 3개월 동안 쇼핑·배달·외식 지출이 줄었고, 매월 저축 가능한 여유 자금이 늘었습니다.',
-        DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 4 MINUTE)
-    ),
-    (
-        @after_recommendation_user_message_id,
-        @after_conversation_id,
-        'USER',
-        '가입 제한 없는 매월 50만 원 납입 가능한 1년짜리 적금 추천해 줘',
-        DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 3 MINUTE)
-    ),
-    (
-        @after_recommendation_message_id,
-        @after_conversation_id,
-        'ASSISTANT',
-        '가입 대상이 제한 없는 12개월 적금 중 청주저축은행 단비 정기적금을 추천합니다. 가입 전 최신 조건을 확인해 주세요.',
-        DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 2 MINUTE)
-    ),
-    (
-        @after_asset_message_id,
-        @after_conversation_id,
-        'ASSISTANT',
-        '소비를 줄인 여유 자금과 적금 계좌가 쌓이며 목표 달성 속도가 좋아졌습니다.',
-        DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 1 MINUTE)
-    )
-ON DUPLICATE KEY UPDATE
-    conversation_id = VALUES(conversation_id),
-    role = VALUES(role),
-    content = VALUES(content),
-    created_at = VALUES(created_at);
-
-INSERT INTO CONSUMPTION_ANALYSIS_RESULTS (
-    analysis_result_id, user_id, assistant_message_id, request_message,
-    calculated_result, ai_response, generated_at
-) VALUES (
-    @after_consumption_result_id,
-    @after_user_id,
-    @after_consumption_message_id,
-    '최근 3개월 소비 변화를 분석해 주세요.',
-    JSON_OBJECT(
-        'period', DATE_FORMAT(CURDATE(), '%Y-%m'),
-        'totalExpenseKrw', 696800,
-        'budgetKrw', 900000,
-        'underBudgetKrw', 203200,
-        'categories', JSON_ARRAY(
-            JSON_OBJECT('category', 'SHOPPING', 'amountKrw', 220000, 'sharePercent', 31.6),
-            JSON_OBJECT('category', 'DELIVERY', 'amountKrw', 115000, 'sharePercent', 16.5),
-            JSON_OBJECT('category', 'FOOD', 'amountKrw', 125000, 'sharePercent', 17.9),
-            JSON_OBJECT('category', 'CAFE', 'amountKrw', 25000, 'sharePercent', 3.6)
-        ),
-        'insights', JSON_ARRAY(
-            '쇼핑과 배달 지출이 이전보다 감소했습니다.',
-            '이번 달 예산보다 203,200원을 적게 사용했습니다.',
-            '줄어든 소비액을 적금과 목표 계좌에 배분하고 있습니다.'
-        )
-    ),
-    '소비 경고 이후 변동 지출이 줄었고, 월 50만 원 적금 납입을 유지할 수 있는 상태입니다.',
-    CURRENT_TIMESTAMP
-)
-ON DUPLICATE KEY UPDATE
-    user_id = VALUES(user_id),
-    request_message = VALUES(request_message),
-    calculated_result = VALUES(calculated_result),
-    ai_response = VALUES(ai_response),
-    generated_at = VALUES(generated_at);
-
-INSERT INTO ASSET_ANALYSIS_RESULTS (
-    analysis_result_id, user_id, assistant_message_id, request_message,
-    calculated_result, ai_response, generated_at
-) VALUES (
-    @after_asset_result_id,
-    @after_user_id,
-    @after_asset_message_id,
-    '3개월 후 자산 변화와 목표 진척을 분석해 주세요.',
-    JSON_OBJECT(
-        'summary', JSON_OBJECT(
-            'totalAssetsKrw', 18160600,
-            'totalDebtKrw', 4800000,
-            'netAssetsKrw', 13360600
-        ),
-        'cashflow', JSON_OBJECT(
-            'monthlyNetIncomeKrw', 3200000,
-            'monthlySavingKrw', 750000,
-            'monthlyExpenseKrw', 696800,
-            'monthlySurplusKrw', 703200,
-            'annualSavingKrw', 9000000,
-            'savingRatePercent', 23.4
-        ),
-        'composition', JSON_ARRAY(
-            JSON_OBJECT('name', '예적금·현금', 'category', 'saving_cash', 'amountKrw', 10760600, 'sharePercent', 59.3),
-            JSON_OBJECT('name', '주식', 'category', 'stock', 'amountKrw', 7400000, 'sharePercent', 40.7)
-        ),
-        'direction', JSON_OBJECT(
-            'headline', '소비를 줄인 금액을 적금과 목표 계좌로 연결한 결과입니다.',
-            'currentStage', '목표 실행 단계',
-            'reasons', JSON_ARRAY('3개월 동안 소비액이 줄었고, 단비 정기적금 계좌가 새로 관리되고 있습니다.'),
-            'keep', '월 50만 원 적금 자동 납입',
-            'firstChange', '현재 소비 수준을 예산 안에서 유지하기',
-            'threeMonthDirection', '현재 저축률을 유지하면 목표 달성 속도가 안정적으로 유지됩니다.',
-            'oneYearDirection', '비상금 목표 1,000만 원에 한 걸음 더 가까워집니다.',
-            'riskSignals', JSON_ARRAY(),
-            'additionalInfo', JSON_ARRAY('상품 금리와 우대조건은 가입 전 최신 공시를 확인하세요.')
-        ),
-        'priorityActions', JSON_ARRAY(
-            JSON_OBJECT('period', '이번 달', 'title', '현재 소비 수준 유지', 'description', '월 예산 90만 원 안에서 소비를 관리하세요.'),
-            JSON_OBJECT('period', '3개월', 'title', '적금 자동 납입 유지', 'description', '단비 정기적금 월 50만 원 납입을 유지하세요.')
-        ),
-        'dataQualityNotes', JSON_ARRAY('연동된 계좌·카드·투자 자산을 기준으로 계산했습니다.')
-    ),
-    '소비 감소와 꾸준한 저축이 자산 증가와 목표 진척으로 이어졌습니다.',
-    CURRENT_TIMESTAMP
-)
-ON DUPLICATE KEY UPDATE
-    user_id = VALUES(user_id),
-    request_message = VALUES(request_message),
-    calculated_result = VALUES(calculated_result),
-    ai_response = VALUES(ai_response),
-    generated_at = VALUES(generated_at);
-
-INSERT INTO PRODUCT_RECOMMENDATION_RESULTS (
-    recommendation_result_id, user_id, assistant_message_id, request_message,
-    recommendation_result, ai_response, generated_at
-) VALUES (
-    @after_recommendation_result_id,
-    @after_user_id,
-    @after_recommendation_message_id,
-    '가입 제한 없는 매월 50만 원 납입 가능한 1년짜리 적금 추천해 줘',
-    JSON_OBJECT(
-        'dataMode', 'finlife_csv',
-        'productType', '적금',
-        'termMonths', 12,
-        'amountKrw', 500000,
-        'amountMeaning', '월 납입금',
-        'joinPreference', 'any',
-        'products', JSON_ARRAY(
-            JSON_OBJECT(
-                'ranking', 1,
-                'financialGroup', '저축은행',
-                'companyCode', '0010489',
-                'companyName', '청주저축은행',
-                'productCode', '310012',
-                'productName', '단비 정기적금',
-                'productType', '적금',
-                'savingType', '정액적립식',
-                'termMonths', 12,
-                'monthlyPaymentKrw', 500000,
-                'baseRatePercent', 6.00,
-                'afterTaxRatePercent', 5.08,
-                'preferentialRatePercent', 6.00,
-                'estimatedAfterTaxInterestKrw', 164970,
-                'estimatedMaturityAmountKrw', 6164970,
-                'interestCalculation', '단리',
-                'estimateAssumption', '일반과세 15.4%, 기본금리 적용 단순 예시',
-                'joinWay', '영업점,인터넷,스마트폰',
-                'joinTarget', '제한없음',
-                'preferentialConditions', '없음',
-                'maturityInterest', '1개월이내 : 만기시 동일상품 동일계약기간의 신규 약정금리 1개월초과 : 보통예금이율',
-                'disclosureMonth', '202607',
-                'collectedAt', '2026-08-10T14:25:09',
-                'maximumLimitKrw', NULL
-            )
-        ),
-        'searchSummary', JSON_OBJECT('loadedRows', 1539, 'matchedRows', 221, 'returnedRows', 1),
-        'instructions', JSON_ARRAY(
-            '기본금리를 우선하고 우대금리는 조건 충족 시에만 가능하다고 설명합니다.',
-            '가입 전 금융회사에서 최신 금리와 우대조건을 재확인하세요.'
-        )
-    ),
-    '소비를 줄여 만든 월 여유 자금으로 청주저축은행 단비 정기적금을 꾸준히 납입하는 시나리오입니다.',
-    CURRENT_TIMESTAMP
-)
-ON DUPLICATE KEY UPDATE
-    user_id = VALUES(user_id),
-    request_message = VALUES(request_message),
-    recommendation_result = VALUES(recommendation_result),
-    ai_response = VALUES(ai_response),
-    generated_at = VALUES(generated_at);
 
 INSERT INTO GOAL_INTERVIEW_SESSIONS (
     session_id, user_id, conversation_id, status, goal_draft_json,
@@ -447,6 +271,23 @@ ON DUPLICATE KEY UPDATE
     generated_at = VALUES(generated_at),
     updated_at = CURRENT_TIMESTAMP;
 
+-- 이전 mock 연동·거래가 남아 있어도 After 자산을 전체 초기화한 뒤
+-- 고정된 시연 데이터로 재구성합니다. 이전 mock 대출도 함께 제거합니다.
+DELETE FROM TRANSACTIONS WHERE user_id = @after_user_id;
+DELETE FROM CARDS
+WHERE connection_id IN (
+    SELECT connection_id
+    FROM CONNECTIONS
+    WHERE user_id = @after_user_id
+);
+DELETE FROM ACCOUNTS
+WHERE connection_id IN (
+    SELECT connection_id
+    FROM CONNECTIONS
+    WHERE user_id = @after_user_id
+);
+DELETE FROM CONNECTIONS WHERE user_id = @after_user_id;
+
 INSERT INTO CONNECTIONS (
     connection_id, user_id, institution_id, login_type, login_id,
     login_password, status, last_sync_at, connected_at, deleted_at
@@ -537,15 +378,18 @@ INSERT INTO TRANSACTIONS (
     external_approval_no, source_type, source_organization_code,
     source_transaction_id, source_dedup_key, transaction_date, transaction_time
 ) VALUES
+    (920710, @after_user_id, NULL, @after_main_account_id, 'INCOME', 'INCOME', 'DEMO', 1.0000, 'demo-v1', 3200000, '급여 입금', '급여 입금', '급여', 'AFTER-BANK-INCOME-001', 'DEMO_BANK', '0004', 'AFTER-BANK-INCOME-001', SHA2('after-bank-income-001', 256), DATE_SUB(CURDATE(), INTERVAL 1 DAY), '08:30:00'),
+    (920711, @after_user_id, NULL, @after_main_account_id, 'INCOME', 'INCOME', 'DEMO', 1.0000, 'demo-v1', 3200000, '급여 입금', '급여 입금', '급여', 'AFTER-BANK-INCOME-202607', 'DEMO_BANK', '0004', 'AFTER-BANK-INCOME-202607', SHA2('after-bank-income-202607', 256), DATE_ADD(@after_july_start, INTERVAL 24 DAY), '08:30:00'),
+    (920712, @after_user_id, NULL, @after_main_account_id, 'INCOME', 'INCOME', 'DEMO', 1.0000, 'demo-v1', 3200000, '급여 입금', '급여 입금', '급여', 'AFTER-BANK-INCOME-202606', 'DEMO_BANK', '0004', 'AFTER-BANK-INCOME-202606', SHA2('after-bank-income-202606', 256), DATE_ADD(@after_june_start, INTERVAL 24 DAY), '08:30:00'),
     (920701, @after_user_id, @after_card_id, NULL, 'EXPENSE', 'SHOPPING', 'DEMO', 1.0000, 'demo-v1', 220000, '온라인 쇼핑몰', '온라인 쇼핑몰', '쇼핑', 'AFTER-CARD-001', 'DEMO_CARD', '0301', 'AFTER-CARD-001', SHA2('after-card-001', 256), DATE_SUB(CURDATE(), INTERVAL 2 DAY), '12:10:00'),
     (920702, @after_user_id, @after_card_id, NULL, 'EXPENSE', 'DELIVERY', 'DEMO', 1.0000, 'demo-v1', 115000, '배달앱', '배달앱', '음식점', 'AFTER-CARD-002', 'DEMO_CARD', '0301', 'AFTER-CARD-002', SHA2('after-card-002', 256), DATE_SUB(CURDATE(), INTERVAL 3 DAY), '19:20:00'),
     (920703, @after_user_id, @after_card_id, NULL, 'EXPENSE', 'FOOD', 'DEMO', 1.0000, 'demo-v1', 125000, '외식 식당', '외식 식당', '음식점', 'AFTER-CARD-003', 'DEMO_CARD', '0301', 'AFTER-CARD-003', SHA2('after-card-003', 256), DATE_SUB(CURDATE(), INTERVAL 5 DAY), '13:00:00'),
     (920704, @after_user_id, @after_card_id, NULL, 'EXPENSE', 'CAFE', 'DEMO', 1.0000, 'demo-v1', 25000, '카페', '카페', '음식점', 'AFTER-CARD-004', 'DEMO_CARD', '0301', 'AFTER-CARD-004', SHA2('after-card-004', 256), DATE_SUB(CURDATE(), INTERVAL 6 DAY), '15:30:00'),
-    (920705, @after_user_id, @after_card_id, NULL, 'EXPENSE', 'OTHER', 'DEMO', 1.0000, 'demo-v1', 56900, '생활 잡화', '생활 잡화', '기타', 'AFTER-CARD-005', 'DEMO_CARD', '0301', 'AFTER-CARD-005', SHA2('after-card-005', 256), DATE_SUB(CURDATE(), INTERVAL 8 DAY), '11:00:00'),
-    (920706, @after_user_id, NULL, @after_main_account_id, 'EXPENSE', 'OTHER', 'DEMO', 1.0000, 'demo-v1', 154900, '카드대금 결제', '카드대금 결제', '카드', 'AFTER-BANK-001', 'DEMO_BANK', '0200', 'AFTER-BANK-001', SHA2('after-bank-001', 256), DATE_SUB(CURDATE(), INTERVAL 1 DAY), '09:00:00'),
-    (920707, @after_user_id, NULL, @after_danbi_account_id, 'TRANSFER', 'SAVING', 'DEMO', 1.0000, 'demo-v1', 500000, '단비 정기적금 자동이체', '단비 정기적금 자동이체', '저축', 'AFTER-SAVING-001', 'DEMO_BANK', '030300', 'AFTER-SAVING-001', SHA2('after-saving-001', 256), DATE_SUB(CURDATE(), INTERVAL 2 MONTH), '08:30:00'),
-    (920708, @after_user_id, NULL, @after_danbi_account_id, 'TRANSFER', 'SAVING', 'DEMO', 1.0000, 'demo-v1', 500000, '단비 정기적금 자동이체', '단비 정기적금 자동이체', '저축', 'AFTER-SAVING-002', 'DEMO_BANK', '030300', 'AFTER-SAVING-002', SHA2('after-saving-002', 256), DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '08:30:00'),
-    (920709, @after_user_id, NULL, @after_danbi_account_id, 'TRANSFER', 'SAVING', 'DEMO', 1.0000, 'demo-v1', 500000, '단비 정기적금 자동이체', '단비 정기적금 자동이체', '저축', 'AFTER-SAVING-003', 'DEMO_BANK', '030300', 'AFTER-SAVING-003', SHA2('after-saving-003', 256), CURDATE(), '08:30:00')
+    (920705, @after_user_id, @after_card_id, NULL, 'EXPENSE', 'LIVING', 'DEMO', 1.0000, 'demo-v1', 56900, '생활 잡화', '생활 잡화', '기타', 'AFTER-CARD-005', 'DEMO_CARD', '0301', 'AFTER-CARD-005', SHA2('after-card-005', 256), DATE_SUB(CURDATE(), INTERVAL 8 DAY), '11:00:00'),
+    (920706, @after_user_id, NULL, @after_main_account_id, 'TRANSFER', 'SEND', 'DEMO', 1.0000, 'demo-v1', 154900, '카드대금 결제', '카드대금 결제', '카드', 'AFTER-BANK-001', 'DEMO_BANK', '0004', 'AFTER-BANK-001', SHA2('after-bank-001', 256), DATE_SUB(CURDATE(), INTERVAL 1 DAY), '09:00:00'),
+    (920707, @after_user_id, NULL, @after_danbi_account_id, 'TRANSFER', 'SEND', 'DEMO', 1.0000, 'demo-v1', 500000, '단비 정기적금 자동이체', '단비 정기적금 자동이체', '저축', 'AFTER-SAVING-001', 'DEMO_BANK', '030300', 'AFTER-SAVING-001', SHA2('after-saving-001', 256), DATE_SUB(CURDATE(), INTERVAL 2 MONTH), '08:30:00'),
+    (920708, @after_user_id, NULL, @after_danbi_account_id, 'TRANSFER', 'SEND', 'DEMO', 1.0000, 'demo-v1', 500000, '단비 정기적금 자동이체', '단비 정기적금 자동이체', '저축', 'AFTER-SAVING-002', 'DEMO_BANK', '030300', 'AFTER-SAVING-002', SHA2('after-saving-002', 256), DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '08:30:00'),
+    (920709, @after_user_id, NULL, @after_danbi_account_id, 'TRANSFER', 'SEND', 'DEMO', 1.0000, 'demo-v1', 500000, '단비 정기적금 자동이체', '단비 정기적금 자동이체', '저축', 'AFTER-SAVING-003', 'DEMO_BANK', '030300', 'AFTER-SAVING-003', SHA2('after-saving-003', 256), CURDATE(), '08:30:00')
 ON DUPLICATE KEY UPDATE
     card_id = VALUES(card_id),
     account_id = VALUES(account_id),
