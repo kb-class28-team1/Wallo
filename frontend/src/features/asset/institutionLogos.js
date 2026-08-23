@@ -2,12 +2,14 @@ const LOCAL_LOGO_PATHS = Object.freeze({
   KB: "/images/institutions/kb.webp",
   HANA: "/images/institutions/hana.webp",
   SHINHAN: "/images/institutions/shinhan.webp",
+  SAVINGS_BANK: "/images/institutions/cheongju-savings-bank.png",
 });
 
 const LOCAL_LOGO_KEYWORDS = [
   ["KB", ["KB", "국민"]],
   ["HANA", ["HANA", "하나"]],
   ["SHINHAN", ["SHINHAN", "신한"]],
+  ["SAVINGS_BANK", ["SAVINGS_BANK", "저축은행", "청주저축은행"]],
 ];
 
 export const getLocalInstitutionLogo = (groupCode, groupName) => {

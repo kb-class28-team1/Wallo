@@ -2,8 +2,9 @@
 --
 -- Prerequisite: run database/dbInit.sql first.
 -- Login: after@wallo.demo / 12341234
--- The Woori Bank WON savings account is intentionally present before filming so the
--- post-signup state can be shown immediately after switching users.
+-- The Cheongju Savings Bank Danbi fixed-term savings account is intentionally
+-- present before filming so the post-signup state can be shown immediately after
+-- switching users.
 
 USE wallo;
 
@@ -25,10 +26,11 @@ SET @after_roadmap_id = 920133;
 SET @after_bank_connection_id = 920201;
 SET @after_card_connection_id = 920202;
 SET @after_stock_connection_id = 920203;
+SET @after_savings_bank_connection_id = 920204;
 SET @after_main_account_id = 920301;
 SET @after_emergency_account_id = 920302;
 SET @after_travel_account_id = 920303;
-SET @after_won_account_id = 920304;
+SET @after_danbi_account_id = 920304;
 SET @after_loan_account_id = 920305;
 SET @after_stock_account_id = 920306;
 SET @after_card_id = 920401;
@@ -55,10 +57,35 @@ ON DUPLICATE KEY UPDATE
     is_active = VALUES(is_active),
     display_order = VALUES(display_order);
 
+-- The recommended product is a savings-bank product, so keep its connection
+-- separate from the existing Woori Bank accounts.
+INSERT INTO INSTITUTIONS (
+    codef_organization_code, type, name, financial_group_code,
+    financial_group_name, logo_url, services, is_active, display_order
+) VALUES (
+    '030300', 'BANK', '청주저축은행', 'SAVINGS_BANK', '저축은행', NULL,
+    JSON_ARRAY('적금'), 1, 25
+)
+ON DUPLICATE KEY UPDATE
+    name = VALUES(name),
+    financial_group_code = VALUES(financial_group_code),
+    financial_group_name = VALUES(financial_group_name),
+    logo_url = VALUES(logo_url),
+    services = VALUES(services),
+    is_active = VALUES(is_active),
+    display_order = VALUES(display_order);
+
 SET @after_bank_institution_id = (
     SELECT institution_id
     FROM INSTITUTIONS
     WHERE codef_organization_code = '0200'
+      AND type = 'BANK'
+    LIMIT 1
+);
+SET @after_savings_bank_institution_id = (
+    SELECT institution_id
+    FROM INSTITUTIONS
+    WHERE codef_organization_code = '030300'
       AND type = 'BANK'
     LIMIT 1
 );
@@ -153,14 +180,14 @@ INSERT INTO CHAT_MESSAGES (
         @after_recommendation_user_message_id,
         @after_conversation_id,
         'USER',
-        '우리은행의 WON적금 중 매월 30만 원씩 1년 동안 저축할 수 있는 상품을 추천해 주세요.',
+        '가입 제한 없는 매월 50만 원 납입 가능한 1년짜리 적금 추천해 줘',
         DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 3 MINUTE)
     ),
     (
         @after_recommendation_message_id,
         @after_conversation_id,
         'ASSISTANT',
-        '연결된 우리은행의 WON적금을 추천합니다. 가입 전 최신 조건을 확인해 주세요.',
+        '가입 대상이 제한 없는 12개월 적금 중 청주저축은행 단비 정기적금을 추천합니다. 가입 전 최신 조건을 확인해 주세요.',
         DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 2 MINUTE)
     ),
     (
@@ -201,7 +228,7 @@ INSERT INTO CONSUMPTION_ANALYSIS_RESULTS (
             '줄어든 소비액을 적금과 목표 계좌에 배분하고 있습니다.'
         )
     ),
-    '소비 경고 이후 변동 지출이 줄었고, 월 30만 원 적금 납입을 유지할 수 있는 상태입니다.',
+    '소비 경고 이후 변동 지출이 줄었고, 월 50만 원 적금 납입을 유지할 수 있는 상태입니다.',
     CURRENT_TIMESTAMP
 )
 ON DUPLICATE KEY UPDATE
@@ -221,27 +248,27 @@ INSERT INTO ASSET_ANALYSIS_RESULTS (
     '3개월 후 자산 변화와 목표 진척을 분석해 주세요.',
     JSON_OBJECT(
         'summary', JSON_OBJECT(
-            'totalAssetsKrw', 17560600,
+            'totalAssetsKrw', 18160600,
             'totalDebtKrw', 4800000,
-            'netAssetsKrw', 12760600
+            'netAssetsKrw', 13360600
         ),
         'cashflow', JSON_OBJECT(
             'monthlyNetIncomeKrw', 3200000,
-            'monthlySavingKrw', 550000,
+            'monthlySavingKrw', 750000,
             'monthlyExpenseKrw', 696800,
-            'monthlySurplusKrw', 503200,
-            'annualSavingKrw', 6600000,
-            'savingRatePercent', 17.2
+            'monthlySurplusKrw', 703200,
+            'annualSavingKrw', 9000000,
+            'savingRatePercent', 23.4
         ),
         'composition', JSON_ARRAY(
-            JSON_OBJECT('name', '예적금·현금', 'category', 'saving_cash', 'amountKrw', 10160600, 'sharePercent', 57.9),
-            JSON_OBJECT('name', '주식', 'category', 'stock', 'amountKrw', 7400000, 'sharePercent', 42.1)
+            JSON_OBJECT('name', '예적금·현금', 'category', 'saving_cash', 'amountKrw', 10760600, 'sharePercent', 59.3),
+            JSON_OBJECT('name', '주식', 'category', 'stock', 'amountKrw', 7400000, 'sharePercent', 40.7)
         ),
         'direction', JSON_OBJECT(
             'headline', '소비를 줄인 금액을 적금과 목표 계좌로 연결한 결과입니다.',
             'currentStage', '목표 실행 단계',
-            'reasons', JSON_ARRAY('3개월 동안 소비액이 줄었고, WON적금 계좌가 새로 관리되고 있습니다.'),
-            'keep', '월 30만 원 적금 자동 납입',
+            'reasons', JSON_ARRAY('3개월 동안 소비액이 줄었고, 단비 정기적금 계좌가 새로 관리되고 있습니다.'),
+            'keep', '월 50만 원 적금 자동 납입',
             'firstChange', '현재 소비 수준을 예산 안에서 유지하기',
             'threeMonthDirection', '현재 저축률을 유지하면 목표 달성 속도가 안정적으로 유지됩니다.',
             'oneYearDirection', '비상금 목표 1,000만 원에 한 걸음 더 가까워집니다.',
@@ -250,7 +277,7 @@ INSERT INTO ASSET_ANALYSIS_RESULTS (
         ),
         'priorityActions', JSON_ARRAY(
             JSON_OBJECT('period', '이번 달', 'title', '현재 소비 수준 유지', 'description', '월 예산 90만 원 안에서 소비를 관리하세요.'),
-            JSON_OBJECT('period', '3개월', 'title', '적금 자동 납입 유지', 'description', 'WON적금 월 30만 원 납입을 유지하세요.')
+            JSON_OBJECT('period', '3개월', 'title', '적금 자동 납입 유지', 'description', '단비 정기적금 월 50만 원 납입을 유지하세요.')
         ),
         'dataQualityNotes', JSON_ARRAY('연동된 계좌·카드·투자 자산을 기준으로 계산했습니다.')
     ),
@@ -271,48 +298,49 @@ INSERT INTO PRODUCT_RECOMMENDATION_RESULTS (
     @after_recommendation_result_id,
     @after_user_id,
     @after_recommendation_message_id,
-    '우리은행의 WON적금 중 매월 30만 원씩 1년 동안 저축할 수 있는 상품을 추천해 주세요.',
+    '가입 제한 없는 매월 50만 원 납입 가능한 1년짜리 적금 추천해 줘',
     JSON_OBJECT(
-        'dataMode', 'demo_seed',
+        'dataMode', 'finlife_csv',
         'productType', '적금',
         'termMonths', 12,
-        'amountKrw', 300000,
+        'amountKrw', 500000,
         'amountMeaning', '월 납입금',
-        'joinPreference', 'online',
+        'joinPreference', 'any',
         'products', JSON_ARRAY(
             JSON_OBJECT(
                 'ranking', 1,
-                'financialGroup', '우리금융',
-                'companyCode', '0200',
-                'companyName', '우리은행',
-                'productCode', 'DEMO-WON-SAVING-12',
-                'productName', 'WON적금',
+                'financialGroup', '저축은행',
+                'companyCode', '0010489',
+                'companyName', '청주저축은행',
+                'productCode', '310012',
+                'productName', '단비 정기적금',
                 'productType', '적금',
                 'savingType', '정액적립식',
                 'termMonths', 12,
-                'monthlyPaymentKrw', 300000,
-                'baseRatePercent', 3.20,
-                'preferentialRatePercent', 3.40,
-                'estimatedAfterTaxInterestKrw', 53244,
-                'estimatedMaturityAmountKrw', 3653244,
+                'monthlyPaymentKrw', 500000,
+                'baseRatePercent', 6.00,
+                'afterTaxRatePercent', 5.08,
+                'preferentialRatePercent', 6.00,
+                'estimatedAfterTaxInterestKrw', 164970,
+                'estimatedMaturityAmountKrw', 6164970,
                 'interestCalculation', '단리',
-                'estimateAssumption', '일반과세 15.4%, 기본금리 기준 단순 예시',
-                'joinWay', '인터넷, 스마트폰',
-                'joinTarget', '실명의 개인',
-                'preferentialConditions', '급여이체 및 마케팅 동의 등 우대조건은 가입 전 확인',
-                'maturityInterest', '만기 후 최신 공시 확인',
-                'disclosureMonth', DATE_FORMAT(CURRENT_DATE, '%Y%m'),
-                'collectedAt', DATE_FORMAT(CURRENT_TIMESTAMP, '%Y-%m-%dT%H:%i:%s'),
-                'maximumLimitKrw', 3000000
+                'estimateAssumption', '일반과세 15.4%, 기본금리 적용 단순 예시',
+                'joinWay', '영업점,인터넷,스마트폰',
+                'joinTarget', '제한없음',
+                'preferentialConditions', '없음',
+                'maturityInterest', '1개월이내 : 만기시 동일상품 동일계약기간의 신규 약정금리 1개월초과 : 보통예금이율',
+                'disclosureMonth', '202607',
+                'collectedAt', '2026-08-10T14:25:09',
+                'maximumLimitKrw', NULL
             )
         ),
-        'searchSummary', JSON_OBJECT('loadedRows', 100, 'matchedRows', 12, 'returnedRows', 1),
+        'searchSummary', JSON_OBJECT('loadedRows', 1539, 'matchedRows', 221, 'returnedRows', 1),
         'instructions', JSON_ARRAY(
             '기본금리를 우선하고 우대금리는 조건 충족 시에만 가능하다고 설명합니다.',
             '가입 전 금융회사에서 최신 금리와 우대조건을 재확인하세요.'
         )
     ),
-    '소비를 줄여 만든 월 여유 자금으로 우리은행 WON적금을 꾸준히 납입하는 시나리오입니다.',
+    '소비를 줄여 만든 월 여유 자금으로 청주저축은행 단비 정기적금을 꾸준히 납입하는 시나리오입니다.',
     CURRENT_TIMESTAMP
 )
 ON DUPLICATE KEY UPDATE
@@ -398,8 +426,8 @@ INSERT INTO GOAL_ROADMAPS (
     JSON_OBJECT(
         'steps', JSON_ARRAY(
             JSON_OBJECT('stepNumber', 1, 'title', '소비 패턴 확인', 'description', '최근 소비를 확인하고 줄일 항목을 찾습니다.', 'targetDate', DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 2 MONTH), '%Y-%m-%d'), 'actionItems', JSON_ARRAY('쇼핑·배달 지출 확인')),
-            JSON_OBJECT('stepNumber', 2, 'title', '목표 계좌 분리', 'description', '월 30만 원을 목표 계좌로 자동이체합니다.', 'targetDate', DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m-%d'), 'actionItems', JSON_ARRAY('자동이체 설정')),
-            JSON_OBJECT('stepNumber', 3, 'title', '적금 가입 및 유지', 'description', 'WON적금에 매월 30만 원을 납입합니다.', 'targetDate', DATE_FORMAT(CURDATE(), '%Y-%m-%d'), 'actionItems', JSON_ARRAY('납입 내역 확인'))
+            JSON_OBJECT('stepNumber', 2, 'title', '목표 계좌 분리', 'description', '월 50만 원을 목표 계좌로 자동이체합니다.', 'targetDate', DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m-%d'), 'actionItems', JSON_ARRAY('자동이체 설정')),
+            JSON_OBJECT('stepNumber', 3, 'title', '적금 가입 및 유지', 'description', '단비 정기적금에 매월 50만 원을 납입합니다.', 'targetDate', DATE_FORMAT(CURDATE(), '%Y-%m-%d'), 'actionItems', JSON_ARRAY('납입 내역 확인'))
         )
     ),
     NULL,
@@ -424,6 +452,7 @@ INSERT INTO CONNECTIONS (
     login_password, status, last_sync_at, connected_at, deleted_at
 ) VALUES
     (@after_bank_connection_id, @after_user_id, @after_bank_institution_id, 'DEMO', 'after-bank', 'demo-password', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
+    (@after_savings_bank_connection_id, @after_user_id, @after_savings_bank_institution_id, 'DEMO', 'after-savings-bank', 'demo-password', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
     (@after_card_connection_id, @after_user_id, @after_card_institution_id, 'DEMO', 'after-card', 'demo-password', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
     (@after_stock_connection_id, @after_user_id, @after_stock_institution_id, 'DEMO', 'after-stock', 'demo-password', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL)
 ON DUPLICATE KEY UPDATE
@@ -436,7 +465,7 @@ ON DUPLICATE KEY UPDATE
     last_sync_at = VALUES(last_sync_at),
     deleted_at = NULL;
 
--- 우리은행 WON적금은 After 사용자의 가입 후 상태를 보여주기 위해 미리 연결해 둡니다.
+-- 청주저축은행 단비 정기적금은 After 사용자의 가입 후 상태를 보여주기 위해 미리 연결해 둡니다.
 INSERT INTO ACCOUNTS (
     account_id, connection_id, account_number, account_display_number,
     account_name, account_type, account_subtype, balance, eval_amount,
@@ -445,11 +474,12 @@ INSERT INTO ACCOUNTS (
     (@after_main_account_id, @after_bank_connection_id, '222222-01-333331', '222222-**-333331', '생활비 통장', 'BANK', 'CHECKING', 2129100, 0, 'KRW', 'ACTIVE', DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 7 MONTH), CURRENT_TIMESTAMP),
     (@after_emergency_account_id, @after_bank_connection_id, '222222-01-333332', '222222-**-333332', '비상금 통장', 'BANK', 'SAVINGS', 5631500, 0, 'KRW', 'ACTIVE', DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 7 MONTH), CURRENT_TIMESTAMP),
     (@after_travel_account_id, @after_bank_connection_id, '222222-01-333334', '222222-**-333334', '여행 적금', 'BANK', 'SAVINGS', 1500000, 0, 'KRW', 'ACTIVE', DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 7 MONTH), CURRENT_TIMESTAMP),
-    (@after_won_account_id, @after_bank_connection_id, '222222-01-333333', '222222-**-333333', 'WON적금', 'BANK', 'SAVINGS', 900000, 0, 'KRW', 'ACTIVE', DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 3 MONTH), CURRENT_TIMESTAMP),
+    (@after_danbi_account_id, @after_savings_bank_connection_id, '310012-01-444444', '310012-**-444444', '단비 정기적금', 'BANK', 'SAVINGS', 1500000, 0, 'KRW', 'ACTIVE', DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 3 MONTH), CURRENT_TIMESTAMP),
     (@after_loan_account_id, @after_bank_connection_id, 'LOAN-2021-0008', 'LOAN-****-0008', '학자금 대출', 'LOAN', 'LOAN', 4800000, 0, 'KRW', 'ACTIVE', DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 7 MONTH), CURRENT_TIMESTAMP),
     (@after_stock_account_id, @after_stock_connection_id, 'STOCK-AFTER-01', 'STOCK-****-0001', '키움증권 투자계좌', 'STOCK', 'STOCK', 0, 7400000, 'KRW', 'ACTIVE', DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 7 MONTH), CURRENT_TIMESTAMP)
 ON DUPLICATE KEY UPDATE
     connection_id = VALUES(connection_id),
+    account_number = VALUES(account_number),
     account_display_number = VALUES(account_display_number),
     account_name = VALUES(account_name),
     account_type = VALUES(account_type),
@@ -513,16 +543,25 @@ INSERT INTO TRANSACTIONS (
     (920704, @after_user_id, @after_card_id, NULL, 'EXPENSE', 'CAFE', 'DEMO', 1.0000, 'demo-v1', 25000, '카페', '카페', '음식점', 'AFTER-CARD-004', 'DEMO_CARD', '0301', 'AFTER-CARD-004', SHA2('after-card-004', 256), DATE_SUB(CURDATE(), INTERVAL 6 DAY), '15:30:00'),
     (920705, @after_user_id, @after_card_id, NULL, 'EXPENSE', 'OTHER', 'DEMO', 1.0000, 'demo-v1', 56900, '생활 잡화', '생활 잡화', '기타', 'AFTER-CARD-005', 'DEMO_CARD', '0301', 'AFTER-CARD-005', SHA2('after-card-005', 256), DATE_SUB(CURDATE(), INTERVAL 8 DAY), '11:00:00'),
     (920706, @after_user_id, NULL, @after_main_account_id, 'EXPENSE', 'OTHER', 'DEMO', 1.0000, 'demo-v1', 154900, '카드대금 결제', '카드대금 결제', '카드', 'AFTER-BANK-001', 'DEMO_BANK', '0200', 'AFTER-BANK-001', SHA2('after-bank-001', 256), DATE_SUB(CURDATE(), INTERVAL 1 DAY), '09:00:00'),
-    (920707, @after_user_id, NULL, @after_won_account_id, 'TRANSFER', 'SAVING', 'DEMO', 1.0000, 'demo-v1', 300000, 'WON적금 자동이체', 'WON적금 자동이체', '저축', 'AFTER-SAVING-001', 'DEMO_BANK', '0200', 'AFTER-SAVING-001', SHA2('after-saving-001', 256), DATE_SUB(CURDATE(), INTERVAL 2 MONTH), '08:30:00'),
-    (920708, @after_user_id, NULL, @after_won_account_id, 'TRANSFER', 'SAVING', 'DEMO', 1.0000, 'demo-v1', 300000, 'WON적금 자동이체', 'WON적금 자동이체', '저축', 'AFTER-SAVING-002', 'DEMO_BANK', '0200', 'AFTER-SAVING-002', SHA2('after-saving-002', 256), DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '08:30:00'),
-    (920709, @after_user_id, NULL, @after_won_account_id, 'TRANSFER', 'SAVING', 'DEMO', 1.0000, 'demo-v1', 300000, 'WON적금 자동이체', 'WON적금 자동이체', '저축', 'AFTER-SAVING-003', 'DEMO_BANK', '0200', 'AFTER-SAVING-003', SHA2('after-saving-003', 256), CURDATE(), '08:30:00')
+    (920707, @after_user_id, NULL, @after_danbi_account_id, 'TRANSFER', 'SAVING', 'DEMO', 1.0000, 'demo-v1', 500000, '단비 정기적금 자동이체', '단비 정기적금 자동이체', '저축', 'AFTER-SAVING-001', 'DEMO_BANK', '030300', 'AFTER-SAVING-001', SHA2('after-saving-001', 256), DATE_SUB(CURDATE(), INTERVAL 2 MONTH), '08:30:00'),
+    (920708, @after_user_id, NULL, @after_danbi_account_id, 'TRANSFER', 'SAVING', 'DEMO', 1.0000, 'demo-v1', 500000, '단비 정기적금 자동이체', '단비 정기적금 자동이체', '저축', 'AFTER-SAVING-002', 'DEMO_BANK', '030300', 'AFTER-SAVING-002', SHA2('after-saving-002', 256), DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '08:30:00'),
+    (920709, @after_user_id, NULL, @after_danbi_account_id, 'TRANSFER', 'SAVING', 'DEMO', 1.0000, 'demo-v1', 500000, '단비 정기적금 자동이체', '단비 정기적금 자동이체', '저축', 'AFTER-SAVING-003', 'DEMO_BANK', '030300', 'AFTER-SAVING-003', SHA2('after-saving-003', 256), CURDATE(), '08:30:00')
 ON DUPLICATE KEY UPDATE
     card_id = VALUES(card_id),
     account_id = VALUES(account_id),
     type = VALUES(type),
     category = VALUES(category),
+    category_source = VALUES(category_source),
+    category_confidence = VALUES(category_confidence),
+    classifier_version = VALUES(classifier_version),
     amount = VALUES(amount),
     merchant_name = VALUES(merchant_name),
+    original_merchant_name = VALUES(original_merchant_name),
+    original_sector = VALUES(original_sector),
+    external_approval_no = VALUES(external_approval_no),
+    source_type = VALUES(source_type),
+    source_organization_code = VALUES(source_organization_code),
+    source_transaction_id = VALUES(source_transaction_id),
     transaction_date = VALUES(transaction_date),
     transaction_time = VALUES(transaction_time);
 
@@ -557,7 +596,7 @@ VALUES
     (920802, @after_user_id, DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 3 MONTH), '%Y-%m'), 11407400, DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 3 MONTH), CURRENT_TIMESTAMP),
     (920803, @after_user_id, DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 2 MONTH), '%Y-%m'), 12100000, DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 2 MONTH), CURRENT_TIMESTAMP),
     (920804, @after_user_id, DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m'), 12500000, DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 1 MONTH), CURRENT_TIMESTAMP),
-    (920805, @after_user_id, DATE_FORMAT(CURDATE(), '%Y-%m'), 12760600, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    (920805, @after_user_id, DATE_FORMAT(CURDATE(), '%Y-%m'), 13360600, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 ON DUPLICATE KEY UPDATE
     total_assets = VALUES(total_assets),
     updated_at = CURRENT_TIMESTAMP;
