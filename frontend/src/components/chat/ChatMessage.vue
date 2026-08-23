@@ -124,10 +124,10 @@ onBeforeUnmount(completeTyping)
       <div
         v-else-if="message.role === 'assistant'"
         class="message-content message-content--markdown"
+        :class="{ 'message-content--typing': isTyping }"
         v-html="renderedMarkdown"
       ></div>
       <p v-else class="message-content">{{ displayedContent }}</p>
-      <span v-if="isTyping" class="typing-cursor" aria-hidden="true"></span>
     </div>
   </div>
 </template>
@@ -176,6 +176,27 @@ onBeforeUnmount(completeTyping)
 
 .message-content--markdown :deep(> :last-child) {
   margin-bottom: 0;
+}
+
+.message-content--typing:empty::after,
+.message-content--typing :deep(> p:last-child)::after,
+.message-content--typing :deep(> h1:last-child)::after,
+.message-content--typing :deep(> h2:last-child)::after,
+.message-content--typing :deep(> h3:last-child)::after,
+.message-content--typing :deep(> h4:last-child)::after,
+.message-content--typing :deep(> h5:last-child)::after,
+.message-content--typing :deep(> h6:last-child)::after,
+.message-content--typing :deep(> ul:last-child > li:last-child)::after,
+.message-content--typing :deep(> ol:last-child > li:last-child)::after,
+.message-content--typing :deep(> blockquote:last-child > :last-child)::after {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 4px;
+  vertical-align: text-bottom;
+  background: #4f8fe8;
+  content: "";
+  animation: cursor-blink 0.8s step-end infinite;
 }
 
 .message-content--markdown :deep(h1),
@@ -240,16 +261,6 @@ onBeforeUnmount(completeTyping)
 
 .message-content--markdown :deep(a) {
   color: #3f78cd;
-}
-
-.typing-cursor {
-  display: inline-block;
-  width: 2px;
-  height: 1em;
-  margin: 4px 0 0 4px;
-  vertical-align: text-bottom;
-  background: #4f8fe8;
-  animation: cursor-blink 0.8s step-end infinite;
 }
 
 @keyframes cursor-blink {

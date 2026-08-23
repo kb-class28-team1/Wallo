@@ -93,6 +93,24 @@ describe("ChatMessage", () => {
     expect(wrapper.find(".message-content--markdown").exists()).toBe(true)
   })
 
+  it("keeps the typing cursor inside the assistant content card", () => {
+    const wrapper = mount(ChatMessage, {
+      props: {
+        message: {
+          id: 5,
+          role: "assistant",
+          content: "답변을 작성하는 중입니다.",
+          animate: true,
+        },
+      },
+    })
+
+    expect(wrapper.find(".message-content--typing").exists()).toBe(true)
+    expect(wrapper.find(".message-bubble > .typing-cursor").exists()).toBe(false)
+
+    wrapper.unmount()
+  })
+
   it("renders an asset analysis response as cards instead of markdown", () => {
     const wrapper = mount(ChatMessage, {
       props: {
