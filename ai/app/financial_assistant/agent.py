@@ -334,10 +334,9 @@ class FinancialAgent:
             logger.info("[AI ROUTING] goal_interview")
             return "목표 설정을 시작할게요."
         tool_arguments = parse_tool_arguments(tool_call.function.arguments)
-        if (
-            tool_call.function.name == PRODUCT_RECOMMENDATION_TOOL
-            and not tool_arguments.get("request")
-        ):
+        if tool_call.function.name == PRODUCT_RECOMMENDATION_TOOL:
+            # 상품 유형·기간·금액은 모델이 구조화한 인자를 사용하되,
+            # 가입대상 판별용 request는 사용자 원문을 보존한다.
             tool_arguments["request"] = user_message
         tool_result = execute_tool(
             tool_call.function.name,
