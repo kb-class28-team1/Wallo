@@ -7,7 +7,20 @@ import AppButton from "@/components/ui/AppButton.vue"
 import { useUserStore } from "@/stores/userStore"
 
 // public 폴더의 이미지는 루트 절대 경로로 참조함.
-const thinkingPenguin = "/images/profiles/thinking-penguin.svg"
+const sidebarSpendingImages = [
+  "03_스트레칭.webp",
+  "04_요가타임.webp",
+  "05_명상중.webp",
+  "06_아침인사.webp",
+  "07_하이파이브.webp",
+  "08_생각중.webp",
+  "09_메모중.webp",
+  "09_저축중.svg",
+  "10_계획세우기.webp",
+  "11_체크리스트.webp",
+  "12_집중력MAX.webp",
+  "13_데스크정리.webp",
+]
 
 const primaryMenus = [
   { icon: "bi bi-house-fill", label: "대시보드", to: "/dashboard" },
@@ -62,6 +75,10 @@ const getTodayKey = () => {
 
 const todayKey = ref(getTodayKey())
 const dailySavingsTip = computed(() => savingsTips[Math.abs(todayKey.value) % savingsTips.length])
+const dailySpendingImage = computed(() => {
+  const imageName = sidebarSpendingImages[Math.abs(todayKey.value) % sidebarSpendingImages.length]
+  return `/images/spending/${imageName}`
+})
 let dailyTipTimer
 
 const scheduleDailyTipRefresh = () => {
@@ -425,7 +442,11 @@ const handleLogout = async () => {
 
       <div class="sidebar-card text-center">
         <div class="sidebar-card-image-frame">
-          <img :src="thinkingPenguin" class="sidebar-card-image" alt="생각하는 왈로 캐릭터" />
+          <img
+            :src="dailySpendingImage"
+            class="sidebar-card-image"
+            alt="오늘의 절약 응원 이미지"
+          />
         </div>
         <p class="sidebar-card-text mb-0" :title="dailySavingsTip" aria-live="polite">
           {{ dailySavingsTip }}

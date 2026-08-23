@@ -98,6 +98,34 @@ describe("SideNavigation", () => {
     wrapper.unmount()
   })
 
+  it("uses the same spending image throughout the same day", () => {
+    const firstWrapper = mount(SideNavigation, {
+      global: {
+        stubs: {
+          AppDialog: { template: "<div />" },
+        },
+      },
+    })
+    const firstImage = firstWrapper.find(".sidebar-card-image").attributes("src")
+    firstWrapper.unmount()
+
+    const secondWrapper = mount(SideNavigation, {
+      global: {
+        stubs: {
+          AppDialog: { template: "<div />" },
+        },
+      },
+    })
+    const secondImage = secondWrapper.find(".sidebar-card-image").attributes("src")
+
+    expect(firstImage).toMatch(/^\/images\/spending\/.+/)
+    expect(secondImage).toBe(firstImage)
+    expect(secondWrapper.find(".sidebar-card-image").attributes("alt"))
+      .toBe("오늘의 절약 응원 이미지")
+
+    secondWrapper.unmount()
+  })
+
   it("keeps challenge navigation open and routes to my feeds", async () => {
     const wrapper = mount(SideNavigation, {
       global: {
