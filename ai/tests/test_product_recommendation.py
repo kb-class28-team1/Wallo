@@ -8,6 +8,16 @@ def test_default_product_data_files_exist():
     assert product_recommendation.DATA_FILES["saving"].is_file()
 
 
+def test_normalize_join_target_removes_unrestricted_prefix():
+    assert product_recommendation.normalize_join_target(
+        "제한없음 (반려동물을 키우는 지점방문고객(개인))"
+    ) == "반려동물을 키우는 지점방문고객(개인)"
+
+
+def test_normalize_join_target_keeps_plain_target():
+    assert product_recommendation.normalize_join_target("실명의 개인") == "실명의 개인"
+
+
 def write_products(path, rows):
     with path.open("w", encoding="utf-8-sig", newline="") as file:
         writer = csv.DictWriter(file, fieldnames=rows[0].keys())

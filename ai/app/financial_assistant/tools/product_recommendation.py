@@ -81,6 +81,16 @@ def clean_text(value: Any) -> str:
     return " ".join(str(value).replace("\xa0", " ").split()).strip()
 
 
+def normalize_join_target(value: Any) -> str:
+    text = clean_text(value)
+    match = re.fullmatch(r"제한없음\s*\((?P<target>.+)\)", text)
+
+    if match:
+        return clean_text(match.group("target"))
+
+    return text
+
+
 def parse_int(value: Any) -> int | None:
     text = clean_text(value).replace(",", "")
     if not text:
@@ -197,7 +207,7 @@ def build_candidate(
         "afterTaxRatePercent": parse_rate(row.get("세후 이자율")),
         "preferentialRatePercent": parse_rate(row.get("최고 우대금리")),
         "joinWay": clean_text(row.get("가입방법")),
-        "joinTarget": clean_text(row.get("가입 대상")),
+        "joinTarget": normalize_join_target(row.get("가입 대상")),
         "preferentialConditions": clean_text(row.get("우대조건")),
         "maturityInterest": clean_text(row.get("만기 후 이자율")),
         "maximumLimitKrw": parse_max_limit(row.get("최고한도")),
