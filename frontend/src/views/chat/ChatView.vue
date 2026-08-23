@@ -107,6 +107,7 @@ const displayMessages = computed(() => {
   }
   if (
     route.query.action === "consumption-analysis" ||
+    route.query.action === "asset-analysis" ||
     route.query.start === GOAL_SETTING_START_QUERY
   ) {
     return []
@@ -471,6 +472,31 @@ const startConsumptionAnalysis = async () => {
   }
 }
 
+const startAssetAnalysisConversation = async () => {
+  if (isGuidedChatStarting.value || isChatLoading.value || !userId.value) return
+
+  isGuidedChatStarting.value = true
+  isMissingGoalConversation.value = false
+  resetGoalCompletionFlow()
+  errorMessage.value = ""
+
+  try {
+    await router.replace({ name: "chat" })
+
+    const started = await conversationStore.startAssetAnalysis(userId.value)
+    if (!started) {
+      errorMessage.value = conversationErrorStatus.value === 429
+        ? conversationError.value
+        : "자산분석 채팅을 시작하지 못했습니다."
+    }
+  } catch (error) {
+    errorMessage.value = error.message || "자산분석 채팅을 시작하지 못했습니다."
+  } finally {
+    isGuidedChatStarting.value = false
+    await scrollToBottom()
+  }
+}
+
 const startGuidedChat = async (message) => {
   if (isGuidedChatStarting.value || isChatLoading.value || !userId.value) return
 
@@ -500,7 +526,7 @@ watch(
     if (action === "consumption-analysis") {
       void startConsumptionAnalysis()
     } else if (action === "asset-analysis") {
-      void startAssetAnalysis()
+      void startAssetAnalysisConversation()
     } else if (action === "product-recommendation") {
       void startProductRecommendation()
     }
@@ -528,6 +554,11 @@ onMounted(async () => {
 
   if (route.query.action === "consumption-analysis") {
     await startConsumptionAnalysis()
+    return
+  }
+
+  if (route.query.action === "asset-analysis") {
+    await startAssetAnalysisConversation()
     return
   }
 
@@ -567,9 +598,7 @@ onMounted(async () => {
     await scrollToBottom()
   }
 
-  if (route.query.action === "asset-analysis") {
-    await startAssetAnalysis()
-  } else if (route.query.action === "product-recommendation") {
+  if (route.query.action === "product-recommendation") {
     await startProductRecommendation()
   }
 })
@@ -733,6 +762,7 @@ onMounted(async () => {
               title="저장된 채팅이 없습니다."
               message="새 채팅을 시작해 금융 상담을 받아보세요."
               compact
+              hide-icon
             />
 
             <div v-else class="conversation-list">

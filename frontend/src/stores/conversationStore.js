@@ -622,6 +622,19 @@ export const useConversationStore = defineStore("conversation", () => {
     return sendMessage(userId, "내 소비를 분석해줘")
   }
 
+  const startAssetAnalysis = async (userId) => {
+    if (isLoading.value || isSending.value) {
+      return false
+    }
+
+    const conversation = await startNewConversation(userId)
+    if (!conversation) {
+      return false
+    }
+
+    return sendMessage(userId, "내 자산을 분석해줘")
+  }
+
   const startGoalSettingConversation = async (userId) => {
     if (isLoading.value || isSending.value) {
       return false
@@ -661,6 +674,7 @@ export const useConversationStore = defineStore("conversation", () => {
     removeConversation,
     sendMessage,
     startConsumptionAnalysis,
+    startAssetAnalysis,
     startGoalSettingConversation,
     reset,
   }

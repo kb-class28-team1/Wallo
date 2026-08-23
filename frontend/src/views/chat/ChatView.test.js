@@ -454,6 +454,49 @@ describe("ChatView", () => {
     wrapper.unmount()
   })
 
+  it("starts asset analysis in a new conversation from the analysis action", async () => {
+    route.query = { action: "asset-analysis" }
+    createConversation.mockResolvedValue({
+      conversationId: 12,
+      title: "새 채팅",
+      updatedAt: "2026-08-14T00:00:00",
+    })
+    getConversations.mockResolvedValue([
+      { conversationId: 12, title: "새 채팅", updatedAt: "2026-08-14T00:00:00" },
+      { conversationId: 11, title: "비상금 목표", updatedAt: "2026-08-12T00:00:00" },
+    ])
+    sendConversationMessage.mockResolvedValue({
+      userMessage: {
+        messageId: 2,
+        role: "USER",
+        content: "내 자산을 분석해줘",
+      },
+      assistantMessage: {
+        messageId: 3,
+        role: "ASSISTANT",
+        content: "자산 분석 결과입니다.",
+      },
+      goalInterview: null,
+      assetAnalysis: { marker: "자산 분석 결과" },
+    })
+
+    const wrapper = mountChat()
+    await flushPromises()
+
+    await vi.waitFor(() => {
+      expect(createConversation).toHaveBeenCalledWith(7, "새 채팅")
+      expect(sendConversationMessage).toHaveBeenCalledWith(
+        12,
+        7,
+        "내 자산을 분석해줘",
+        null,
+      )
+    })
+    expect(useConversationStore().activeConversationId).toBe(12)
+    expect(getConversationMessages).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
   it("starts a named goal-setting conversation from the dashboard entry", async () => {
     route.query = { start: "goal-setting" }
     createConversation.mockResolvedValue({
