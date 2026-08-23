@@ -2,6 +2,7 @@ package com.wallo.asset.mapper;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.wallo.asset.dto.AssetDto;
 import com.wallo.asset.dto.GoalAssetContextDto;
 import java.sql.Connection;
 import java.sql.Statement;
@@ -56,6 +57,30 @@ class AssetMapperIntegrationTest {
         assertEquals(2, accounts.size());
         assertAccount(accounts.get(0), "BANK", "DEPOSIT", 5_000_000L, 5_000_000L);
         assertAccount(accounts.get(1), "STOCK", "PENSION", 0L, 8_400_000L);
+    }
+
+    @Test
+    void mergesDepositAndCheckingIntoOneAssetCategory() throws Exception {
+        try (Connection connection = dataSource.getConnection();
+             Statement statement = connection.createStatement()) {
+            statement.execute("""
+                    INSERT INTO ACCOUNTS
+                        (account_id, connection_id, account_type, account_subtype,
+                         balance, eval_amount, status)
+                    VALUES
+                        (7, 1, 'BANK', 'CHECKING', 1650000, 1650000, 'ACTIVE')
+                    """);
+        }
+
+        List<AssetDto.CategoryBreakdown> categories =
+                assetMapper.selectAssetCategoryBreakdown(7L);
+
+        assertEquals(2, categories.size());
+        AssetDto.CategoryBreakdown deposit = categories.stream()
+                .filter(category -> "DEPOSIT".equals(category.getCategory()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals(6_650_000L, deposit.getAmount());
     }
 
     private void assertAccount(
