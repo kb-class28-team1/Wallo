@@ -492,6 +492,8 @@ describe("ChatView", () => {
         null,
       )
     })
+    expect(createConversation).toHaveBeenCalledTimes(1)
+    expect(sendConversationMessage).toHaveBeenCalledTimes(1)
     expect(useConversationStore().activeConversationId).toBe(12)
     expect(getConversationMessages).not.toHaveBeenCalled()
     wrapper.unmount()

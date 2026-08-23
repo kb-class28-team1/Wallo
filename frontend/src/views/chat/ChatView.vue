@@ -29,6 +29,7 @@ const GOAL_CHAT_DELETE_BLOCK_MESSAGE =
 const GOAL_COMPLETION_TOAST_MESSAGE =
   "목표 설정 및 로드맵이 완성되었습니다!\nAI 컨설팅 페이지에서 나의 목표와 로드맵을 확인해보세요."
 const TIMING_LOG_PREFIX = "[WALLO_TIMING]"
+const ROUTE_ACTIONS = ["consumption-analysis", "asset-analysis", "product-recommendation"]
 
 const timingNow = () => (typeof performance !== "undefined" ? performance.now() : Date.now())
 
@@ -82,6 +83,7 @@ const isMissingGoalConversation = ref(false)
 const isGoalCompletionChecking = ref(false)
 const isGoalRoadmapReady = ref(false)
 const isGoalAccountConfigured = ref(false)
+const routeActionInFlight = ref(null)
 const userId = computed(() => user.value?.id ?? null)
 const isGoalDeleteBlocked = computed(() => deleteTargetConversation.value?.hasGoal === true)
 const isGoalChatLocked = computed(() =>
@@ -523,6 +525,30 @@ const startProductRecommendation = async () => {
   }
 }
 
+const handleRouteAction = async (action) => {
+  if (!ROUTE_ACTIONS.includes(action) || routeActionInFlight.value) {
+    return false
+  }
+
+  routeActionInFlight.value = action
+
+  try {
+    if (action === "consumption-analysis") {
+      return await startConsumptionAnalysis()
+    }
+
+    if (action === "asset-analysis") {
+      return await startAssetAnalysisConversation()
+    }
+
+    return await startProductRecommendation()
+  } finally {
+    if (routeActionInFlight.value === action) {
+      routeActionInFlight.value = null
+    }
+  }
+}
+
 const startGuidedChat = async (message) => {
   if (isGuidedChatStarting.value || isChatLoading.value || !userId.value) return
 
@@ -546,15 +572,7 @@ const startAssetAnalysis = () => startGuidedChat("내 자산을 분석해줘")
 
 watch(
   () => route.query.action,
-  (action) => {
-    if (action === "consumption-analysis") {
-      void startConsumptionAnalysis()
-    } else if (action === "asset-analysis") {
-      void startAssetAnalysisConversation()
-    } else if (action === "product-recommendation") {
-      void startProductRecommendation()
-    }
-  },
+  (action) => void handleRouteAction(action),
 )
 
 watch(
@@ -576,18 +594,8 @@ onMounted(async () => {
     return
   }
 
-  if (route.query.action === "consumption-analysis") {
-    await startConsumptionAnalysis()
-    return
-  }
-
-  if (route.query.action === "asset-analysis") {
-    await startAssetAnalysisConversation()
-    return
-  }
-
-  if (route.query.action === "product-recommendation") {
-    await startProductRecommendation()
+  if (ROUTE_ACTIONS.includes(route.query.action)) {
+    await handleRouteAction(route.query.action)
     return
   }
 

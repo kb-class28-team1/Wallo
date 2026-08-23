@@ -227,6 +227,40 @@ describe("conversationStore", () => {
     expect(store.activeConversationId).toBe(12)
   })
 
+  it("coalesces concurrent asset analysis starts into one conversation", async () => {
+    createConversation.mockResolvedValue({
+      conversationId: 12,
+      title: "새 채팅",
+    })
+    getConversations.mockResolvedValue([
+      { conversationId: 12, title: "새 채팅" },
+      ...conversations,
+    ])
+    sendConversationMessage.mockResolvedValue({
+      userMessage: {
+        messageId: 201,
+        role: "USER",
+        content: "내 자산을 분석해줘",
+      },
+      assistantMessage: {
+        messageId: 202,
+        role: "ASSISTANT",
+        content: "자산 분석 결과입니다.",
+      },
+    })
+
+    const store = useConversationStore()
+    const [started, duplicateStart] = await Promise.all([
+      store.startAssetAnalysis(7),
+      store.startAssetAnalysis(7),
+    ])
+
+    expect(started).toBe(true)
+    expect(duplicateStart).toBe(true)
+    expect(createConversation).toHaveBeenCalledTimes(1)
+    expect(sendConversationMessage).toHaveBeenCalledTimes(1)
+  })
+
   it("starts product recommendation in a new conversation", async () => {
     createConversation.mockResolvedValue({
       conversationId: 13,
