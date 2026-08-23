@@ -905,14 +905,6 @@ onBeforeUnmount(() => {
         <i class="bi bi-heart-fill" aria-hidden="true"></i>
       </span>
     </div>
-    <AppAlert
-      v-if="refreshing"
-      class="feed-refresh-status"
-      variant="neutral"
-      role="status"
-      :show-icon="false"
-      message="최신 피드와 채팅을 확인하는 중..."
-    />
     <AppAlert v-if="errorMessage && hasLoadedPage" class="feed-error-alert" variant="warning">
       <div class="feed-alert-content">
         <span>{{ errorMessage }}</span>
@@ -941,6 +933,18 @@ onBeforeUnmount(() => {
     <template v-else>
       <header class="feed-header">
         <AppPageHeader class="feed-page-header" :title="challengeName">
+          <template #title>
+            <span class="feed-page-title">
+              <span>{{ challengeName }}</span>
+              <span v-if="refreshing" class="feed-refresh-status" role="status">
+                <span
+                  class="spinner-border spinner-border-sm text-primary"
+                  aria-hidden="true"
+                ></span>
+                <span class="feed-refresh-status__text">최신 피드와 채팅을 확인하는 중...</span>
+              </span>
+            </span>
+          </template>
           <template #actions>
             <div class="saving-total">
               <small>누적 절약 금액</small><strong>{{ formatWon(mySavingTotal) }}</strong>
@@ -1440,9 +1444,30 @@ onBeforeUnmount(() => {
   justify-items: center;
   gap: 18px;
 }
-.feed-refresh-status,
 .feed-error-alert {
   margin-bottom: 18px;
+}
+.feed-page-title {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: var(--wallo-space-3);
+}
+.feed-refresh-status {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--wallo-space-2);
+  overflow: hidden;
+  color: var(--wallo-color-text-muted);
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.feed-refresh-status__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .feed-alert-content {
   display: flex;

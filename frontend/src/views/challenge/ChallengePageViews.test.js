@@ -265,12 +265,14 @@ describe("challenge page views", () => {
     await nextTick()
 
     expect(secondWrapper.find('[role="status"]').text()).toContain("최신 피드와 채팅")
+    expect(secondWrapper.find(".feed-page-header .feed-refresh-status").exists()).toBe(true)
     expect(secondWrapper.find(".feed-card").exists()).toBe(true)
 
     resolveMineFeeds({ ...feedPayload, feeds: [] })
     await flushPromises()
 
     expect(getFeeds).toHaveBeenLastCalledWith(7, true)
+    expect(secondWrapper.find(".feed-refresh-status").exists()).toBe(false)
     secondWrapper.unmount()
   })
 
