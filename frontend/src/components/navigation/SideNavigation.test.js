@@ -70,7 +70,7 @@ describe("SideNavigation", () => {
     wrapper.unmount()
   })
 
-  it("places settings and logout above the sidebar character card", async () => {
+  it("places settings and logout above the sidebar character message", async () => {
     const wrapper = mount(SideNavigation, {
       global: {
         stubs: {
@@ -114,7 +114,7 @@ describe("SideNavigation", () => {
     expect(wrapper.findAll(".submenu-item")).toHaveLength(3)
     expect(wrapper.text()).not.toContain("피드 목록")
     expect(wrapper.find(".submenu-link-active").text()).toContain("내 게시물")
-    expect(wrapper.find(".sidebar-card").classes()).toContain("app-card")
+    expect(wrapper.find(".sidebar-card").classes()).not.toContain("app-card")
 
     const myFeedsButton = wrapper
       .findAll(".submenu-item")
