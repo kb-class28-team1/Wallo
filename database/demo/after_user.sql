@@ -2,7 +2,7 @@
 --
 -- Prerequisite: run database/dbInit.sql first.
 -- Login: after@wallo.demo / 12341234
--- The WON savings account is intentionally present before filming so the
+-- The Woori Bank WON savings account is intentionally present before filming so the
 -- post-signup state can be shown immediately after switching users.
 
 USE wallo;
@@ -38,10 +38,27 @@ SET @after_mission_1_id = 920601;
 SET @after_mission_2_id = 920602;
 SET @after_mission_3_id = 920603;
 
+-- 기존 DB가 이전 기관 목록으로 만들어졌어도 After 시연에서 우리은행을 표시할 수 있도록 보장합니다.
+INSERT INTO INSTITUTIONS (
+    codef_organization_code, type, name, financial_group_code,
+    financial_group_name, logo_url, services, is_active, display_order
+) VALUES (
+    '0200', 'BANK', '우리은행', 'WOORI', '우리금융', NULL,
+    JSON_ARRAY('입출금', '적금', '대출'), 1, 20
+)
+ON DUPLICATE KEY UPDATE
+    name = VALUES(name),
+    financial_group_code = VALUES(financial_group_code),
+    financial_group_name = VALUES(financial_group_name),
+    logo_url = VALUES(logo_url),
+    services = VALUES(services),
+    is_active = VALUES(is_active),
+    display_order = VALUES(display_order);
+
 SET @after_bank_institution_id = (
     SELECT institution_id
     FROM INSTITUTIONS
-    WHERE codef_organization_code = '0088'
+    WHERE codef_organization_code = '0200'
       AND type = 'BANK'
     LIMIT 1
 );
@@ -134,14 +151,14 @@ INSERT INTO CHAT_MESSAGES (
         @after_recommendation_user_message_id,
         @after_conversation_id,
         'USER',
-        '매월 30만 원씩 1년 동안 저축할 수 있는 적금 상품을 추천해 주세요.',
+        '우리은행의 WON적금 중 매월 30만 원씩 1년 동안 저축할 수 있는 상품을 추천해 주세요.',
         DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 3 MINUTE)
     ),
     (
         @after_recommendation_message_id,
         @after_conversation_id,
         'ASSISTANT',
-        '월 납입액과 가입 기간을 기준으로 WON적금을 추천합니다. 가입 전 최신 조건을 확인해 주세요.',
+        '연결된 우리은행의 WON적금을 추천합니다. 가입 전 최신 조건을 확인해 주세요.',
         DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 2 MINUTE)
     ),
     (
@@ -252,7 +269,7 @@ INSERT INTO PRODUCT_RECOMMENDATION_RESULTS (
     @after_recommendation_result_id,
     @after_user_id,
     @after_recommendation_message_id,
-    '매월 30만 원씩 1년 동안 저축할 수 있는 적금 상품을 추천해 주세요.',
+    '우리은행의 WON적금 중 매월 30만 원씩 1년 동안 저축할 수 있는 상품을 추천해 주세요.',
     JSON_OBJECT(
         'dataMode', 'demo_seed',
         'productType', '적금',
@@ -263,9 +280,9 @@ INSERT INTO PRODUCT_RECOMMENDATION_RESULTS (
         'products', JSON_ARRAY(
             JSON_OBJECT(
                 'ranking', 1,
-                'financialGroup', '신한금융',
-                'companyCode', '0088',
-                'companyName', '신한은행',
+                'financialGroup', '우리금융',
+                'companyCode', '0200',
+                'companyName', '우리은행',
                 'productCode', 'DEMO-WON-SAVING-12',
                 'productName', 'WON적금',
                 'productType', '적금',
@@ -293,7 +310,7 @@ INSERT INTO PRODUCT_RECOMMENDATION_RESULTS (
             '가입 전 금융회사에서 최신 금리와 우대조건을 재확인하세요.'
         )
     ),
-    '소비를 줄여 만든 월 여유 자금으로 WON적금을 꾸준히 납입하는 시나리오입니다.',
+    '소비를 줄여 만든 월 여유 자금으로 우리은행 WON적금을 꾸준히 납입하는 시나리오입니다.',
     CURRENT_TIMESTAMP
 )
 ON DUPLICATE KEY UPDATE
@@ -417,7 +434,7 @@ ON DUPLICATE KEY UPDATE
     last_sync_at = VALUES(last_sync_at),
     deleted_at = NULL;
 
--- WON적금은 After 사용자의 가입 후 상태를 보여주기 위해 미리 연결해 둡니다.
+-- 우리은행 WON적금은 After 사용자의 가입 후 상태를 보여주기 위해 미리 연결해 둡니다.
 INSERT INTO ACCOUNTS (
     account_id, connection_id, account_number, account_display_number,
     account_name, account_type, account_subtype, balance, eval_amount,
@@ -493,10 +510,10 @@ INSERT INTO TRANSACTIONS (
     (920703, @after_user_id, @after_card_id, NULL, 'EXPENSE', 'FOOD', 'DEMO', 1.0000, 'demo-v1', 125000, '외식 식당', '외식 식당', '음식점', 'AFTER-CARD-003', 'DEMO_CARD', '0301', 'AFTER-CARD-003', SHA2('after-card-003', 256), DATE_SUB(CURDATE(), INTERVAL 5 DAY), '13:00:00'),
     (920704, @after_user_id, @after_card_id, NULL, 'EXPENSE', 'CAFE', 'DEMO', 1.0000, 'demo-v1', 25000, '카페', '카페', '음식점', 'AFTER-CARD-004', 'DEMO_CARD', '0301', 'AFTER-CARD-004', SHA2('after-card-004', 256), DATE_SUB(CURDATE(), INTERVAL 6 DAY), '15:30:00'),
     (920705, @after_user_id, @after_card_id, NULL, 'EXPENSE', 'OTHER', 'DEMO', 1.0000, 'demo-v1', 56900, '생활 잡화', '생활 잡화', '기타', 'AFTER-CARD-005', 'DEMO_CARD', '0301', 'AFTER-CARD-005', SHA2('after-card-005', 256), DATE_SUB(CURDATE(), INTERVAL 8 DAY), '11:00:00'),
-    (920706, @after_user_id, NULL, @after_main_account_id, 'EXPENSE', 'OTHER', 'DEMO', 1.0000, 'demo-v1', 154900, '카드대금 결제', '카드대금 결제', '카드', 'AFTER-BANK-001', 'DEMO_BANK', '0088', 'AFTER-BANK-001', SHA2('after-bank-001', 256), DATE_SUB(CURDATE(), INTERVAL 1 DAY), '09:00:00'),
-    (920707, @after_user_id, NULL, @after_won_account_id, 'TRANSFER', 'SAVING', 'DEMO', 1.0000, 'demo-v1', 300000, 'WON적금 자동이체', 'WON적금 자동이체', '저축', 'AFTER-SAVING-001', 'DEMO_BANK', '0088', 'AFTER-SAVING-001', SHA2('after-saving-001', 256), DATE_SUB(CURDATE(), INTERVAL 2 MONTH), '08:30:00'),
-    (920708, @after_user_id, NULL, @after_won_account_id, 'TRANSFER', 'SAVING', 'DEMO', 1.0000, 'demo-v1', 300000, 'WON적금 자동이체', 'WON적금 자동이체', '저축', 'AFTER-SAVING-002', 'DEMO_BANK', '0088', 'AFTER-SAVING-002', SHA2('after-saving-002', 256), DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '08:30:00'),
-    (920709, @after_user_id, NULL, @after_won_account_id, 'TRANSFER', 'SAVING', 'DEMO', 1.0000, 'demo-v1', 300000, 'WON적금 자동이체', 'WON적금 자동이체', '저축', 'AFTER-SAVING-003', 'DEMO_BANK', '0088', 'AFTER-SAVING-003', SHA2('after-saving-003', 256), CURDATE(), '08:30:00')
+    (920706, @after_user_id, NULL, @after_main_account_id, 'EXPENSE', 'OTHER', 'DEMO', 1.0000, 'demo-v1', 154900, '카드대금 결제', '카드대금 결제', '카드', 'AFTER-BANK-001', 'DEMO_BANK', '0200', 'AFTER-BANK-001', SHA2('after-bank-001', 256), DATE_SUB(CURDATE(), INTERVAL 1 DAY), '09:00:00'),
+    (920707, @after_user_id, NULL, @after_won_account_id, 'TRANSFER', 'SAVING', 'DEMO', 1.0000, 'demo-v1', 300000, 'WON적금 자동이체', 'WON적금 자동이체', '저축', 'AFTER-SAVING-001', 'DEMO_BANK', '0200', 'AFTER-SAVING-001', SHA2('after-saving-001', 256), DATE_SUB(CURDATE(), INTERVAL 2 MONTH), '08:30:00'),
+    (920708, @after_user_id, NULL, @after_won_account_id, 'TRANSFER', 'SAVING', 'DEMO', 1.0000, 'demo-v1', 300000, 'WON적금 자동이체', 'WON적금 자동이체', '저축', 'AFTER-SAVING-002', 'DEMO_BANK', '0200', 'AFTER-SAVING-002', SHA2('after-saving-002', 256), DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '08:30:00'),
+    (920709, @after_user_id, NULL, @after_won_account_id, 'TRANSFER', 'SAVING', 'DEMO', 1.0000, 'demo-v1', 300000, 'WON적금 자동이체', 'WON적금 자동이체', '저축', 'AFTER-SAVING-003', 'DEMO_BANK', '0200', 'AFTER-SAVING-003', SHA2('after-saving-003', 256), CURDATE(), '08:30:00')
 ON DUPLICATE KEY UPDATE
     card_id = VALUES(card_id),
     account_id = VALUES(account_id),
@@ -574,4 +591,3 @@ ON DUPLICATE KEY UPDATE
     created_at = VALUES(created_at);
 
 COMMIT;
-
