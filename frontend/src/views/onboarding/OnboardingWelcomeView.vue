@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue"
 import { useRouter } from "vue-router"
 
 const router = useRouter()
-const welcomePenguinImage = "/images/onboarding/welcome-penguin.png"
+const welcomePenguinImage = "/images/onboarding/welcome-penguin.webp"
 const greeting = "안녕하세요, 왈로예요!"
 const introduction = "지금부터 서비스를 사용하는 방법을 알려드릴게요."
 const typedGreeting = ref("")

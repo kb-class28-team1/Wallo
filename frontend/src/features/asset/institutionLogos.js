@@ -1,7 +1,7 @@
 const LOCAL_LOGO_PATHS = Object.freeze({
-  KB: "/images/institutions/kb.png",
-  HANA: "/images/institutions/hana.png",
-  SHINHAN: "/images/institutions/shinhan.png",
+  KB: "/images/institutions/kb.webp",
+  HANA: "/images/institutions/hana.webp",
+  SHINHAN: "/images/institutions/shinhan.webp",
 });
 
 const LOCAL_LOGO_KEYWORDS = [

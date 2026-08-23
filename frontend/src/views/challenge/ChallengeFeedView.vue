@@ -1330,7 +1330,7 @@ onBeforeUnmount(() => {
                 </svg>
                 <img
                   class="analysis-surfer"
-                  src="/images/illustrations/wallo-surfing.png"
+                  src="/images/illustrations/wallo-surfing.webp"
                   alt=""
                 />
               </span>

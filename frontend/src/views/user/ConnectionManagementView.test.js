@@ -162,7 +162,7 @@ describe("ConnectionManagementView", () => {
     await flushPromises()
 
     expect(wrapper.find(".asset-logo-image").attributes("src")).toBe(
-      "/images/institutions/kb.png",
+      "/images/institutions/kb.webp",
     )
   })
 

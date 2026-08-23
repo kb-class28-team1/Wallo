@@ -10,17 +10,17 @@ import SummaryMetrics from "./SummaryMetrics.vue"
 import { categoryLabel, comparisonPeriodLabel, formatWon } from "@/types/consumptionAnalysis"
 
 const SPENDING_REPORT_IMAGES = [
-  "03_스트레칭.png",
-  "04_요가타임.png",
-  "05_명상중.png",
-  "06_아침인사.png",
-  "07_하이파이브.png",
-  "08_생각중.png",
-  "09_메모중.png",
-  "10_계획세우기.png",
-  "11_체크리스트.png",
-  "12_집중력MAX.png",
-  "13_데스크정리.png",
+  "03_스트레칭.webp",
+  "04_요가타임.webp",
+  "05_명상중.webp",
+  "06_아침인사.webp",
+  "07_하이파이브.webp",
+  "08_생각중.webp",
+  "09_메모중.webp",
+  "10_계획세우기.webp",
+  "11_체크리스트.webp",
+  "12_집중력MAX.webp",
+  "13_데스크정리.webp",
 ]
 
 const randomSpendingReportImage = () => {

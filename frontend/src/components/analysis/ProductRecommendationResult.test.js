@@ -87,7 +87,7 @@ describe("ProductRecommendationResult", () => {
     expect(link.attributes("rel")).toContain("noopener")
     const logo = link.get('img[alt="금융감독원"]')
     expect(logo.attributes("src")).toBe(
-      "/images/institutions/financial-supervision-service.png",
+      "/images/institutions/financial-supervision-service.webp",
     )
   })
 

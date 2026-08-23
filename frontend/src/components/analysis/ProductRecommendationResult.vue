@@ -95,7 +95,7 @@ watch(products, () => {
 })
 
 const FINANCIAL_SUPERVISION_LOGO_URL =
-  "/images/institutions/financial-supervision-service.png"
+  "/images/institutions/financial-supervision-service.webp"
 </script>
 
 <template>

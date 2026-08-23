@@ -75,7 +75,7 @@ describe("AnalysisResult", () => {
     })
 
     const image = wrapper.get(".report-link__icon img")
-    expect(image.attributes("src")).toMatch(/^\/images\/spending\/.+\.png$/)
+    expect(image.attributes("src")).toMatch(/^\/images\/spending\/.+\.webp$/)
     expect(image.attributes("alt")).toBe("")
   })
 

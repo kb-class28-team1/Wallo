@@ -7,7 +7,7 @@ import {
 describe("consumptionReportImages", () => {
   it("returns the category image for a supported category", () => {
     expect(getConsumptionReportImage("DELIVERY")).toBe(
-      "/images/asset-reports/wallow-delivery.png",
+      "/images/asset-reports/wallow-delivery.webp",
     );
   });
 
