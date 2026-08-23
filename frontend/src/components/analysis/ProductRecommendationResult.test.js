@@ -144,6 +144,21 @@ describe("ProductRecommendationResult", () => {
     expect(reason.text()).not.toContain("**")
   })
 
+  it("renders parenthesized strong emphasis in the AI recommendation reason", () => {
+    const wrapper = mount(ProductRecommendationResult, {
+      props: {
+        recommendation,
+        reason: "**예치금(예금 기준) 또는 매월 납입금(적금 기준)**은 어느 정도인지 알려 주세요.",
+      },
+    })
+
+    const reason = wrapper.find(".product-recommendation__reason-markdown")
+    expect(reason.find("strong").text()).toBe(
+      "예치금(예금 기준) 또는 매월 납입금(적금 기준)",
+    )
+    expect(reason.text()).not.toContain("**")
+  })
+
   it("removes unsafe HTML from the AI recommendation reason", () => {
     const wrapper = mount(ProductRecommendationResult, {
       props: {

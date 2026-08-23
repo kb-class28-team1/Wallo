@@ -647,7 +647,7 @@ onMounted(async () => {
             <h1 id="chat-title" class="mb-1 fs-5 fw-bold">
               {{ isGoalSettingEntry ? GOAL_SETTING_TITLE : activeConversation?.title || "새 채팅" }}
             </h1>
-            <p class="mb-0 small text-secondary">Wallo AI 금융 컨설턴트</p>
+            <p class="mb-0 small text-secondary">Wallo 금융 컨설턴트</p>
           </header>
 
           <div ref="messageList" class="message-list" aria-live="polite">

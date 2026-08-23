@@ -138,4 +138,23 @@ describe("ChatMessage", () => {
     expect(wrapper.text()).not.toContain("This prose should not be rendered")
     expect(wrapper.find(".message-content--markdown").exists()).toBe(false)
   })
+
+  it("renders parenthesized strong emphasis before a Korean suffix", () => {
+    const wrapper = mount(ChatMessage, {
+      props: {
+        message: {
+          id: 6,
+          role: "assistant",
+          content: "3. **예치금(예금 기준) 또는 매월 납입금(적금 기준)**은 어느 정도인지 알려 주세요.",
+          animate: false,
+        },
+      },
+    })
+
+    const content = wrapper.find(".message-content--markdown")
+    expect(content.find("strong").text()).toBe(
+      "예치금(예금 기준) 또는 매월 납입금(적금 기준)",
+    )
+    expect(content.text()).not.toContain("**")
+  })
 })

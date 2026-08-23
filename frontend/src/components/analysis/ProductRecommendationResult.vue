@@ -10,6 +10,7 @@ import {
   formatProductTerm,
   normalizeProductRecommendation,
 } from "@/types/productRecommendation"
+import { repairParenthesizedStrongEmphasis } from "@/utils/markdown"
 
 marked.setOptions({
   breaks: true,
@@ -53,7 +54,11 @@ const productTrackStyle = computed(() => ({
 }))
 const reason = computed(() => props.reason?.trim() || "")
 const renderedReason = computed(() => (
-  reason.value ? DOMPurify.sanitize(marked.parse(reason.value)) : ""
+  reason.value
+    ? DOMPurify.sanitize(
+      marked.parse(repairParenthesizedStrongEmphasis(reason.value)),
+    )
+    : ""
 ))
 
 const productType = (product) =>

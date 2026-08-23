@@ -5,6 +5,7 @@ import { marked } from "marked"
 import AssetAnalysisResult from "@/components/analysis/AssetAnalysisResult.vue"
 import AnalysisResult from "@/components/analysis/AnalysisResult.vue"
 import ProductRecommendationResult from "@/components/analysis/ProductRecommendationResult.vue"
+import { repairParenthesizedStrongEmphasis } from "@/utils/markdown"
 
 const props = defineProps({
   message: {
@@ -25,7 +26,9 @@ marked.setOptions({
 })
 
 const renderedMarkdown = computed(() =>
-  DOMPurify.sanitize(marked.parse(displayedContent.value)),
+  DOMPurify.sanitize(
+    marked.parse(repairParenthesizedStrongEmphasis(displayedContent.value)),
+  ),
 )
 
 const isAnalysisMessage = computed(() =>
