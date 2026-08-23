@@ -119,14 +119,16 @@ ON DUPLICATE KEY UPDATE
     consent_agreed_at = VALUES(consent_agreed_at),
     updated_at = CURRENT_TIMESTAMP;
 
+-- 목표·분석 결과가 conversation_id를 참조하므로 연결 행은 유지하되,
+-- after 사용자의 채팅 목록에는 시드 상담방이 보이지 않도록 삭제 상태로 둡니다.
 INSERT INTO CONVERSATIONS (
     conversation_id, user_id, title, summary, status, created_at, updated_at
 ) VALUES (
     @after_conversation_id,
     @after_user_id,
-    '3개월 자산 개선 상담',
-    '소비를 줄이고 적금과 목표 계좌를 꾸준히 관리한 상담입니다.',
-    'ACTIVE',
+    'after-demo-context',
+    'after 시연 데이터 연결용 내부 대화입니다.',
+    'DELETED',
     DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 5 MINUTE),
     CURRENT_TIMESTAMP
 )

@@ -11,7 +11,6 @@ START TRANSACTION;
 
 SET @demo_password_hash = '$2a$10$dJdOCr9Sm0qBbq3QJ7U4VOkGzVgvrlO5bLtM/oxqQEjt8umS78Coq';
 SET @before_user_id = 910001;
-SET @before_conversation_id = 910101;
 SET @before_bank_connection_id = 910201;
 SET @before_card_connection_id = 910202;
 SET @before_stock_connection_id = 910203;
@@ -117,7 +116,7 @@ DELETE FROM GOAL_ROADMAPS WHERE user_id = @before_user_id;
 DELETE FROM FINANCIAL_GOALS WHERE user_id = @before_user_id;
 DELETE FROM GOAL_INTERVIEW_SESSIONS WHERE user_id = @before_user_id;
 -- 위에서 목표 인터뷰 세션을 먼저 정리한 뒤 기존 AI 채팅방도 삭제합니다.
--- 아래에서 빈 시연용 대화방 하나를 새로 등록합니다.
+-- 시연 시작 시 채팅방은 비워 두고, 목표 설정·분석 채팅을 화면에서 직접 생성합니다.
 DELETE FROM CONVERSATIONS WHERE user_id = @before_user_id;
 
 -- 자산연동 시 생성된 이전 계좌가 남지 않도록 before 사용자의 자산 데이터를 초기화합니다.
@@ -125,24 +124,6 @@ DELETE FROM CONVERSATIONS WHERE user_id = @before_user_id;
 -- CONNECTIONS 삭제 시 ACCOUNTS와 CARDS는 ON DELETE CASCADE로 함께 삭제됩니다.
 DELETE FROM TRANSACTIONS WHERE user_id = @before_user_id;
 DELETE FROM CONNECTIONS WHERE user_id = @before_user_id;
-
-INSERT INTO CONVERSATIONS (
-    conversation_id, user_id, title, summary, status, created_at, updated_at
-) VALUES (
-    @before_conversation_id,
-    @before_user_id,
-    '3개월 자산 개선 상담',
-    '소비 구조와 예산을 점검하기 위한 상담입니다.',
-    'ACTIVE',
-    DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 5 MINUTE),
-    CURRENT_TIMESTAMP
-)
-ON DUPLICATE KEY UPDATE
-    user_id = VALUES(user_id),
-    title = VALUES(title),
-    summary = VALUES(summary),
-    status = VALUES(status),
-    updated_at = CURRENT_TIMESTAMP;
 
 INSERT INTO CONNECTIONS (
     connection_id, user_id, institution_id, login_type, login_id,

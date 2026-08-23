@@ -98,32 +98,20 @@ describe("SideNavigation", () => {
     wrapper.unmount()
   })
 
-  it("uses the same spending image throughout the same day", () => {
-    const firstWrapper = mount(SideNavigation, {
+  it("shows the Wallo surfing illustration in the sidebar footer", () => {
+    const wrapper = mount(SideNavigation, {
       global: {
         stubs: {
           AppDialog: { template: "<div />" },
         },
       },
     })
-    const firstImage = firstWrapper.find(".sidebar-card-image").attributes("src")
-    firstWrapper.unmount()
 
-    const secondWrapper = mount(SideNavigation, {
-      global: {
-        stubs: {
-          AppDialog: { template: "<div />" },
-        },
-      },
-    })
-    const secondImage = secondWrapper.find(".sidebar-card-image").attributes("src")
+    const image = wrapper.find(".sidebar-card-image")
+    expect(image.attributes("src")).toBe("/images/illustrations/wallo-surfing.webp")
+    expect(image.attributes("alt")).toBe("Wallo 서핑 일러스트")
 
-    expect(firstImage).toMatch(/^\/images\/spending\/.+/)
-    expect(secondImage).toBe(firstImage)
-    expect(secondWrapper.find(".sidebar-card-image").attributes("alt"))
-      .toBe("오늘의 절약 응원 이미지")
-
-    secondWrapper.unmount()
+    wrapper.unmount()
   })
 
   it("keeps challenge navigation open and routes to my feeds", async () => {
