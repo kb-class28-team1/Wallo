@@ -57,7 +57,7 @@ SCHEMA = {
                     "description": "반환할 최대 상품 수",
                 },
             },
-            "required": ["request"],
+            "required": [],
             "additionalProperties": False,
         },
     },
@@ -89,6 +89,11 @@ def normalize_join_target(value: Any) -> str:
         return clean_text(match.group("target"))
 
     return text
+
+
+def is_unrestricted_join_target_request(value: Any) -> bool:
+    normalized = re.sub(r"\s+", "", clean_text(value))
+    return bool(re.search(r"가입대상(?:=|:|은|이)?제한없음", normalized))
 
 
 def parse_int(value: Any) -> int | None:
@@ -236,6 +241,7 @@ def recommend_products(
         amount_krw: int,
         join_preference: str = "any",
         include_restricted: bool = False,
+        only_unrestricted_target: bool = False,
         top_n: int = DEFAULT_TOP_N,
 ) -> tuple[list[dict[str, Any]], dict[str, int]]:
     rows = load_products(product_type)
@@ -247,6 +253,11 @@ def recommend_products(
         if parse_rate(row.get("세전 이자율")) is None:
             continue
         if not include_restricted and is_restricted_product(row):
+            continue
+        if (
+            only_unrestricted_target
+            and clean_text(row.get("가입 대상")) != "제한없음"
+        ):
             continue
         if join_preference == "online" and not is_online_product(row):
             continue
@@ -327,6 +338,9 @@ def execute(tool_name: str, arguments: dict[str, Any]) -> ToolResult:
             amount_krw=amount_krw,
             join_preference=join_preference,
             include_restricted=bool(arguments.get("includeRestricted", False)),
+            only_unrestricted_target=is_unrestricted_join_target_request(
+                arguments.get("request")
+            ),
             top_n=parse_int(arguments.get("topN")) or DEFAULT_TOP_N,
         )
     except RuntimeError as error:

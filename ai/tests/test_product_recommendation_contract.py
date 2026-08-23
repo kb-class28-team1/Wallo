@@ -121,3 +121,48 @@ def test_product_recommendation_allocates_enough_tokens_for_complete_summary():
     final_call = client.chat.completions.create.call_args_list[1].kwargs
     assert final_call["max_completion_tokens"] == 1000
     assert final_call["reasoning_effort"] == "low"
+
+
+def test_product_recommendation_fills_missing_request_from_user_message():
+    tool_call = SimpleNamespace(
+        id="call-product-missing-request",
+        function=SimpleNamespace(
+            name=PRODUCT_RECOMMENDATION_TOOL,
+            arguments=json.dumps({
+                "productType": "saving",
+                "termMonths": 12,
+                "amountKrw": 500_000,
+                "joinPreference": "any",
+            }),
+        ),
+        model_dump=Mock(return_value={
+            "id": "call-product-missing-request",
+            "type": "function",
+            "function": {
+                "name": PRODUCT_RECOMMENDATION_TOOL,
+                "arguments": "{}",
+            },
+        }),
+    )
+    client = Mock()
+    client.chat.completions.create.side_effect = [
+        _completion(SimpleNamespace(content=None, tool_calls=[tool_call])),
+        _completion(SimpleNamespace(content="일반 적금 추천 결과입니다.")),
+    ]
+
+    with patch(
+        "app.financial_assistant.agent.execute_tool",
+        return_value=ToolResult(
+            status="success",
+            tool=PRODUCT_RECOMMENDATION_TOOL,
+            data={"products": [{"productName": "일반 적금"}]},
+        ),
+    ) as execute_tool_mock:
+        FinancialAgent(client).run(
+            "12개월 월 50만 원 적금 가입대상=제한없음 상품을 추천해줘"
+        )
+
+    arguments = execute_tool_mock.call_args.args[1]
+    assert arguments["request"] == (
+        "12개월 월 50만 원 적금 가입대상=제한없음 상품을 추천해줘"
+    )

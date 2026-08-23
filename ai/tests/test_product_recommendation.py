@@ -18,6 +18,15 @@ def test_normalize_join_target_keeps_plain_target():
     assert product_recommendation.normalize_join_target("실명의 개인") == "실명의 개인"
 
 
+def test_unrestricted_join_target_request_is_detected():
+    assert product_recommendation.is_unrestricted_join_target_request(
+        "12개월 적금 가입대상=제한없음"
+    ) is True
+    assert product_recommendation.is_unrestricted_join_target_request(
+        "12개월 적금 가입대상은 반려동물 양육자"
+    ) is False
+
+
 def write_products(path, rows):
     with path.open("w", encoding="utf-8-sig", newline="") as file:
         writer = csv.DictWriter(file, fieldnames=rows[0].keys())
@@ -111,6 +120,36 @@ def test_recommend_deposit_filters_online_products(tmp_path, monkeypatch):
     assert summary["matchedRows"] == 1
     assert products[0]["productName"] == "기본금리예금"
     assert products[0]["estimatedAfterTaxInterestKrw"] == 338_400
+
+
+def test_recommend_saving_filters_qualified_targets_for_unrestricted_request(
+    tmp_path, monkeypatch
+):
+    data_file = tmp_path / "saving.csv"
+    write_products(data_file, [
+        product_row(**{
+            "상품명": "일반 정기적금",
+            "세전 이자율": "4.00%",
+            "가입 대상": "제한없음",
+        }),
+        product_row(**{
+            "금융회사 코드": "002",
+            "금융상품 코드": "P2",
+            "상품명": "펫 전용 적금",
+            "세전 이자율": "6.00%",
+            "가입 대상": "제한없음 (반려동물을 키우는 지점방문고객(개인))",
+        }),
+    ])
+    monkeypatch.setitem(product_recommendation.DATA_FILES, "saving", data_file)
+
+    products, _ = product_recommendation.recommend_products(
+        product_type="saving",
+        term_months=12,
+        amount_krw=500_000,
+        only_unrestricted_target=True,
+    )
+
+    assert [product["productName"] for product in products] == ["일반 정기적금"]
 
 
 def test_recommendation_uses_base_rate_before_large_bonus(tmp_path, monkeypatch):

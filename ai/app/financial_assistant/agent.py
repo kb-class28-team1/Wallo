@@ -333,9 +333,15 @@ class FinancialAgent:
         if self.selected_tool == "set_financial_goal":
             logger.info("[AI ROUTING] goal_interview")
             return "목표 설정을 시작할게요."
+        tool_arguments = parse_tool_arguments(tool_call.function.arguments)
+        if (
+            tool_call.function.name == PRODUCT_RECOMMENDATION_TOOL
+            and not tool_arguments.get("request")
+        ):
+            tool_arguments["request"] = user_message
         tool_result = execute_tool(
             tool_call.function.name,
-            parse_tool_arguments(tool_call.function.arguments),
+            tool_arguments,
             consumption_context=consumption_context,
             asset_analysis_context=asset_analysis_context,
         )
