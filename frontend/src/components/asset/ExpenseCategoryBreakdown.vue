@@ -276,7 +276,7 @@ const progressWidth = (rate) => {
           <button
             v-if="canEditBudget"
             type="button"
-            class="btn app-action-link"
+          class="btn app-action-link pressable"
             data-testid="budget-action"
             @click="emit('edit-budget')"
           >

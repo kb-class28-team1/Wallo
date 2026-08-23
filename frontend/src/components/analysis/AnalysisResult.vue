@@ -169,14 +169,14 @@ const deltaClass = computed(() => Number(props.analysis.summary?.deltaAmount) <=
     <button
       v-if="compact && analysis.summary"
       type="button"
-      class="analysis-detail-toggle mt-2"
+          class="analysis-detail-toggle mt-2 pressable"
       :aria-expanded="expanded"
       @click="expanded = !expanded"
     >
       {{ expanded ? "상세 내용 접기" : "전체 분석 자세히 보기" }}
       <i :class="expanded ? 'bi bi-chevron-up' : 'bi bi-chevron-down'" aria-hidden="true"></i>
     </button>
-    <RouterLink class="report-link mt-2" :to="{ name: 'expenses' }">
+    <RouterLink class="report-link mt-2 pressable" :to="{ name: 'expenses' }">
       <span class="report-link__icon">
         <img :src="spendingReportImage" alt="" />
       </span>
@@ -242,6 +242,9 @@ const deltaClass = computed(() => Number(props.analysis.summary?.deltaAmount) <=
   background: var(--wallo-color-info-bg);
   border-color: var(--wallo-color-primary);
   transform: translateY(-1px);
+}
+.report-link:active {
+  transform: scale(0.98);
 }
 .report-link:focus-visible { outline: 0; box-shadow: var(--wallo-focus-ring); }
 .report-link__icon {

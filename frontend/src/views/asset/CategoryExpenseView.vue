@@ -258,7 +258,7 @@ onMounted(async () => {
   <section class="category-expense-view">
     <AppPageHeader class="page-header" title="카테고리별 소비">
       <template #leading>
-        <RouterLink to="/assets" class="back-button" aria-label="자산 관리로 돌아가기">
+        <RouterLink to="/assets" class="back-button pressable" aria-label="자산 관리로 돌아가기">
           <i class="bi bi-chevron-left" aria-hidden="true"></i>
         </RouterLink>
       </template>
@@ -274,7 +274,7 @@ onMounted(async () => {
       <template #actions>
         <button
           type="button"
-          class="category-sync-button btn app-action-link"
+          class="category-sync-button btn app-action-link pressable"
           data-testid="category-refresh-button"
           :disabled="
             isSyncing ||
@@ -314,7 +314,7 @@ onMounted(async () => {
       </div>
       <button
         type="button"
-        class="btn btn-outline-danger btn-sm"
+        class="btn btn-outline-danger btn-sm pressable"
         @click="loadSelectedMonth({ forceBudget: true })"
       >
         다시 시도
@@ -326,7 +326,7 @@ onMounted(async () => {
         <span>최신 카테고리별 소비를 갱신하지 못했습니다. 기존 내역을 표시하고 있습니다.</span>
         <button
           type="button"
-          class="btn btn-outline-warning btn-sm"
+          class="btn btn-outline-warning btn-sm pressable"
           @click="loadSelectedMonth({ forceBudget: true })"
         >
           다시 시도
@@ -337,7 +337,7 @@ onMounted(async () => {
         <span>최신 예산 정보를 갱신하지 못했습니다. 기존 예산을 표시하고 있습니다.</span>
         <button
           type="button"
-          class="btn btn-outline-warning btn-sm"
+          class="btn btn-outline-warning btn-sm pressable"
           @click="loadSelectedMonth({ forceBudget: true })"
         >
           다시 시도
@@ -355,11 +355,11 @@ onMounted(async () => {
       >
         <template #header>
           <div class="month-navigation d-flex align-items-center gap-2">
-            <button type="button" class="month-button" aria-label="이전 달" @click="moveMonth(-1)">
+            <button type="button" class="month-button pressable" aria-label="이전 달" @click="moveMonth(-1)">
               <i class="bi bi-chevron-left" aria-hidden="true"></i>
             </button>
             <strong>{{ monthLabel }}</strong>
-            <button type="button" class="month-button" aria-label="다음 달" @click="moveMonth(1)">
+            <button type="button" class="month-button pressable" aria-label="다음 달" @click="moveMonth(1)">
               <i class="bi bi-chevron-right" aria-hidden="true"></i>
             </button>
           </div>

@@ -170,7 +170,7 @@ onBeforeUnmount(() => {
           어렵게 느껴졌던 자산 관리도 왈로와 함께라면 가볍게 시작할 수 있어요.
         </p>
 
-        <button class="btn btn-primary next-button" type="button" @click="goNext">
+        <button class="btn btn-primary next-button pressable" type="button" @click="goNext">
           다음
           <i class="bi bi-arrow-right" aria-hidden="true"></i>
         </button>
@@ -379,11 +379,11 @@ onBeforeUnmount(() => {
           </div>
 
           <div class="guide-actions">
-            <button class="btn back-button" type="button" @click="goBack">
+            <button class="btn back-button pressable" type="button" @click="goBack">
               <i class="bi bi-arrow-left" aria-hidden="true"></i>
               이전
             </button>
-            <button class="btn btn-primary next-button" type="button" @click="goNext">
+            <button class="btn btn-primary next-button pressable" type="button" @click="goNext">
               {{ isLastStep ? "자산 연동 시작하기" : "다음" }}
               <i class="bi bi-arrow-right" aria-hidden="true"></i>
             </button>

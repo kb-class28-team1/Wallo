@@ -1023,7 +1023,7 @@ onBeforeUnmount(() => {
               <button
                 v-if="feed.mediaType === 'VIDEO'"
                 type="button"
-                class="feed-sound-toggle"
+                class="feed-sound-toggle pressable"
                 :aria-label="isFeedMuted(feed.id) ? '소리 켜기' : '소리 끄기'"
                 @click.stop="toggleFeedMute(feed)"
               >
@@ -1054,7 +1054,7 @@ onBeforeUnmount(() => {
               <div class="feed-like-row">
                 <button
                   type="button"
-                  class="mention-feed-button"
+                  class="mention-feed-button pressable"
                   aria-label="언급하기"
                   title="언급하기"
                   @click.stop="mentionFeedFromCard(feed)"
@@ -1064,7 +1064,7 @@ onBeforeUnmount(() => {
                 </button>
                 <button
                   type="button"
-                  class="like-button"
+                  class="like-button pressable"
                   :disabled="likingFeedId === feed.id"
                   aria-label="좋아요 추가"
                   @click.stop="addLike(feed)"
@@ -1081,6 +1081,7 @@ onBeforeUnmount(() => {
                 <p>{{ feed.caption || "오늘의 절약 기록을 공유했어요." }}</p>
                 <div v-if="isMyFeed(feed)" class="feed-owner-actions">
                   <button
+                    class="pressable"
                     type="button"
                     :disabled="deletingFeedId === feed.id"
                     @click.stop="removeFeed(feed)"
@@ -1123,7 +1124,7 @@ onBeforeUnmount(() => {
                   <strong v-if="!isMyMessage(item)" class="message-author">{{ item.nickname }}</strong>
                   <div class="feed-attachment">
                     <small class="feed-attachment-label">피드 #{{ item.referenceFeedId }}</small>
-                    <button type="button" class="shared-feed" @click="mentionFeed(item)">
+                    <button type="button" class="shared-feed pressable" @click="mentionFeed(item)">
                       <video
                         v-if="item.mediaType === 'VIDEO'"
                         :src="item.mediaUrl"
@@ -1147,7 +1148,7 @@ onBeforeUnmount(() => {
                   <div class="feed-mention">
                     <div class="feed-attachment">
                       <small class="feed-attachment-label">피드 #{{ item.referenceFeedId }}</small>
-                      <button type="button" class="shared-feed" @click="mentionFeed(item)">
+                      <button type="button" class="shared-feed pressable" @click="mentionFeed(item)">
                         <video
                           v-if="item.mediaType === 'VIDEO'"
                           :src="item.mediaUrl"
@@ -1178,7 +1179,7 @@ onBeforeUnmount(() => {
             </div>
             <div v-if="mentionedFeed" class="mention-preview">
               <span>피드 #{{ mentionedFeed.id }} 언급 중</span>
-              <button @click="mentionedFeed = null">×</button>
+               <button class="pressable" @click="mentionedFeed = null">×</button>
             </div>
             <form class="chat-form" @submit.prevent="sendMessage">
               <textarea
@@ -1191,7 +1192,7 @@ onBeforeUnmount(() => {
                 @keydown.enter.exact.prevent
                 @keyup.enter.exact.prevent="sendMessage"
               ></textarea>
-              <button type="submit" aria-label="메시지 전송" :disabled="isSendingMessage">
+              <button class="pressable" type="submit" aria-label="메시지 전송" :disabled="isSendingMessage">
                 <i class="bi bi-send" aria-hidden="true"></i>
               </button>
             </form>
@@ -1213,7 +1214,7 @@ onBeforeUnmount(() => {
       <section class="upload-modal" role="dialog" aria-modal="true" aria-labelledby="upload-title">
         <header>
           <h2 id="upload-title">절약 피드 추가</h2>
-          <button @click="closeModal">×</button>
+           <button class="pressable" @click="closeModal">×</button>
         </header>
         <div class="modal-body">
           <label class="section-label">인증 자료</label>
@@ -1261,6 +1262,7 @@ onBeforeUnmount(() => {
               v-for="item in categories"
               :key="item.value"
               type="button"
+              class="pressable"
               :class="{ selected: form.category === item.value }"
               @click="selectCategory(item.value)"
             >
@@ -1297,6 +1299,7 @@ onBeforeUnmount(() => {
             </div>
             <button
               type="button"
+              class="pressable"
               :class="{ 'is-analyzing': isAnalyzing }"
               :style="isAnalyzing ? { '--analysis-progress': `${analysisProgress}%` } : undefined"
               :disabled="isAnalyzing"
@@ -1365,7 +1368,8 @@ onBeforeUnmount(() => {
                   v-for="option in savingFeedbackOptions"
                   :key="option.value"
                   type="button"
-                  :class="{ selected: form.savingAmountFeedback === option.value }"
+                   class="pressable"
+                   :class="{ selected: form.savingAmountFeedback === option.value }"
                   @click="selectSavingAmountFeedback(option.value)"
                 >
                   {{ option.label }}
@@ -1403,8 +1407,8 @@ onBeforeUnmount(() => {
           <p class="share-notice">💬 업로드하면 {{ roomTitle }}에도 자동으로 공유돼요.</p>
         </div>
         <footer>
-          <button class="cancel" @click="closeModal">취소</button
-          ><button class="submit" :disabled="isUploading" @click="uploadFeed">
+          <button class="cancel pressable" @click="closeModal">취소</button
+          ><button class="submit pressable" :disabled="isUploading" @click="uploadFeed">
             {{ isUploading ? "올리는 중..." : "피드 올리기" }}
           </button>
         </footer>
@@ -1802,6 +1806,9 @@ onBeforeUnmount(() => {
 .mention-feed-button:hover {
   color: #d7e7f8;
   background: transparent;
+}
+.mention-feed-button:active:not(:disabled) {
+  transform: translateX(4px) scale(0.98);
 }
 @keyframes like-heart-rise {
   0% {

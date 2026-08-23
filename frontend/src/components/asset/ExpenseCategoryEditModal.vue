@@ -251,7 +251,7 @@ const save = () => {
           v-for="option in categoryOptions"
           :key="option.value"
           type="button"
-          class="category-option"
+          class="category-option pressable"
           :class="{ selected: isCategorySelected(option.value) }"
           :data-testid="`category-option-${option.value}`"
           role="option"
@@ -338,6 +338,10 @@ const save = () => {
   border-color: color-mix(in srgb, var(--wallo-color-primary) 45%, var(--wallo-color-border));
   box-shadow: var(--wallo-shadow-card);
   transform: translateY(-1px);
+}
+
+.category-option:active:not(:disabled) {
+  transform: translateY(-1px) scale(0.98);
 }
 
 .category-option:focus-visible {

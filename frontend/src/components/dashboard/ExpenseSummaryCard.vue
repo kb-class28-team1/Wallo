@@ -87,7 +87,7 @@ const expenseCategoryRate = (amount) => {
           <h2 class="h4 fw-bold mb-2">이번 달 총 지출</h2>
           <strong class="expense-total">{{ formatWon(safeExpenses.totalExpense) }}</strong>
         </div>
-        <RouterLink to="/assets/expenses" class="btn app-action-link">
+        <RouterLink to="/assets/expenses" class="btn app-action-link pressable">
           더보기
           <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
         </RouterLink>

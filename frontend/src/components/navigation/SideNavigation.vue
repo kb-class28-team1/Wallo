@@ -317,7 +317,7 @@ const handleLogout = async () => {
         <div class="challenge-heading d-flex align-items-center">
           <button
             type="button"
-            class="menu-item challenge-title d-flex flex-grow-1 align-items-center"
+        class="menu-item challenge-title d-flex flex-grow-1 align-items-center pressable"
             :disabled="isChallengeChecking"
             @click="moveToChallengeFeed"
           >

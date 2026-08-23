@@ -239,7 +239,7 @@ watch(newsId, () => {
       compact
     >
       <template #leading>
-        <RouterLink to="/reports" class="report-back-link" aria-label="금융 리포트 목록으로 이동">
+        <RouterLink to="/reports" class="report-back-link pressable" aria-label="금융 리포트 목록으로 이동">
           <i class="bi bi-chevron-left" aria-hidden="true"></i>
         </RouterLink>
       </template>
@@ -397,13 +397,18 @@ watch(newsId, () => {
   text-decoration: none;
   transition:
     color 160ms ease,
-    background-color 160ms ease;
+    background-color 160ms ease,
+    transform 160ms ease;
 }
 
 .report-back-link:hover,
 .report-back-link:focus-visible {
   color: #4d82d6;
   background: #edf6ff;
+}
+
+.report-back-link:active {
+  transform: scale(0.98);
 }
 
 .report-detail-state {

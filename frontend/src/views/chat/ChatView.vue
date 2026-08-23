@@ -611,15 +611,15 @@ onMounted(async () => {
             />
 
             <div v-if="showQuickActions" class="chat-quick-actions" aria-label="빠른 상담 시작">
-              <button type="button" class="chat-quick-action" @click="analyzeCurrentConversationSpending">
+              <button type="button" class="chat-quick-action pressable" @click="analyzeCurrentConversationSpending">
                 <i class="bi bi-pie-chart" aria-hidden="true"></i>
                 소비분석
               </button>
-              <button type="button" class="chat-quick-action" @click="startAssetAnalysis">
+              <button type="button" class="chat-quick-action pressable" @click="startAssetAnalysis">
                 <i class="bi bi-wallet2" aria-hidden="true"></i>
                 자산분석
               </button>
-              <button type="button" class="chat-quick-action" @click="startProductRecommendation">
+              <button type="button" class="chat-quick-action pressable" @click="startProductRecommendation">
                 <i class="bi bi-stars" aria-hidden="true"></i>
                 상품추천
               </button>
@@ -660,7 +660,7 @@ onMounted(async () => {
             <RouterLink
               v-if="isMissingGoalConversation"
               to="/dashboard"
-              class="chat-dashboard-link"
+              class="chat-dashboard-link pressable"
             >
               대시보드로 이동
             </RouterLink>
@@ -755,12 +755,12 @@ onMounted(async () => {
                     maxlength="100"
                     aria-label="채팅방 제목"
                   />
-                  <button type="submit" class="conversation-icon-button" aria-label="제목 저장">
+                  <button type="submit" class="conversation-icon-button pressable" aria-label="제목 저장">
                     <i class="bi bi-check-lg"></i>
                   </button>
                   <button
                     type="button"
-                    class="conversation-icon-button"
+                    class="conversation-icon-button pressable"
                     aria-label="제목 변경 취소"
                     @click="cancelEditingTitle"
                   >
@@ -771,7 +771,7 @@ onMounted(async () => {
                 <div v-else class="conversation-item-content">
                   <button
                     type="button"
-                    class="conversation-select"
+                    class="conversation-select pressable"
                     @click="selectConversation(conversation.conversationId)"
                   >
                     <span class="conversation-title">
@@ -783,7 +783,7 @@ onMounted(async () => {
                   </button>
                   <button
                     type="button"
-                    class="conversation-action"
+                    class="conversation-action pressable"
                     aria-label="채팅방 제목 변경"
                     @click="startEditingTitle(conversation)"
                   >
@@ -791,7 +791,7 @@ onMounted(async () => {
                   </button>
                   <button
                     type="button"
-                    class="conversation-action conversation-action--danger"
+                    class="conversation-action conversation-action--danger pressable"
                     aria-label="채팅방 삭제"
                     @click="openDeleteDialog(conversation)"
                   >

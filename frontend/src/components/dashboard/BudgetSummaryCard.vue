@@ -39,7 +39,7 @@ const budgetRemaining = computed(
         <h2 class="h4 fw-bold mb-0">이번 달 예산</h2>
         <button
           type="button"
-          class="btn app-action-link"
+          class="btn app-action-link pressable"
           @click="emit('open-budget-settings')"
         >
           설정하기

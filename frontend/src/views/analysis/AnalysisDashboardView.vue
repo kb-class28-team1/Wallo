@@ -75,7 +75,7 @@ onMounted(refreshAll)
       <template #actions>
         <button
           type="button"
-          class="btn app-action-link"
+        class="btn app-action-link pressable"
           data-testid="analysis-refresh-button"
           :disabled="isLoading"
           @click="refreshAll"

@@ -32,9 +32,27 @@ body {
   opacity: 0;
 }
 
+.pressable {
+  transition:
+    transform 160ms ease,
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    color 160ms ease,
+    opacity 160ms ease;
+}
+
+.pressable:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .page-enter-active,
   .page-leave-active {
+    transition: none;
+  }
+
+  .pressable {
     transition: none;
   }
 }

@@ -91,7 +91,7 @@ onMounted(loadAssets)
       <template #actions>
         <button
           type="button"
-          class="asset-sync-button btn app-action-link"
+          class="asset-sync-button btn app-action-link pressable"
           :disabled="isSyncing || isInitialLoading || isRefreshing"
           @click="syncAssets"
         >
@@ -132,7 +132,7 @@ onMounted(loadAssets)
 
       <AppState v-else class="asset-state" type="empty" title="연결된 자산이 없습니다.">
         <template #actions>
-          <RouterLink to="/users/profile/connections" class="asset-connect-link">
+          <RouterLink to="/users/profile/connections" class="asset-connect-link pressable">
             연동관리로 이동
           </RouterLink>
         </template>

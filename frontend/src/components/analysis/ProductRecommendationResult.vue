@@ -210,7 +210,7 @@ const FINANCIAL_SUPERVISION_LOGO_URL =
       <div v-if="hasMultipleProducts" class="product-carousel__controls">
         <button
           type="button"
-          class="product-carousel__button"
+          class="product-carousel__button pressable"
           aria-label="이전 추천 상품 보기"
           @click="showPreviousProduct"
         >
@@ -222,7 +222,7 @@ const FINANCIAL_SUPERVISION_LOGO_URL =
         </div>
         <button
           type="button"
-          class="product-carousel__button"
+          class="product-carousel__button pressable"
           aria-label="다음 추천 상품 보기"
           @click="showNextProduct"
         >

@@ -106,7 +106,7 @@ const chartOptions = {
     <div class="asset-overview-body">
       <RouterLink
         to="/users/profile/connections"
-        class="btn app-action-link connection-management-button"
+        class="btn app-action-link connection-management-button pressable"
       >
         연동관리
         <i class="bi bi-gear ms-1" aria-hidden="true"></i>

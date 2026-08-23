@@ -129,7 +129,7 @@ onMounted(() => myFeedStore.initializeMyFeedPage())
       <template #leading>
         <button
           type="button"
-          class="back-button"
+          class="back-button pressable"
           aria-label="내 챌린지로 이동"
           @click="router.push({ name: 'my-challenge' })"
         >

@@ -21,7 +21,7 @@ const { toasts } = storeToRefs(toastStore)
       </span>
       <button
         type="button"
-        class="wallo-toast-close"
+        class="wallo-toast-close pressable"
         aria-label="알림 닫기"
         @click="toastStore.remove(toast.id)"
       >

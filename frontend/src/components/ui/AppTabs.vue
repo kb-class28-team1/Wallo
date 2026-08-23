@@ -129,7 +129,7 @@ function handleKeydown(event, currentIndex) {
         :key="item.value"
         :ref="(element) => setTabButton(element, index)"
         type="button"
-        class="app-tabs__tab"
+        class="app-tabs__tab pressable"
         :class="{ 'app-tabs__tab--active': item.value === selectedValue }"
         :id="tabId(index)"
         role="tab"
@@ -176,7 +176,8 @@ function handleKeydown(event, currentIndex) {
   transition:
     background-color 160ms ease,
     color 160ms ease,
-    box-shadow 160ms ease;
+    box-shadow 160ms ease,
+    transform 160ms ease;
 }
 
 .app-tabs__tab:focus-visible {

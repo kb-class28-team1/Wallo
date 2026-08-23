@@ -520,7 +520,7 @@ onMounted(async () => {
   <section class="expense-history-view">
     <AppPageHeader class="page-header" :title="`월별 리포트`">
       <template #leading>
-        <RouterLink to="/assets" class="back-button" aria-label="자산 관리로 돌아가기">
+        <RouterLink to="/assets" class="back-button pressable" aria-label="자산 관리로 돌아가기">
           <i class="bi bi-chevron-left" aria-hidden="true"></i>
         </RouterLink>
       </template>
@@ -538,7 +538,7 @@ onMounted(async () => {
       <template #actions>
         <button
           type="button"
-          class="expense-sync-button btn app-action-link"
+          class="expense-sync-button btn app-action-link pressable"
           :disabled="
             isSyncing ||
             isBudgetLoading ||
@@ -598,7 +598,7 @@ onMounted(async () => {
               <div class="month-navigation d-flex align-items-center gap-2">
                 <button
                   type="button"
-                  class="month-button"
+                  class="month-button pressable"
                   aria-label="이전 달"
                   @click="moveMonth(-1)"
                 >
@@ -607,7 +607,7 @@ onMounted(async () => {
                 <strong>{{ monthLabel }}</strong>
                 <button
                   type="button"
-                  class="month-button"
+                  class="month-button pressable"
                   aria-label="다음 달"
                   @click="moveMonth(1)"
                 >
@@ -618,7 +618,7 @@ onMounted(async () => {
               <div class="view-toggle btn-group" role="group" aria-label="소비 내역 보기 방식">
                 <button
                   type="button"
-                  class="btn"
+                  class="btn pressable"
                   :class="{ active: activeView === 'calendar' }"
                   :aria-pressed="activeView === 'calendar'"
                   @click="activeView = 'calendar'"
@@ -628,7 +628,7 @@ onMounted(async () => {
                 </button>
                 <button
                   type="button"
-                  class="btn"
+                  class="btn pressable"
                   :class="{ active: activeView === 'list' }"
                   :aria-pressed="activeView === 'list'"
                   @click="activeView = 'list'"
@@ -644,7 +644,7 @@ onMounted(async () => {
               >
                 <button
                   type="button"
-                  class="category-filter-trigger"
+                class="category-filter-trigger pressable"
                   data-testid="open-category-filter"
                   aria-haspopup="dialog"
                   :disabled="isCategoryFilterSaving"

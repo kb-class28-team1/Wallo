@@ -510,7 +510,7 @@ onMounted(loadConnections)
           />
         </div>
 
-        <RouterLink to="/connections/mydata" class="connection-add-button">
+        <RouterLink to="/connections/mydata" class="connection-add-button pressable">
           <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>
           자산 연동 추가
         </RouterLink>
@@ -538,7 +538,7 @@ onMounted(loadConnections)
           <h3 id="disconnect-modal-title" class="h6 fw-bold mb-0">연결 해제</h3>
           <button
             type="button"
-            class="btn-close"
+          class="btn-close pressable"
             aria-label="모달 닫기"
             :disabled="disconnectingId !== null"
             @click="closeDisconnectModal"

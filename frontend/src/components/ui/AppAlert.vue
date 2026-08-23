@@ -69,7 +69,7 @@ const iconClass = computed(() => props.icon || defaultIcons[props.variant])
     <button
       v-if="dismissible"
       type="button"
-      class="app-alert__close"
+      class="app-alert__close pressable"
       :aria-label="closeLabel"
       @click="emit('close')"
     >

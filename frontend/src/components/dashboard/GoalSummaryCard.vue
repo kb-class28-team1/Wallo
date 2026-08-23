@@ -106,7 +106,7 @@ const formatGoalDate = (date) => {
         <RouterLink
           v-if="goals.length > 0"
           :to="accountSettingsLink"
-          class="btn app-action-link flex-shrink-0 ms-auto"
+          class="btn app-action-link flex-shrink-0 ms-auto pressable"
         >
           계좌 설정
           <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
@@ -136,7 +136,7 @@ const formatGoalDate = (date) => {
         hide-icon
       >
         <template #actions>
-          <RouterLink :to="accountSettingsLink" class="goal-button">
+          <RouterLink :to="accountSettingsLink" class="goal-button pressable">
             목표 설정하기
             <i class="bi bi-arrow-right ms-2" aria-hidden="true"></i>
           </RouterLink>

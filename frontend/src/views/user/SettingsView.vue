@@ -22,7 +22,7 @@ const isActiveTab = (tabName) => route.name === tabName
         v-for="tab in tabs"
         :key="tab.name"
         :to="{ name: tab.name }"
-        class="settings-tab"
+        class="settings-tab pressable"
         :class="{ 'settings-tab-active': isActiveTab(tab.name) }"
         :aria-current="isActiveTab(tab.name) ? 'page' : undefined"
       >

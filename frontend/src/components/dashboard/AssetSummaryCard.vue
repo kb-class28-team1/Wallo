@@ -117,7 +117,7 @@ const chartOptions = {
         <div class="col-lg-7">
           <section class="asset-trend-section h-100" aria-label="자산 변동 그래프">
             <div class="asset-status-action">
-              <RouterLink to="/assets" class="btn app-action-link">
+              <RouterLink to="/assets" class="btn app-action-link pressable">
                 자산 현황
                 <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
               </RouterLink>

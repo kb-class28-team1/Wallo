@@ -37,7 +37,7 @@ describe("AssetOverviewCard", () => {
     expect(wrapper.get(".connection-management-button").attributes("href")).toBe(
       "/users/profile/connections",
     )
-    expect(wrapper.text()).toContain("총 보유자산")
+    expect(wrapper.text()).toContain("자산 한눈에 보기")
     expect(wrapper.text()).toContain("2,500,000원")
     expect(wrapper.text()).toContain("순자산")
     expect(wrapper.text()).toContain("2,000,000원")

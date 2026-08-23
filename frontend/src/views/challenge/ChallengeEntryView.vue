@@ -142,7 +142,7 @@ onMounted(loadCurrentChallenge)
       <span class="state-icon" aria-hidden="true">!</span>
       <h1 id="challenge-page-title">챌린지 정보를 불러오지 못했어요</h1>
       <p>{{ errorMessage }}</p>
-      <button type="button" class="btn retry-button" @click="loadCurrentChallenge">
+      <button type="button" class="btn retry-button pressable" @click="loadCurrentChallenge">
         다시 시도
       </button>
     </div>
@@ -179,7 +179,7 @@ onMounted(loadCurrentChallenge)
             <strong>{{ currentChallenge.inviteCode }}</strong>
             <button
               type="button"
-              class="copy-button"
+              class="copy-button pressable"
               aria-label="초대 코드 복사"
               @click="copyInviteCode"
             >
@@ -190,7 +190,7 @@ onMounted(loadCurrentChallenge)
       </div>
 
       <div class="challenge-actions">
-        <button type="button" class="action-card action-primary" @click="moveToFeed">
+        <button type="button" class="action-card action-primary pressable" @click="moveToFeed">
           <span class="action-icon"><i class="bi bi-card-list"></i></span>
           <span>
             <strong>챌린지 피드</strong>
@@ -200,7 +200,7 @@ onMounted(loadCurrentChallenge)
         </button>
         <button
           type="button"
-          class="action-card"
+          class="action-card pressable"
           @click="router.push('/challenges/rankings/weekly')"
         >
           <span class="action-icon"><i class="bi bi-trophy"></i></span>
@@ -212,7 +212,7 @@ onMounted(loadCurrentChallenge)
         </button>
         <button
           type="button"
-          class="action-card"
+          class="action-card pressable"
           @click="router.push('/users/me/challenge-dashboard')"
         >
           <span class="action-icon"><i class="bi bi-graph-up-arrow"></i></span>
@@ -274,7 +274,7 @@ onMounted(loadCurrentChallenge)
             :disabled="isSubmitting"
           />
 
-          <button type="submit" class="submit-button" :disabled="isSubmitting">
+          <button type="submit" class="submit-button pressable" :disabled="isSubmitting">
             <span v-if="isSubmitting" class="spinner-border spinner-border-sm"></span>
             <span v-else>챌린지 만들기</span>
           </button>
@@ -312,7 +312,7 @@ onMounted(loadCurrentChallenge)
             초대 코드는 챌린지를 만든 친구에게 받을 수 있어요.
           </div>
 
-          <button type="submit" class="submit-button" :disabled="isSubmitting">
+          <button type="submit" class="submit-button pressable" :disabled="isSubmitting">
             <span v-if="isSubmitting" class="spinner-border spinner-border-sm"></span>
             <span v-else>챌린지 참여하기</span>
           </button>
@@ -549,6 +549,10 @@ onMounted(loadCurrentChallenge)
 .action-card:hover {
   transform: translateY(-3px);
   box-shadow: 0 14px 30px rgba(39, 45, 77, 0.1);
+}
+
+.action-card:active:not(:disabled) {
+  transform: translateY(-1px) scale(0.98);
 }
 
 .action-icon {
