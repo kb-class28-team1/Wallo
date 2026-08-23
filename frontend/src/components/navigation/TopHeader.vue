@@ -380,7 +380,7 @@ const handleMissionFocusOut = (event) => {
   z-index: 1030;
   top: calc(100% + 10px);
   right: 0;
-  width: 330px;
+  width: 370px;
   padding: 16px;
   border: 1px solid #e3e6f2;
   border-radius: 18px;

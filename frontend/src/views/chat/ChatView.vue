@@ -108,6 +108,7 @@ const displayMessages = computed(() => {
   if (
     route.query.action === "consumption-analysis" ||
     route.query.action === "asset-analysis" ||
+    route.query.action === "product-recommendation" ||
     route.query.start === GOAL_SETTING_START_QUERY
   ) {
     return []
@@ -497,6 +498,31 @@ const startAssetAnalysisConversation = async () => {
   }
 }
 
+const startProductRecommendation = async () => {
+  if (isGuidedChatStarting.value || isChatLoading.value || !userId.value) return
+
+  isGuidedChatStarting.value = true
+  isMissingGoalConversation.value = false
+  resetGoalCompletionFlow()
+  errorMessage.value = ""
+
+  try {
+    await router.replace({ name: "chat" })
+
+    const started = await conversationStore.startProductRecommendation(userId.value)
+    if (!started) {
+      errorMessage.value = conversationErrorStatus.value === 429
+        ? conversationError.value
+        : "상품추천 채팅을 시작하지 못했습니다."
+    }
+  } catch (error) {
+    errorMessage.value = error.message || "상품추천 채팅을 시작하지 못했습니다."
+  } finally {
+    isGuidedChatStarting.value = false
+    await scrollToBottom()
+  }
+}
+
 const startGuidedChat = async (message) => {
   if (isGuidedChatStarting.value || isChatLoading.value || !userId.value) return
 
@@ -517,8 +543,6 @@ const startGuidedChat = async (message) => {
 
 const analyzeCurrentConversationSpending = () => startGuidedChat("내 소비를 분석해줘")
 const startAssetAnalysis = () => startGuidedChat("내 자산을 분석해줘")
-const startProductRecommendation = () =>
-  startGuidedChat("내 상황에 맞는 금융상품을 추천해줘")
 
 watch(
   () => route.query.action,
@@ -562,6 +586,11 @@ onMounted(async () => {
     return
   }
 
+  if (route.query.action === "product-recommendation") {
+    await startProductRecommendation()
+    return
+  }
+
   if (route.query.start === GOAL_SETTING_START_QUERY) {
     await startGoalSettingConversation()
     return
@@ -598,9 +627,6 @@ onMounted(async () => {
     await scrollToBottom()
   }
 
-  if (route.query.action === "product-recommendation") {
-    await startProductRecommendation()
-  }
 })
 </script>
 

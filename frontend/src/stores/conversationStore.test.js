@@ -227,6 +227,43 @@ describe("conversationStore", () => {
     expect(store.activeConversationId).toBe(12)
   })
 
+  it("starts product recommendation in a new conversation", async () => {
+    createConversation.mockResolvedValue({
+      conversationId: 13,
+      title: "새 채팅",
+    })
+    getConversations.mockResolvedValue([
+      { conversationId: 13, title: "새 채팅" },
+      ...conversations,
+    ])
+    sendConversationMessage.mockResolvedValue({
+      userMessage: {
+        messageId: 203,
+        role: "USER",
+        content: "내 상황에 맞는 금융상품을 추천해줘",
+      },
+      assistantMessage: {
+        messageId: 204,
+        role: "ASSISTANT",
+        content: "상품 추천 결과입니다.",
+      },
+    })
+
+    const store = useConversationStore()
+    store.activeConversationId = 11
+    const started = await store.startProductRecommendation(7)
+
+    expect(started).toBe(true)
+    expect(createConversation).toHaveBeenCalledWith(7, "새 채팅")
+    expect(sendConversationMessage).toHaveBeenCalledWith(
+      13,
+      7,
+      "내 상황에 맞는 금융상품을 추천해줘",
+      null,
+    )
+    expect(store.activeConversationId).toBe(13)
+  })
+
   it("keeps a message send error for the chat error area instead of alerting", async () => {
     sendConversationMessage.mockRejectedValue(
       new Error("현재 AI 사용량 한도에 도달했습니다. 잠시 후 다시 시도해 주세요."),

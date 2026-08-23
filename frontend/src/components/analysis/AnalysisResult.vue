@@ -239,7 +239,7 @@ const deltaClass = computed(() => Number(props.analysis.summary?.deltaAmount) <=
 .report-link:hover,
 .report-link:focus-visible {
   color: var(--wallo-color-primary-hover);
-  background: var(--wallo-color-info-bg);
+  background: var(--wallo-color-surface-soft);
   border-color: var(--wallo-color-primary);
   transform: translateY(-1px);
 }
@@ -255,7 +255,7 @@ const deltaClass = computed(() => Number(props.analysis.summary?.deltaAmount) <=
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  background: var(--wallo-color-info-bg);
+  background: var(--wallo-color-surface-soft);
   border-radius: 0.7rem;
 }
 .report-link__icon img { width: 100%; height: 100%; object-fit: contain; }

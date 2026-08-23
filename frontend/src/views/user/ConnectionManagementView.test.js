@@ -182,6 +182,17 @@ describe("ConnectionManagementView", () => {
     expect(wrapper.text()).toContain("마지막 동기화")
     expect(wrapper.text()).toContain("-4,800,000원")
 
+    const negativeAmount = wrapper
+      .findAll(".connection-amount")
+      .find((element) => element.text().includes("-4,800,000원"))
+    expect(negativeAmount.classes()).toContain("text-danger")
+    expect(
+      wrapper
+        .findAll(".connection-amount")
+        .find((element) => element.text().includes("5,000,000원"))
+        .classes(),
+    ).not.toContain("text-danger")
+
     await wrapper.find(".connection-disconnect").trigger("click")
     await flushPromises()
 

@@ -16,6 +16,21 @@ const globalStubs = {
 }
 
 describe("AssetOverviewCard", () => {
+  it("maps the CHECKING asset code to the Korean 입출금 label", () => {
+    const wrapper = mount(AssetOverviewCard, {
+      props: {
+        assets: {
+          totalAssets: 1_650_000,
+          assetCategoryBreakdown: [{ category: "CHECKING", amount: 1_650_000 }],
+        },
+      },
+      global: { stubs: globalStubs },
+    })
+
+    expect(wrapper.text()).toContain("입출금")
+    expect(wrapper.text()).not.toContain("CHECKING")
+  })
+
   it("shows the unified card summary and category composition", () => {
     const wrapper = mount(AssetOverviewCard, {
       props: {

@@ -154,7 +154,11 @@ onMounted(refreshAll)
             message="AI 채팅에서 자산분석을 진행하면 이곳에서 다시 볼 수 있어요."
           >
             <template #actions>
-              <AppButton size="sm" @click="startAnalysis('asset-analysis')">자산분석 시작</AppButton>
+              <AppButton
+                class="goal-button pressable"
+                size="md"
+                @click="startAnalysis('asset-analysis')"
+              >자산분석 시작</AppButton>
             </template>
           </AppState>
         </div>
@@ -174,7 +178,11 @@ onMounted(refreshAll)
             message="AI 채팅에서 소비분석을 진행하면 이곳에서 다시 볼 수 있어요."
           >
             <template #actions>
-              <AppButton size="sm" @click="startAnalysis('consumption-analysis')">소비분석 시작</AppButton>
+              <AppButton
+                class="goal-button pressable"
+                size="md"
+                @click="startAnalysis('consumption-analysis')"
+              >소비분석 시작</AppButton>
             </template>
           </AppState>
         </div>
@@ -211,7 +219,11 @@ onMounted(refreshAll)
             message="AI 채팅에서 상품 추천을 요청하면 이곳에서 다시 볼 수 있어요."
           >
             <template #actions>
-              <AppButton size="sm" @click="startAnalysis('product-recommendation')">
+              <AppButton
+                class="goal-button pressable"
+                size="md"
+                @click="startAnalysis('product-recommendation')"
+              >
                 상품추천 시작
               </AppButton>
             </template>

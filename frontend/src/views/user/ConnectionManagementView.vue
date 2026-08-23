@@ -128,6 +128,8 @@ const formatAmount = (amount, currency = "KRW") => {
   return currencyUnit ? `${amountText}${currencyUnit}` : `${amountText} ${normalizedCurrency}`
 }
 
+const isNegativeAmount = (amount) => Number(amount) < 0
+
 const formatLastSync = (lastSyncAt) => {
   if (!lastSyncAt) {
     return "최근 동기화 정보 없음"
@@ -482,7 +484,10 @@ onMounted(loadConnections)
                 </small>
               </div>
 
-              <strong class="connection-amount text-nowrap">
+              <strong
+                class="connection-amount text-nowrap"
+                :class="{ 'text-danger': isNegativeAmount(asset.amount) }"
+              >
                 <span v-if="asset.assetKind === 'CARD'" class="connection-amount-label">
                   이번 달
                 </span>
