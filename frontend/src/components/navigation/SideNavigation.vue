@@ -530,16 +530,10 @@ const handleLogout = async () => {
   width: var(--wallo-sidebar-width);
   height: 100vh;
   padding: 20px 25px 30px;
-  overflow-y: auto;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  overflow: hidden;
   color: #59647f;
   background: #ffffff;
   border-right: 1px solid #f4f5fa;
-}
-
-.sidebar::-webkit-scrollbar {
-  display: none;
 }
 
 .brand {
@@ -555,10 +549,19 @@ const handleLogout = async () => {
 }
 
 .sidebar-nav {
+  flex: 1 1 auto;
+  min-height: 0;
   margin-top: 48px;
+  overflow-y: auto;
   font-size: 17.5px;
   font-weight: 600;
   letter-spacing: -0.6px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.sidebar-nav::-webkit-scrollbar {
+  display: none;
 }
 
 .menu-group {
@@ -792,6 +795,7 @@ const handleLogout = async () => {
 
 .sidebar-footer {
   display: flex;
+  flex: 0 0 auto;
   flex-direction: column;
   gap: 20px;
   padding-top: 20px;
