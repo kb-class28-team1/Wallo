@@ -531,9 +531,15 @@ const handleLogout = async () => {
   height: 100vh;
   padding: 20px 25px 30px;
   overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   color: #59647f;
   background: #ffffff;
   border-right: 1px solid #f4f5fa;
+}
+
+.sidebar::-webkit-scrollbar {
+  display: none;
 }
 
 .brand {
