@@ -77,6 +77,15 @@ class ExpenseCategoryClassifierTest {
     }
 
     @Test
+    void classifiesFixedLivingAndHousingExpenseKeywordsBeforeAi() {
+        assertEquals("LIVING", classify("보험료", "기타"));
+        assertEquals("HOUSING", classify("관리비", "기타"));
+        assertEquals("HOUSING", classify("월세", "기타"));
+
+        verify(categoryClassificationClient, never()).classify(any());
+    }
+
+    @Test
     void livingServiceKeywordClassifiesBeforeAi() {
         ExpenseCategoryClassifier.Result result = classifier.classify(
                 new ExpenseCategoryClassifier.Context("우리동네 세탁소", "기타", 18_000L)

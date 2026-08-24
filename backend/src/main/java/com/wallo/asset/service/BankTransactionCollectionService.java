@@ -274,7 +274,7 @@ public class BankTransactionCollectionService {
                 : null;
         TransactionClassification directionClassification = cardPayment
                 ? validateCardPayment(accountIn, accountOut)
-                : classifyDirectionTransaction(normalizedKind, accountIn, accountOut);
+                : classifyDirectionTransaction(normalizedKind, accountIn, accountOut, description);
         return new PreparedBankTransaction(
                 userId,
                 accountId,
@@ -332,7 +332,8 @@ public class BankTransactionCollectionService {
     private TransactionClassification classifyDirectionTransaction(
             String transactionKind,
             long accountIn,
-            long accountOut
+            long accountOut,
+            String description
     ) {
         String normalizedKind = transactionKind == null
                 ? ""
@@ -343,7 +344,8 @@ public class BankTransactionCollectionService {
 
         return switch (normalizedKind) {
             case AssetTransactionConstants.INCOME_TYPE -> classifyIncome(accountIn, accountOut);
-            case AssetTransactionConstants.TRANSFER_TYPE -> classifyTransfer(accountIn, accountOut);
+            case AssetTransactionConstants.TRANSFER_TYPE ->
+                    classifyTransferOrExpense(description, accountIn, accountOut);
             default -> throw new IllegalArgumentException(
                     "지원하지 않는 은행 거래 유형입니다: " + transactionKind
             );
@@ -362,6 +364,33 @@ public class BankTransactionCollectionService {
             return sendClassification(accountOut, fallback);
         }
         throw new IllegalArgumentException("입금액과 출금액 중 하나만 양수여야 합니다.");
+    }
+
+    private TransactionClassification classifyTransferOrExpense(
+            String description,
+            long accountIn,
+            long accountOut
+    ) {
+        if (accountOut > 0 && accountIn == 0) {
+            Optional<ExpenseCategoryClassifier.Result> expenseCategory =
+                    categoryClassifier.classifyBeforeAi(
+                            new ExpenseCategoryClassifier.Context(description, null, accountOut)
+                    );
+            if (expenseCategory.isPresent()) {
+                ExpenseCategoryClassifier.Result result = expenseCategory.get();
+                return new TransactionClassification(
+                        AssetTransactionConstants.EXPENSE_TYPE,
+                        result.category(),
+                        accountOut,
+                        result.source(),
+                        result.confidence(),
+                        result.classifierVersion(),
+                        false
+                );
+            }
+        }
+
+        return classifyTransfer(accountIn, accountOut);
     }
 
     private TransactionClassification classifyIncome(long accountIn, long accountOut) {
