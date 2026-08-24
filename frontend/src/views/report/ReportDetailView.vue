@@ -9,21 +9,25 @@ import AppButton from "@/components/ui/AppButton.vue"
 import AppCard from "@/components/ui/AppCard.vue"
 import AppPageHeader from "@/components/ui/AppPageHeader.vue"
 import AppState from "@/components/ui/AppState.vue"
+import { useUserStore } from "@/stores/userStore"
 import { getCachedResource, getResource, hasInFlightResource } from "@/utils/resourceCache"
 import { markReportAsRead } from "@/utils/report/reportReadState"
 import { buildTermSegments } from "@/utils/report/termHighlight"
 
 const route = useRoute()
+const userStore = useUserStore()
 const newsId = computed(() => route.params.newsId)
+const currentUserId = computed(() => userStore.user?.id ?? null)
 
 const REPORT_DETAIL_STALE_TIME = 5 * 60 * 1000
 const cacheScope = {}
-const detailCacheKey = (id) => `reports:detail:${id}`
+const detailCacheKey = (userId, id) => `reports:detail:${userId ?? "anonymous"}:${id}`
 const report = ref(null)
 const initialLoading = ref(true)
 const refreshing = ref(false)
 const errorMessage = ref("")
 const loadedNewsId = ref(null)
+const loadedUserId = ref(null)
 let loadSequence = 0
 
 // 밑줄 강조 대상 5개 섹션. 순서대로 처리해야 "상세 페이지 전체 기준 첫 등장 1회" 규칙이
@@ -146,6 +150,7 @@ const reportMeta = computed(() => [report.value?.source, formattedDate.value]
 
 const loadDetail = async ({ force = false } = {}) => {
   const requestedNewsId = newsId.value
+  const requestedUserId = currentUserId.value
   const requestId = ++loadSequence
   errorMessage.value = ""
   closeMobileTermCard()
@@ -153,12 +158,13 @@ const loadDetail = async ({ force = false } = {}) => {
   if (!requestedNewsId) {
     report.value = null
     loadedNewsId.value = null
+    loadedUserId.value = null
     initialLoading.value = false
     refreshing.value = false
     return null
   }
 
-  const key = detailCacheKey(requestedNewsId)
+  const key = detailCacheKey(requestedUserId, requestedNewsId)
   const cachedReport =
     !force && !hasInFlightResource(key, { scope: cacheScope })
       ? getCachedResource(key, {
@@ -170,13 +176,17 @@ const loadDetail = async ({ force = false } = {}) => {
   if (cachedReport !== undefined) {
     report.value = cachedReport
     loadedNewsId.value = requestedNewsId
+    loadedUserId.value = requestedUserId
     initialLoading.value = false
     refreshing.value = false
-    markReportAsRead(requestedNewsId)
+    markReportAsRead(requestedNewsId, requestedUserId)
     return cachedReport
   }
 
-  const hasExistingReport = loadedNewsId.value === requestedNewsId && Boolean(report.value)
+  const hasExistingReport =
+    loadedNewsId.value === requestedNewsId &&
+    loadedUserId.value === requestedUserId &&
+    Boolean(report.value)
   initialLoading.value = !hasExistingReport
   refreshing.value = hasExistingReport
   if (!hasExistingReport) report.value = null
@@ -188,20 +198,30 @@ const loadDetail = async ({ force = false } = {}) => {
       staleTime: REPORT_DETAIL_STALE_TIME,
     })
 
-    if (requestId !== loadSequence || newsId.value !== requestedNewsId) {
+    if (
+      requestId !== loadSequence ||
+      newsId.value !== requestedNewsId ||
+      currentUserId.value !== requestedUserId
+    ) {
       return nextReport
     }
 
     report.value = nextReport
     loadedNewsId.value = requestedNewsId
-    markReportAsRead(requestedNewsId)
+    loadedUserId.value = requestedUserId
+    markReportAsRead(requestedNewsId, requestedUserId)
     return nextReport
   } catch (error) {
-    if (requestId === loadSequence && newsId.value === requestedNewsId) {
+    if (
+      requestId === loadSequence &&
+      newsId.value === requestedNewsId &&
+      currentUserId.value === requestedUserId
+    ) {
       errorMessage.value = error.message
       if (!hasExistingReport) {
         report.value = null
         loadedNewsId.value = null
+        loadedUserId.value = null
       }
     }
     return null
@@ -226,8 +246,8 @@ onBeforeUnmount(() => {
   window.removeEventListener("keydown", handleEscape)
 })
 
-// 같은 라우트 컴포넌트를 재사용하며 newsId만 바뀌는 경우(다른 리포트로 이동)에도 다시 불러옴
-watch(newsId, () => {
+// 같은 라우트 컴포넌트를 재사용하며 뉴스나 회원이 바뀌는 경우에도 다시 불러옴
+watch([newsId, currentUserId], () => {
   void loadDetail()
 })
 </script>
