@@ -10,7 +10,6 @@ import SummaryMetrics from "./SummaryMetrics.vue"
 import { categoryLabel, comparisonPeriodLabel, formatWon } from "@/types/consumptionAnalysis"
 
 const SPENDING_REPORT_IMAGES = [
-  "03_스트레칭.webp",
   "04_요가타임.webp",
   "05_명상중.webp",
   "06_아침인사.webp",
