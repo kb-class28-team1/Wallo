@@ -4,7 +4,6 @@ import { storeToRefs } from "pinia"
 import { useRoute, useRouter } from "vue-router"
 import ExpenseCalendar from "@/components/asset/ExpenseCalendar.vue"
 import CategoryBudgetEditor from "@/components/asset/CategoryBudgetEditor.vue"
-import ExpenseCategoryBreakdown from "@/components/asset/ExpenseCategoryBreakdown.vue"
 import ExpenseCategoryEditModal from "@/components/asset/ExpenseCategoryEditModal.vue"
 import ExpenseTransactionList from "@/components/asset/ExpenseTransactionList.vue"
 import AppAlert from "@/components/ui/AppAlert.vue"
@@ -29,8 +28,6 @@ const { isSyncing, syncError } = storeToRefs(assetStore)
 const {
   categorySummary: budgetSummary,
   error: budgetError,
-  initialLoading: budgetInitialLoading,
-  refreshing: budgetRefreshing,
   isLoading: isBudgetLoading,
   isSaving: isBudgetSaving,
 } = storeToRefs(budgetStore)
@@ -52,7 +49,7 @@ const createEmptyExpenseData = () => ({
 const now = new Date()
 const selectedMonth = ref(new Date(now.getFullYear(), now.getMonth(), 1))
 const activeView = ref("calendar")
-const selectedListCategory = ref("ALL")
+const selectedListCategories = ref([])
 const expenseData = ref(createEmptyExpenseData())
 const hasLoadedExpenseData = ref(false)
 const isLoading = ref(false)
@@ -111,11 +108,16 @@ const listCategoryOptions = computed(() => [
   })),
 ])
 
-const selectedListCategoryLabel = computed(
-  () =>
-    listCategoryOptions.value.find((option) => option.value === selectedListCategory.value)
-      ?.label || "전체",
-)
+const selectedListCategoryLabel = computed(() => {
+  if (selectedListCategories.value.length === 0) return "전체"
+
+  const labels = selectedListCategories.value
+    .map((category) => listCategoryOptions.value.find((option) => option.value === category)?.label)
+    .filter(Boolean)
+
+  if (labels.length <= 2) return labels.join(", ")
+  return `${labels.slice(0, 2).join(", ")} 외 ${labels.length - 2}개`
+})
 
 const canEditBudget = computed(
   () => isCurrentMonth.value && !isBudgetLoading.value && !budgetError.value,
@@ -123,10 +125,6 @@ const canEditBudget = computed(
 
 const isExpenseInitialLoading = computed(() => isLoading.value && !hasLoadedExpenseData.value)
 const isExpenseRefreshing = computed(() => isLoading.value && hasLoadedExpenseData.value)
-const isBudgetInitialLoading = computed(() => budgetInitialLoading?.value ?? isBudgetLoading.value)
-const isBudgetRefreshing = computed(() => budgetRefreshing?.value ?? false)
-const displayedBudgetError = computed(() => (budgetSummary.value ? "" : budgetError.value))
-const isBudgetRefreshError = computed(() => Boolean(budgetSummary.value && budgetError.value))
 
 const openBudgetEditor = async () => {
   if (!canEditBudget.value) {
@@ -214,7 +212,10 @@ const fetchExpensePage = async (page, append = false) => {
       ...dateRange.value,
       page,
       size: PAGE_SIZE,
-      category: selectedListCategory.value,
+      category:
+        selectedListCategories.value.length > 0
+          ? selectedListCategories.value.join(",")
+          : "ALL",
     })
 
     if (currentRequest !== requestVersion) return
@@ -273,10 +274,24 @@ const closeCategoryFilter = () => {
   isCategoryFilterModalVisible.value = false
 }
 
-const applyCategoryFilter = async ({ category }) => {
+const applyCategoryFilter = async ({ categories, category }) => {
   if (isCategoryFilterSaving.value) return
 
-  selectedListCategory.value = category || "ALL"
+  const selectedValues = Array.isArray(categories)
+    ? categories
+    : category && category !== "ALL"
+      ? [category]
+      : []
+  const validCategories = new Set(
+    listCategoryOptions.value.filter((option) => option.value !== "ALL").map((option) => option.value),
+  )
+  selectedListCategories.value = [
+    ...new Set(
+      selectedValues
+        .map((value) => String(value || "").trim().toUpperCase())
+        .filter((value) => validCategories.has(value)),
+    ),
+  ]
   isCategoryFilterSaving.value = true
   try {
     await changeListCategory()
@@ -499,21 +514,27 @@ onMounted(async () => {
           <i class="bi bi-chevron-left" aria-hidden="true"></i>
         </RouterLink>
       </template>
+      <template #title>
+        <span class="expense-page-title">
+          <span>월별 리포트</span>
+          <span v-if="isExpenseRefreshing" class="expense-refresh-status" role="status">
+            <span class="spinner-border spinner-border-sm text-primary" aria-hidden="true"></span>
+            <span class="expense-refresh-status__text">
+              {{ monthLabel }} 소비 내역을 최신 상태로 갱신하고 있습니다.
+            </span>
+          </span>
+        </span>
+      </template>
       <template #actions>
-        <AppButton
-          class="expense-sync-button"
-          variant="primary"
+        <button
           type="button"
+          class="expense-sync-button btn app-action-link"
           :disabled="isSyncing || isExpenseInitialLoading || isExpenseRefreshing || isDailyLoading"
           @click="syncCurrentMonth"
         >
-          <span
-            v-if="isSyncing"
-            class="spinner-border spinner-border-sm me-2"
-            aria-hidden="true"
-          ></span>
-          {{ isSyncing ? "동기화 중..." : "거래내역 새로고침" }}
-        </AppButton>
+          <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>
+          새로고침
+        </button>
       </template>
     </AppPageHeader>
 
@@ -524,11 +545,6 @@ onMounted(async () => {
       :message="syncStatus.message"
       role="status"
     />
-
-    <div v-if="isExpenseRefreshing" class="small text-secondary mb-3" role="status">
-      <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
-      {{ monthLabel }} 소비 내역을 최신 상태로 갱신하고 있습니다.
-    </div>
 
     <AppAlert v-if="error && hasLoadedExpenseData" class="expense-error mb-3" variant="warning">
       <span>최신 소비 내역을 갱신하지 못했습니다. 기존 내역을 표시하고 있습니다.</span>
@@ -614,7 +630,7 @@ onMounted(async () => {
                   @click="openCategoryFilter"
                 >
                   <span>카테고리 필터</span>
-                  <span v-if="selectedListCategory !== 'ALL'" class="category-filter-current">
+                  <span v-if="selectedListCategories.length > 0" class="category-filter-current">
                     {{ selectedListCategoryLabel }}
                   </span>
                   <i class="bi bi-chevron-down" aria-hidden="true"></i>
@@ -660,25 +676,6 @@ onMounted(async () => {
         </div>
       </AppCard>
 
-      <div v-if="isBudgetRefreshing" class="small text-secondary mb-3" role="status">
-        <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
-        카테고리별 예산을 최신 상태로 갱신하고 있습니다.
-      </div>
-
-      <AppAlert v-if="isBudgetRefreshError" class="mb-3" variant="warning">
-        <span>최신 예산 정보를 갱신하지 못했습니다. 기존 예산을 표시하고 있습니다.</span>
-        <AppButton variant="outline" size="sm" @click="loadSelectedMonth">다시 시도</AppButton>
-      </AppAlert>
-
-      <ExpenseCategoryBreakdown
-        :breakdown="expenseData.expenseCategoryBreakdown"
-        :total-expense="expenseData.totalExpense"
-        :budget-summary="budgetSummary"
-        :budget-loading="isBudgetInitialLoading"
-        :budget-error="displayedBudgetError"
-        :can-edit-budget="canEditBudget"
-        @edit-budget="openBudgetEditor"
-      />
     </template>
 
     <CategoryBudgetEditor
@@ -701,7 +698,7 @@ onMounted(async () => {
     <ExpenseCategoryEditModal
       :visible="isCategoryFilterModalVisible"
       mode="filter"
-      :initial-category="selectedListCategory"
+      :initial-categories="selectedListCategories"
       :is-saving="isCategoryFilterSaving"
       @close="closeCategoryFilter"
       @save="applyCategoryFilter"
@@ -749,11 +746,32 @@ onMounted(async () => {
 <style scoped>
 .expense-history-view {
   width: 100%;
-  padding: var(--wallo-space-6) var(--wallo-space-4);
+  padding: 0 0 var(--wallo-space-6);
 }
 
-.expense-sync-button {
-  min-width: 172px;
+.expense-page-title {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: var(--wallo-space-3);
+}
+
+.expense-refresh-status {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--wallo-space-2);
+  overflow: hidden;
+  color: var(--wallo-color-text-muted);
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.expense-refresh-status__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .expense-sync-status {
@@ -781,7 +799,7 @@ onMounted(async () => {
 .back-button:hover,
 .back-button:focus,
 .month-button:hover,
-.month-button:focus {
+.month-button:focus-visible {
   color: #4d82d6;
   background: #edf6ff;
 }
@@ -933,8 +951,7 @@ onMounted(async () => {
 
 @media (max-width: 575.98px) {
   .expense-history-view {
-    padding-right: var(--wallo-space-3);
-    padding-left: var(--wallo-space-3);
+    padding-bottom: var(--wallo-space-5);
   }
 
   .page-header {

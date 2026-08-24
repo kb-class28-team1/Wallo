@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest"
 import BudgetSummaryCard from "./BudgetSummaryCard.vue"
 
 describe("BudgetSummaryCard", () => {
-  it("renders the budget progress through the shared progress component", async () => {
+  it("renders budget usage as melting ice", async () => {
     const wrapper = mount(BudgetSummaryCard, {
       props: {
         budget: {
@@ -17,13 +17,22 @@ describe("BudgetSummaryCard", () => {
     const progress = wrapper.find('[role="progressbar"]')
 
     expect(wrapper.find(".budget-summary-card").classes()).toContain("app-card")
-    expect(wrapper.find(".app-progress").exists()).toBe(true)
+    expect(wrapper.find(".ice-budget-meter").exists()).toBe(true)
     expect(progress.attributes("aria-valuenow")).toBe("25")
-    expect(progress.find(".app-progress__bar").attributes("style")).toContain("width: 25%")
+    expect(progress.findAll(".iceberg-piece")).toHaveLength(4)
+    expect(progress.findAll(".iceberg-capacity-outline")).toHaveLength(4)
+    expect(progress.findAll(".ice-face").length).toBeGreaterThan(3)
+    expect(progress.findAll(".snowflake")).toHaveLength(30)
+    expect(progress.find(".meltwater").attributes("style")).toContain(
+      "--meltwater-scale-x: 0.875",
+    )
+    expect(progress.find(".ice-stage-badge").exists()).toBe(false)
     expect(wrapper.find(".budget-total").text()).toBe("375,000원")
-    expect(wrapper.find(".budget-usage-rate").text()).toBe("25%")
+    expect(wrapper.find(".ice-budget-caption").text()).toBe("남은 비율")
+    expect(wrapper.find(".budget-remaining-rate").text()).toBe("75%")
+    expect(wrapper.find(".ice-budget-status").exists()).toBe(false)
 
-    await wrapper.find(".dashboard-action-button").trigger("click")
+    await wrapper.find(".app-action-link").trigger("click")
 
     expect(wrapper.emitted("open-budget-settings")).toHaveLength(1)
   })
@@ -43,10 +52,10 @@ describe("BudgetSummaryCard", () => {
     )
     expect(wrapper.find(".budget-state .app-state__message").text()).toBe("예산을 설정해주세요")
     expect(wrapper.find(".budget-state .app-state__icon").exists()).toBe(false)
-    expect(wrapper.find(".dashboard-action-button").text()).toBe("설정하기")
+    expect(wrapper.find(".app-action-link").text()).toBe("설정하기")
     expect(wrapper.find('[role="progressbar"]').exists()).toBe(false)
 
-    await wrapper.find(".dashboard-action-button").trigger("click")
+    await wrapper.find(".app-action-link").trigger("click")
 
     expect(wrapper.emitted("open-budget-settings")).toHaveLength(1)
   })

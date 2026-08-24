@@ -55,7 +55,7 @@ const hasDashboardData = computed(() =>
 
 const handleBudgetSettings = async () => {
   await router.push({
-    name: "expenses",
+    name: "category-expenses",
     query: { budget: "edit" },
   })
 }
@@ -201,10 +201,6 @@ onBeforeUnmount(() => {
 <style scoped>
 .dashboard-page {
   width: 100%;
-}
-
-.dashboard-page :deep(.app-page-header) {
-  margin-bottom: var(--wallo-space-4);
 }
 
 .dashboard-state {

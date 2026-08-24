@@ -109,11 +109,13 @@ describe("GoalSummaryCard", () => {
       props: { goals: [] },
     })
 
+    expect(wrapper.find(".goal-card-header h2").text()).toBe("나의 목표")
     expect(wrapper.text()).toContain("아직 확정된 금융 목표가 없습니다.")
     expect(wrapper.text()).toContain("목표 설정하기")
     expect(wrapper.text()).not.toContain("채팅에서 계좌 설정")
     expect(wrapper.find("a").attributes("data-to")).toBe("/chat?start=goal-setting")
     expect(wrapper.find(".goal-state").exists()).toBe(true)
+    expect(wrapper.find(".goal-state").classes()).toContain("goal-state--empty")
     expect(wrapper.find(".goal-state").classes()).toContain("app-state")
     expect(wrapper.find(".goal-state").attributes("data-state")).toBe("empty")
     expect(wrapper.find(".goal-state .app-state__icon").exists()).toBe(false)

@@ -19,6 +19,24 @@ body {
   font-family: "TMoneyDungunbaram", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   color: var(--wallo-color-text);
   background: var(--wallo-color-bg);
+  caret-color: transparent;
+}
+
+.page-enter-active,
+.page-leave-active {
+  transition: opacity 200ms ease-out;
+}
+
+.page-enter-from,
+.page-leave-to {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-enter-active,
+  .page-leave-active {
+    transition: none;
+  }
 }
 
 h1,
@@ -35,6 +53,13 @@ input,
 select,
 textarea {
   font-family: inherit;
+}
+
+input,
+textarea,
+select,
+[contenteditable="true"] {
+  caret-color: auto;
 }
 
 .app-page {
@@ -86,6 +111,21 @@ textarea {
   font-weight: 700;
 }
 
+.app-action-link {
+  border: 1px solid var(--wallo-color-primary);
+  border-radius: var(--wallo-radius-md);
+  color: var(--wallo-color-primary);
+  background: var(--wallo-color-surface);
+  font-weight: 500;
+}
+
+.app-action-link:hover,
+.app-action-link:focus {
+  border-color: var(--wallo-color-primary-hover);
+  color: var(--wallo-color-surface);
+  background: var(--wallo-color-primary);
+}
+
 .progress {
   height: 12px;
   background: var(--wallo-color-progress-track);
@@ -106,8 +146,8 @@ textarea {
   min-height: calc(100vh - 96px);
   display: grid;
   grid-template-columns: minmax(360px, 42%) minmax(480px, 58%);
-  background: var(--wallo-color-surface);
-  width: min(1180px, calc(100% - 96px));
+  background: #f5fbff;
+  width: min(1360px, calc(100% - 96px));
   margin: 48px auto;
   overflow: hidden;
   border: 1px solid var(--wallo-color-border);
@@ -387,4 +427,3 @@ textarea {
     padding: 48px 28px 64px;
   }
 }
-

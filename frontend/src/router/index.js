@@ -4,10 +4,13 @@ import { useUserStore } from "@/stores/userStore"
 const LandingView = () => import("@/views/auth/LandingView.vue")
 const LoginView = () => import("@/views/auth/LoginView.vue")
 const SignupView = () => import("@/views/auth/SignupView.vue")
+const OnboardingWelcomeView = () => import("@/views/onboarding/OnboardingWelcomeView.vue")
 const AiAssistantView = () => import("@/views/ai/AiAssistantView.vue")
+const AnalysisDashboardView = () => import("@/views/analysis/AnalysisDashboardView.vue")
 const AssetView = () => import("@/views/asset/AssetView.vue")
 const ConnectionView = () => import("@/views/asset/ConnectionView.vue")
 const ExpenseHistoryView = () => import("@/views/asset/ExpenseHistoryView.vue")
+const CategoryExpenseView = () => import("@/views/asset/CategoryExpenseView.vue")
 const ChallengeEntryView = () => import("@/views/challenge/ChallengeEntryView.vue")
 const ChallengeFeedView = () => import("@/views/challenge/ChallengeFeedView.vue")
 const ChallengeRankingView = () => import("@/views/challenge/ChallengeRankingView.vue")
@@ -56,6 +59,12 @@ const router = createRouter({
       component: SignupView,
       meta: { guestOnly: true },
     },
+    {
+      path: "/onboarding",
+      name: "onboarding-welcome",
+      component: OnboardingWelcomeView,
+      meta: { requiresAuth: true },
+    },
     // 첫 로그인 사용자의 통합 자산 연결 페이지로 이동하는 주소임
     {
        path: "/connections/mydata",
@@ -79,6 +88,11 @@ const router = createRouter({
           component: AiAssistantView,
         },
         {
+          path: "/ai-analysis",
+          name: "ai-analysis",
+          component: AnalysisDashboardView,
+        },
+        {
           path: "/chat",
           name: "chat",
           component: ChatView,
@@ -93,6 +107,11 @@ const router = createRouter({
           path: "/assets/expenses",
           name: "expenses",
           component: ExpenseHistoryView,
+        },
+        {
+          path: "/assets/categories",
+          name: "category-expenses",
+          component: CategoryExpenseView,
         },
         // 절약 챌린지의 피드 목록 페이지로 이동하는 주소임
         {
@@ -201,14 +220,15 @@ router.beforeEach(async (to) => {
     to.meta.requiresAuth &&
     userStore.isAuthenticated &&
     !userStore.user?.connectionCompleted &&
-    to.name !== "connection"
+    to.name !== "connection" &&
+    to.name !== "onboarding-welcome"
   ) {
-    return { name: "connection", replace: true }
+    return { name: "onboarding-welcome", replace: true }
   }
 
   if (to.meta.guestOnly && userStore.isAuthenticated) {
     return {
-      name: userStore.user?.connectionCompleted ? "dashboard" : "connection",
+      name: userStore.user?.connectionCompleted ? "dashboard" : "onboarding-welcome",
       replace: true,
     }
   }

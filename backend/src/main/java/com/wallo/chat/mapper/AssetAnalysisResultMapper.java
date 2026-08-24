@@ -10,4 +10,8 @@ public interface AssetAnalysisResultMapper {
     List<AssetAnalysisResultDto.StoredResult> findByAssistantMessageIds(
             @Param("assistantMessageIds") List<Long> assistantMessageIds
     );
+
+    AssetAnalysisResultDto.LatestStoredResult findLatestByUserId(
+            @Param("userId") long userId
+    );
 }

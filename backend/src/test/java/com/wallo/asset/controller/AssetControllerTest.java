@@ -89,7 +89,8 @@ class AssetControllerTest {
                         .param("startDate", "2026-07-01")
                         .param("endDate", "2026-07-31")
                         .param("page", "1")
-                        .param("size", "10"))
+                        .param("size", "10")
+                        .param("category", "FOOD,CAFE"))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -112,6 +113,7 @@ class AssetControllerTest {
         assertEquals("2026-07-31", captor.getValue().getEndDate());
         assertEquals(1, captor.getValue().getPage());
         assertEquals(10, captor.getValue().getSize());
+        assertEquals("FOOD,CAFE", captor.getValue().getCategory());
     }
 
     @Test

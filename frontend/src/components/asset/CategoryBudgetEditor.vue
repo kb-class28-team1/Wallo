@@ -137,6 +137,7 @@ const save = () => {
     confirm-variant="primary"
     :confirm-disabled="isSaving || !isValid"
     :confirm-loading="isSaving"
+    :close-on-backdrop="false"
     @close="emit('close')"
     @confirm="save"
   >
@@ -260,7 +261,7 @@ const save = () => {
 }
 
 .budget-editor-description {
-  margin-top: calc(var(--wallo-space-2) * -1);
+  margin-top: 0;
 }
 
 .budget-allocation-summary {

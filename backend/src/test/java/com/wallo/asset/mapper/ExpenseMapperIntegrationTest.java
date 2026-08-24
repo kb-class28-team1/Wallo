@@ -103,12 +103,14 @@ class ExpenseMapperIntegrationTest {
         assertEquals("TRANSFER", transactions.get(0).getType());
         assertEquals("RECEIVE", transactions.get(0).getCategory());
         assertEquals(1L, expenseMapper.countTransactions(7L, condition));
-        assertEquals(410L, expenseMapper.selectTotalExpense(7L, condition));
-        assertEquals(1_000L, expenseMapper.selectTotalIncome(7L, condition));
+        assertEquals(0L, expenseMapper.selectTotalExpense(7L, condition));
+        assertEquals(0L, expenseMapper.selectTotalIncome(7L, condition));
+        assertTrue(expenseMapper.selectExpenseCategoryBreakdown(7L, condition).isEmpty());
+        assertTrue(expenseMapper.selectDailyBreakdown(7L, condition).isEmpty());
     }
 
     @Test
-    void filtersTransactionsByCategoryWithoutChangingAggregateQueries() {
+    void filtersCategoryAggregatesAlongsideTransactions() {
         ExpenseDto.SearchCondition condition = new ExpenseDto.SearchCondition(
                 "2026-07-01", "2026-07-02", 0, 20, "ETC", 0
         );
@@ -122,8 +124,46 @@ class ExpenseMapperIntegrationTest {
         assertEquals("ETC", transactions.get(1).getCategory());
         assertEquals(2L, expenseMapper.countTransactions(7L, condition));
 
-        assertEquals(410L, expenseMapper.selectTotalExpense(7L, condition));
-        assertEquals(2, expenseMapper.selectDailyBreakdown(7L, condition).size());
+        assertEquals(110L, expenseMapper.selectTotalExpense(7L, condition));
+        assertEquals(0L, expenseMapper.selectTotalIncome(7L, condition));
+
+        List<ExpenseDto.CategoryBreakdown> categories =
+                expenseMapper.selectExpenseCategoryBreakdown(7L, condition);
+        assertEquals(1, categories.size());
+        assertEquals("ETC", categories.get(0).getCategory());
+        assertEquals(110L, categories.get(0).getAmount());
+
+        List<ExpenseDto.DailyBreakdown> dailyBreakdown =
+                expenseMapper.selectDailyBreakdown(7L, condition);
+        assertEquals(1, dailyBreakdown.size());
+        assertEquals("2026-07-01", dailyBreakdown.get(0).getDate());
+        assertEquals(110L, dailyBreakdown.get(0).getTotalExpense());
+        assertEquals(0L, dailyBreakdown.get(0).getTotalIncome());
+    }
+
+    @Test
+    void filtersTransactionsByMultipleCategories() {
+        ExpenseDto.SearchCondition condition = new ExpenseDto.SearchCondition(
+                "2026-07-01", "2026-07-03", 0, 20, "FOOD,ETC", 0
+        );
+
+        List<ExpenseDto.Transaction> transactions = expenseMapper.selectTransactions(7L, condition);
+
+        assertEquals(4, transactions.size());
+        assertEquals(6L, transactions.get(0).getTransactionId());
+        assertEquals(9L, transactions.get(1).getTransactionId());
+        assertEquals(8L, transactions.get(2).getTransactionId());
+        assertEquals(1L, transactions.get(3).getTransactionId());
+        assertEquals(4L, expenseMapper.countTransactions(7L, condition));
+        assertEquals(260L, expenseMapper.selectTotalExpense(7L, condition));
+
+        List<ExpenseDto.CategoryBreakdown> categories =
+                expenseMapper.selectExpenseCategoryBreakdown(7L, condition);
+        assertEquals(2, categories.size());
+        assertEquals("FOOD", categories.get(0).getCategory());
+        assertEquals(150L, categories.get(0).getAmount());
+        assertEquals("ETC", categories.get(1).getCategory());
+        assertEquals(110L, categories.get(1).getAmount());
     }
 
     @Test

@@ -221,12 +221,15 @@ describe("challenge page views", () => {
     expect(getFeeds).toHaveBeenCalledWith(7, false)
     expect(getRoomMessages).toHaveBeenCalledWith(7)
     expect(firstWrapper.find(".feed-card").exists()).toBe(true)
-    expect(firstWrapper.find(".feed-header").classes()).toContain("app-page-header")
-    expect(firstWrapper.find(".saving-total").classes()).toContain("app-card")
+    expect(firstWrapper.find(".feed-page-header").classes()).toContain("app-page-header")
+    expect(firstWrapper.find(".feed-page-header .app-page-header__title").text()).toBe(
+      "주간 절약 챌린지",
+    )
+    expect(firstWrapper.find(".saving-total").exists()).toBe(true)
+    expect(firstWrapper.find(".feed-page-header .feed-invite-panel").exists()).toBe(false)
+    expect(firstWrapper.find(".feed-header-bottom .feed-invite-panel").exists()).toBe(true)
     expect(firstWrapper.findAll(".feed-tabs .app-button")).toHaveLength(2)
-    expect(firstWrapper.find(".feed-leave-button .bi-door-open").exists()).toBe(true)
-    expect(firstWrapper.find(".feed-leave-button .bi-door-open-fill").exists()).toBe(true)
-    expect(firstWrapper.find(".feed-leave-button .bi-box-arrow-right").exists()).toBe(false)
+    expect(firstWrapper.find(".feed-leave-button").text()).toContain("나가기")
     expect(firstWrapper.find(".mention-feed-button .bi-send").exists()).toBe(true)
     expect(firstWrapper.find(".mention-feed-button img").exists()).toBe(false)
     expect(firstWrapper.find('.chat-form button[aria-label="메시지 전송"] .bi-send').exists()).toBe(true)
@@ -263,26 +266,48 @@ describe("challenge page views", () => {
     secondWrapper.unmount()
   })
 
-  it("groups consecutive messages from the same sender", async () => {
-    getRoomMessages.mockResolvedValue({
-      challengeName: "주간 절약 챌린지",
+  it("hides my nickname from my own chat messages", async () => {
+    getRoomMessages.mockResolvedValueOnce({
+      ...messagePayload,
       messages: [
-        { id: 1, userId: 1, nickname: "나", messageType: "TEXT", content: "첫 메시지" },
-        { id: 2, userId: 1, nickname: "나", messageType: "TEXT", content: "연속 메시지" },
-        { id: 3, userId: 2, nickname: "상대방", messageType: "TEXT", content: "다른 메시지" },
+        {
+          id: 1,
+          userId: 1,
+          nickname: "내 닉네임",
+          content: "내가 보낸 일반 메시지",
+        },
+        {
+          id: 2,
+          userId: 2,
+          nickname: "다른 참여자",
+          content: "다른 사람이 보낸 메시지",
+        },
+        {
+          id: 3,
+          userId: 1,
+          nickname: "내 닉네임",
+          messageType: "FEED_SHARE",
+          referenceFeedId: 101,
+          thumbnailUrl: "",
+          mediaUrl: "",
+        },
+        {
+          id: 4,
+          userId: 1,
+          nickname: "내 닉네임",
+          content: "내가 언급한 피드",
+          referenceFeedId: 101,
+        },
       ],
     })
 
     const wrapper = mountFeed()
     await flushPromises()
 
-    const renderedMessages = wrapper.findAll(".message")
-    expect(renderedMessages).toHaveLength(3)
-    expect(renderedMessages[0].classes()).toContain("same-sender-next")
-    expect(renderedMessages[0].find(".message-author").text()).toBe("나")
-    expect(renderedMessages[1].classes()).toContain("same-sender")
-    expect(renderedMessages[1].find(".message-author").exists()).toBe(false)
-    expect(renderedMessages[2].find(".message-author").text()).toBe("상대방")
+    expect(wrapper.findAll(".message-author")).toHaveLength(1)
+    expect(wrapper.find(".message-author").text()).toBe("다른 참여자")
+    expect(wrapper.findAll(".message.mine")).toHaveLength(3)
+    expect(wrapper.findAll(".message.mine").every((message) => !message.find(".message-author").exists())).toBe(true)
 
     wrapper.unmount()
   })

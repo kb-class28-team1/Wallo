@@ -11,7 +11,7 @@ import { getApiErrorMessage } from "@/utils/apiError";
 
 const GOAL_STALE_TIME = 5 * 60 * 1000;
 const ROADMAP_STALE_TIME = 5 * 60 * 1000;
-const AVAILABLE_ACCOUNTS_STALE_TIME = 60 * 1000;
+const AVAILABLE_ACCOUNTS_STALE_TIME = 5 * 60 * 1000;
 const normalizeUserId = (userId) => {
   if (userId === null || userId === undefined || userId === "") {
     return null

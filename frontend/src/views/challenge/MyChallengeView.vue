@@ -434,11 +434,6 @@ onMounted(loadDashboard)
   font-size: 19.2px;
 }
 
-.page-heading :deep(.app-page-header__title) {
-  font-size: 34.8px;
-  font-weight: 750;
-}
-
 .page-heading :deep(.app-page-header__description) {
   font-size: 14px;
 }
@@ -483,8 +478,8 @@ onMounted(loadDashboard)
 
 .dashboard-grid {
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
 }
 
 .dashboard-card {
@@ -800,7 +795,7 @@ onMounted(loadDashboard)
   font-size: 16.8px;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 991.98px) {
   .dashboard-grid {
     grid-template-columns: 1fr;
   }

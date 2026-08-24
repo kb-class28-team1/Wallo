@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from "vue"
+import { computed, ref, watch } from "vue"
 import DOMPurify from "dompurify"
 import { marked } from "marked"
 import {
@@ -46,6 +46,11 @@ const normalizedRecommendation = computed(() => normalizeProductRecommendation(
 
 const products = computed(() => normalizedRecommendation.value.products || [])
 const hasProducts = computed(() => products.value.length > 0)
+const activeProductIndex = ref(0)
+const hasMultipleProducts = computed(() => products.value.length > 1)
+const productTrackStyle = computed(() => ({
+  transform: `translateX(-${activeProductIndex.value * 100}%)`,
+}))
 const reason = computed(() => props.reason?.trim() || "")
 const renderedReason = computed(() => (
   reason.value ? DOMPurify.sanitize(marked.parse(reason.value)) : ""
@@ -73,6 +78,24 @@ const formatPreferentialConditions = (value) => (
 
 const productKey = (product, index) =>
   `${product.companyCode || product.companyName || "company"}-${product.productCode || product.productName || index}`
+
+const showPreviousProduct = () => {
+  if (!hasMultipleProducts.value) return
+  activeProductIndex.value =
+    (activeProductIndex.value - 1 + products.value.length) % products.value.length
+}
+
+const showNextProduct = () => {
+  if (!hasMultipleProducts.value) return
+  activeProductIndex.value = (activeProductIndex.value + 1) % products.value.length
+}
+
+watch(products, () => {
+  activeProductIndex.value = 0
+})
+
+const FINANCIAL_SUPERVISION_LOGO_URL =
+  "/images/institutions/financial-supervision-service.png"
 </script>
 
 <template>
@@ -90,13 +113,16 @@ const productKey = (product, index) =>
       <strong v-else>조건에 맞는 금융상품을 찾지 못했어요</strong>
     </div>
 
-    <div v-if="hasProducts" class="row g-3">
-      <div
-        v-for="(product, index) in products"
-        :key="productKey(product, index)"
-        class="col-12 col-md-6 col-xl-4"
-      >
-        <article class="product-card h-100">
+    <div v-if="hasProducts" class="product-carousel">
+      <div class="product-carousel__viewport">
+        <div class="product-carousel__track" :style="productTrackStyle">
+          <div
+            v-for="(product, index) in products"
+            :key="productKey(product, index)"
+            class="product-carousel__slide"
+            :aria-hidden="index !== activeProductIndex"
+          >
+            <article class="product-card h-100">
           <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
             <span class="product-card__rank">추천 {{ product.ranking }}위</span>
             <span class="badge rounded-pill text-bg-light">
@@ -183,7 +209,32 @@ const productKey = (product, index) =>
             <span>공시월 {{ formatDisclosureMonth(product.disclosureMonth) }}</span>
             <span>수집일시 {{ formatCollectedAt(product.collectedAt) }}</span>
           </div>
-        </article>
+            </article>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="hasMultipleProducts" class="product-carousel__controls">
+        <button
+          type="button"
+          class="product-carousel__button"
+          aria-label="이전 추천 상품 보기"
+          @click="showPreviousProduct"
+        >
+          <i class="bi bi-chevron-left" aria-hidden="true"></i>
+        </button>
+        <div class="product-carousel__position" role="status" aria-live="polite">
+          <strong>{{ activeProductIndex + 1 }}</strong>
+          <span>/ {{ products.length }}</span>
+        </div>
+        <button
+          type="button"
+          class="product-carousel__button"
+          aria-label="다음 추천 상품 보기"
+          @click="showNextProduct"
+        >
+          <i class="bi bi-chevron-right" aria-hidden="true"></i>
+        </button>
       </div>
     </div>
 
@@ -206,6 +257,24 @@ const productKey = (product, index) =>
         최고 우대금리는 조건 충족 시 적용될 수 있으며, 가입 전 금융회사에서 최신 조건을 확인해야 합니다.
       </small>
     </div>
+    <a
+      class="product-recommendation__external-link"
+      href="https://finlife.fss.or.kr/finlife/main/main.do"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      <span class="product-recommendation__external-icon">
+        <img
+          :src="FINANCIAL_SUPERVISION_LOGO_URL"
+          alt="금융감독원"
+        />
+      </span>
+      <span class="product-recommendation__external-copy">
+        <strong>금융상품 한눈에</strong>
+        <small>금융감독원에서 최신 상품 조건을 확인해 보세요</small>
+      </span>
+      <i class="bi bi-box-arrow-up-right product-recommendation__external-arrow" aria-hidden="true"></i>
+    </a>
   </section>
 </template>
 
@@ -242,10 +311,73 @@ const productKey = (product, index) =>
   display: flex;
   flex-direction: column;
   padding: 1rem;
-  background: #fff;
-  border: 1px solid #e7f2fa;
+  background: var(--wallo-color-surface);
+  border: 1px solid var(--wallo-color-border);
   border-radius: 1rem;
-  box-shadow: 0 0.25rem 0.8rem rgba(57, 45, 110, 0.06);
+  box-shadow: var(--wallo-shadow-card);
+}
+
+.product-carousel {
+  width: 100%;
+}
+
+.product-carousel__viewport {
+  overflow: hidden;
+  border-radius: 1rem;
+}
+
+.product-carousel__track {
+  display: flex;
+  align-items: stretch;
+  transition: transform 0.35s ease;
+}
+
+.product-carousel__slide {
+  min-width: 0;
+  flex: 0 0 100%;
+}
+
+.product-carousel__controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  margin-top: 0.75rem;
+}
+
+.product-carousel__button {
+  display: inline-flex;
+  width: 2.25rem;
+  height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: var(--wallo-color-primary);
+  background: var(--wallo-color-surface-soft);
+  border: 1px solid var(--wallo-color-border);
+  border-radius: 50%;
+}
+
+.product-carousel__button:hover,
+.product-carousel__button:focus-visible {
+  color: #fff;
+  background: var(--wallo-color-primary);
+  border-color: var(--wallo-color-primary);
+  outline: 0;
+  box-shadow: var(--wallo-focus-ring);
+}
+
+.product-carousel__position {
+  display: inline-flex;
+  min-width: 3.5rem;
+  justify-content: center;
+  gap: 0.25rem;
+  color: #8a91a3;
+  font-size: 0.8rem;
+}
+
+.product-carousel__position strong {
+  color: var(--wallo-color-primary);
 }
 
 .product-card__rank {
@@ -285,7 +417,7 @@ const productKey = (product, index) =>
   flex-direction: column;
   gap: 0.2rem;
   padding: 0.65rem;
-  background: #f8f7fc;
+  background: var(--wallo-color-surface-soft);
   border-radius: 0.7rem;
 }
 
@@ -305,7 +437,7 @@ const productKey = (product, index) =>
 }
 
 .product-card__rate--base {
-  background: #f8f7fc;
+  background: var(--wallo-color-surface-soft);
 }
 
 .product-card__rate--highlight {
@@ -341,7 +473,7 @@ const productKey = (product, index) =>
   padding: 0.7rem;
   color: #62697d;
   background: #fbfbfd;
-  border: 1px solid #eeecf5;
+  border: 1px solid var(--wallo-color-border-soft);
   border-radius: 0.7rem;
   font-size: 0.78rem;
 }
@@ -355,7 +487,7 @@ const productKey = (product, index) =>
 
 .product-card__conditions {
   margin-top: 0.7rem;
-  color: #514879;
+  color: var(--wallo-color-finance-info);
   font-size: 0.8rem;
 }
 
@@ -378,16 +510,16 @@ const productKey = (product, index) =>
   padding: 1rem;
   color: #62697d;
   background: #fbfbfd;
-  border: 1px dashed #d9d5eb;
+  border: 1px dashed var(--wallo-color-border);
   border-radius: 1rem;
   font-size: 0.86rem;
 }
 
 .product-recommendation__reason {
   padding: 0.85rem 1rem;
-  color: #4a426f;
+  color: var(--wallo-color-text);
   background: #f8fbff;
-  border: 1px solid #ded9fa;
+  border: 1px solid var(--wallo-color-border);
   border-radius: 0.9rem;
 }
 
@@ -409,6 +541,75 @@ const productKey = (product, index) =>
   margin: 0 0 0.55rem;
 }
 
+.product-recommendation__external-link {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.8rem 0.9rem;
+  color: var(--wallo-color-text);
+  background: var(--wallo-color-surface-soft);
+  border: 1px solid var(--wallo-color-border);
+  border-radius: 0.9rem;
+  text-decoration: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.product-recommendation__external-link:hover,
+.product-recommendation__external-link:focus-visible {
+  color: var(--wallo-color-primary-hover);
+  background: var(--wallo-color-info-bg);
+  border-color: var(--wallo-color-primary);
+  box-shadow: var(--wallo-shadow-card);
+  outline: 0;
+  transform: translateY(-1px);
+}
+
+.product-recommendation__external-link:focus-visible {
+  box-shadow: var(--wallo-focus-ring);
+}
+
+.product-recommendation__external-icon {
+  display: inline-flex;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: 0 0 2.25rem;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid var(--wallo-color-border-soft);
+  border-radius: 0.7rem;
+}
+
+.product-recommendation__external-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.product-recommendation__external-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.product-recommendation__external-copy strong {
+  font-size: 0.88rem;
+}
+
+.product-recommendation__external-copy small {
+  color: #7b849b;
+  font-size: 0.75rem;
+}
+
+.product-recommendation__external-arrow {
+  color: var(--wallo-color-text-subtle);
+  font-size: 0.85rem;
+}
+
 .product-recommendation__reason-markdown :deep(> :last-child) {
   margin-bottom: 0;
 }
@@ -424,7 +625,7 @@ const productKey = (product, index) =>
 
 .product-recommendation__reason-markdown :deep(code) {
   padding: 0.1rem 0.3rem;
-  background: #ebe9f8;
+  background: var(--wallo-color-info-bg);
   border-radius: 0.3rem;
   font-size: 0.9em;
 }

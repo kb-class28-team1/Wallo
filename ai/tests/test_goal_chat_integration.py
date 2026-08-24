@@ -3,7 +3,7 @@ from datetime import date
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from app.agents.goal.models import (
+from app.goals.interview.models import (
     GoalDraft,
     GoalField,
     GoalInterviewAction,

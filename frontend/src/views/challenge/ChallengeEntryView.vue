@@ -1,32 +1,33 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { createChallenge, getCurrentChallenge, joinChallenge } from '@/api/challengeApi'
-import AppDialog from '@/components/common/AppDialog.vue'
-import { useToastStore } from '@/stores/toastStore'
+import { computed, onMounted, reactive, ref } from "vue"
+import { useRouter } from "vue-router"
+import { createChallenge, getCurrentChallenge, joinChallenge } from "@/api/challengeApi"
+import AppDialog from "@/components/common/AppDialog.vue"
+import AppPageHeader from "@/components/ui/AppPageHeader.vue"
+import { useToastStore } from "@/stores/toastStore"
 
 const router = useRouter()
 const toastStore = useToastStore()
 
 const isLoading = ref(true)
 const isSubmitting = ref(false)
-const errorMessage = ref('')
+const errorMessage = ref("")
 const currentChallenge = ref(null)
-const activeForm = ref('create')
+const activeForm = ref("create")
 const dialogVisible = ref(false)
-const dialogMessage = ref('')
+const dialogMessage = ref("")
 const dialogNextRoute = ref(null)
-const dialogImageSrc = ref('')
-const dialogImageAlt = ref('')
+const dialogImageSrc = ref("")
+const dialogImageAlt = ref("")
 
 const createForm = reactive({
-  name: '',
+  name: "",
 })
-const inviteCode = ref('')
+const inviteCode = ref("")
 
 const hasChallenge = computed(() => currentChallenge.value?.joined === true)
 
-const showDialog = (message, nextRoute = null, imageSrc = '', imageAlt = '') => {
+const showDialog = (message, nextRoute = null, imageSrc = "", imageAlt = "") => {
   dialogMessage.value = message
   dialogNextRoute.value = nextRoute
   dialogImageSrc.value = imageSrc
@@ -38,14 +39,14 @@ const closeDialog = async () => {
   const nextRoute = dialogNextRoute.value
   dialogNextRoute.value = null
   dialogVisible.value = false
-  dialogImageSrc.value = ''
-  dialogImageAlt.value = ''
+  dialogImageSrc.value = ""
+  dialogImageAlt.value = ""
   if (nextRoute) await router.push(nextRoute)
 }
 
 const loadCurrentChallenge = async () => {
   isLoading.value = true
-  errorMessage.value = ''
+  errorMessage.value = ""
 
   try {
     currentChallenge.value = await getCurrentChallenge()
@@ -59,7 +60,7 @@ const loadCurrentChallenge = async () => {
 const submitCreate = async () => {
   const name = createForm.name.trim()
   if (!name) {
-    showDialog('챌린지 이름을 입력해 주세요.')
+    showDialog("챌린지 이름을 입력해 주세요.")
     return
   }
 
@@ -68,9 +69,9 @@ const submitCreate = async () => {
     const createdChallenge = await createChallenge({
       name,
     })
-    toastStore.show('챌린지가 만들어졌습니다.', { variant: 'success' })
+    toastStore.show("챌린지가 만들어졌습니다.", { variant: "success" })
     await router.push({
-      name: 'challenge-feed',
+      name: "challenge-feed",
       params: { challengeId: createdChallenge.id },
     })
   } catch (error) {
@@ -83,24 +84,24 @@ const submitCreate = async () => {
 const submitJoin = async () => {
   const code = inviteCode.value.trim()
   if (!code) {
-    showDialog('초대 코드를 입력해 주세요.')
+    showDialog("초대 코드를 입력해 주세요.")
     return
   }
 
   isSubmitting.value = true
   try {
     const joinedChallenge = await joinChallenge(code)
-    showDialog('챌린지에 참여했습니다.', {
-      name: 'challenge-feed',
+    showDialog("챌린지에 참여했습니다.", {
+      name: "challenge-feed",
       params: { challengeId: joinedChallenge.id },
     })
   } catch (error) {
-    const isInvalidInviteCode = error.message === '유효하지 않은 초대 코드입니다.'
+    const isInvalidInviteCode = error.message === "유효하지 않은 초대 코드입니다."
     showDialog(
-      isInvalidInviteCode ? '코드가 맞는지 확인해주세요!' : error.message,
+      isInvalidInviteCode ? "코드가 맞는지 확인해주세요!" : error.message,
       null,
-      isInvalidInviteCode ? '/images/profiles/challenge-missingcode.svg' : '',
-      isInvalidInviteCode ? '초대 코드가 일치하지 않아 당황한 펭귄 이미지' : '',
+      isInvalidInviteCode ? "/images/profiles/challenge-missingcode.svg" : "",
+      isInvalidInviteCode ? "초대 코드가 일치하지 않아 당황한 펭귄 이미지" : "",
     )
   } finally {
     isSubmitting.value = false
@@ -110,7 +111,7 @@ const submitJoin = async () => {
 const copyInviteCode = async () => {
   try {
     await navigator.clipboard.writeText(currentChallenge.value.inviteCode)
-    showDialog('초대 코드가 복사되었습니다.')
+    showDialog("초대 코드가 복사되었습니다.")
   } catch {
     showDialog(`초대 코드: ${currentChallenge.value.inviteCode}`)
   }
@@ -142,17 +143,20 @@ onMounted(loadCurrentChallenge)
     </div>
 
     <div v-else-if="hasChallenge" class="joined-page">
-      <header class="page-heading">
-        <div>
-          <span class="eyebrow">MY SAVING CHALLENGE</span>
-          <h1 id="challenge-page-title">{{ currentChallenge.name }}</h1>
-          <p>함께 절약하고, 매주 달라지는 나의 기록을 확인해 보세요.</p>
-        </div>
-        <span class="status-badge">
-          <span class="status-dot"></span>
-          진행 중
-        </span>
-      </header>
+      <AppPageHeader
+        title-id="challenge-page-title"
+        :title="currentChallenge.name"
+        eyebrow="MY SAVING CHALLENGE"
+        description="함께 절약하고, 매주 달라지는 나의 기록을 확인해 보세요."
+        align="center"
+      >
+        <template #actions>
+          <span class="status-badge">
+            <span class="status-dot"></span>
+            진행 중
+          </span>
+        </template>
+      </AppPageHeader>
 
       <div class="challenge-summary-card">
         <div class="summary-main">
@@ -217,14 +221,18 @@ onMounted(loadCurrentChallenge)
     </div>
 
     <div v-else class="not-joined-page">
-      <header class="entry-hero">
-        <span class="eyebrow">SAVE TOGETHER, GROW TOGETHER</span>
-        <h1 id="challenge-page-title">
+      <AppPageHeader
+        class="entry-hero"
+        title-id="challenge-page-title"
+        title="작은 절약을 모아 큰 목표를 만들어 보세요"
+        eyebrow="SAVE TOGETHER, GROW TOGETHER"
+        description="새로운 챌린지를 만들거나 친구에게 받은 초대 코드로 바로 시작할 수 있어요."
+      >
+        <template #title>
           작은 절약을 모아<br />
-          <span>큰 목표</span>를 만들어 보세요
-        </h1>
-        <p>새로운 챌린지를 만들거나 친구에게 받은 초대 코드로 바로 시작할 수 있어요.</p>
-      </header>
+          <span class="entry-hero-title-accent">큰 목표</span>를 만들어 보세요
+        </template>
+      </AppPageHeader>
 
       <div class="entry-card">
         <div class="form-tabs" role="tablist" aria-label="챌린지 시작 방법">
@@ -384,9 +392,9 @@ onMounted(loadCurrentChallenge)
   font-weight: 700;
 }
 
-.page-heading,
-.entry-hero {
-  margin-bottom: 36px;
+.entry-hero :deep(.app-page-header__description) {
+  max-width: 430px;
+  line-height: 1.75;
 }
 
 .page-heading {
@@ -771,9 +779,13 @@ onMounted(loadCurrentChallenge)
 }
 
 @media (max-width: 767.98px) {
-  .page-heading {
+  .challenge-entry :deep(.app-page-header) {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .challenge-entry :deep(.app-page-header__actions) {
+    align-self: flex-start;
   }
 
   .challenge-summary-card {
@@ -782,7 +794,7 @@ onMounted(loadCurrentChallenge)
   }
 
   .not-joined-page {
-    padding: 8px 0 12px;
+    padding: 0 0 12px;
   }
 
   .challenge-form {

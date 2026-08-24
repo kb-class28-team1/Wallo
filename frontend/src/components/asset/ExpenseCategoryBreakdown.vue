@@ -8,6 +8,7 @@ import {
   normalizeExpenseCategory,
 } from "@/features/financial/financialCategories";
 import { formatWon } from "@/utils/formatters";
+import AppState from "@/components/ui/AppState.vue";
 
 ChartJS.register(ArcElement, Tooltip);
 
@@ -72,6 +73,7 @@ const categories = computed(() => {
 });
 
 const hasTwoCategoryColumns = computed(() => categories.value.length > 6);
+const categoryListRowCount = computed(() => Math.ceil(categories.value.length / 2));
 
 const hoveredCategory = computed(() =>
   hoveredIndex.value === null ? null : categories.value[hoveredIndex.value] ?? null,
@@ -128,18 +130,36 @@ const clearHoveredCategory = async () => {
   chart?.update();
 };
 
-const budgetCategories = computed(() => (props.budgetSummary?.categories ?? []).map((category) => {
-  const categoryCode = normalizeExpenseCategory(category.category);
-  const meta = getExpenseCategoryMeta(categoryCode);
+const hasConfiguredBudget = computed(
+  () => Number(props.budgetSummary?.totalAmount ?? 0) > 0,
+);
 
-  return {
-    ...category,
-    categoryCode,
-    label: categoryCode === "ETC" ? "기타·미배정" : meta.label,
-    color: meta.color,
-    icon: meta.icon,
-  };
-}));
+const budgetEmptyState = computed(() =>
+  props.canEditBudget
+    ? {
+        title: "아직 설정된 예산이 없습니다.",
+        message: "예산을 설정해주세요",
+      }
+    : {
+        title: "이 달에 설정된 예산이 없습니다.",
+        message: "예산은 현재 달부터 설정하고 관리할 수 있습니다.",
+      },
+);
+
+const budgetCategories = computed(() => (props.budgetSummary?.categories ?? [])
+  .filter((category) => Number(category.budgetAmount) > 0)
+  .map((category) => {
+    const categoryCode = normalizeExpenseCategory(category.category);
+    const meta = getExpenseCategoryMeta(categoryCode);
+
+    return {
+      ...category,
+      categoryCode,
+      label: categoryCode === "ETC" ? "기타·미배정" : meta.label,
+      color: meta.color,
+      icon: meta.icon,
+    };
+  }));
 
 const formatUsageRate = (rate, spentAmount = 0) => {
   if (rate === null || rate === undefined) return spentAmount > 0 ? "예산 없음" : "0%";
@@ -159,7 +179,11 @@ const progressWidth = (rate) => {
 <template>
   <article class="card category-card border-0 shadow-sm">
     <div class="card-body category-card-body">
-      <h2 class="h5 fw-bold mb-0">카테고리별 소비 내역</h2>
+      <div class="category-card-heading">
+        <slot name="header">
+          <h2 class="h5 fw-bold mb-0">카테고리별 소비 내역</h2>
+        </slot>
+      </div>
 
       <div
         v-if="categories.length"
@@ -186,6 +210,7 @@ const progressWidth = (rate) => {
           <ul
             class="category-list list-unstyled mb-0"
             :class="{ 'category-list-two-columns': hasTwoCategoryColumns }"
+            :style="{ '--category-list-row-count': categoryListRowCount }"
           >
             <li
               v-for="(category, index) in categories"
@@ -218,15 +243,16 @@ const progressWidth = (rate) => {
         <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
           <div>
             <h3 class="h5 fw-bold mb-1">카테고리별 예산</h3>
-            <p class="text-secondary small mb-0">지출, 잔액, 예산 소진율을 함께 확인하세요.</p>
           </div>
           <button
             v-if="canEditBudget"
             type="button"
-            class="btn btn-outline-primary btn-sm"
+            class="btn app-action-link"
+            data-testid="budget-action"
             @click="emit('edit-budget')"
           >
-            예산 수정
+            {{ hasConfiguredBudget ? "예산 수정" : "예산 설정하기" }}
+            <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
           </button>
         </div>
 
@@ -241,7 +267,7 @@ const progressWidth = (rate) => {
           {{ budgetError }}
         </div>
 
-        <template v-else-if="budgetSummary">
+        <template v-else-if="budgetSummary && hasConfiguredBudget">
           <div
             class="budget-overview rounded-3 p-3 mb-3"
             :class="{ 'budget-overview-over': budgetSummary.overBudget }"
@@ -337,9 +363,16 @@ const progressWidth = (rate) => {
           </ul>
         </template>
 
-        <div v-else class="budget-state text-center py-4">
-          <p class="text-secondary mb-0">카테고리별 예산 정보가 없습니다.</p>
-        </div>
+        <AppState
+          v-else
+          class="budget-state"
+          data-testid="budget-empty-state"
+          type="empty"
+          :title="budgetEmptyState.title"
+          :message="budgetEmptyState.message"
+          compact
+          hide-icon
+        />
       </section>
     </div>
   </article>
@@ -390,15 +423,13 @@ const progressWidth = (rate) => {
 
 .category-list-two-columns {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(var(--category-list-row-count), auto);
+  grid-auto-flow: column;
   column-gap: 16px;
 }
 
 .category-list-two-columns li {
   min-width: 0;
-}
-
-.category-list-two-columns .category-value {
-  gap: 12px;
 }
 
 .category-list li {
@@ -435,17 +466,20 @@ const progressWidth = (rate) => {
 
 .category-list strong {
   color: #343044;
+  text-align: right;
   white-space: nowrap;
 }
 
 .category-value {
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: 48px 100px;
   align-items: center;
-  gap: 28px;
+  flex: 0 0 auto;
+  column-gap: 10px;
 }
 
 .category-rate {
-  min-width: 38px;
+  min-width: 0;
   color: #8a90a2;
   font-size: 0.82rem;
   font-weight: 700;
@@ -475,6 +509,7 @@ const progressWidth = (rate) => {
 
 .budget-category-list {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -528,6 +563,12 @@ const progressWidth = (rate) => {
   }
 
   .category-list-two-columns {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    grid-auto-flow: row;
+  }
+
+  .budget-category-list {
     grid-template-columns: minmax(0, 1fr);
   }
 }

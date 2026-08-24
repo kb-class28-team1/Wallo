@@ -33,6 +33,7 @@ describe("AssetOverviewCard", () => {
 
     expect(wrapper.find(".asset-overview-card").classes()).toContain("app-card")
     expect(wrapper.find('[data-testid="asset-doughnut"]').exists()).toBe(true)
+    expect(wrapper.get(".connection-management-button").classes()).toContain("app-action-link")
     expect(wrapper.get(".connection-management-button").attributes("href")).toBe(
       "/users/profile/connections",
     )

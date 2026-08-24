@@ -33,6 +33,26 @@
         )
     </sql>
 
+    <sql id="categoryFilterCondition">
+        <if test="condition.categories != null and condition.categories.size() > 0">
+            AND (
+            <foreach collection="condition.categories" item="selectedCategory" separator=" OR ">
+                <choose>
+                    <when test="selectedCategory == 'ETC'">
+                        t.category IN ('OTHER', 'ETC')
+                    </when>
+                    <when test="selectedCategory == 'RECEIVE' or selectedCategory == 'SEND'">
+                        (t.type = 'TRANSFER' AND t.category = #{selectedCategory})
+                    </when>
+                    <otherwise>
+                        t.category = #{selectedCategory}
+                    </otherwise>
+                </choose>
+            </foreach>
+            )
+        </if>
+    </sql>
+
     <select id="selectTotalExpense" resultType="java.lang.Long">
         SELECT COALESCE(SUM(t.amount), 0)
         FROM TRANSACTIONS t
@@ -42,6 +62,7 @@
           AND t.category NOT IN ('CARD_WITHDRAWAL', 'SEND', 'INCOME')
           AND t.transaction_date BETWEEN #{condition.startDate} AND #{condition.endDate}
         <include refid="activeTransactionSourceCondition"/>
+        <include refid="categoryFilterCondition"/>
     </select>
 
     <select id="selectTotalIncome" resultType="java.lang.Long">
@@ -53,6 +74,7 @@
           AND t.category NOT IN ('CARD_WITHDRAWAL', 'SEND')
           AND t.transaction_date BETWEEN #{condition.startDate} AND #{condition.endDate}
         <include refid="activeTransactionSourceCondition"/>
+        <include refid="categoryFilterCondition"/>
     </select>
 
     <select id="selectExpenseCategoryBreakdown" resultType="com.wallo.asset.dto.ExpenseDto$CategoryBreakdown">
@@ -66,6 +88,7 @@
           AND t.category NOT IN ('CARD_WITHDRAWAL', 'SEND', 'INCOME')
           AND t.transaction_date BETWEEN #{condition.startDate} AND #{condition.endDate}
         <include refid="activeTransactionSourceCondition"/>
+        <include refid="categoryFilterCondition"/>
         GROUP BY CASE WHEN t.category IN ('OTHER', 'ETC') THEN 'ETC' ELSE t.category END
         ORDER BY amount DESC, category ASC
     </select>
@@ -93,6 +116,7 @@
               OR t.category NOT IN ('CARD_WITHDRAWAL', 'SEND', 'INCOME')
           )
         <include refid="activeTransactionSourceCondition"/>
+        <include refid="categoryFilterCondition"/>
         GROUP BY t.transaction_date
         ORDER BY t.transaction_date ASC
     </select>
@@ -111,20 +135,7 @@
           AND t.transaction_date BETWEEN #{condition.startDate} AND #{condition.endDate}
           AND t.category &lt;&gt; 'CARD_WITHDRAWAL'
         <include refid="activeTransactionSourceCondition"/>
-        <if test="condition.category != null and condition.category != ''">
-            <choose>
-                <when test="condition.category == 'ETC'">
-                    AND t.category IN ('OTHER', 'ETC')
-                </when>
-                <when test="condition.category == 'RECEIVE' or condition.category == 'SEND'">
-                    AND t.type = 'TRANSFER'
-                    AND t.category = #{condition.category}
-                </when>
-                <otherwise>
-                    AND t.category = #{condition.category}
-                </otherwise>
-            </choose>
-        </if>
+        <include refid="categoryFilterCondition"/>
         ORDER BY t.transaction_date DESC, t.transaction_time DESC, t.transaction_id DESC
         LIMIT #{condition.size} OFFSET #{condition.offset}
     </select>
@@ -137,20 +148,7 @@
           AND t.transaction_date BETWEEN #{condition.startDate} AND #{condition.endDate}
           AND t.category &lt;&gt; 'CARD_WITHDRAWAL'
         <include refid="activeTransactionSourceCondition"/>
-        <if test="condition.category != null and condition.category != ''">
-            <choose>
-                <when test="condition.category == 'ETC'">
-                    AND t.category IN ('OTHER', 'ETC')
-                </when>
-                <when test="condition.category == 'RECEIVE' or condition.category == 'SEND'">
-                    AND t.type = 'TRANSFER'
-                    AND t.category = #{condition.category}
-                </when>
-                <otherwise>
-                    AND t.category = #{condition.category}
-                </otherwise>
-            </choose>
-        </if>
+        <include refid="categoryFilterCondition"/>
     </select>
 
     <update id="updateTransactionCategory">

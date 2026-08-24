@@ -36,7 +36,7 @@ describe("assetReportStore annual salary lookup state", () => {
     expect(store.annualSalaryError).toBeNull();
   });
 
-  it("caches the insight response and refreshes it only when forced", async () => {
+  it("refetches the insight on each request", async () => {
     const insight = { score: 82, title: "좋은 흐름이에요" };
     getInsight.mockResolvedValue({ data: insight });
     const store = useReportStore();
@@ -44,7 +44,7 @@ describe("assetReportStore annual salary lookup state", () => {
     await expect(store.fetchInsight({ notifyError: false })).resolves.toEqual(insight);
     await expect(store.fetchInsight({ notifyError: false })).resolves.toEqual(insight);
 
-    expect(getInsight).toHaveBeenCalledOnce();
+    expect(getInsight).toHaveBeenCalledTimes(2);
     expect(store.initialInsightLoading).toBe(false);
 
     const refreshRequest = store.fetchInsight({
@@ -55,7 +55,7 @@ describe("assetReportStore annual salary lookup state", () => {
 
     await refreshRequest;
 
-    expect(getInsight).toHaveBeenCalledTimes(2);
+    expect(getInsight).toHaveBeenCalledTimes(3);
     expect(store.refreshingInsight).toBe(false);
     expect(store.isInsightLoading).toBe(false);
   });

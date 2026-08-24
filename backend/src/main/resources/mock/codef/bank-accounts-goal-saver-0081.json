@@ -1,0 +1,24 @@
+{
+  "result": {
+    "code": "CF-00000",
+    "message": "성공",
+    "extraMessage": ""
+  },
+  "data": {
+    "accounts": [
+      {
+        "resAccountName": "여행 적금",
+        "resAccount": "333333-01-444444",
+        "resAccountDisplay": "333333-**-***444",
+        "resAccountBalance": "1050000",
+        "resAccountEvalAmount": "1050000",
+        "resAccountCurrency": "KRW",
+        "resAccountStatus": "1",
+        "resAccountSubtype": "SAVINGS"
+      }
+    ],
+    "loans": [],
+    "assetSnapshots": [],
+    "transactions": []
+  }
+}

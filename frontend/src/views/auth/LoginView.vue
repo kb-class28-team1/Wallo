@@ -36,7 +36,7 @@ const handleLogin = async () => {
     })
 
     const redirectPath = !authenticatedUser.connectionCompleted
-      ? "/connections/mydata"
+      ? "/onboarding"
       : typeof route.query.redirect === "string" && route.query.redirect.startsWith("/")
         ? route.query.redirect
         : "/dashboard"

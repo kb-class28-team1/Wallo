@@ -382,7 +382,7 @@ watch(newsId, () => {
 .report-detail-view {
   --report-detail-content-offset: calc(38px + var(--wallo-space-4));
   width: 100%;
-  padding: var(--wallo-space-6) var(--wallo-space-4);
+  padding: 0 0 var(--wallo-space-6);
 }
 
 .report-back-link {
@@ -482,8 +482,7 @@ watch(newsId, () => {
 @media (max-width: 576px) {
   .report-detail-view {
     --report-detail-content-offset: 0px;
-    padding-right: var(--wallo-space-3);
-    padding-left: var(--wallo-space-3);
+    padding-bottom: var(--wallo-space-5);
   }
 
   .report-detail-refresh-error :deep(.app-alert__message) {

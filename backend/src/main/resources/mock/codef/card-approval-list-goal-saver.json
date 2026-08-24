@@ -1,0 +1,594 @@
+{
+  "result": {
+    "code": "CF-00000",
+    "message": "성공",
+    "extraMessage": ""
+  },
+  "data": [
+    {
+      "resCardNo": "4555-0000-0000-1222",
+      "resUsedDate": "20260601",
+      "resUsedTime": "193000",
+      "resApprovalNo": "GOAL-SAVER-CARD-202606-0001",
+      "resMemberName": "배달의민족",
+      "resUsedAmount": "24000",
+      "resMemberSector": "요식/음료"
+    },
+    {
+      "resCardNo": "5666-0000-0000-2333",
+      "resUsedDate": "20260602",
+      "resUsedTime": "083000",
+      "resApprovalNo": "GOAL-SAVER-CARD-202606-0002",
+      "resMemberName": "스타벅스",
+      "resUsedAmount": "6000",
+      "resMemberSector": "카페"
+    },
+    {
+      "resCardNo": "5666-0000-0000-2333",
+      "resUsedDate": "20260603",
+      "resUsedTime": "214000",
+      "resApprovalNo": "GOAL-SAVER-CARD-202606-0003",
+      "resMemberName": "편의점",
+      "resUsedAmount": "7500",
+      "resMemberSector": "편의점"
+    },
+    {
+      "resCardNo": "4555-0000-0000-1222",
+      "resUsedDate": "20260604",
+      "resUsedTime": "221000",
+      "resApprovalNo": "GOAL-SAVER-CARD-202606-0004",
+      "resMemberName": "온라인 쇼핑몰",
+      "resUsedAmount": "88000",
+      "resMemberSector": "온라인쇼핑"
+    },
+    {
+      "resCardNo": "4555-0000-0000-1222",
+      "resUsedDate": "20260605",
+      "resUsedTime": "190000",
+      "resApprovalNo": "GOAL-SAVER-CARD-202606-0005",
+      "resMemberName": "동네식당",
+      "resUsedAmount": "38000",
+      "resMemberSector": "요식/음료"
+    },
+    {
+      "resCardNo": "5666-0000-0000-2333",
+      "resUsedDate": "20260606",
+      "resUsedTime": "213000",
+      "resApprovalNo": "GOAL-SAVER-CARD-202606-0006",
+      "resMemberName": "대중교통",
+      "resUsedAmount": "15000",
+      "resMemberSector": "대중교통"
+    },
+    {
+      "resCardNo": "4555-0000-0000-1222",
+      "resUsedDate": "20260607",
+      "resUsedTime": "201000",
+      "resApprovalNo": "GOAL-SAVER-CARD-202606-0007",
+      "resMemberName": "배달의민족",
+      "resUsedAmount": "26000",
+      "resMemberSector": "요식/음료"
+    },
+    {
+      "resCardNo": "5666-0000-0000-2333",
+      "resUsedDate": "20260608",
+      "resUsedTime": "090000",
+      "resApprovalNo": "GOAL-SAVER-CARD-202606-0008",
+      "resMemberName": "이디야커피",
+      "resUsedAmount": "5500",
+      "resMemberSector": "카페"
+    },
+    {
+      "resCardNo": "5666-0000-0000-2333",
+      "resUsedDate": "20260609",
+      "resUsedTime": "181500",
+      "resApprovalNo": "GOAL-SAVER-CARD-202606-0009",
+      "resMemberName": "동네약국",
+      "resUsedAmount": "12000",
+      "resMemberSector": "약국"
+    },
+    {
+      "resCardNo": "5666-0000-0000-2333",
+      "resUsedDate": "20260610",
+      "resUsedTime": "220000",
+      "resApprovalNo": "GOAL-SAVER-CARD-202606-0010",
+      "resMemberName": "편의점",
+      "resUsedAmount": "9800",
+      "resMemberSector": "편의점"
+    },
+    {
+      "resCardNo": "4555-0000-0000-1222",
+      "resUsedDate": "20260611",
+      "resUsedTime": "203000",
+      "resApprovalNo": "GOAL-SAVER-CARD-202606-0011",
+      "resMemberName": "쿠팡이츠",
+      "resUsedAmount": "29000",
+      "resMemberSector": "요식/음료"
+    },
+    {
+      "resCardNo": "4555-0000-0000-1222",
+      "resUsedDate": "20260612",
+      "resUsedTime": "150000",
+      "resApprovalNo": "GOAL-SAVER-CARD-202606-0012",
+      "resMemberName": "무신사",
+      "resUsedAmount": "65000",
+      "resMemberSector": "온라인쇼핑"
+    },
+    {
+      "resCardNo": "5666-0000-0000-2333",
+      "resUsedDate": "20260613",
+      "resUsedTime": "083000",
+      "resApprovalNo": "GOAL-SAVER-CARD-202606-0013",
+      "resMemberName": "스타벅스",
+      "resUsedAmount": "6500",
+      "resMemberSector": "카페"
+    },
+    {
+      "resCardNo": "4555-0000-0000-1222",
+      "resUsedDate": "20260614",
+      "resUsedTime": "193000",
+      "resApprovalNo": "GOAL-SAVER-CARD-202606-0014",
+      "resMemberName": "주말 식당",
+      "resUsedAmount": "45000",
+      "resMemberSector": "요식/음료"
+    },
+    {
+      "resCardNo": "4555-0000-0000-1222",
+      "resUsedDate": "20260615",
+      "resUsedTime": "201500",
+      "resApprovalNo": "GOAL-SAVER-CARD-202606-0015",
+      "resMemberName": "쿠팡이츠",
+      "resUsedAmount": "27000",
+      "resMemberSector": "요식/음료"
+    },
+    {
+      "resCardNo": "4555-0000-0000-1222",
+      "resUsedDate": "20260616",
+      "resUsedTime": "214000",
+      "resApprovalNo": "GOAL-SAVER-CARD-202606-0016",
+      "resMemberName": "넷플릭스",
+      "resUsedAmount": "14900",
+      "resMemberSector": "통신"
+    },
+    {
+      "resCardNo": "4555-0000-0000-1222",
+      "resUsedDate": "20260617",
+      "resUsedTime": "183000",
+      "resApprovalNo": "GOAL-SAVER-CARD-202606-0017",
+      "resMemberName": "올리브영",
+      "resUsedAmount": "43000",
+      "resMemberSector": "잡화/화장품"
+    },
+    {
+      "resCardNo": "5666-0000-0000-2333",
+      "resUsedDate": "20260618",
+      "resUsedTime": "083000",
+      "resApprovalNo": "GOAL-SAVER-CARD-202606-0018",
+      "resMemberName": "카페 모카",
+      "resUsedAmount": "7000",
+      "resMemberSector": "카페"
+    },
+    {
+      "resCardNo": "4555-0000-0000-1222",
+      "resUsedDate": "20260619",
+      "resUsedTime": "193000",
+      "resApprovalNo": "GOAL-SAVER-CARD-202606-0019",
+      "resMemberName": "회사 근처 식당",
+      "resUsedAmount": "56000",
+      "resMemberSector": "요식/음료"
+    },
+    {
+      "resCardNo": "4555-0000-0000-1222",
+      "resUsedDate": "20260620",
+      "resUsedTime": "200000",
+      "resApprovalNo": "GOAL-SAVER-CARD-202606-0020",
+      "resMemberName": "배달의민족",
+      "resUsedAmount": "23000",
+      "resMemberSector": "요식/음료"
+    },
+    {
+      "resCardNo": "4555-0000-0000-1222",
+      "resUsedDate": "20260701",
+      "resUsedTime": "193000",
+      "resApprovalNo": "GOAL-SAVER-CARD-202607-0001",
+      "resMemberName": "배달의민족",
+      "resUsedAmount": "26000",
+      "resMemberSector": "요식/음료"
+    },
+    {
+      "resCardNo": "5666-0000-0000-2333",
+      "resUsedDate": "20260702",
+      "resUsedTime": "083000",
+      "resApprovalNo": "GOAL-SAVER-CARD-202607-0002",
+      "resMemberName": "스타벅스",
+      "resUsedAmount": "6500",
+      "resMemberSector": "카페"
+    },
+    {
+      "resCardNo": "5666-0000-0000-2333",
+      "resUsedDate": "20260703",
+      "resUsedTime": "214000",
+      "resApprovalNo": "GOAL-SAVER-CARD-202607-0003",
+      "resMemberName": "편의점",
+      "resUsedAmount": "8200",
+      "resMemberSector": "편의점"
+    },
+    {
+      "resCardNo": "4555-0000-0000-1222",
+      "resUsedDate": "20260704",
+      "resUsedTime": "221000",
+      "resApprovalNo": "GOAL-SAVER-CARD-202607-0004",
+      "resMemberName": "온라인 쇼핑몰",
+      "resUsedAmount": "115000",
+      "resMemberSector": "온라인쇼핑"
+    },
+    {
+      "resCardNo": "4555-0000-0000-1222",
+      "resUsedDate": "20260705",
+      "resUsedTime": "190000",
+      "resApprovalNo": "GOAL-SAVER-CARD-202607-0005",
+      "resMemberName": "동네식당",
+      "resUsedAmount": "40000",
+      "resMemberSector": "요식/음료"
+    },
+    {
+      "resCardNo": "5666-0000-0000-2333",
+      "resUsedDate": "20260706",
+      "resUsedTime": "213000",
+      "resApprovalNo": "GOAL-SAVER-CARD-202607-0006",
+      "resMemberName": "대중교통",
+      "resUsedAmount": "16000",
+      "resMemberSector": "대중교통"
+    },
+    {
+      "resCardNo": "4555-0000-0000-1222",
+      "resUsedDate": "20260707",
+      "resUsedTime": "201000",
+      "resApprovalNo": "GOAL-SAVER-CARD-202607-0007",
+      "resMemberName": "배달의민족",
+      "resUsedAmount": "25000",
+      "resMemberSector": "요식/음료"
+    },
+    {
+      "resCardNo": "5666-0000-0000-2333",
+      "resUsedDate": "20260708",
+      "resUsedTime": "090000",
+      "resApprovalNo": "GOAL-SAVER-CARD-202607-0008",
+      "resMemberName": "이디야커피",
+      "resUsedAmount": "8500",
+      "resMemberSector": "카페"
+    },
+    {
+      "resCardNo": "5666-0000-0000-2333",
+      "resUsedDate": "20260709",
+      "resUsedTime": "181500",
+      "resApprovalNo": "GOAL-SAVER-CARD-202607-0009",
+      "resMemberName": "동네약국",
+      "resUsedAmount": "16000",
+      "resMemberSector": "약국"
+    },
+    {
+      "resCardNo": "5666-0000-0000-2333",
+      "resUsedDate": "20260710",
+      "resUsedTime": "220000",
+      "resApprovalNo": "GOAL-SAVER-CARD-202607-0010",
+      "resMemberName": "편의점",
+      "resUsedAmount": "11000",
+      "resMemberSector": "편의점"
+    },
+    {
+      "resCardNo": "4555-0000-0000-1222",
+      "resUsedDate": "20260711",
+      "resUsedTime": "203000",
+      "resApprovalNo": "GOAL-SAVER-CARD-202607-0011",
+      "resMemberName": "쿠팡이츠",
+      "resUsedAmount": "30000",
+      "resMemberSector": "요식/음료"
+    },
+    {
+      "resCardNo": "4555-0000-0000-1222",
+      "resUsedDate": "20260712",
+      "resUsedTime": "150000",
+      "resApprovalNo": "GOAL-SAVER-CARD-202607-0012",
+      "resMemberName": "무신사",
+      "resUsedAmount": "72000",
+      "resMemberSector": "온라인쇼핑"
+    },
+    {
+      "resCardNo": "5666-0000-0000-2333",
+      "resUsedDate": "20260713",
+      "resUsedTime": "083000",
+      "resApprovalNo": "GOAL-SAVER-CARD-202607-0013",
+      "resMemberName": "스타벅스",
+      "resUsedAmount": "6000",
+      "resMemberSector": "카페"
+    },
+    {
+      "resCardNo": "4555-0000-0000-1222",
+      "resUsedDate": "20260714",
+      "resUsedTime": "193000",
+      "resApprovalNo": "GOAL-SAVER-CARD-202607-0014",
+      "resMemberName": "주말 식당",
+      "resUsedAmount": "52000",
+      "resMemberSector": "요식/음료"
+    },
+    {
+      "resCardNo": "4555-0000-0000-1222",
+      "resUsedDate": "20260715",
+      "resUsedTime": "201500",
+      "resApprovalNo": "GOAL-SAVER-CARD-202607-0015",
+      "resMemberName": "쿠팡이츠",
+      "resUsedAmount": "28000",
+      "resMemberSector": "요식/음료"
+    },
+    {
+      "resCardNo": "4555-0000-0000-1222",
+      "resUsedDate": "20260716",
+      "resUsedTime": "214000",
+      "resApprovalNo": "GOAL-SAVER-CARD-202607-0016",
+      "resMemberName": "넷플릭스",
+      "resUsedAmount": "14900",
+      "resMemberSector": "통신"
+    },
+    {
+      "resCardNo": "4555-0000-0000-1222",
+      "resUsedDate": "20260717",
+      "resUsedTime": "183000",
+      "resApprovalNo": "GOAL-SAVER-CARD-202607-0017",
+      "resMemberName": "올리브영",
+      "resUsedAmount": "49000",
+      "resMemberSector": "잡화/화장품"
+    },
+    {
+      "resCardNo": "5666-0000-0000-2333",
+      "resUsedDate": "20260718",
+      "resUsedTime": "083000",
+      "resApprovalNo": "GOAL-SAVER-CARD-202607-0018",
+      "resMemberName": "카페 모카",
+      "resUsedAmount": "7500",
+      "resMemberSector": "카페"
+    },
+    {
+      "resCardNo": "4555-0000-0000-1222",
+      "resUsedDate": "20260719",
+      "resUsedTime": "193000",
+      "resApprovalNo": "GOAL-SAVER-CARD-202607-0019",
+      "resMemberName": "회사 근처 식당",
+      "resUsedAmount": "61000",
+      "resMemberSector": "요식/음료"
+    },
+    {
+      "resCardNo": "4555-0000-0000-1222",
+      "resUsedDate": "20260720",
+      "resUsedTime": "200000",
+      "resApprovalNo": "GOAL-SAVER-CARD-202607-0020",
+      "resMemberName": "배달의민족",
+      "resUsedAmount": "27500",
+      "resMemberSector": "요식/음료"
+    },
+    {
+      "resCardNo": "4555-0000-0000-1222",
+      "resUsedDate": "20260801",
+      "resUsedTime": "193000",
+      "resApprovalNo": "GOAL-SAVER-CARD-0001",
+      "resMemberName": "배달의민족",
+      "resUsedAmount": "27000",
+      "resMemberSector": "요식/음료"
+    },
+    {
+      "resCardNo": "5666-0000-0000-2333",
+      "resUsedDate": "20260802",
+      "resUsedTime": "083000",
+      "resApprovalNo": "GOAL-SAVER-CARD-0002",
+      "resMemberName": "스타벅스",
+      "resUsedAmount": "6500",
+      "resMemberSector": "카페"
+    },
+    {
+      "resCardNo": "5666-0000-0000-2333",
+      "resUsedDate": "20260802",
+      "resUsedTime": "214000",
+      "resApprovalNo": "GOAL-SAVER-CARD-0003",
+      "resMemberName": "편의점",
+      "resUsedAmount": "8800",
+      "resMemberSector": "편의점"
+    },
+    {
+      "resCardNo": "4555-0000-0000-1222",
+      "resUsedDate": "20260803",
+      "resUsedTime": "221000",
+      "resApprovalNo": "GOAL-SAVER-CARD-0004",
+      "resMemberName": "온라인 쇼핑몰",
+      "resUsedAmount": "129000",
+      "resMemberSector": "온라인쇼핑"
+    },
+    {
+      "resCardNo": "4555-0000-0000-1222",
+      "resUsedDate": "20260804",
+      "resUsedTime": "190000",
+      "resApprovalNo": "GOAL-SAVER-CARD-0005",
+      "resMemberName": "동네식당",
+      "resUsedAmount": "42000",
+      "resMemberSector": "요식/음료"
+    },
+    {
+      "resCardNo": "5666-0000-0000-2333",
+      "resUsedDate": "20260804",
+      "resUsedTime": "213000",
+      "resApprovalNo": "GOAL-SAVER-CARD-0006",
+      "resMemberName": "대중교통",
+      "resUsedAmount": "15000",
+      "resMemberSector": "대중교통"
+    },
+    {
+      "resCardNo": "4555-0000-0000-1222",
+      "resUsedDate": "20260805",
+      "resUsedTime": "201000",
+      "resApprovalNo": "GOAL-SAVER-CARD-0007",
+      "resMemberName": "쿠팡이츠",
+      "resUsedAmount": "23000",
+      "resMemberSector": "요식/음료"
+    },
+    {
+      "resCardNo": "5666-0000-0000-2333",
+      "resUsedDate": "20260806",
+      "resUsedTime": "090000",
+      "resApprovalNo": "GOAL-SAVER-CARD-0008",
+      "resMemberName": "이디야커피",
+      "resUsedAmount": "8500",
+      "resMemberSector": "카페"
+    },
+    {
+      "resCardNo": "5666-0000-0000-2333",
+      "resUsedDate": "20260806",
+      "resUsedTime": "181500",
+      "resApprovalNo": "GOAL-SAVER-CARD-0009",
+      "resMemberName": "동네약국",
+      "resUsedAmount": "18000",
+      "resMemberSector": "약국"
+    },
+    {
+      "resCardNo": "5666-0000-0000-2333",
+      "resUsedDate": "20260807",
+      "resUsedTime": "220000",
+      "resApprovalNo": "GOAL-SAVER-CARD-0010",
+      "resMemberName": "편의점",
+      "resUsedAmount": "12400",
+      "resMemberSector": "편의점"
+    },
+    {
+      "resCardNo": "4555-0000-0000-1222",
+      "resUsedDate": "20260808",
+      "resUsedTime": "203000",
+      "resApprovalNo": "GOAL-SAVER-CARD-0011",
+      "resMemberName": "배달의민족",
+      "resUsedAmount": "31000",
+      "resMemberSector": "요식/음료"
+    },
+    {
+      "resCardNo": "4555-0000-0000-1222",
+      "resUsedDate": "20260809",
+      "resUsedTime": "150000",
+      "resApprovalNo": "GOAL-SAVER-CARD-0012",
+      "resMemberName": "무신사",
+      "resUsedAmount": "76000",
+      "resMemberSector": "온라인쇼핑"
+    },
+    {
+      "resCardNo": "5666-0000-0000-2333",
+      "resUsedDate": "20260810",
+      "resUsedTime": "083000",
+      "resApprovalNo": "GOAL-SAVER-CARD-0013",
+      "resMemberName": "스타벅스",
+      "resUsedAmount": "6000",
+      "resMemberSector": "카페"
+    },
+    {
+      "resCardNo": "4555-0000-0000-1222",
+      "resUsedDate": "20260810",
+      "resUsedTime": "190000",
+      "resApprovalNo": "GOAL-SAVER-CARD-0014",
+      "resMemberName": "회사 근처 식당",
+      "resUsedAmount": "32000",
+      "resMemberSector": "요식/음료"
+    },
+    {
+      "resCardNo": "4555-0000-0000-1222",
+      "resUsedDate": "20260811",
+      "resUsedTime": "201500",
+      "resApprovalNo": "GOAL-SAVER-CARD-0015",
+      "resMemberName": "쿠팡이츠",
+      "resUsedAmount": "28500",
+      "resMemberSector": "요식/음료"
+    },
+    {
+      "resCardNo": "4555-0000-0000-1222",
+      "resUsedDate": "20260812",
+      "resUsedTime": "214000",
+      "resApprovalNo": "GOAL-SAVER-CARD-0016",
+      "resMemberName": "넷플릭스",
+      "resUsedAmount": "14900",
+      "resMemberSector": "통신"
+    },
+    {
+      "resCardNo": "4555-0000-0000-1222",
+      "resUsedDate": "20260813",
+      "resUsedTime": "183000",
+      "resApprovalNo": "GOAL-SAVER-CARD-0017",
+      "resMemberName": "올리브영",
+      "resUsedAmount": "54000",
+      "resMemberSector": "잡화/화장품"
+    },
+    {
+      "resCardNo": "5666-0000-0000-2333",
+      "resUsedDate": "20260814",
+      "resUsedTime": "083000",
+      "resApprovalNo": "GOAL-SAVER-CARD-0018",
+      "resMemberName": "카페 모카",
+      "resUsedAmount": "7500",
+      "resMemberSector": "카페"
+    },
+    {
+      "resCardNo": "4555-0000-0000-1222",
+      "resUsedDate": "20260815",
+      "resUsedTime": "193000",
+      "resApprovalNo": "GOAL-SAVER-CARD-0019",
+      "resMemberName": "주말 식당",
+      "resUsedAmount": "68000",
+      "resMemberSector": "요식/음료"
+    },
+    {
+      "resCardNo": "4555-0000-0000-1222",
+      "resUsedDate": "20260816",
+      "resUsedTime": "200000",
+      "resApprovalNo": "GOAL-SAVER-CARD-0020",
+      "resMemberName": "배달의민족",
+      "resUsedAmount": "22500",
+      "resMemberSector": "요식/음료"
+    },
+    {
+      "resCardNo": "5666-0000-0000-2333",
+      "resUsedDate": "20260817",
+      "resUsedTime": "183000",
+      "resApprovalNo": "GOAL-SAVER-CARD-0021",
+      "resMemberName": "대중교통",
+      "resUsedAmount": "18000",
+      "resMemberSector": "대중교통"
+    },
+    {
+      "resCardNo": "5666-0000-0000-2333",
+      "resUsedDate": "20260818",
+      "resUsedTime": "083000",
+      "resApprovalNo": "GOAL-SAVER-CARD-0022",
+      "resMemberName": "스타벅스",
+      "resUsedAmount": "12000",
+      "resMemberSector": "카페"
+    },
+    {
+      "resCardNo": "5666-0000-0000-2333",
+      "resUsedDate": "20260818",
+      "resUsedTime": "213000",
+      "resApprovalNo": "GOAL-SAVER-CARD-0023",
+      "resMemberName": "편의점",
+      "resUsedAmount": "9300",
+      "resMemberSector": "편의점"
+    },
+    {
+      "resCardNo": "4555-0000-0000-1222",
+      "resUsedDate": "20260819",
+      "resUsedTime": "201500",
+      "resApprovalNo": "GOAL-SAVER-CARD-0024",
+      "resMemberName": "쿠팡이츠",
+      "resUsedAmount": "29500",
+      "resMemberSector": "요식/음료"
+    },
+    {
+      "resCardNo": "4555-0000-0000-1222",
+      "resUsedDate": "20260820",
+      "resUsedTime": "221000",
+      "resApprovalNo": "GOAL-SAVER-CARD-0025",
+      "resMemberName": "온라인 쇼핑몰",
+      "resUsedAmount": "86000",
+      "resMemberSector": "온라인쇼핑"
+    }
+  ]
+}

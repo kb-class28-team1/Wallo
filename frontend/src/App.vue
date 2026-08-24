@@ -9,6 +9,10 @@ import { useModalEnter } from "@/composables/useModalEnter"
 
 const route = useRoute()
 const usesAppShell = computed(() => Boolean(route.meta.appShell))
+const getRouteViewKey = (viewRoute) =>
+  viewRoute.matched.length > 1
+    ? viewRoute.matched[0]?.path || viewRoute.path
+    : viewRoute.path
 useModalEnter()
 </script>
 
@@ -24,12 +28,20 @@ useModalEnter()
         :class="{ 'page-content--challenge-entry': route.name === 'current-challenge' }"
       >
         <div class="page-view">
-          <RouterView />
+          <RouterView v-slot="{ Component, route: viewRoute }">
+            <Transition name="page" mode="out-in">
+              <component :is="Component" :key="getRouteViewKey(viewRoute)" />
+            </Transition>
+          </RouterView>
         </div>
       </main>
     </div>
   </div>
-  <RouterView v-else />
+  <RouterView v-else v-slot="{ Component, route: viewRoute }">
+    <Transition name="page" mode="out-in">
+      <component :is="Component" :key="getRouteViewKey(viewRoute)" />
+    </Transition>
+  </RouterView>
 </template>
 
 <style scoped>

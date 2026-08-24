@@ -107,9 +107,6 @@ onBeforeUnmount(completeTyping)
       class="message-bubble"
       :class="{ 'message-bubble--analysis': isAnalysisMessage }"
     >
-      <span class="message-label">
-        {{ message.role === "assistant" ? "Wallo AI" : "나" }}
-      </span>
       <ProductRecommendationResult
         v-if="message.role === 'assistant' && message.productRecommendation"
         :recommendation="message.productRecommendation"
@@ -118,6 +115,7 @@ onBeforeUnmount(completeTyping)
       <AssetAnalysisResult
         v-else-if="message.role === 'assistant' && message.assetAnalysis"
         :analysis="message.assetAnalysis"
+        :show-intro="false"
       />
       <AnalysisResult
         v-else-if="message.role === 'assistant' && message.consumptionAnalysis"
@@ -153,21 +151,10 @@ onBeforeUnmount(completeTyping)
   max-width: 92%;
 }
 
-.message-label {
-  display: block;
-  margin-bottom: 4px;
-  color: #7b849b;
-  font-size: 12px;
-}
-
-.message-row--user .message-label {
-  text-align: right;
-}
-
 .message-content {
   margin: 0;
   padding: 12px 14px;
-  background: #f4f3fb;
+  background: var(--wallo-color-surface-soft);
   border-radius: 14px;
   line-height: 1.35;
   white-space: pre-wrap;
@@ -226,7 +213,7 @@ onBeforeUnmount(completeTyping)
 
 .message-content--markdown :deep(code) {
   padding: 0.15em 0.35em;
-  background: #e8e6f3;
+  background: var(--wallo-color-info-bg);
   border-radius: 5px;
   font-size: 0.9em;
 }

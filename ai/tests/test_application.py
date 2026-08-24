@@ -78,7 +78,8 @@ def test_specialized_agents_are_not_registered_directly_in_application():
 
 
 def test_financial_ai_does_not_import_a_database_client():
-    financial_root = Path(__file__).parents[1] / "app" / "agents" / "financial"
+    financial_root = Path(__file__).parents[1] / "app" / "financial_assistant"
+    assert financial_root.is_dir()
     forbidden_modules = {
         "asyncpg",
         "databases",
@@ -198,9 +199,9 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 from unittest.mock import patch
 
-from app.agents.financial.agent import generate_answer
-from app.agents.financial.asset_analysis_cache import clear_asset_analysis_cache
-from app.agents.financial.tools.asset_analysis import (
+from app.financial_assistant.agent import generate_answer
+from app.financial_assistant.asset_analysis_cache import clear_asset_analysis_cache
+from app.financial_assistant.tools.asset_analysis import (
     build_metrics,
     execute as execute_asset_analysis,
 )

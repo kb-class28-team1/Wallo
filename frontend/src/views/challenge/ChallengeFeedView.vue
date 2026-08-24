@@ -9,6 +9,7 @@ import AppDialog from "@/components/common/AppDialog.vue"
 import AuthenticatedImage from "@/components/common/AuthenticatedImage.vue"
 import AppAlert from "@/components/ui/AppAlert.vue"
 import AppButton from "@/components/ui/AppButton.vue"
+import AppPageHeader from "@/components/ui/AppPageHeader.vue"
 import AppState from "@/components/ui/AppState.vue"
 import { leaveChallenge as leaveChallengeRequest } from "@/api/challengeApi"
 import { getTodayMissions, verifyMissionWithFeed } from "@/api/missionApi"
@@ -636,6 +637,7 @@ const requestAnalysis = async () => {
   isAnalyzing.value = true
   analysisProgress.value = 0
   analysisStageMessage.value = "분석 준비 중..."
+  await nextTick()
   startAnalysisProgress()
   try {
     const result = await waitForAnalysis(requestSequence)
@@ -827,21 +829,6 @@ const isFeedShareMessage = (message) =>
 const isFeedMentionMessage = (message) =>
   Boolean(message?.referenceFeedId) && !isFeedShareMessage(message)
 const isMyMessage = (message) => Number(message?.userId) === Number(userStore.user?.id)
-const hasSameMessageSender = (leftMessage, rightMessage) => {
-  if (!leftMessage || !rightMessage) return false
-
-  if (leftMessage.userId != null && rightMessage.userId != null) {
-    return Number(leftMessage.userId) === Number(rightMessage.userId)
-  }
-
-  const leftNickname = String(leftMessage.nickname || "").trim()
-  const rightNickname = String(rightMessage.nickname || "").trim()
-  return Boolean(leftNickname) && leftNickname === rightNickname
-}
-const isSameSenderAsPrevious = (message, index) =>
-  index > 0 && hasSameMessageSender(messages.value[index - 1], message)
-const isSameSenderAsNext = (message, index) =>
-  index < messages.value.length - 1 && hasSameMessageSender(message, messages.value[index + 1])
 const mentionFeedFromCard = async (feed) => {
   mentionedFeed.value = makeMentionedFeed(feed)
   chatInput.value = ""
@@ -952,29 +939,13 @@ onBeforeUnmount(() => {
     />
     <template v-else>
       <header class="feed-header">
-        <div class="feed-header-top">
-          <div class="feed-title-group">
-            <h1 class="feed-challenge-name">{{ challengeName }}</h1>
-            <div v-if="inviteCode" class="feed-header-actions">
-              <div class="feed-invite-panel">
-                <AppButton
-                  variant="outline"
-                  size="sm"
-                  aria-label="초대 코드 복사"
-                  @click="copyInviteCode"
-                >
-                  <template #leading>
-                    <i class="bi bi-copy" aria-hidden="true"></i>
-                  </template>
-                  초대코드 복사
-                </AppButton>
-              </div>
+        <AppPageHeader class="feed-page-header" :title="challengeName">
+          <template #actions>
+            <div class="saving-total">
+              <small>누적 절약 금액</small><strong>{{ formatWon(mySavingTotal) }}</strong>
             </div>
-          </div>
-          <div class="saving-total">
-            <small>누적 절약 금액</small><strong>{{ formatWon(mySavingTotal) }}</strong>
-          </div>
-        </div>
+          </template>
+        </AppPageHeader>
         <div class="feed-header-bottom">
           <nav class="feed-tabs">
             <AppButton
@@ -994,6 +965,21 @@ onBeforeUnmount(() => {
               내 피드
             </AppButton>
           </nav>
+          <div v-if="inviteCode" class="feed-header-actions">
+            <div class="feed-invite-panel">
+              <AppButton
+                variant="outline"
+                size="sm"
+                aria-label="초대 코드 복사"
+                @click="copyInviteCode"
+              >
+                <template #leading>
+                  <i class="bi bi-copy" aria-hidden="true"></i>
+                </template>
+                초대코드 복사
+              </AppButton>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -1127,19 +1113,13 @@ onBeforeUnmount(() => {
             </header>
             <div ref="messagesElement" class="messages">
               <div
-                v-for="(item, index) in messages"
+                v-for="item in messages"
                 :key="item.id"
                 class="message"
-                :class="{
-                  mine: isMyMessage(item),
-                  'same-sender': isSameSenderAsPrevious(item, index),
-                  'same-sender-next': isSameSenderAsNext(item, index),
-                }"
+                :class="{ mine: isMyMessage(item) }"
               >
                 <div v-if="isFeedShareMessage(item)" class="feed-share-message">
-                  <strong v-if="!isSameSenderAsPrevious(item, index)" class="message-author">
-                    {{ item.nickname }}
-                  </strong>
+                  <strong v-if="!isMyMessage(item)" class="message-author">{{ item.nickname }}</strong>
                   <div class="feed-attachment">
                     <small class="feed-attachment-label">피드 #{{ item.referenceFeedId }}</small>
                     <button type="button" class="shared-feed" @click="mentionFeed(item)">
@@ -1162,9 +1142,7 @@ onBeforeUnmount(() => {
                   </div>
                 </div>
                 <template v-else-if="isFeedMentionMessage(item)">
-                  <strong v-if="!isSameSenderAsPrevious(item, index)" class="message-author">
-                    {{ item.nickname }}
-                  </strong>
+                  <strong v-if="!isMyMessage(item)" class="message-author">{{ item.nickname }}</strong>
                   <div class="feed-mention">
                     <div class="feed-attachment">
                       <small class="feed-attachment-label">피드 #{{ item.referenceFeedId }}</small>
@@ -1191,9 +1169,7 @@ onBeforeUnmount(() => {
                 </template>
                 <template v-else>
                   <div class="message-content">
-                    <strong v-if="!isSameSenderAsPrevious(item, index)" class="message-author">
-                      {{ item.nickname }}
-                    </strong>
+                    <strong v-if="!isMyMessage(item)" class="message-author">{{ item.nickname }}</strong>
                     <p v-if="item.content" class="message-bubble">{{ item.content }}</p>
                   </div>
                 </template>
@@ -1232,7 +1208,7 @@ onBeforeUnmount(() => {
       </AppButton>
     </template>
 
-    <div v-if="modalOpen" class="modal-layer" @click.self="closeModal">
+    <div v-if="modalOpen" class="modal-layer">
       <section class="upload-modal" role="dialog" aria-modal="true" aria-labelledby="upload-title">
         <header>
           <h2 id="upload-title">절약 피드 추가</h2>
@@ -1325,6 +1301,31 @@ onBeforeUnmount(() => {
               :disabled="isAnalyzing"
               @click="requestAnalysis"
             >
+              <span v-if="isAnalyzing" class="analysis-wave-scene" aria-hidden="true">
+                <svg
+                  class="analysis-wave-svg"
+                  viewBox="0 0 200 34"
+                  preserveAspectRatio="none"
+                >
+                  <path
+                    class="analysis-wave-track"
+                    d="M0 20C18 8 32 8 50 20S82 32 100 20 132 8 150 20 182 32 200 20V34H0Z"
+                  />
+                  <path
+                    class="analysis-wave-fill"
+                    d="M0 20C18 8 32 8 50 20S82 32 100 20 132 8 150 20 182 32 200 20V34H0Z"
+                  />
+                  <path
+                    class="analysis-wave-foam"
+                    d="M0 20C18 8 32 8 50 20S82 32 100 20 132 8 150 20 182 32 200 20"
+                  />
+                </svg>
+                <img
+                  class="analysis-surfer"
+                  src="/images/illustrations/wallo-surfing.png"
+                  alt=""
+                />
+              </span>
               <span class="analysis-button-label">
                 {{ isAnalyzing ? analysisStageMessage : "✨ AI에게 분석 맡기기" }}
               </span>
@@ -1448,27 +1449,10 @@ onBeforeUnmount(() => {
   width: calc(100% - 352px);
   margin-bottom: 24px;
 }
-.feed-header :deep(.app-page-header__title) {
-  justify-self: start;
-  min-width: 0;
-  max-width: 100%;
-  margin: 8px 0 4px;
-  overflow: hidden;
-  color: inherit;
-  font-size: 2rem;
-  font-weight: 900;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 .feed-header-actions {
   display: flex;
   align-items: center;
   gap: 12px;
-}
-.feed-header :deep(.app-page-header__description) {
-  margin: 8px 0 0;
-  color: #939bad;
-  font-size: 0.67rem;
 }
 .feed-leave-button.app-button {
   display: inline-flex !important;
@@ -1945,15 +1929,6 @@ onBeforeUnmount(() => {
 .message {
   margin-bottom: 14px;
 }
-.message.same-sender-next {
-  margin-bottom: 4px;
-}
-.message.same-sender-next .message-bubble {
-  margin-bottom: 0;
-}
-.message.same-sender .message-bubble {
-  margin-top: 0;
-}
 .feed-share-message {
   display: flex;
   flex-direction: column;
@@ -2272,73 +2247,102 @@ textarea {
   position: relative;
   overflow: hidden;
   isolation: isolate;
-  background: #c986ed;
+  background: linear-gradient(90deg, #4f8fe8, #78aaf0);
   color: #fff;
   opacity: 1;
 }
-.analysis-box button.is-analyzing::before,
-.analysis-box button.is-analyzing::after {
+.analysis-wave-scene {
   position: absolute;
   inset: 0;
-  content: "";
   pointer-events: none;
-  clip-path: inset(0 calc(100% - var(--analysis-progress)) 0 0 round 13px);
+  overflow: hidden;
 }
-.analysis-box button.is-analyzing::before {
-  z-index: 0;
-  background: linear-gradient(90deg, #705ef0, #bd36f5);
-  will-change: clip-path;
-  transition: clip-path 1400ms cubic-bezier(0.22, 0.7, 0.28, 1);
+.analysis-wave-svg {
+  position: absolute;
+  bottom: 0;
+  left: -6%;
+  width: 112%;
+  height: 72%;
+  overflow: visible;
+  animation: analysis-wave-drift 2.2s ease-in-out infinite;
 }
-.analysis-box button.is-analyzing::after {
-  z-index: 0;
-  background: linear-gradient(
-    110deg,
-    transparent 35%,
-    rgba(255, 255, 255, 0.3) 50%,
-    transparent 65%
-  );
-  background-size: 220% 100%;
-  animation: analysis-progress-shimmer 1.8s ease-in-out infinite;
+.analysis-wave-track {
+  fill: #b8dcf8;
+  opacity: 0.95;
+}
+.analysis-wave-fill,
+.analysis-wave-foam {
+  clip-path: inset(0 calc(100% - var(--analysis-progress)) 0 0);
+  transition: clip-path 900ms cubic-bezier(0.22, 0.7, 0.28, 1);
+}
+.analysis-wave-fill {
+  fill: #3e7bd1;
+}
+.analysis-wave-foam {
+  fill: none;
+  stroke: #fff;
+  stroke-linecap: round;
+  stroke-width: 1.8;
+  opacity: 0.9;
+}
+.analysis-surfer {
+  position: absolute;
+  bottom: -16px;
+  left: clamp(28px, var(--analysis-progress), calc(100% - 28px));
+  z-index: 4;
+  width: 62px;
+  height: 62px;
+  object-fit: contain;
+  transform: translateX(-50%);
+  transform-origin: 50% 90%;
+  animation: analysis-surfer-bob 900ms ease-in-out infinite alternate;
 }
 .analysis-button-label {
   position: relative;
-  z-index: 1;
+  z-index: 3;
   color: #fff !important;
   font-size: inherit;
   font-weight: inherit;
   opacity: 1 !important;
-  text-shadow: 0 1px 2px rgba(44, 27, 105, 0.18);
+  text-shadow: 0 1px 2px rgba(28, 64, 120, 0.18);
 }
 .analysis-box button.is-analyzing:disabled {
   color: #fff;
   opacity: 1 !important;
 }
-@keyframes analysis-progress-shimmer {
+@keyframes analysis-wave-drift {
+  0%,
+  100% {
+    transform: translateX(-3%);
+  }
+  50% {
+    transform: translateX(3%);
+  }
+}
+@keyframes analysis-surfer-bob {
   from {
-    background-position: 120% 0;
+    transform: translateX(-50%) rotate(-2deg) translateY(1px);
   }
   to {
-    background-position: -20% 0;
+    transform: translateX(-50%) rotate(2deg) translateY(-2px);
   }
 }
 .analysis-progress-label {
   margin-top: 7px;
-  color: #7565d8;
+  color: #4f80c9;
   font-size: 0.76rem;
   font-weight: 750;
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 @media (prefers-reduced-motion: reduce) {
-  .analysis-box button.is-analyzing {
-    transition: none;
-  }
-  .analysis-box button.is-analyzing::before {
-    transition: none;
-  }
-  .analysis-box button.is-analyzing::after {
+  .analysis-wave-svg,
+  .analysis-surfer {
     animation: none;
+  }
+  .analysis-wave-fill,
+  .analysis-wave-foam {
+    transition: none;
   }
 }
 .result-box {
@@ -2513,9 +2517,6 @@ textarea {
     width: 100%;
     margin-bottom: 20px;
   }
-  .feed-header :deep(.app-page-header__title) {
-    font-size: 1.35rem;
-  }
   .feed-alert-content {
     align-items: flex-start;
     flex-direction: column;
@@ -2557,7 +2558,7 @@ textarea {
 }
 
 .feed-page {
-  padding: 0 22px 22px;
+  padding: 0 0 22px;
   border: 0;
   border-radius: 30px;
   background: #f6f8fb;
@@ -2576,56 +2577,13 @@ textarea {
   display: block;
 }
 
-.feed-header-top,
 .feed-header-bottom {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-}
-
-.feed-header-top {
-  align-items: center;
-}
-
-.feed-title-group {
-  display: flex;
-  min-width: 0;
-  flex: 1;
-  height: 75px;
-  align-items: center;
-  gap: 16px;
-}
-
-.feed-challenge-name {
-  flex: 0 1 auto;
-  min-width: 0;
-  margin: 0;
-  overflow: hidden;
-  color: #1b2d50;
-  font-size: clamp(1.65rem, 2.7vw, 2.25rem);
-  font-weight: 800;
-  letter-spacing: -0.05em;
-  line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-shadow: 0 2px 0 rgb(31 56 95 / 12%);
-}
-
-.feed-header-bottom {
   margin-top: 0;
   margin-bottom: 22px;
-}
-
-.feed-header :deep(.app-page-header__title) {
-  color: #1b2d50;
-  font-size: clamp(1.55rem, 2.5vw, 2.15rem);
-  letter-spacing: -0.05em;
-}
-
-.feed-header :deep(.app-page-header__description) {
-  color: #7b8eae;
-  font-size: 0.82rem;
 }
 
 .feed-layout {
@@ -2687,7 +2645,7 @@ textarea {
 .saving-total {
   display: flex;
   position: relative;
-  top: 22px;
+  top: 0;
   height: auto;
   min-height: 0;
   box-sizing: border-box;
@@ -2898,7 +2856,7 @@ textarea {
 
 @media (max-width: 1200px) {
   .feed-page {
-    padding: 16px;
+    padding: 16px 0;
   }
 
   .feed-header {
@@ -2914,28 +2872,12 @@ textarea {
 
 @media (max-width: 650px) {
   .feed-page {
-    padding: 0 10px 10px;
+    padding: 0 0 10px;
     border-radius: 20px;
   }
 
   .feed-header {
-    padding: 18px;
-    border-radius: 18px;
-  }
-
-  .feed-header-top,
-  .feed-header-bottom {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .feed-title-group {
-    width: 100%;
-    height: auto;
-    min-height: 0;
-    align-items: stretch;
-    flex-direction: column;
-    gap: 10px;
+    border-radius: 0;
   }
 
   .feed-header .saving-total {
@@ -2944,8 +2886,19 @@ textarea {
   }
 
   .feed-header-bottom {
-    margin-top: 14px;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 0;
     margin-bottom: 0;
+  }
+
+  .feed-header-bottom .feed-tabs {
+    flex: 1 1 auto;
+  }
+
+  .feed-header-bottom .feed-header-actions {
+    flex: 0 0 auto;
   }
 }
 </style>
