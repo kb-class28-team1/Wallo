@@ -33,7 +33,7 @@ const shouldShowTerm = computed(() => hasDisplayableTerm(props.term))
         <button
           v-if="closable"
           type="button"
-          class="btn-close flex-shrink-0"
+          class="btn-close flex-shrink-0 pressable"
           aria-label="닫기"
           @click="emit('close')"
         ></button>

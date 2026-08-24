@@ -4,6 +4,15 @@ export const ASSET_CATEGORY_LABELS = Object.freeze({
   investment: "투자",
   real_estate: "부동산",
   other: "기타",
+  deposit: "예금",
+  savings: "적금",
+  stock: "주식",
+  loan: "대출",
+  checking: "입출금",
+  current: "입출금",
+  cma: "CMA",
+  pension: "연금",
+  isa: "ISA",
 })
 
 const numberOrNull = (value) => {
@@ -115,8 +124,11 @@ export const normalizeAssetAnalysis = (analysis) => {
     : null
 }
 
-export const assetCategoryLabel = (category) =>
-  ASSET_CATEGORY_LABELS[category] || category || "기타"
+export const assetCategoryLabel = (category) => {
+  const normalizedCategory = String(category ?? "").trim()
+  const label = ASSET_CATEGORY_LABELS[normalizedCategory.toLowerCase()]
+  return label || normalizedCategory || "기타"
+}
 
 export const formatAssetAmount = (value) => {
   const number = numberOrNull(value)

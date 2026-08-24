@@ -2,8 +2,14 @@ import { fileURLToPath, URL } from "node:url"
 import vue from "@vitejs/plugin-vue"
 import { defineConfig } from "vite"
 
-export default defineConfig({
-  plugins: [vue()],
+export default defineConfig(({ mode }) => ({
+  plugins: [
+    vue({
+      template: {
+        transformAssetUrls: mode === "test" ? false : undefined,
+      },
+    }),
+  ],
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
@@ -22,4 +28,4 @@ export default defineConfig({
     environment: "jsdom",
     globals: false,
   },
-})
+}))

@@ -5,6 +5,7 @@ import { categoryLabel, formatWon } from "@/types/consumptionAnalysis"
 const props = defineProps({
   categories: { type: Array, default: () => [] },
   repeatingCategories: { type: Array, default: () => [] },
+  comparisonLabel: { type: String, default: "이전 기간" },
 })
 
 const sortedCategories = computed(() => [...props.categories].sort((left, right) =>
@@ -13,7 +14,7 @@ const sortedCategories = computed(() => [...props.categories].sort((left, right)
 ))
 
 const rateText = (item) => {
-  if (item.deltaRate === null || item.deltaRate === undefined) return "비교 기간 지출 없음"
+  if (item.deltaRate === null || item.deltaRate === undefined) return `${props.comparisonLabel} 지출 없음`
   const direction = Number(item.deltaRate) >= 0 ? "증가" : "감소"
   return `${Math.abs(Number(item.deltaRate)).toFixed(1)}% ${direction}`
 }
@@ -26,17 +27,22 @@ const isRepeating = (code, repeatingCategories) =>
   <div class="d-flex flex-column">
     <div v-for="item in sortedCategories" :key="item.categoryCode" class="category-row">
       <div>
-        <strong>{{ categoryLabel(item.categoryCode) }}</strong>
+        <strong>
+          {{ categoryLabel(item.categoryCode) }}
+          <i
+            v-if="isRepeating(item.categoryCode, repeatingCategories)"
+            class="bi bi-arrow-repeat ms-1 text-primary"
+            role="img"
+            aria-label="반복 소비"
+            title="반복 소비"
+          ></i>
+        </strong>
         <small class="d-block text-secondary">
-          {{ item.transactionCount }}건 · 이전 {{ formatWon(item.previous) }} · {{ rateText(item) }}
+          {{ item.transactionCount }}건 · {{ comparisonLabel }} {{ formatWon(item.previous) }} · {{ rateText(item) }}
         </small>
       </div>
       <div class="text-end">
         <strong>{{ formatWon(item.current) }}</strong>
-        <span
-          v-if="isRepeating(item.categoryCode, repeatingCategories)"
-          class="badge text-bg-primary-subtle text-primary-emphasis d-block mt-1"
-        >반복 소비</span>
       </div>
     </div>
   </div>

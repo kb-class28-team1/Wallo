@@ -146,6 +146,7 @@ def _compact_product_data(data: dict[str, Any]) -> dict[str, Any]:
             "amountMeaning",
             "joinPreference",
             "missingFields",
+            "conflicts",
             "searchSummary",
         ),
     )

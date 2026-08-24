@@ -4,17 +4,15 @@ import { RouterLink, useRoute, useRouter } from "vue-router"
 import { getCurrentChallenge } from "@/api/challengeApi"
 import AppDialog from "@/components/common/AppDialog.vue"
 import AppButton from "@/components/ui/AppButton.vue"
-import AppCard from "@/components/ui/AppCard.vue"
 import { useUserStore } from "@/stores/userStore"
 
 // public 폴더의 이미지는 루트 절대 경로로 참조함.
-const thinkingPenguin = "/images/profiles/thinking-penguin.svg"
+const sidebarIllustration = "/images/illustrations/wallo-surfing.webp"
 
 const primaryMenus = [
   { icon: "bi bi-house-fill", label: "대시보드", to: "/dashboard" },
   { icon: "bi bi-bar-chart-line", label: "자산관리", to: "/assets" },
   { icon: "bi bi-robot", label: "AI 컨설팅", to: "/ai-consulting" },
-  { icon: "bi bi-stars", label: "AI 분석 결과", to: "/ai-analysis" },
 ]
 
 const utilityMenus = [
@@ -85,6 +83,8 @@ const router = useRouter()
 const userStore = useUserStore()
 // 자산관리 하위 메뉴 열림 여부를 관리함
 const isAssetOpen = ref(false)
+// AI 컨설팅 하위 메뉴 열림 여부를 관리함
+const isAiOpen = ref(false)
 // 챌린지 하위 메뉴 열림 여부를 관리함
 const isChallengeOpen = ref(false)
 const isChallengeChecking = ref(false)
@@ -113,6 +113,18 @@ const monthlyReportClass = computed(() => ({
 }))
 const categoryExpenseClass = computed(() => ({
   "submenu-link-active": route.path === "/assets/categories",
+}))
+const isAiRoute = computed(
+  () => route.path === "/ai-consulting" || route.path === "/ai-analysis",
+)
+const aiGroupClass = computed(() => ({
+  "ai-group-active": isAiRoute.value,
+}))
+const aiCollapseIconClass = computed(() => ({
+  "collapse-icon-open": isAiOpen.value,
+}))
+const aiAnalysisClass = computed(() => ({
+  "submenu-link-active": route.path === "/ai-analysis",
 }))
 const challengeGroupClass = computed(() => ({
   "challenge-group-active": isChallengeRoute.value,
@@ -154,6 +166,23 @@ const openAssetMenu = () => {
 
 const toggleAsset = () => {
   isAssetOpen.value = !isAssetOpen.value
+}
+
+// AI 관련 페이지에서는 새로고침 후에도 하위 메뉴가 펼쳐짐
+watch(
+  isAiRoute,
+  (isActive) => {
+    isAiOpen.value = isActive
+  },
+  { immediate: true },
+)
+
+const openAiMenu = () => {
+  isAiOpen.value = true
+}
+
+const toggleAi = () => {
+  isAiOpen.value = !isAiOpen.value
 }
 
 const toggleChallenge = () => {
@@ -249,7 +278,7 @@ const handleLogout = async () => {
       <div class="menu-group d-flex flex-column">
         <template v-for="menu in primaryMenus" :key="menu.to">
           <RouterLink
-            v-if="menu.to !== '/assets'"
+            v-if="menu.to !== '/assets' && menu.to !== '/ai-consulting'"
             :to="menu.to"
             class="menu-item menu-link d-flex align-items-center"
           >
@@ -259,7 +288,7 @@ const handleLogout = async () => {
             <span>{{ menu.label }}</span>
           </RouterLink>
 
-          <div v-else class="asset-group" :class="assetGroupClass">
+          <div v-else-if="menu.to === '/assets'" class="asset-group" :class="assetGroupClass">
             <div class="asset-heading d-flex align-items-center">
               <RouterLink
                 to="/assets"
@@ -310,6 +339,50 @@ const handleLogout = async () => {
               </div>
             </Transition>
           </div>
+
+          <div v-else class="ai-group" :class="aiGroupClass">
+            <div class="ai-heading d-flex align-items-center">
+              <RouterLink
+                to="/ai-consulting"
+                class="menu-item menu-link ai-title d-flex flex-grow-1 align-items-center"
+                @click="openAiMenu"
+              >
+                <span class="menu-icon" aria-hidden="true">
+                  <i :class="menu.icon"></i>
+                </span>
+                <span>{{ menu.label }}</span>
+              </RouterLink>
+
+              <AppButton
+                class="collapse-toggle ai-collapse-toggle d-flex align-items-center justify-content-end"
+                variant="ghost"
+                size="sm"
+                :aria-expanded="isAiOpen"
+                aria-controls="ai-submenu"
+                aria-label="AI 컨설팅 하위 메뉴 열기 및 닫기"
+                @click="toggleAi"
+              >
+                <i
+                  class="bi bi-chevron-down collapse-icon ms-auto"
+                  :class="aiCollapseIconClass"
+                  aria-hidden="true"
+                ></i>
+              </AppButton>
+            </div>
+
+            <Transition name="submenu">
+              <div v-if="isAiOpen" id="ai-submenu" class="submenu d-flex flex-column">
+                <RouterLink
+                  to="/ai-analysis"
+                  class="submenu-item submenu-link d-flex align-items-center"
+                  :class="aiAnalysisClass"
+                >
+                  <span class="submenu-dot" aria-hidden="true"></span>
+                  AI 분석 결과
+                </RouterLink>
+              </div>
+            </Transition>
+          </div>
         </template>
       </div>
 
@@ -317,7 +390,7 @@ const handleLogout = async () => {
         <div class="challenge-heading d-flex align-items-center">
           <button
             type="button"
-            class="menu-item challenge-title d-flex flex-grow-1 align-items-center"
+        class="menu-item challenge-title d-flex flex-grow-1 align-items-center pressable"
             :disabled="isChallengeChecking"
             @click="moveToChallengeFeed"
           >
@@ -424,14 +497,18 @@ const handleLogout = async () => {
         로그아웃
       </AppButton>
 
-      <AppCard as="div" class="sidebar-card text-center" padding="none">
+      <div class="sidebar-card text-center">
         <div class="sidebar-card-image-frame">
-          <img :src="thinkingPenguin" class="sidebar-card-image" alt="생각하는 왈로 캐릭터" />
+          <img
+            :src="sidebarIllustration"
+            class="sidebar-card-image"
+            alt="Wallo 서핑 일러스트"
+          />
         </div>
         <p class="sidebar-card-text mb-0" :title="dailySavingsTip" aria-live="polite">
           {{ dailySavingsTip }}
         </p>
-      </AppCard>
+      </div>
     </div>
   </aside>
   <AppDialog
@@ -530,6 +607,26 @@ const handleLogout = async () => {
 }
 
 .asset-title:focus-visible {
+  border-radius: 4px;
+  outline: 2px solid #4f8fe8;
+  outline-offset: 4px;
+}
+
+.ai-heading {
+  min-height: 26px;
+}
+
+.ai-title {
+  min-height: 26px;
+}
+
+.ai-title:hover,
+.ai-group-active .ai-title {
+  color: #3e7bd1;
+  font-weight: 700;
+}
+
+.ai-title:focus-visible {
   border-radius: 4px;
   outline: 2px solid #4f8fe8;
   outline-offset: 4px;
@@ -723,9 +820,10 @@ const handleLogout = async () => {
 .sidebar-card {
   width: 100%;
   padding: 14px 12px 12px;
-  border: 1px solid #e4e7f0;
-  border-radius: 10px;
-  background: #ffffff;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .sidebar-card-image-frame {

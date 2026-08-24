@@ -28,6 +28,7 @@ describe("BudgetSummaryCard", () => {
     )
     expect(progress.find(".ice-stage-badge").exists()).toBe(false)
     expect(wrapper.find(".budget-total").text()).toBe("375,000원")
+    expect(wrapper.find(".budget-remaining-label").text()).toBe("남은 예산")
     expect(wrapper.find(".ice-budget-caption").text()).toBe("남은 비율")
     expect(wrapper.find(".budget-remaining-rate").text()).toBe("75%")
     expect(wrapper.find(".ice-budget-status").exists()).toBe(false)

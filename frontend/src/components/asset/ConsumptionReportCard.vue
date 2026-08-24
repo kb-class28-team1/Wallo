@@ -101,7 +101,7 @@ onMounted(() => loadInsight({ force: props.forceRefresh }))
       <div class="consumption-report-header">
         <div class="d-flex align-items-start justify-content-between gap-3">
           <h2 class="h5 fw-bold mb-2">소비 리포트</h2>
-          <RouterLink to="/assets/expenses" class="btn app-action-link">
+          <RouterLink to="/assets/expenses" class="btn app-action-link pressable">
             더보기
             <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
           </RouterLink>

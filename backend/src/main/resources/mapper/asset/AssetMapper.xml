@@ -81,6 +81,7 @@
             CASE
                 WHEN a.account_type = 'STOCK' THEN 'STOCK'
                 WHEN a.account_type = 'LOAN' THEN 'LOAN'
+                WHEN UPPER(TRIM(COALESCE(a.account_subtype, ''))) IN ('DEPOSIT', 'CHECKING') THEN 'DEPOSIT'
                 WHEN a.account_subtype IS NULL THEN 'DEPOSIT'
                 ELSE a.account_subtype
             END AS category,
@@ -101,6 +102,7 @@
             CASE
                 WHEN a.account_type = 'STOCK' THEN 'STOCK'
                 WHEN a.account_type = 'LOAN' THEN 'LOAN'
+                WHEN UPPER(TRIM(COALESCE(a.account_subtype, ''))) IN ('DEPOSIT', 'CHECKING') THEN 'DEPOSIT'
                 WHEN a.account_subtype IS NULL THEN 'DEPOSIT'
                 ELSE a.account_subtype
             END

@@ -70,7 +70,7 @@ describe("SideNavigation", () => {
     wrapper.unmount()
   })
 
-  it("places settings and logout above the sidebar character card", async () => {
+  it("places settings and logout above the sidebar character message", async () => {
     const wrapper = mount(SideNavigation, {
       global: {
         stubs: {
@@ -98,6 +98,22 @@ describe("SideNavigation", () => {
     wrapper.unmount()
   })
 
+  it("shows the Wallo surfing illustration in the sidebar footer", () => {
+    const wrapper = mount(SideNavigation, {
+      global: {
+        stubs: {
+          AppDialog: { template: "<div />" },
+        },
+      },
+    })
+
+    const image = wrapper.find(".sidebar-card-image")
+    expect(image.attributes("src")).toBe("/images/illustrations/wallo-surfing.webp")
+    expect(image.attributes("alt")).toBe("Wallo 서핑 일러스트")
+
+    wrapper.unmount()
+  })
+
   it("keeps challenge navigation open and routes to my feeds", async () => {
     const wrapper = mount(SideNavigation, {
       global: {
@@ -114,7 +130,7 @@ describe("SideNavigation", () => {
     expect(wrapper.findAll(".submenu-item")).toHaveLength(3)
     expect(wrapper.text()).not.toContain("피드 목록")
     expect(wrapper.find(".submenu-link-active").text()).toContain("내 게시물")
-    expect(wrapper.find(".sidebar-card").classes()).toContain("app-card")
+    expect(wrapper.find(".sidebar-card").classes()).not.toContain("app-card")
 
     const myFeedsButton = wrapper
       .findAll(".submenu-item")
@@ -227,6 +243,52 @@ describe("SideNavigation", () => {
 
     expect(wrapper.find(".asset-collapse-toggle").attributes("aria-expanded")).toBe("false")
     expect(wrapper.find("#asset-submenu").exists()).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it("adds a collapsible analysis result menu under AI consulting", async () => {
+    mocks.route.path = "/dashboard"
+    mocks.route.name = "dashboard"
+
+    const wrapper = mount(SideNavigation, {
+      global: {
+        stubs: {
+          AppDialog: { template: "<div />" },
+        },
+      },
+    })
+
+    expect(wrapper.find(".ai-group").exists()).toBe(true)
+    expect(wrapper.find("#ai-submenu").exists()).toBe(false)
+    expect(wrapper.find(".ai-collapse-toggle").attributes("aria-expanded")).toBe("false")
+
+    await wrapper.find(".ai-collapse-toggle").trigger("click")
+
+    expect(wrapper.find("#ai-submenu").exists()).toBe(true)
+    expect(wrapper.find('a[href="/ai-analysis"]').text()).toContain("AI 분석 결과")
+
+    wrapper.unmount()
+  })
+
+  it("keeps the AI submenu open and highlights analysis results on its route", async () => {
+    mocks.route.path = "/ai-analysis"
+    mocks.route.name = "ai-analysis"
+
+    const wrapper = mount(SideNavigation, {
+      global: {
+        stubs: {
+          AppDialog: { template: "<div />" },
+        },
+      },
+    })
+
+    await flushPromises()
+
+    expect(wrapper.find(".ai-group").classes()).toContain("ai-group-active")
+    expect(wrapper.find("#ai-submenu").exists()).toBe(true)
+    expect(wrapper.find('a[href="/ai-analysis"]').classes()).toContain("submenu-link-active")
+    expect(wrapper.find(".ai-collapse-toggle").attributes("aria-expanded")).toBe("true")
 
     wrapper.unmount()
   })

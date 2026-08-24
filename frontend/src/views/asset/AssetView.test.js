@@ -148,7 +148,11 @@ describe("AssetView manual synchronization", () => {
     await nextTick()
 
     expect(wrapper.find('[data-testid="asset-overview-card"]').exists()).toBe(true)
-    expect(wrapper.text()).toContain("자산 정보를 최신 상태로 갱신하고 있습니다.")
+    expect(wrapper.find(".app-page-header__title .asset-refresh-status").exists()).toBe(true)
+    expect(wrapper.find(".app-page-header__title").text()).toContain(
+      "자산 정보를 최신 상태로 갱신하고 있습니다.",
+    )
+    expect(wrapper.find(".asset-overview-section > .asset-refresh-status").exists()).toBe(false)
     expect(wrapper.get(".asset-sync-button").element.disabled).toBe(true)
   })
 

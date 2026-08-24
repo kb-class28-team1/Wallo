@@ -287,7 +287,7 @@ onMounted(loadProfile)
               id="profile-nickname"
               v-model="nicknameInput"
               label="닉네임"
-              help-text="챌린지와 피드에 표시되는 이름입니다. 50자 이하로 입력해 주세요."
+              help-text="챌린지 피드에 표시되는 이름입니다. 50자 이하로 입력해 주세요."
               maxlength="50"
               :disabled="isNicknameSaving"
               autocomplete="nickname"
@@ -400,7 +400,7 @@ onMounted(loadProfile)
   width: 82px;
   height: 82px;
   object-fit: cover;
-  background: var(--wallo-color-info-bg);
+  background: var(--wallo-color-surface);
 }
 
 .profile-readonly-field:disabled {

@@ -87,7 +87,7 @@ const submitAccountSelection = () => {
           <span>{{ error }}</span>
           <button
             type="button"
-            class="btn btn-sm btn-outline-danger text-nowrap"
+            class="btn btn-sm btn-outline-danger text-nowrap pressable"
             @click="emit('retry')"
           >
             다시 시도
@@ -134,7 +134,7 @@ const submitAccountSelection = () => {
 
         <button
           type="button"
-          class="btn btn-primary w-100 mt-3"
+          class="btn btn-primary w-100 mt-3 pressable"
           :disabled="!accountSelectionChanged || saving"
           @click="submitAccountSelection"
         >

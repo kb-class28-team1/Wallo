@@ -658,7 +658,7 @@ onMounted(() => {
       <p>오늘의 미션을 인증하고 포인트를 모아보세요 🪙</p>
       <RouterLink
         to="/point-history"
-        class="point-history-button"
+        class="point-history-button pressable"
         aria-label="포인트 내역 페이지로 이동"
       >
         포인트 내역 보기
@@ -721,7 +721,7 @@ onMounted(() => {
           <div class="draw-machine-preview-housing" aria-hidden="true"></div>
           <button
             type="button"
-            class="draw-machine-preview-lever"
+            class="draw-machine-preview-lever pressable"
             :disabled="isOpeningBox || currentPoint < box.price"
             aria-label="뽑기통 레버를 돌려 랜덤 박스 열기"
             @click="handleOpenBox(box, { inline: true })"
@@ -758,7 +758,7 @@ onMounted(() => {
         >
           <button
             type="button"
-            class="probability-button"
+            class="probability-button pressable"
             :aria-expanded="activeProbabilityBox === box.id"
           >
             ▸ 확률 보기
@@ -803,7 +803,7 @@ onMounted(() => {
         <button
           v-if="item.used"
           type="button"
-          class="remove-button"
+          class="remove-button pressable"
           aria-label="사용한 아이템 삭제"
           @click.stop="removeUsedItem(item.id)"
         >
@@ -964,7 +964,7 @@ onMounted(() => {
           >
             <button
               type="button"
-              class="reward-modal-close"
+              class="reward-modal-close pressable"
               aria-label="결과 창 닫기"
               @click="closeRewardModal"
             >
@@ -986,7 +986,7 @@ onMounted(() => {
               <div class="reward-celebration" :class="`reward-celebration-${rewardModal.kind}`">
                 <button
                   type="button"
-                  class="reward-celebration-close"
+                  class="reward-celebration-close pressable"
                   aria-label="결과 창 닫기"
                   @click="closeRewardModal"
                 >
@@ -1032,7 +1032,7 @@ onMounted(() => {
                   >
                     <button
                       type="button"
-                      class="bulk-draw-close"
+                      class="bulk-draw-close pressable"
                       :aria-label="`${index + 1}번 결과 닫기`"
                       @click="closeRewardModal"
                     >
@@ -1083,7 +1083,7 @@ onMounted(() => {
                   </div>
                 </div>
               </div>
-              <button type="button" class="bulk-result-confirm" @click="closeRewardModal">
+              <button type="button" class="bulk-result-confirm pressable" @click="closeRewardModal">
                 확인
               </button>
             </template>
@@ -1091,7 +1091,7 @@ onMounted(() => {
           <button
             v-if="rewardModal.kind !== 'bulk'"
             type="button"
-            class="reward-modal-confirm reward-modal-confirm-outside"
+            class="reward-modal-confirm reward-modal-confirm-outside pressable"
             @click="closeRewardModal"
           >
             확인
@@ -1188,7 +1188,8 @@ onMounted(() => {
   transform: translateY(-50%);
   transition:
     background-color 0.2s ease,
-    color 0.2s ease;
+    color 0.2s ease,
+    transform 0.2s ease;
 }
 
 .point-history-button:hover,
@@ -1196,6 +1197,10 @@ onMounted(() => {
   color: #fff;
   border-color: #5b94e7;
   background: #5b94e7;
+}
+
+.point-history-button:active {
+  transform: translateY(-50%) scale(0.98);
 }
 
 .section-title {
@@ -1386,6 +1391,10 @@ onMounted(() => {
   filter: brightness(1.08);
   outline: 3px solid rgb(79 143 232 / 24%);
   outline-offset: 3px;
+}
+
+.draw-machine-preview-lever:active:not(:disabled) {
+  transform: translateX(50%) scale(0.98);
 }
 
 .draw-machine-preview-lever-arm {
