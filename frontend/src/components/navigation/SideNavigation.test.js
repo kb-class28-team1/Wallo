@@ -247,6 +247,52 @@ describe("SideNavigation", () => {
     wrapper.unmount()
   })
 
+  it("adds a collapsible analysis result menu under AI consulting", async () => {
+    mocks.route.path = "/dashboard"
+    mocks.route.name = "dashboard"
+
+    const wrapper = mount(SideNavigation, {
+      global: {
+        stubs: {
+          AppDialog: { template: "<div />" },
+        },
+      },
+    })
+
+    expect(wrapper.find(".ai-group").exists()).toBe(true)
+    expect(wrapper.find("#ai-submenu").exists()).toBe(false)
+    expect(wrapper.find(".ai-collapse-toggle").attributes("aria-expanded")).toBe("false")
+
+    await wrapper.find(".ai-collapse-toggle").trigger("click")
+
+    expect(wrapper.find("#ai-submenu").exists()).toBe(true)
+    expect(wrapper.find('a[href="/ai-analysis"]').text()).toContain("AI 분석 결과")
+
+    wrapper.unmount()
+  })
+
+  it("keeps the AI submenu open and highlights analysis results on its route", async () => {
+    mocks.route.path = "/ai-analysis"
+    mocks.route.name = "ai-analysis"
+
+    const wrapper = mount(SideNavigation, {
+      global: {
+        stubs: {
+          AppDialog: { template: "<div />" },
+        },
+      },
+    })
+
+    await flushPromises()
+
+    expect(wrapper.find(".ai-group").classes()).toContain("ai-group-active")
+    expect(wrapper.find("#ai-submenu").exists()).toBe(true)
+    expect(wrapper.find('a[href="/ai-analysis"]').classes()).toContain("submenu-link-active")
+    expect(wrapper.find(".ai-collapse-toggle").attributes("aria-expanded")).toBe("true")
+
+    wrapper.unmount()
+  })
+
   it("opens on challenge navigation and closes when leaving challenge pages", async () => {
     mocks.route.path = "/challenges/current"
     mocks.route.name = "current-challenge"
