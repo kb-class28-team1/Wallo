@@ -569,6 +569,8 @@ const startGuidedChat = async (message) => {
 
 const analyzeCurrentConversationSpending = () => startGuidedChat("내 소비를 분석해줘")
 const startAssetAnalysis = () => startGuidedChat("내 자산을 분석해줘")
+const startCurrentProductRecommendation = () =>
+  startGuidedChat("내 상황에 맞는 금융상품을 추천해줘")
 
 watch(
   () => route.query.action,
@@ -682,7 +684,11 @@ onMounted(async () => {
                 <i class="bi bi-wallet2" aria-hidden="true"></i>
                 자산분석
               </button>
-              <button type="button" class="chat-quick-action pressable" @click="startProductRecommendation">
+              <button
+                type="button"
+                class="chat-quick-action pressable"
+                @click="startCurrentProductRecommendation"
+              >
                 <i class="bi bi-stars" aria-hidden="true"></i>
                 상품추천
               </button>

@@ -454,6 +454,40 @@ describe("ChatView", () => {
     wrapper.unmount()
   })
 
+  it("runs product recommendation in the current conversation without creating another one", async () => {
+    getConversationMessages.mockResolvedValue([])
+    getGoalByConversationId.mockResolvedValue({ data: null })
+    sendConversationMessage.mockResolvedValue({
+      userMessage: {
+        messageId: 2,
+        role: "USER",
+        content: "내 상황에 맞는 금융상품을 추천해줘",
+      },
+      assistantMessage: {
+        messageId: 3,
+        role: "ASSISTANT",
+        content: "상품 추천 결과입니다.",
+      },
+      goalInterview: null,
+      productRecommendation: { marker: "상품 추천 결과" },
+    })
+
+    const wrapper = mountChat()
+    await flushPromises()
+
+    await wrapper.findAll(".chat-quick-action")[2].trigger("click")
+    await flushPromises()
+
+    expect(sendConversationMessage).toHaveBeenCalledWith(
+      11,
+      7,
+      "내 상황에 맞는 금융상품을 추천해줘",
+      null,
+    )
+    expect(createConversation).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
   it("starts asset analysis in a new conversation from the analysis action", async () => {
     route.query = { action: "asset-analysis" }
     createConversation.mockResolvedValue({
