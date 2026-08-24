@@ -326,7 +326,7 @@ onMounted(loadDashboard)
           </div>
         </dl>
 
-        <RouterLink :to="{ name: 'user-profile' }" class="btn profile-edit-button">
+        <RouterLink :to="{ name: 'user-profile' }" class="btn profile-edit-button pressable">
           프로필 편집
         </RouterLink>
       </AppCard>
@@ -381,7 +381,7 @@ onMounted(loadDashboard)
       <AppCard as="article" class="dashboard-card liked-feed-card" padding="none">
         <div class="card-heading">
           <h2>좋아요 받은 게시물 TOP 3</h2>
-          <RouterLink to="/my-feeds" class="view-all-link">
+          <RouterLink to="/my-feeds" class="view-all-link pressable">
             전체보기
             <i class="bi bi-arrow-right" aria-hidden="true"></i>
           </RouterLink>

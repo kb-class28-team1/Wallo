@@ -79,16 +79,10 @@ const feasibilityClass = computed(() => {
     aria-labelledby="goal-interview-title"
   >
     <div class="goal-interview-body">
-      <div class="d-flex align-items-start gap-3">
-        <div class="goal-icon flex-shrink-0" aria-hidden="true">
-          <i class="bi bi-bullseye"></i>
-        </div>
-        <div class="flex-grow-1">
-          <p class="mb-1 small fw-semibold text-primary">AI 목표 설정</p>
-          <h2 id="goal-interview-title" class="h6 mb-0 fw-bold">
-            {{ draft.title || "새 금융 목표" }}
-          </h2>
-        </div>
+      <div>
+        <h2 id="goal-interview-title" class="h6 mb-0 fw-bold">
+          {{ draft.title || "새 금융 목표" }}
+        </h2>
       </div>
 
       <AppAlert v-if="isCancelled" class="goal-cancelled-message" variant="neutral" role="status">
@@ -169,17 +163,6 @@ const feasibilityClass = computed(() => {
 
 .goal-cancelled-message {
   margin-top: var(--wallo-space-3);
-}
-
-.goal-icon {
-  display: grid;
-  width: 38px;
-  height: 38px;
-  color: var(--wallo-color-primary);
-  background: rgb(79 143 232 / 10%);
-  border-radius: var(--wallo-radius-md);
-  place-items: center;
-  font-size: 1.1rem;
 }
 
 .goal-details dt {

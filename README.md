@@ -202,8 +202,9 @@ Wallo/
 │   └── tests/                # AI 서버 pytest 테스트
 │
 └── database/                 # 스키마·시드 SQL
-    ├── sql/
-    └── seed/
+    ├── README.md
+    ├── dbInit.sql
+    └── financial_term_data.sql
 ```
 
 <br/>
@@ -286,8 +287,8 @@ Wallo/
 ### 1. 데이터베이스 준비
 
 ```bash
-mysql -u root -p < database/dbinit.sql
-mysql -u root -p wallo < ai/data/processed/financial_term_insert.sql
+mysql -u root -p < database/dbInit.sql
+mysql -u root -p wallo < database/financial_term_data.sql
 ```
 
 `backend/src/main/resources/application-local.properties`를 생성해 로컬 DB 비밀번호 등을 설정합니다(커밋 대상 아님).

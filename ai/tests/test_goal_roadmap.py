@@ -5,6 +5,7 @@ import pytest
 
 from app.goals.roadmap.generator import (
     ROADMAP_MAX_COMPLETION_TOKENS,
+    SYSTEM_PROMPT,
     generate_goal_roadmap,
     normalize_roadmap_text,
 )
@@ -61,6 +62,13 @@ def test_generates_and_validates_structured_roadmap():
     assert roadmap.steps[0].monthly_contribution == 500_000
     assert completions.kwargs["max_completion_tokens"] == ROADMAP_MAX_COMPLETION_TOKENS
     assert '"motivation"' not in completions.kwargs["messages"][1]["content"]
+
+
+def test_prompt_requires_numeric_roadmap_amount_fields():
+    assert "targetAmount와 monthlyContribution은 반드시 원 단위 정수인 JSON 숫자" in SYSTEM_PROMPT
+    assert "targetAmount에 3000000으로 작성" in SYSTEM_PROMPT
+    assert '"3000000"' in SYSTEM_PROMPT
+    assert "문자열로 작성하면 안 됩니다." in SYSTEM_PROMPT
 
 
 def test_rejects_roadmap_whose_last_step_does_not_match_goal():

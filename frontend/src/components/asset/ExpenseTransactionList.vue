@@ -104,7 +104,7 @@ const typeLabel = (transaction) => {
         <button
           v-if="props.editable && transaction.transactionId"
           type="button"
-          class="transaction-icon transaction-icon-button"
+          class="transaction-icon transaction-icon-button pressable"
           :class="getExpenseCategoryMeta(transaction.category).colorClass"
           data-testid="transaction-category-button"
           aria-label="카테고리 수정"
@@ -147,7 +147,7 @@ const typeLabel = (transaction) => {
     <div v-if="hasNext" class="text-center mt-4">
       <button
         type="button"
-        class="btn load-more-button"
+        class="btn load-more-button pressable"
         :disabled="isLoadingMore"
         @click="$emit('load-more')"
       >
@@ -196,6 +196,10 @@ const typeLabel = (transaction) => {
 .transaction-icon-button:focus-visible {
   transform: translateY(-1px);
   box-shadow: 0 0 0 3px rgba(129, 112, 255, 0.16);
+}
+
+.transaction-icon-button:active:not(:disabled) {
+  transform: translateY(-1px) scale(0.98);
 }
 
 .transaction-icon-button:focus-visible {

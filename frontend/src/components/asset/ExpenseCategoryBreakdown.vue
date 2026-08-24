@@ -1,16 +1,16 @@
 <script setup>
-import { computed, nextTick, ref } from "vue";
-import { Doughnut } from "vue-chartjs";
-import { ArcElement, Chart as ChartJS, Tooltip } from "chart.js";
+import { computed, nextTick, ref } from "vue"
+import { Doughnut } from "vue-chartjs"
+import { ArcElement, Chart as ChartJS, Tooltip } from "chart.js"
 import {
   EXPENSE_CATEGORY_META,
   getExpenseCategoryMeta,
   normalizeExpenseCategory,
-} from "@/features/financial/financialCategories";
-import { formatWon } from "@/utils/formatters";
-import AppState from "@/components/ui/AppState.vue";
+} from "@/features/financial/financialCategories"
+import { formatWon } from "@/utils/formatters"
+import AppState from "@/components/ui/AppState.vue"
 
-ChartJS.register(ArcElement, Tooltip);
+ChartJS.register(ArcElement, Tooltip)
 
 const props = defineProps({
   breakdown: {
@@ -37,47 +37,47 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
-});
+})
 
-const emit = defineEmits(["edit-budget"]);
+const emit = defineEmits(["edit-budget"])
 
-const chartRef = ref(null);
-const hoveredIndex = ref(null);
+const chartRef = ref(null)
+const hoveredIndex = ref(null)
 
 const categories = computed(() => {
-  const amountByCategory = new Map();
+  const amountByCategory = new Map()
 
   for (const item of props.breakdown ?? []) {
-    const category = normalizeExpenseCategory(item.category);
+    const category = normalizeExpenseCategory(item.category)
     amountByCategory.set(
       category,
       (amountByCategory.get(category) ?? 0) + (Number(item.amount) || 0),
-    );
+    )
   }
 
   const normalizedCategories = [...amountByCategory.entries()]
     .map(([category, amount]) => {
-      const meta = getExpenseCategoryMeta(category);
+      const meta = getExpenseCategoryMeta(category)
       return {
         category,
         label: meta.label,
         amount,
         color: meta.color,
         icon: meta.icon,
-      };
+      }
     })
     .filter((item) => item.amount > 0)
-    .sort((first, second) => second.amount - first.amount);
+    .sort((first, second) => second.amount - first.amount)
 
-  return normalizedCategories;
-});
+  return normalizedCategories
+})
 
-const hasTwoCategoryColumns = computed(() => categories.value.length > 6);
-const categoryListRowCount = computed(() => Math.ceil(categories.value.length / 2));
+const hasTwoCategoryColumns = computed(() => categories.value.length > 6)
+const categoryListRowCount = computed(() => Math.ceil(categories.value.length / 2))
 
 const hoveredCategory = computed(() =>
-  hoveredIndex.value === null ? null : categories.value[hoveredIndex.value] ?? null,
-);
+  hoveredIndex.value === null ? null : (categories.value[hoveredIndex.value] ?? null),
+)
 
 const chartData = computed(() => ({
   labels: categories.value.map((item) => item.label),
@@ -94,45 +94,68 @@ const chartData = computed(() => ({
       hoverOffset: 6,
     },
   ],
-}));
+}))
 
 const chartOptions = {
   responsive: true,
   maintainAspectRatio: false,
   cutout: "70%",
   onHover: (_event, activeElements) => {
-    hoveredIndex.value = activeElements[0]?.index ?? null;
+    hoveredIndex.value = activeElements[0]?.index ?? null
   },
   plugins: {
     legend: { display: false },
     tooltip: { enabled: false },
   },
-};
+}
 
 const categoryRate = (amount) => {
-  const totalExpense = Number(props.totalExpense) || 0;
-  return totalExpense > 0 ? Math.round(((Number(amount) || 0) / totalExpense) * 100) : 0;
-};
+  const totalExpense = Number(props.totalExpense) || 0
+  return totalExpense > 0 ? Math.round(((Number(amount) || 0) / totalExpense) * 100) : 0
+}
 
 const setHoveredCategory = async (index) => {
-  hoveredIndex.value = index;
-  await nextTick();
-  const chart = chartRef.value?.chart;
-  chart?.setActiveElements([{ datasetIndex: 0, index }]);
-  chart?.update();
-};
+  hoveredIndex.value = index
+  await nextTick()
+  const chart = chartRef.value?.chart
+  chart?.setActiveElements([{ datasetIndex: 0, index }])
+  chart?.update()
+}
 
 const clearHoveredCategory = async () => {
-  hoveredIndex.value = null;
-  await nextTick();
-  const chart = chartRef.value?.chart;
-  chart?.setActiveElements([]);
-  chart?.update();
-};
+  hoveredIndex.value = null
+  await nextTick()
+  const chart = chartRef.value?.chart
+  chart?.setActiveElements([])
+  chart?.update()
+}
 
-const hasConfiguredBudget = computed(
-  () => Number(props.budgetSummary?.totalAmount ?? 0) > 0,
-);
+const hasConfiguredBudget = computed(() => Number(props.budgetSummary?.totalAmount ?? 0) > 0)
+
+const positiveAmount = (value) => {
+  const amount = Number(value)
+  return Number.isFinite(amount) ? Math.max(amount, 0) : 0
+}
+
+const unclassifiedCategory = computed(
+  () =>
+    (props.budgetSummary?.categories ?? []).find(
+      (category) => normalizeExpenseCategory(category.category) === "ETC",
+    ) ?? null,
+)
+
+const unallocatedBudgetAmount = computed(() => {
+  const summaryAmount = props.budgetSummary?.unallocatedAmount
+  return positiveAmount(
+    summaryAmount === null || summaryAmount === undefined
+      ? unclassifiedCategory.value?.budgetAmount
+      : summaryAmount,
+  )
+})
+
+const unclassifiedExpenseAmount = computed(() =>
+  positiveAmount(unclassifiedCategory.value?.spentAmount),
+)
 
 const budgetEmptyState = computed(() =>
   props.canEditBudget
@@ -144,36 +167,39 @@ const budgetEmptyState = computed(() =>
         title: "이 달에 설정된 예산이 없습니다.",
         message: "예산은 현재 달부터 설정하고 관리할 수 있습니다.",
       },
-);
+)
 
-const budgetCategories = computed(() => (props.budgetSummary?.categories ?? [])
-  .filter((category) => Number(category.budgetAmount) > 0)
-  .map((category) => {
-    const categoryCode = normalizeExpenseCategory(category.category);
-    const meta = getExpenseCategoryMeta(categoryCode);
+const budgetCategories = computed(() =>
+  (props.budgetSummary?.categories ?? [])
+    .map((category) => {
+      const categoryCode = normalizeExpenseCategory(category.category)
+      const meta = getExpenseCategoryMeta(categoryCode)
 
-    return {
-      ...category,
-      categoryCode,
-      label: categoryCode === "ETC" ? "기타·미배정" : meta.label,
-      color: meta.color,
-      icon: meta.icon,
-    };
-  }));
+      return {
+        ...category,
+        categoryCode,
+        label: meta.label,
+        color: meta.color,
+        icon: meta.icon,
+      }
+    })
+    .filter((category) => category.categoryCode !== "ETC")
+    .filter((category) => Number(category.budgetAmount) > 0),
+)
 
 const formatUsageRate = (rate, spentAmount = 0) => {
-  if (rate === null || rate === undefined) return spentAmount > 0 ? "예산 없음" : "0%";
+  if (rate === null || rate === undefined) return spentAmount > 0 ? "예산 없음" : "0%"
 
-  const numericRate = Number(rate);
-  if (!Number.isFinite(numericRate)) return "-";
-  return `${Number.isInteger(numericRate) ? numericRate : numericRate.toFixed(2)}%`;
-};
+  const numericRate = Number(rate)
+  if (!Number.isFinite(numericRate)) return "-"
+  return `${Number.isInteger(numericRate) ? numericRate : numericRate.toFixed(2)}%`
+}
 
 const progressWidth = (rate) => {
-  const numericRate = Number(rate);
-  if (!Number.isFinite(numericRate)) return 0;
-  return Math.min(100, Math.max(0, numericRate));
-};
+  const numericRate = Number(rate)
+  if (!Number.isFinite(numericRate)) return 0
+  return Math.min(100, Math.max(0, numericRate))
+}
 </script>
 
 <template>
@@ -220,7 +246,10 @@ const progressWidth = (rate) => {
               @mouseleave="clearHoveredCategory"
             >
               <span class="category-label">
-                <span class="category-icon" :style="{ color: category.color, backgroundColor: `${category.color}18` }">
+                <span
+                  class="category-icon"
+                  :style="{ color: category.color, backgroundColor: `${category.color}18` }"
+                >
                   <i :class="['bi', category.icon]" aria-hidden="true"></i>
                 </span>
                 {{ category.label }}
@@ -247,7 +276,7 @@ const progressWidth = (rate) => {
           <button
             v-if="canEditBudget"
             type="button"
-            class="btn app-action-link"
+          class="btn app-action-link pressable"
             data-testid="budget-action"
             @click="emit('edit-budget')"
           >
@@ -311,9 +340,23 @@ const progressWidth = (rate) => {
               <span>지출 {{ formatWon(budgetSummary.spentAmount) }}</span>
               <span>예산 {{ formatWon(budgetSummary.totalAmount) }}</span>
             </div>
+            <div
+              v-if="unallocatedBudgetAmount > 0"
+              class="d-flex justify-content-between gap-3 mt-2 text-secondary small"
+            >
+              <span>미배분 예산</span>
+              <strong>{{ formatWon(unallocatedBudgetAmount) }}</strong>
+            </div>
+            <div
+              v-if="unclassifiedExpenseAmount > 0"
+              class="d-flex justify-content-between gap-3 mt-2 text-secondary small"
+            >
+              <span>기타 지출</span>
+              <strong>{{ formatWon(unclassifiedExpenseAmount) }}</strong>
+            </div>
           </div>
 
-          <ul class="budget-category-list list-unstyled mb-0">
+          <ul v-if="budgetCategories.length" class="budget-category-list list-unstyled mb-0">
             <li
               v-for="category in budgetCategories"
               :key="category.categoryCode"
@@ -340,7 +383,10 @@ const progressWidth = (rate) => {
                   >
                     {{ category.overBudget ? "초과" : "정상" }}
                   </span>
-                  <span class="budget-category-status" :class="{ 'text-danger': category.overBudget }">
+                  <span
+                    class="budget-category-status"
+                    :class="{ 'text-danger': category.overBudget }"
+                  >
                     {{ formatUsageRate(category.usageRate, category.spentAmount) }}
                   </span>
                 </span>
@@ -361,6 +407,9 @@ const progressWidth = (rate) => {
               </div>
             </li>
           </ul>
+          <div v-else class="budget-category-empty text-center text-secondary small">
+            카테고리별로 배분된 예산이 없습니다.
+          </div>
         </template>
 
         <AppState
@@ -439,7 +488,9 @@ const progressWidth = (rate) => {
   gap: 16px;
   padding: 10px 12px;
   border-radius: 12px;
-  transition: background-color 0.2s ease, transform 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    transform 0.2s ease;
 }
 
 .category-list li.active {
@@ -500,11 +551,17 @@ const progressWidth = (rate) => {
 
 .budget-overview {
   color: #555b6e;
-  background: #f7f6fc;
+  background: #f6faff;
 }
 
 .budget-overview-over {
   background: #fff1f1;
+}
+
+.budget-category-empty {
+  padding: 14px 12px;
+  border: 1px dashed #dfe2eb;
+  border-radius: 12px;
 }
 
 .budget-category-list {

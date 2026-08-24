@@ -16,8 +16,11 @@ SYSTEM_PROMPT = """
 targetDate와 targetAmount와 정확히 같아야 합니다. 입력에 없는 수익률은 가정하지 마세요.
 각 단계에는 stepNumber, description, targetDate, targetAmount, actionItems를 반드시 작성하세요.
 title과 monthlyContribution도 가능한 한 작성하고, 모든 설명과 actionItems는 한국어로 작성하세요.
-금액을 제목·설명·행동 항목에 쓸 때 M, K 같은 영문 약어를 사용하지 말고
-`3M`은 `3백만원`, `1M`은 `1백만원`처럼 한국어 단위로 작성하세요.
+targetAmount와 monthlyContribution은 반드시 원 단위 정수인 JSON 숫자로 작성하세요.
+예를 들어 3백만원은 targetAmount에 3000000으로 작성해야 하며,
+`3백만원`이나 `"3000000"` 같은 문자열로 작성하면 안 됩니다.
+금액을 title·description·actionItems·summary·strategy 같은 텍스트 필드에 쓸 때는
+M, K 같은 영문 약어를 사용하지 말고 `3M`은 `3백만원`, `1M`은 `1백만원`처럼 작성하세요.
 각 단계의 제목·목적·행동은 서로 달라야 하며 동일한 문구를 반복하지 마세요.
 
 goalType이 EMERGENCY_FUND이면 다음 행동을 단계별로 자연스럽게 배치하세요.

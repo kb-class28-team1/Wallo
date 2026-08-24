@@ -4,11 +4,10 @@ import { RouterLink, useRoute, useRouter } from "vue-router"
 import { getCurrentChallenge } from "@/api/challengeApi"
 import AppDialog from "@/components/common/AppDialog.vue"
 import AppButton from "@/components/ui/AppButton.vue"
-import AppCard from "@/components/ui/AppCard.vue"
 import { useUserStore } from "@/stores/userStore"
 
 // public 폴더의 이미지는 루트 절대 경로로 참조함.
-const thinkingPenguin = "/images/profiles/thinking-penguin.svg"
+const sidebarIllustration = "/images/illustrations/wallo-surfing.webp"
 
 const primaryMenus = [
   { icon: "bi bi-house-fill", label: "대시보드", to: "/dashboard" },
@@ -317,7 +316,7 @@ const handleLogout = async () => {
         <div class="challenge-heading d-flex align-items-center">
           <button
             type="button"
-            class="menu-item challenge-title d-flex flex-grow-1 align-items-center"
+        class="menu-item challenge-title d-flex flex-grow-1 align-items-center pressable"
             :disabled="isChallengeChecking"
             @click="moveToChallengeFeed"
           >
@@ -424,14 +423,18 @@ const handleLogout = async () => {
         로그아웃
       </AppButton>
 
-      <AppCard as="div" class="sidebar-card text-center" padding="none">
+      <div class="sidebar-card text-center">
         <div class="sidebar-card-image-frame">
-          <img :src="thinkingPenguin" class="sidebar-card-image" alt="생각하는 왈로 캐릭터" />
+          <img
+            :src="sidebarIllustration"
+            class="sidebar-card-image"
+            alt="Wallo 서핑 일러스트"
+          />
         </div>
         <p class="sidebar-card-text mb-0" :title="dailySavingsTip" aria-live="polite">
           {{ dailySavingsTip }}
         </p>
-      </AppCard>
+      </div>
     </div>
   </aside>
   <AppDialog
@@ -723,9 +726,10 @@ const handleLogout = async () => {
 .sidebar-card {
   width: 100%;
   padding: 14px 12px 12px;
-  border: 1px solid #e4e7f0;
-  border-radius: 10px;
-  background: #ffffff;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .sidebar-card-image-frame {

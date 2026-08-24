@@ -1,7 +1,9 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue"
+import { storeToRefs } from "pinia"
 import { useRoute, useRouter } from "vue-router"
 import { useUserStore } from "@/stores/userStore"
+import { useMissionStore } from "@/stores/missionStore"
 import { getAccessToken } from "@/api/authToken"
 import { refreshAccessToken } from "@/api/authApi"
 import { formatWon } from "@/utils/formatters"
@@ -12,7 +14,6 @@ import AppButton from "@/components/ui/AppButton.vue"
 import AppPageHeader from "@/components/ui/AppPageHeader.vue"
 import AppState from "@/components/ui/AppState.vue"
 import { leaveChallenge as leaveChallengeRequest } from "@/api/challengeApi"
-import { getTodayMissions, verifyMissionWithFeed } from "@/api/missionApi"
 import {
   createFeed,
   deleteFeed,
@@ -37,6 +38,7 @@ import { announcePointEarned } from "@/utils/pointRewardNotice"
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
+const missionStore = useMissionStore()
 const challengeId = computed(() => Number(route.params.challengeId))
 const focusedFeedId = computed(() => String(route.query.focusFeedId || ""))
 const feeds = ref([])
@@ -56,8 +58,15 @@ const isAnalyzing = ref(false)
 const analysisProgress = ref(0)
 const analysisStageMessage = ref("분석 준비 중...")
 const isUploading = ref(false)
-const todayMissions = ref([])
-const isMissionLoading = ref(false)
+const { missions: missionList, isLoading: isMissionLoading } = storeToRefs(missionStore)
+const todayMissions = computed(() =>
+  missionList.value.filter(
+    (mission) =>
+      ["MEDIA_AI", "HYBRID"].includes(mission.verificationType) &&
+      !mission.completed &&
+      mission.status !== "VERIFYING",
+  ),
+)
 const likingFeedId = ref(null)
 const likeBursts = ref([])
 const pageHeartBursts = ref([])
@@ -421,20 +430,10 @@ const leaveCurrentChallenge = async () => {
 
 const openModal = async () => {
   modalOpen.value = true
-  isMissionLoading.value = true
   try {
-    const response = await getTodayMissions()
-    todayMissions.value = response.missions.filter(
-      (mission) =>
-        ["MEDIA_AI", "HYBRID"].includes(mission.verificationType) &&
-        !mission.completed &&
-        mission.status !== "VERIFYING",
-    )
+    await missionStore.fetchTodayMissions({ notifyError: false })
   } catch (error) {
-    todayMissions.value = []
     await openDialog({ message: error.message })
-  } finally {
-    isMissionLoading.value = false
   }
 }
 const closeModal = () => {
@@ -744,9 +743,11 @@ const uploadFeed = async () => {
     let verificationError = null
     if (form.dailyMissionId) {
       try {
-        verificationResult = await verifyMissionWithFeed(form.dailyMissionId, createdFeed.id)
+        verificationResult = await missionStore.verifyMissionWithFeed(
+          form.dailyMissionId,
+          createdFeed.id,
+        )
         await userStore.fetchUserProfile()
-        window.dispatchEvent(new CustomEvent("wallo:mission-updated"))
       } catch (error) {
         verificationError = error
       }
@@ -904,14 +905,6 @@ onBeforeUnmount(() => {
         <i class="bi bi-heart-fill" aria-hidden="true"></i>
       </span>
     </div>
-    <AppAlert
-      v-if="refreshing"
-      class="feed-refresh-status"
-      variant="neutral"
-      role="status"
-      :show-icon="false"
-      message="최신 피드와 채팅을 확인하는 중..."
-    />
     <AppAlert v-if="errorMessage && hasLoadedPage" class="feed-error-alert" variant="warning">
       <div class="feed-alert-content">
         <span>{{ errorMessage }}</span>
@@ -940,6 +933,18 @@ onBeforeUnmount(() => {
     <template v-else>
       <header class="feed-header">
         <AppPageHeader class="feed-page-header" :title="challengeName">
+          <template #title>
+            <span class="feed-page-title">
+              <span>{{ challengeName }}</span>
+              <span v-if="refreshing" class="feed-refresh-status" role="status">
+                <span
+                  class="spinner-border spinner-border-sm text-primary"
+                  aria-hidden="true"
+                ></span>
+                <span class="feed-refresh-status__text">최신 피드와 채팅을 확인하는 중...</span>
+              </span>
+            </span>
+          </template>
           <template #actions>
             <div class="saving-total">
               <small>누적 절약 금액</small><strong>{{ formatWon(mySavingTotal) }}</strong>
@@ -1022,7 +1027,7 @@ onBeforeUnmount(() => {
               <button
                 v-if="feed.mediaType === 'VIDEO'"
                 type="button"
-                class="feed-sound-toggle"
+                class="feed-sound-toggle pressable"
                 :aria-label="isFeedMuted(feed.id) ? '소리 켜기' : '소리 끄기'"
                 @click.stop="toggleFeedMute(feed)"
               >
@@ -1053,7 +1058,7 @@ onBeforeUnmount(() => {
               <div class="feed-like-row">
                 <button
                   type="button"
-                  class="mention-feed-button"
+                  class="mention-feed-button pressable"
                   aria-label="언급하기"
                   title="언급하기"
                   @click.stop="mentionFeedFromCard(feed)"
@@ -1063,7 +1068,7 @@ onBeforeUnmount(() => {
                 </button>
                 <button
                   type="button"
-                  class="like-button"
+                  class="like-button pressable"
                   :disabled="likingFeedId === feed.id"
                   aria-label="좋아요 추가"
                   @click.stop="addLike(feed)"
@@ -1080,6 +1085,7 @@ onBeforeUnmount(() => {
                 <p>{{ feed.caption || "오늘의 절약 기록을 공유했어요." }}</p>
                 <div v-if="isMyFeed(feed)" class="feed-owner-actions">
                   <button
+                    class="pressable"
                     type="button"
                     :disabled="deletingFeedId === feed.id"
                     @click.stop="removeFeed(feed)"
@@ -1122,7 +1128,7 @@ onBeforeUnmount(() => {
                   <strong v-if="!isMyMessage(item)" class="message-author">{{ item.nickname }}</strong>
                   <div class="feed-attachment">
                     <small class="feed-attachment-label">피드 #{{ item.referenceFeedId }}</small>
-                    <button type="button" class="shared-feed" @click="mentionFeed(item)">
+                    <button type="button" class="shared-feed pressable" @click="mentionFeed(item)">
                       <video
                         v-if="item.mediaType === 'VIDEO'"
                         :src="item.mediaUrl"
@@ -1146,7 +1152,7 @@ onBeforeUnmount(() => {
                   <div class="feed-mention">
                     <div class="feed-attachment">
                       <small class="feed-attachment-label">피드 #{{ item.referenceFeedId }}</small>
-                      <button type="button" class="shared-feed" @click="mentionFeed(item)">
+                      <button type="button" class="shared-feed pressable" @click="mentionFeed(item)">
                         <video
                           v-if="item.mediaType === 'VIDEO'"
                           :src="item.mediaUrl"
@@ -1177,7 +1183,7 @@ onBeforeUnmount(() => {
             </div>
             <div v-if="mentionedFeed" class="mention-preview">
               <span>피드 #{{ mentionedFeed.id }} 언급 중</span>
-              <button @click="mentionedFeed = null">×</button>
+               <button class="pressable" @click="mentionedFeed = null">×</button>
             </div>
             <form class="chat-form" @submit.prevent="sendMessage">
               <textarea
@@ -1190,7 +1196,7 @@ onBeforeUnmount(() => {
                 @keydown.enter.exact.prevent
                 @keyup.enter.exact.prevent="sendMessage"
               ></textarea>
-              <button type="submit" aria-label="메시지 전송" :disabled="isSendingMessage">
+              <button class="pressable" type="submit" aria-label="메시지 전송" :disabled="isSendingMessage">
                 <i class="bi bi-send" aria-hidden="true"></i>
               </button>
             </form>
@@ -1212,7 +1218,7 @@ onBeforeUnmount(() => {
       <section class="upload-modal" role="dialog" aria-modal="true" aria-labelledby="upload-title">
         <header>
           <h2 id="upload-title">절약 피드 추가</h2>
-          <button @click="closeModal">×</button>
+           <button class="pressable" @click="closeModal">×</button>
         </header>
         <div class="modal-body">
           <label class="section-label">인증 자료</label>
@@ -1260,6 +1266,7 @@ onBeforeUnmount(() => {
               v-for="item in categories"
               :key="item.value"
               type="button"
+              class="pressable"
               :class="{ selected: form.category === item.value }"
               @click="selectCategory(item.value)"
             >
@@ -1296,6 +1303,7 @@ onBeforeUnmount(() => {
             </div>
             <button
               type="button"
+              class="pressable"
               :class="{ 'is-analyzing': isAnalyzing }"
               :style="isAnalyzing ? { '--analysis-progress': `${analysisProgress}%` } : undefined"
               :disabled="isAnalyzing"
@@ -1322,7 +1330,7 @@ onBeforeUnmount(() => {
                 </svg>
                 <img
                   class="analysis-surfer"
-                  src="/images/illustrations/wallo-surfing.png"
+                  src="/images/illustrations/wallo-surfing.webp"
                   alt=""
                 />
               </span>
@@ -1364,7 +1372,8 @@ onBeforeUnmount(() => {
                   v-for="option in savingFeedbackOptions"
                   :key="option.value"
                   type="button"
-                  :class="{ selected: form.savingAmountFeedback === option.value }"
+                   class="pressable"
+                   :class="{ selected: form.savingAmountFeedback === option.value }"
                   @click="selectSavingAmountFeedback(option.value)"
                 >
                   {{ option.label }}
@@ -1402,8 +1411,8 @@ onBeforeUnmount(() => {
           <p class="share-notice">💬 업로드하면 {{ roomTitle }}에도 자동으로 공유돼요.</p>
         </div>
         <footer>
-          <button class="cancel" @click="closeModal">취소</button
-          ><button class="submit" :disabled="isUploading" @click="uploadFeed">
+          <button class="cancel pressable" @click="closeModal">취소</button
+          ><button class="submit pressable" :disabled="isUploading" @click="uploadFeed">
             {{ isUploading ? "올리는 중..." : "피드 올리기" }}
           </button>
         </footer>
@@ -1435,9 +1444,30 @@ onBeforeUnmount(() => {
   justify-items: center;
   gap: 18px;
 }
-.feed-refresh-status,
 .feed-error-alert {
   margin-bottom: 18px;
+}
+.feed-page-title {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: var(--wallo-space-3);
+}
+.feed-refresh-status {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--wallo-space-2);
+  overflow: hidden;
+  color: var(--wallo-color-text-muted);
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.feed-refresh-status__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .feed-alert-content {
   display: flex;
@@ -1801,6 +1831,9 @@ onBeforeUnmount(() => {
 .mention-feed-button:hover {
   color: #d7e7f8;
   background: transparent;
+}
+.mention-feed-button:active:not(:disabled) {
+  transform: translateX(4px) scale(0.98);
 }
 @keyframes like-heart-rise {
   0% {

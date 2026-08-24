@@ -24,10 +24,10 @@ financial-report.scheduler.batch-size=10
 `financial_term` 테이블이 비어 있으면 금융용어 매칭·모달 기능이 항상 빈 배열만 반환합니다(에러는 안 남, 조용히 0건).
 
 ```bash
-mysql -u root -p wallo < ai/data/processed/financial_term_insert.sql
+mysql -u root -p wallo < database/financial_term_data.sql
 ```
 
-- `INSERT IGNORE` 방식이라 재실행해도 안전합니다(`financial_term.term_name`이 UNIQUE).
+- `ON DUPLICATE KEY UPDATE` 방식이라 재실행하면 기존 금융용어 데이터가 최신 값으로 갱신됩니다.
 - 적재 후 검증: `ai/data/processed/financial_term_insert_verify.sql` 참고, 또는 직접 확인:
   ```sql
   SELECT source, COUNT(*) FROM financial_term GROUP BY source;

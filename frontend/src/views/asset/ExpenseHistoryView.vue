@@ -18,10 +18,12 @@ import { formatWon } from "@/utils/formatters"
 import { EXPENSE_CATEGORY_META } from "@/features/financial/financialCategories"
 import { useAssetStore } from "@/stores/assetStore"
 import { useBudgetStore } from "@/stores/budgetStore"
+import { useFinancialInvalidationStore } from "@/stores/financialInvalidationStore"
 
 const PAGE_SIZE = 20
 const assetStore = useAssetStore()
 const budgetStore = useBudgetStore()
+const financialInvalidationStore = useFinancialInvalidationStore()
 const route = useRoute()
 const router = useRouter()
 const { isSyncing, syncError } = storeToRefs(assetStore)
@@ -168,7 +170,6 @@ const hasAnyData = computed(
     expenseData.value.transactions.length > 0,
 )
 
-
 const selectedDateLabel = computed(() => {
   if (!selectedDate.value) return ""
   const [year, month, day] = selectedDate.value.split("-").map(Number)
@@ -213,9 +214,7 @@ const fetchExpensePage = async (page, append = false) => {
       page,
       size: PAGE_SIZE,
       category:
-        selectedListCategories.value.length > 0
-          ? selectedListCategories.value.join(",")
-          : "ALL",
+        selectedListCategories.value.length > 0 ? selectedListCategories.value.join(",") : "ALL",
     })
 
     if (currentRequest !== requestVersion) return
@@ -283,12 +282,18 @@ const applyCategoryFilter = async ({ categories, category }) => {
       ? [category]
       : []
   const validCategories = new Set(
-    listCategoryOptions.value.filter((option) => option.value !== "ALL").map((option) => option.value),
+    listCategoryOptions.value
+      .filter((option) => option.value !== "ALL")
+      .map((option) => option.value),
   )
   selectedListCategories.value = [
     ...new Set(
       selectedValues
-        .map((value) => String(value || "").trim().toUpperCase())
+        .map((value) =>
+          String(value || "")
+            .trim()
+            .toUpperCase(),
+        )
         .filter((value) => validCategories.has(value)),
     ),
   ]
@@ -329,7 +334,8 @@ const saveTransactionCategory = async ({ transactionId, category }) => {
       throw new Error(response?.error?.message || "카테고리 수정 응답이 올바르지 않습니다.")
     }
 
-    await fetchExpensePage(0)
+    financialInvalidationStore.markChanged()
+    await loadSelectedMonth({ forceBudget: true })
     if (!error.value) {
       isCategoryEditModalVisible.value = false
       selectedTransaction.value = null
@@ -346,13 +352,17 @@ const saveTransactionCategory = async ({ transactionId, category }) => {
   }
 }
 
-const loadSelectedMonth = async () => {
+const loadSelectedMonth = async ({ forceBudget = false } = {}) => {
+  const budgetRequestOptions = forceBudget
+    ? { notifyError: false, force: true }
+    : { notifyError: false }
+
   requestVersion += 1
   isLoadingMore.value = false
   loadMoreError.value = ""
   await Promise.all([
     fetchExpensePage(0),
-    budgetStore.fetchCategoryBudgets(targetMonth.value, { notifyError: false }).catch(() => null),
+    budgetStore.fetchCategoryBudgets(targetMonth.value, budgetRequestOptions).catch(() => null),
   ])
 }
 
@@ -366,7 +376,7 @@ const syncCurrentMonth = async () => {
     const result = await assetStore.syncAssets()
     if (!result) return
 
-    await loadSelectedMonth()
+    await loadSelectedMonth({ forceBudget: true })
     if (error.value) {
       syncStatus.value = {
         type: "warning",
@@ -510,7 +520,7 @@ onMounted(async () => {
   <section class="expense-history-view">
     <AppPageHeader class="page-header" :title="`월별 리포트`">
       <template #leading>
-        <RouterLink to="/assets" class="back-button" aria-label="자산 관리로 돌아가기">
+        <RouterLink to="/assets" class="back-button pressable" aria-label="자산 관리로 돌아가기">
           <i class="bi bi-chevron-left" aria-hidden="true"></i>
         </RouterLink>
       </template>
@@ -528,8 +538,15 @@ onMounted(async () => {
       <template #actions>
         <button
           type="button"
-          class="expense-sync-button btn app-action-link"
-          :disabled="isSyncing || isExpenseInitialLoading || isExpenseRefreshing || isDailyLoading"
+          class="expense-sync-button btn app-action-link pressable"
+          :disabled="
+            isSyncing ||
+            isBudgetLoading ||
+            isBudgetSaving ||
+            isExpenseInitialLoading ||
+            isExpenseRefreshing ||
+            isDailyLoading
+          "
           @click="syncCurrentMonth"
         >
           <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>
@@ -548,7 +565,9 @@ onMounted(async () => {
 
     <AppAlert v-if="error && hasLoadedExpenseData" class="expense-error mb-3" variant="warning">
       <span>최신 소비 내역을 갱신하지 못했습니다. 기존 내역을 표시하고 있습니다.</span>
-      <AppButton variant="outline" size="sm" @click="loadSelectedMonth">다시 시도</AppButton>
+      <AppButton variant="outline" size="sm" @click="loadSelectedMonth({ forceBudget: true })">
+        다시 시도
+      </AppButton>
     </AppAlert>
 
     <AppState
@@ -564,7 +583,9 @@ onMounted(async () => {
         <strong class="d-block mb-1">소비 내역을 불러오지 못했습니다.</strong>
         <span>{{ error }}</span>
       </div>
-      <AppButton variant="outline" size="sm" @click="loadSelectedMonth">다시 시도</AppButton>
+      <AppButton variant="outline" size="sm" @click="loadSelectedMonth({ forceBudget: true })">
+        다시 시도
+      </AppButton>
     </AppAlert>
 
     <template v-else>
@@ -577,7 +598,7 @@ onMounted(async () => {
               <div class="month-navigation d-flex align-items-center gap-2">
                 <button
                   type="button"
-                  class="month-button"
+                  class="month-button pressable"
                   aria-label="이전 달"
                   @click="moveMonth(-1)"
                 >
@@ -586,7 +607,7 @@ onMounted(async () => {
                 <strong>{{ monthLabel }}</strong>
                 <button
                   type="button"
-                  class="month-button"
+                  class="month-button pressable"
                   aria-label="다음 달"
                   @click="moveMonth(1)"
                 >
@@ -597,7 +618,7 @@ onMounted(async () => {
               <div class="view-toggle btn-group" role="group" aria-label="소비 내역 보기 방식">
                 <button
                   type="button"
-                  class="btn"
+                  class="btn pressable"
                   :class="{ active: activeView === 'calendar' }"
                   :aria-pressed="activeView === 'calendar'"
                   @click="activeView = 'calendar'"
@@ -607,7 +628,7 @@ onMounted(async () => {
                 </button>
                 <button
                   type="button"
-                  class="btn"
+                  class="btn pressable"
                   :class="{ active: activeView === 'list' }"
                   :aria-pressed="activeView === 'list'"
                   @click="activeView = 'list'"
@@ -623,7 +644,7 @@ onMounted(async () => {
               >
                 <button
                   type="button"
-                  class="category-filter-trigger"
+                class="category-filter-trigger pressable"
                   data-testid="open-category-filter"
                   aria-haspopup="dialog"
                   :disabled="isCategoryFilterSaving"
@@ -675,7 +696,6 @@ onMounted(async () => {
           />
         </div>
       </AppCard>
-
     </template>
 
     <CategoryBudgetEditor

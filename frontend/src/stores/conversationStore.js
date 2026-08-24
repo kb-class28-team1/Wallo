@@ -97,6 +97,7 @@ export const useConversationStore = defineStore("conversation", () => {
   let cacheScope = {}
   let messageRequestSequence = 0
   let sessionVersion = 0
+  const pendingGuidedStarts = new Map()
 
   const activeConversation = computed(() =>
     conversations.value.find(
@@ -126,6 +127,7 @@ export const useConversationStore = defineStore("conversation", () => {
   const reset = () => {
     sessionVersion += 1
     messageRequestSequence += 1
+    pendingGuidedStarts.clear()
     clearResourceCache({ scope: cacheScope })
     cacheScope = {}
 
@@ -609,31 +611,57 @@ export const useConversationStore = defineStore("conversation", () => {
     }
   }
 
-  const startConsumptionAnalysis = async (userId) => {
-    if (isLoading.value || isSending.value) {
-      return false
+  const startGuidedConversation = (key, userId, message, chatMode = null, title = "새 채팅") => {
+    const pendingStart = pendingGuidedStarts.get(key)
+    if (pendingStart) {
+      return pendingStart
     }
 
-    const conversation = await startNewConversation(userId)
-    if (!conversation) {
-      return false
-    }
+    const request = Promise.resolve().then(async () => {
+      if (isLoading.value || isSending.value) {
+        return false
+      }
 
-    return sendMessage(userId, "내 소비를 분석해줘")
+      const conversation = await startNewConversation(userId, title)
+      if (!conversation) {
+        return false
+      }
+
+      return sendMessage(userId, message, chatMode)
+    })
+
+    pendingGuidedStarts.set(key, request)
+    const clearPendingStart = () => {
+      if (pendingGuidedStarts.get(key) === request) {
+        pendingGuidedStarts.delete(key)
+      }
+    }
+    request.then(clearPendingStart, clearPendingStart)
+
+    return request
   }
 
-  const startGoalSettingConversation = async (userId) => {
-    if (isLoading.value || isSending.value) {
-      return false
-    }
+  const startConsumptionAnalysis = (userId) =>
+    startGuidedConversation("consumption-analysis", userId, "내 소비를 분석해줘")
 
-    const conversation = await startNewConversation(userId, GOAL_SETTING_TITLE)
-    if (!conversation) {
-      return false
-    }
+  const startAssetAnalysis = (userId) =>
+    startGuidedConversation("asset-analysis", userId, "내 자산을 분석해줘")
 
-    return sendMessage(userId, GOAL_SETTING_TRIGGER_MESSAGE, GOAL_SETTING_MODE)
-  }
+  const startProductRecommendation = (userId) =>
+    startGuidedConversation(
+      "product-recommendation",
+      userId,
+      "내 상황에 맞는 금융상품을 추천해줘",
+    )
+
+  const startGoalSettingConversation = (userId) =>
+    startGuidedConversation(
+      "goal-setting",
+      userId,
+      GOAL_SETTING_TRIGGER_MESSAGE,
+      GOAL_SETTING_MODE,
+      GOAL_SETTING_TITLE,
+    )
 
   return {
     conversations,
@@ -661,6 +689,8 @@ export const useConversationStore = defineStore("conversation", () => {
     removeConversation,
     sendMessage,
     startConsumptionAnalysis,
+    startAssetAnalysis,
+    startProductRecommendation,
     startGoalSettingConversation,
     reset,
   }
