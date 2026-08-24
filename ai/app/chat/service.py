@@ -3,17 +3,17 @@ import logging
 
 from groq import Groq
 
-from app.agents.financial.agent import (
+from app.financial_assistant.agent import (
     ASSET_ANALYSIS_TOOL,
     PRODUCT_RECOMMENDATION_TOOL,
     FinancialAgent,
 )
-from app.agents.financial.tools.financial_goal import NAME as FINANCIAL_GOAL_TOOL
-from app.agents.goal.agent import GoalAgent
-from app.agents.goal.models import GoalDraft, GoalInterviewAction, InterviewState
-from app.agents.goal.service import calculate_feasibility
-from app.agents.roadmap.generator import generate_goal_roadmap
-from app.agents.roadmap.models import GoalRoadmap, RoadmapGoal
+from app.financial_assistant.tools.financial_goal import NAME as FINANCIAL_GOAL_TOOL
+from app.goals.interview.agent import GoalAgent
+from app.goals.interview.models import GoalDraft, GoalInterviewAction, InterviewState
+from app.goals.interview.service import calculate_feasibility
+from app.goals.roadmap.generator import generate_goal_roadmap
+from app.goals.roadmap.models import GoalRoadmap, RoadmapGoal
 from app.chat.schemas import ChatRequest, ChatResponse, GoalInterviewResponse
 from app.chat.title_service import build_conversation_title
 from app.core.ai_guard import ApplicationGuardError

@@ -9,12 +9,15 @@ import AppPageHeader from "@/components/ui/AppPageHeader.vue"
 import AppState from "@/components/ui/AppState.vue"
 import { getExpenses } from "@/api/assetApi"
 import { getApiErrorMessage } from "@/utils/apiError"
+import { useAssetStore } from "@/stores/assetStore"
 import { useBudgetStore } from "@/stores/budgetStore"
 
 const PAGE_SIZE = 20
+const assetStore = useAssetStore()
 const budgetStore = useBudgetStore()
 const route = useRoute()
 const router = useRouter()
+const { isSyncing, syncError } = storeToRefs(assetStore)
 const {
   categorySummary: budgetSummary,
   error: budgetError,
@@ -46,13 +49,12 @@ const expenseData = ref(createEmptyExpenseData())
 const hasLoadedData = ref(false)
 const isLoading = ref(false)
 const error = ref("")
+const syncStatus = ref(null)
 const isBudgetEditorVisible = ref(false)
 let summaryRequestVersion = 0
 
 const monthLabel = computed(() =>
-  new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "long" }).format(
-    selectedMonth.value,
-  ),
+  new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "long" }).format(selectedMonth.value),
 )
 
 const targetMonth = computed(() => {
@@ -72,7 +74,9 @@ const dateRange = computed(() => {
 
 const isCurrentMonth = computed(() => {
   const today = new Date()
-  return targetMonth.value === `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`
+  return (
+    targetMonth.value === `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`
+  )
 })
 
 const canEditBudget = computed(
@@ -82,6 +86,24 @@ const isInitialLoading = computed(() => isLoading.value && !hasLoadedData.value)
 const isRefreshing = computed(() => isLoading.value && hasLoadedData.value)
 const isBudgetInitialLoading = computed(() => budgetInitialLoading?.value ?? isBudgetLoading.value)
 const isBudgetRefreshing = computed(() => budgetRefreshing?.value ?? false)
+const isPageRefreshing = computed(
+  () => isSyncing.value || isRefreshing.value || isBudgetRefreshing.value,
+)
+const refreshStatusMessage = computed(() => {
+  if (isSyncing.value) {
+    return "거래내역을 최신 상태로 동기화하고 있습니다."
+  }
+
+  if (isRefreshing.value && isBudgetRefreshing.value) {
+    return `${monthLabel.value} 소비·예산을 최신 상태로 갱신하고 있습니다.`
+  }
+
+  if (isRefreshing.value) {
+    return `${monthLabel.value} 소비 내역을 최신 상태로 갱신하고 있습니다.`
+  }
+
+  return "카테고리별 예산을 최신 상태로 갱신하고 있습니다."
+})
 const displayedBudgetError = computed(() => (budgetSummary.value ? "" : budgetError.value))
 const isBudgetRefreshError = computed(() => Boolean(budgetSummary.value && budgetError.value))
 
@@ -125,11 +147,53 @@ const loadSummary = async () => {
   }
 }
 
-const loadSelectedMonth = async () => {
+const loadSelectedMonth = async ({ forceBudget = false } = {}) => {
+  const budgetRequestOptions = forceBudget
+    ? { notifyError: false, force: true }
+    : { notifyError: false }
+
   await Promise.all([
     loadSummary(),
-    budgetStore.fetchCategoryBudgets(targetMonth.value, { notifyError: false }).catch(() => null),
+    budgetStore.fetchCategoryBudgets(targetMonth.value, budgetRequestOptions).catch(() => null),
   ])
+}
+
+const syncCurrentMonth = async () => {
+  if (isSyncing.value) return
+
+  syncStatus.value = null
+
+  try {
+    const result = await assetStore.syncAssets()
+    if (!result) return
+
+    await loadSelectedMonth({ forceBudget: true })
+    if (error.value) {
+      syncStatus.value = {
+        type: "warning",
+        message: "동기화는 완료되었지만 현재 월 카테고리별 소비를 다시 불러오지 못했습니다.",
+      }
+      return
+    }
+
+    const failedConnections = Number(result.failedConnections) || 0
+    const summary = `신규 ${Number(result.inserted) || 0}건, 수정 ${Number(result.updated) || 0}건`
+    syncStatus.value =
+      failedConnections > 0
+        ? {
+            type: "warning",
+            message: `동기화가 완료되었습니다. ${summary}, 실패한 연결기관 ${failedConnections}건`,
+          }
+        : {
+            type: "success",
+            message: `동기화가 완료되었습니다. ${summary}`,
+          }
+  } catch {
+    syncStatus.value = {
+      type: "danger",
+      message: syncError.value || "자산 거래내역 동기화에 실패했습니다.",
+    }
+  }
 }
 
 const openBudgetEditor = async () => {
@@ -194,16 +258,46 @@ onMounted(async () => {
   <section class="category-expense-view">
     <AppPageHeader class="page-header" title="카테고리별 소비">
       <template #leading>
-        <RouterLink to="/assets" class="back-button" aria-label="자산 관리로 돌아가기">
+        <RouterLink to="/assets" class="back-button pressable" aria-label="자산 관리로 돌아가기">
           <i class="bi bi-chevron-left" aria-hidden="true"></i>
         </RouterLink>
       </template>
+      <template #title>
+        <span class="category-page-title">
+          <span>카테고리별 소비</span>
+          <span v-if="isPageRefreshing" class="category-refresh-status" role="status">
+            <span class="spinner-border spinner-border-sm text-primary" aria-hidden="true"></span>
+            <span class="category-refresh-status__text">{{ refreshStatusMessage }}</span>
+          </span>
+        </span>
+      </template>
+      <template #actions>
+        <button
+          type="button"
+          class="category-sync-button btn app-action-link pressable"
+          data-testid="category-refresh-button"
+          :disabled="
+            isSyncing ||
+            isBudgetSaving ||
+            isInitialLoading ||
+            isBudgetInitialLoading ||
+            isPageRefreshing
+          "
+          @click="syncCurrentMonth"
+        >
+          <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>
+          새로고침
+        </button>
+      </template>
     </AppPageHeader>
 
-    <div v-if="isRefreshing" class="small text-secondary mb-3" role="status">
-      <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
-      {{ monthLabel }} 소비 내역을 최신 상태로 갱신하고 있습니다.
-    </div>
+    <AppAlert
+      v-if="syncStatus"
+      class="category-sync-status"
+      :variant="syncStatus.type"
+      :message="syncStatus.message"
+      role="status"
+    />
 
     <AppState
       v-if="isInitialLoading"
@@ -218,7 +312,11 @@ onMounted(async () => {
         <strong class="d-block mb-1">카테고리별 소비를 불러오지 못했습니다.</strong>
         <span>{{ error }}</span>
       </div>
-      <button type="button" class="btn btn-outline-danger btn-sm" @click="loadSelectedMonth">
+      <button
+        type="button"
+        class="btn btn-outline-danger btn-sm pressable"
+        @click="loadSelectedMonth({ forceBudget: true })"
+      >
         다시 시도
       </button>
     </AppAlert>
@@ -226,19 +324,22 @@ onMounted(async () => {
     <template v-else>
       <AppAlert v-if="error && hasLoadedData" class="mb-3" variant="warning">
         <span>최신 카테고리별 소비를 갱신하지 못했습니다. 기존 내역을 표시하고 있습니다.</span>
-        <button type="button" class="btn btn-outline-warning btn-sm" @click="loadSelectedMonth">
+        <button
+          type="button"
+          class="btn btn-outline-warning btn-sm pressable"
+          @click="loadSelectedMonth({ forceBudget: true })"
+        >
           다시 시도
         </button>
       </AppAlert>
 
-      <div v-if="isBudgetRefreshing" class="small text-secondary mb-3" role="status">
-        <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
-        카테고리별 예산을 최신 상태로 갱신하고 있습니다.
-      </div>
-
       <AppAlert v-if="isBudgetRefreshError" class="mb-3" variant="warning">
         <span>최신 예산 정보를 갱신하지 못했습니다. 기존 예산을 표시하고 있습니다.</span>
-        <button type="button" class="btn btn-outline-warning btn-sm" @click="loadSelectedMonth">
+        <button
+          type="button"
+          class="btn btn-outline-warning btn-sm pressable"
+          @click="loadSelectedMonth({ forceBudget: true })"
+        >
           다시 시도
         </button>
       </AppAlert>
@@ -254,11 +355,11 @@ onMounted(async () => {
       >
         <template #header>
           <div class="month-navigation d-flex align-items-center gap-2">
-            <button type="button" class="month-button" aria-label="이전 달" @click="moveMonth(-1)">
+            <button type="button" class="month-button pressable" aria-label="이전 달" @click="moveMonth(-1)">
               <i class="bi bi-chevron-left" aria-hidden="true"></i>
             </button>
             <strong>{{ monthLabel }}</strong>
-            <button type="button" class="month-button" aria-label="다음 달" @click="moveMonth(1)">
+            <button type="button" class="month-button pressable" aria-label="다음 달" @click="moveMonth(1)">
               <i class="bi bi-chevron-right" aria-hidden="true"></i>
             </button>
           </div>
@@ -283,6 +384,35 @@ onMounted(async () => {
   padding: 0 0 var(--wallo-space-6);
 }
 
+.category-sync-status {
+  margin-bottom: var(--wallo-space-4);
+}
+
+.category-page-title {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: var(--wallo-space-3);
+}
+
+.category-refresh-status {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--wallo-space-2);
+  overflow: hidden;
+  color: var(--wallo-color-text-muted);
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.category-refresh-status__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .back-button {
   display: inline-flex;
   width: 38px;
@@ -299,8 +429,8 @@ onMounted(async () => {
 
 .back-button:hover,
 .back-button:focus {
-  color: #6b5bd2;
-  background: #f0edff;
+  color: #4d82d6;
+  background: #edf6ff;
 }
 
 .month-navigation {
@@ -313,16 +443,16 @@ onMounted(async () => {
   height: 32px;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--wallo-color-border-soft);
-  border-radius: var(--wallo-radius-sm);
-  color: var(--wallo-color-text-muted);
-  background: var(--wallo-color-surface);
+  border: 0;
+  border-radius: 10px;
+  color: #555b6e;
+  background: transparent;
 }
 
 .month-button:hover,
 .month-button:focus-visible {
-  border-color: var(--wallo-color-primary);
-  color: var(--wallo-color-primary);
+  color: #4d82d6;
+  background: #edf6ff;
 }
 
 .month-button:focus-visible {
@@ -338,6 +468,5 @@ onMounted(async () => {
   .category-expense-view {
     padding-bottom: var(--wallo-space-5);
   }
-
 }
 </style>

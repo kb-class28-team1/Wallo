@@ -79,21 +79,25 @@ onMounted(loadAssets)
 <template>
   <section class="asset-view">
     <AppPageHeader title="자산관리">
+      <template #title>
+        <span class="asset-page-title">
+          <span>자산관리</span>
+          <span v-if="isRefreshing" class="asset-refresh-status" role="status">
+            <span class="spinner-border spinner-border-sm text-primary" aria-hidden="true"></span>
+            <span class="asset-refresh-status__text">자산 정보를 최신 상태로 갱신하고 있습니다.</span>
+          </span>
+        </span>
+      </template>
       <template #actions>
-        <AppButton
-          class="asset-sync-button"
-          variant="primary"
+        <button
           type="button"
+          class="asset-sync-button btn app-action-link pressable"
           :disabled="isSyncing || isInitialLoading || isRefreshing"
           @click="syncAssets"
         >
-          <span
-            v-if="isSyncing"
-            class="spinner-border spinner-border-sm me-2"
-            aria-hidden="true"
-          ></span>
-          {{ isSyncing ? "동기화 중..." : "거래내역 새로고침" }}
-        </AppButton>
+          <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>
+          새로고침
+        </button>
       </template>
     </AppPageHeader>
 
@@ -104,11 +108,6 @@ onMounted(loadAssets)
       :message="syncStatus.message"
       role="status"
     />
-
-    <div v-if="isRefreshing" class="asset-refresh-status" role="status">
-      <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
-      자산 정보를 최신 상태로 갱신하고 있습니다.
-    </div>
 
     <section class="asset-overview-section" aria-label="자산 현황">
       <AppState
@@ -133,7 +132,7 @@ onMounted(loadAssets)
 
       <AppState v-else class="asset-state" type="empty" title="연결된 자산이 없습니다.">
         <template #actions>
-          <RouterLink to="/users/profile/connections" class="asset-connect-link">
+          <RouterLink to="/users/profile/connections" class="asset-connect-link pressable">
             연동관리로 이동
           </RouterLink>
         </template>
@@ -177,8 +176,29 @@ onMounted(loadAssets)
   padding: 0 0 var(--wallo-space-6);
 }
 
-.asset-sync-button {
-  min-width: 172px;
+.asset-page-title {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: var(--wallo-space-3);
+}
+
+.asset-refresh-status {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--wallo-space-2);
+  overflow: hidden;
+  color: var(--wallo-color-text-muted);
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.asset-refresh-status__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .asset-sync-status,
@@ -186,16 +206,9 @@ onMounted(loadAssets)
   margin-bottom: var(--wallo-space-4);
 }
 
-.asset-refresh-status {
-  display: inline-flex;
-  align-items: center;
-  margin-bottom: var(--wallo-space-4);
-  color: var(--wallo-color-text-muted);
-  font-size: 0.875rem;
-}
-
 .asset-overview-section {
   width: 100%;
+  --asset-overview-card-height: 312px;
 }
 
 .asset-report-grid {
@@ -206,7 +219,7 @@ onMounted(loadAssets)
 }
 
 .asset-state {
-  min-height: 360px;
+  min-height: var(--asset-overview-card-height);
 }
 
 .asset-connect-link {
@@ -222,7 +235,7 @@ onMounted(loadAssets)
 }
 
 .asset-error {
-  min-height: 110px;
+  min-height: var(--asset-overview-card-height);
   align-items: center;
   justify-content: space-between;
 }

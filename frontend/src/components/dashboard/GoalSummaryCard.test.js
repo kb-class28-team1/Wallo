@@ -46,7 +46,8 @@ describe("GoalSummaryCard", () => {
     expect(wrapper.text()).toContain("5,000,000원")
     expect(wrapper.text()).toContain("3,250,000원")
     expect(wrapper.text()).toContain("65%")
-    expect(wrapper.text()).toContain("목표 설정 당시 준비금 기준")
+    expect(wrapper.find(".goal-progress-summary").exists()).toBe(true)
+    expect(wrapper.find(".goal-progress-caption").text()).toBe("현재 모은 금액")
     expect(wrapper.text()).toContain("월 필요 납입액")
     expect(wrapper.text()).toContain("설정된 계좌가 없습니다.")
     expect(wrapper.text()).not.toContain("진행 중")
@@ -109,14 +110,18 @@ describe("GoalSummaryCard", () => {
       props: { goals: [] },
     })
 
+    expect(wrapper.find(".goal-card-header h2").text()).toBe("나의 목표")
     expect(wrapper.text()).toContain("아직 확정된 금융 목표가 없습니다.")
     expect(wrapper.text()).toContain("목표 설정하기")
     expect(wrapper.text()).not.toContain("채팅에서 계좌 설정")
     expect(wrapper.find("a").attributes("data-to")).toBe("/chat?start=goal-setting")
     expect(wrapper.find(".goal-state").exists()).toBe(true)
+    expect(wrapper.find(".goal-state").classes()).toContain("goal-state--empty")
     expect(wrapper.find(".goal-state").classes()).toContain("app-state")
     expect(wrapper.find(".goal-state").attributes("data-state")).toBe("empty")
     expect(wrapper.find(".goal-state .app-state__icon").exists()).toBe(false)
+    expect(wrapper.find(".goal-state .goal-button").exists()).toBe(true)
+    expect(wrapper.find(".goal-card-header .app-action-link").exists()).toBe(false)
   })
 
   it("shows the selected account without exposing an edit control", () => {
@@ -147,7 +152,7 @@ describe("GoalSummaryCard", () => {
       },
     })
 
-    expect(wrapper.find(".goal-account-summary").text()).toContain("설정된 계좌")
+    expect(wrapper.find(".goal-account-summary").exists()).toBe(true)
     expect(wrapper.find(".goal-account-summary").text()).toContain("Wallo Bank")
     expect(wrapper.find(".goal-account-summary").text()).toContain("생활비 통장")
     expect(wrapper.find(".goal-account-summary").text()).toContain("1234-****-7890")

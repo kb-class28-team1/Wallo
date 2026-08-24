@@ -128,6 +128,8 @@ const formatAmount = (amount, currency = "KRW") => {
   return currencyUnit ? `${amountText}${currencyUnit}` : `${amountText} ${normalizedCurrency}`
 }
 
+const isNegativeAmount = (amount) => Number(amount) < 0
+
 const formatLastSync = (lastSyncAt) => {
   if (!lastSyncAt) {
     return "최근 동기화 정보 없음"
@@ -173,19 +175,25 @@ const getLogoText = (connection) => {
   return name.replace(/\s/g, "").slice(0, 2)
 }
 
-const getConnectionLogoUrl = (connection) =>
-  connection.logoUrl ||
+const getLocalConnectionLogoUrl = (connection) =>
   getLocalInstitutionLogo(
     connection.financialGroupCode,
     connection.financialGroupName || connection.institutionName,
   )
 
+const getConnectionLogoUrl = (connection) => {
+  const localLogoUrl = getLocalConnectionLogoUrl(connection)
+
+  if (connection.financialGroupCode?.toUpperCase() === "KB" && localLogoUrl) {
+    return localLogoUrl
+  }
+
+  return connection.logoUrl || localLogoUrl
+}
+
 const getConnectionFallbackLogoUrl = (connection) =>
   connection.logoUrl
-    ? getLocalInstitutionLogo(
-        connection.financialGroupCode,
-        connection.financialGroupName || connection.institutionName,
-      )
+    ? getLocalConnectionLogoUrl(connection)
     : ""
 
 const getLogoFallbackClass = (logoUrl) => (logoUrl ? "d-none" : "")
@@ -341,15 +349,16 @@ onMounted(loadConnections)
 </script>
 
 <template>
-  <AppCard
-    as="section"
-    class="settings-panel"
-    padding="none"
-    aria-labelledby="connection-settings-title"
-  >
-    <div v-if="refreshing" class="connection-refresh-status" role="status">
-      최신 연결 정보를 확인하는 중...
-    </div>
+  <div class="connection-management-view">
+    <AppCard
+      as="section"
+      class="settings-panel"
+      padding="none"
+      aria-labelledby="connection-settings-title"
+    >
+      <div v-if="refreshing" class="connection-refresh-status" role="status">
+        최신 연결 정보를 확인하는 중...
+      </div>
 
     <AppState
       v-if="initialLoading"
@@ -360,58 +369,58 @@ onMounted(loadConnections)
       compact
     />
 
-    <div v-else class="connection-card-body">
-      <h2 id="connection-settings-title" class="h5 fw-bold mb-4">연결된 자산</h2>
+      <div v-else class="connection-card-body">
+        <h2 id="connection-settings-title" class="h5 fw-bold mb-4">연결된 자산</h2>
 
-      <AppAlert v-if="errorMessage" class="connection-alert" variant="danger" :show-icon="false">
-        <div class="d-flex align-items-center justify-content-between gap-3">
-          <span>{{ errorMessage }}</span>
-          <AppButton variant="outline" size="sm" @click="loadConnections({ force: true })">
-            다시 시도
-          </AppButton>
+        <AppAlert v-if="errorMessage" class="connection-alert" variant="danger" :show-icon="false">
+          <div class="d-flex align-items-center justify-content-between gap-3">
+            <span>{{ errorMessage }}</span>
+            <AppButton variant="outline" size="sm" @click="loadConnections({ force: true })">
+              다시 시도
+            </AppButton>
+          </div>
+        </AppAlert>
+
+        <AppAlert
+          v-if="successMessage"
+          class="connection-alert"
+          variant="success"
+          :message="successMessage"
+          :show-icon="false"
+          role="status"
+        />
+
+        <AppTabs
+          v-model="activeCategory"
+          class="connection-category-tabs"
+          :items="connectionCategories"
+          variant="segment"
+          full-width
+          aria-label="연결된 자산 유형"
+        >
+          <template #tab="{ item }">
+            {{ item.label }}
+            <span class="connection-category-count">{{ getCategoryCount(item.value) }}</span>
+          </template>
+        </AppTabs>
+
+        <div
+          class="connection-section-heading d-flex align-items-center justify-content-between gap-3"
+        >
+          <span class="small text-secondary">
+            {{ activeCategoryLabel }} 연결 기관 {{ visibleConnections.length }}곳 · 자산
+            {{ activeCategoryAssetCount }}개
+          </span>
         </div>
-      </AppAlert>
 
-      <AppAlert
-        v-if="successMessage"
-        class="connection-alert"
-        variant="success"
-        :message="successMessage"
-        :show-icon="false"
-        role="status"
-      />
-
-      <AppTabs
-        v-model="activeCategory"
-        class="connection-category-tabs"
-        :items="connectionCategories"
-        variant="segment"
-        full-width
-        aria-label="연결된 자산 유형"
-      >
-        <template #tab="{ item }">
-          {{ item.label }}
-          <span class="connection-category-count">{{ getCategoryCount(item.value) }}</span>
-        </template>
-      </AppTabs>
-
-      <div
-        class="connection-section-heading d-flex align-items-center justify-content-between gap-3"
-      >
-        <span class="small text-secondary">
-          {{ activeCategoryLabel }} 연결 기관 {{ visibleConnections.length }}곳 · 자산
-          {{ activeCategoryAssetCount }}개
-        </span>
-      </div>
-
-      <div
-        v-if="visibleConnections.length > 0"
-        :id="`connection-category-panel-${activeCategory.toLowerCase()}`"
-        class="connection-list"
-        role="tabpanel"
-        :aria-label="`${activeCategoryLabel} 연결 목록`"
-        tabindex="0"
-      >
+        <div
+          v-if="visibleConnections.length > 0"
+          :id="`connection-category-panel-${activeCategory.toLowerCase()}`"
+          class="connection-list"
+          role="tabpanel"
+          :aria-label="`${activeCategoryLabel} 연결 목록`"
+          tabindex="0"
+        >
         <article
           v-for="group in visibleConnections"
           :key="group.groupKey"
@@ -475,7 +484,10 @@ onMounted(loadConnections)
                 </small>
               </div>
 
-              <strong class="connection-amount text-nowrap">
+              <strong
+                class="connection-amount text-nowrap"
+                :class="{ 'text-danger': isNegativeAmount(asset.amount) }"
+              >
                 <span v-if="asset.assetKind === 'CARD'" class="connection-amount-label">
                   이번 달
                 </span>
@@ -484,39 +496,39 @@ onMounted(loadConnections)
             </li>
           </ul>
         </article>
-      </div>
+        </div>
 
+        <div
+          v-else
+          :id="`connection-category-panel-${activeCategory.toLowerCase()}`"
+          class="connection-empty-state text-center"
+          role="tabpanel"
+          :aria-label="`${activeCategoryLabel} 연결 목록`"
+          tabindex="0"
+        >
+          <AppState
+            class="connection-empty-state-ui"
+            type="empty"
+            :title="activeCategoryEmptyMessage"
+            :message="`금융기관을 연동하면 ${activeCategoryLabel} 정보를 이곳에서 관리할 수 있습니다.`"
+            compact
+          />
+        </div>
+
+        <RouterLink to="/connections/mydata" class="connection-add-button pressable">
+          <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>
+          자산 연동 추가
+        </RouterLink>
+      </div>
+    </AppCard>
+
+    <Teleport to="body">
       <div
-        v-else
-        :id="`connection-category-panel-${activeCategory.toLowerCase()}`"
-        class="connection-empty-state text-center"
-        role="tabpanel"
-        :aria-label="`${activeCategoryLabel} 연결 목록`"
-        tabindex="0"
+        v-if="pendingDisconnectConnection"
+        class="connection-modal-backdrop"
+        role="presentation"
+        @click.self="closeDisconnectModal"
       >
-        <AppState
-          class="connection-empty-state-ui"
-          type="empty"
-          :title="activeCategoryEmptyMessage"
-          :message="`금융기관을 연동하면 ${activeCategoryLabel} 정보를 이곳에서 관리할 수 있습니다.`"
-          compact
-        />
-      </div>
-
-      <RouterLink to="/connections/mydata" class="connection-add-button">
-        <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>
-        자산 연동 추가
-      </RouterLink>
-    </div>
-  </AppCard>
-
-  <Teleport to="body">
-    <div
-      v-if="pendingDisconnectConnection"
-      class="connection-modal-backdrop"
-      role="presentation"
-      @click.self="closeDisconnectModal"
-    >
       <section
         ref="disconnectModalRef"
         class="connection-modal"
@@ -531,7 +543,7 @@ onMounted(loadConnections)
           <h3 id="disconnect-modal-title" class="h6 fw-bold mb-0">연결 해제</h3>
           <button
             type="button"
-            class="btn-close"
+          class="btn-close pressable"
             aria-label="모달 닫기"
             :disabled="disconnectingId !== null"
             @click="closeDisconnectModal"
@@ -593,8 +605,9 @@ onMounted(loadConnections)
           </AppButton>
         </div>
       </section>
-    </div>
-  </Teleport>
+      </div>
+    </Teleport>
+  </div>
 </template>
 
 <style scoped>

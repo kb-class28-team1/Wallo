@@ -16,6 +16,21 @@ const globalStubs = {
 }
 
 describe("AssetOverviewCard", () => {
+  it("maps the CHECKING asset code to the Korean 입출금 label", () => {
+    const wrapper = mount(AssetOverviewCard, {
+      props: {
+        assets: {
+          totalAssets: 1_650_000,
+          assetCategoryBreakdown: [{ category: "CHECKING", amount: 1_650_000 }],
+        },
+      },
+      global: { stubs: globalStubs },
+    })
+
+    expect(wrapper.text()).toContain("입출금")
+    expect(wrapper.text()).not.toContain("CHECKING")
+  })
+
   it("shows the unified card summary and category composition", () => {
     const wrapper = mount(AssetOverviewCard, {
       props: {
@@ -33,10 +48,11 @@ describe("AssetOverviewCard", () => {
 
     expect(wrapper.find(".asset-overview-card").classes()).toContain("app-card")
     expect(wrapper.find('[data-testid="asset-doughnut"]').exists()).toBe(true)
+    expect(wrapper.get(".connection-management-button").classes()).toContain("app-action-link")
     expect(wrapper.get(".connection-management-button").attributes("href")).toBe(
       "/users/profile/connections",
     )
-    expect(wrapper.text()).toContain("총 보유자산")
+    expect(wrapper.text()).toContain("자산 한눈에 보기")
     expect(wrapper.text()).toContain("2,500,000원")
     expect(wrapper.text()).toContain("순자산")
     expect(wrapper.text()).toContain("2,000,000원")

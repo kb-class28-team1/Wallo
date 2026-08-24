@@ -28,6 +28,10 @@ const props = defineProps({
     type: String,
     default: "ALL",
   },
+  initialCategories: {
+    type: Array,
+    default: () => [],
+  },
 })
 
 const emit = defineEmits(["close", "save"])
@@ -58,6 +62,7 @@ const TYPE_TABS = Object.freeze([
 ])
 
 const selectedCategory = ref("")
+const selectedCategories = ref([])
 const selectedType = ref("EXPENSE")
 const typeTabs = computed(() => TYPE_TABS.map((tab) => ({ ...tab, disabled: props.isSaving })))
 
@@ -89,56 +94,104 @@ const categoryOptions = computed(() =>
   }),
 )
 
-const canSave = computed(() =>
-  Boolean(
-    (isFilterMode.value || props.transaction?.transactionId) &&
-    selectedCategory.value &&
-    !props.isSaving,
-  ),
-)
+const canSave = computed(() => {
+  if (props.isSaving) return false
+  if (isFilterMode.value) return true
+  return Boolean(props.transaction?.transactionId && selectedCategory.value)
+})
 
 const normalizeTransactionType = (type) => {
   if (type === "INCOME" || type === "TRANSFER") return type
   return "EXPENSE"
 }
 
+const typeForCategory = (category) => {
+  if (category === "INCOME") return "INCOME"
+  if (category === "SEND" || category === "RECEIVE") return "TRANSFER"
+  return "EXPENSE"
+}
+
 const selectType = (type) => {
   selectedType.value = type
+  if (isFilterMode.value) return
+
   const nextOptions = categoryValues(type)
   if (!nextOptions.includes(selectedCategory.value)) {
     selectedCategory.value = nextOptions[0]
   }
 }
 
-const initialCategory = (transaction) => {
-  if (isFilterMode.value) {
-    return props.initialCategory === "ALL" ? "ALL" : normalizeExpenseCategory(props.initialCategory)
+const initialFilterCategories = () => {
+  const rawCategories = props.initialCategories.length
+    ? props.initialCategories
+    : [props.initialCategory]
+
+  if (rawCategories.some((category) => String(category).trim().toUpperCase() === "ALL")) {
+    return []
   }
 
-  return normalizeExpenseCategory(transaction?.category)
+  return [...new Set(
+    rawCategories
+      .map((category) => {
+        const normalized = String(category || "").trim().toUpperCase()
+        if (normalized === "OTHER") return "ETC"
+        return Object.values(CATEGORY_GROUPS).flat().includes(normalized) ? normalized : null
+      })
+      .filter(Boolean),
+  )]
+}
+
+const initialCategory = (transaction) => normalizeExpenseCategory(transaction?.category)
+
+const isCategorySelected = (category) =>
+  isFilterMode.value
+    ? category === "ALL"
+      ? selectedCategories.value.length === 0
+      : selectedCategories.value.includes(category)
+    : selectedCategory.value === category
+
+const selectCategory = (category) => {
+  if (!isFilterMode.value) {
+    selectedCategory.value = category
+    return
+  }
+
+  if (category === "ALL") {
+    selectedCategories.value = []
+    selectedCategory.value = "ALL"
+    return
+  }
+
+  selectedCategories.value = selectedCategories.value.includes(category)
+    ? selectedCategories.value.filter((selected) => selected !== category)
+    : [...selectedCategories.value, category]
+  selectedCategory.value = selectedCategories.value[0] || "ALL"
 }
 
 watch(
-  [() => props.visible, () => props.transaction, () => props.initialCategory, () => props.mode],
+  [
+    () => props.visible,
+    () => props.transaction,
+    () => props.initialCategory,
+    () => props.initialCategories,
+    () => props.mode,
+  ],
   ([visible, transaction]) => {
-    if (visible && transaction) {
-      selectedType.value = normalizeTransactionType(transaction.type)
-    } else if (visible && isFilterMode.value) {
-      const category = initialCategory(transaction)
-      selectedType.value =
-        category === "INCOME"
-          ? "INCOME"
-          : category === "SEND" || category === "RECEIVE"
-            ? "TRANSFER"
-            : "EXPENSE"
+    if (!visible) return
+
+    if (isFilterMode.value) {
+      selectedCategories.value = initialFilterCategories()
+      selectedCategory.value = selectedCategories.value[0] || "ALL"
+      selectedType.value = typeForCategory(selectedCategories.value[0])
+      return
     }
 
-    if (visible) {
-      const category = initialCategory(transaction)
-      selectedCategory.value = categoryValues(selectedType.value).includes(category)
-        ? category
-        : categoryValues(selectedType.value)[0]
-    }
+    selectedCategories.value = []
+    selectedType.value = transaction ? normalizeTransactionType(transaction.type) : "EXPENSE"
+    const category = initialCategory(transaction)
+    selectedCategory.value = categoryValues(selectedType.value).includes(category)
+      ? category
+      : categoryValues(selectedType.value)[0]
   },
   { immediate: true },
 )
@@ -153,7 +206,7 @@ const save = () => {
   emit(
     "save",
     isFilterMode.value
-      ? { category: selectedCategory.value }
+      ? { categories: [...selectedCategories.value] }
       : {
           transactionId: props.transaction.transactionId,
           category: selectedCategory.value,
@@ -188,18 +241,23 @@ const save = () => {
         </template>
       </AppTabs>
 
-      <div class="category-option-grid" role="listbox" aria-label="카테고리 목록">
+      <div
+        class="category-option-grid"
+        role="listbox"
+        aria-label="카테고리 목록"
+        :aria-multiselectable="isFilterMode ? 'true' : undefined"
+      >
         <button
           v-for="option in categoryOptions"
           :key="option.value"
           type="button"
-          class="category-option"
-          :class="{ selected: selectedCategory === option.value }"
+          class="category-option pressable"
+          :class="{ selected: isCategorySelected(option.value) }"
           :data-testid="`category-option-${option.value}`"
           role="option"
-          :aria-selected="selectedCategory === option.value"
+          :aria-selected="isCategorySelected(option.value)"
           :disabled="isSaving"
-          @click="selectedCategory = option.value"
+          @click="selectCategory(option.value)"
         >
           <span class="category-option-icon" :class="option.colorClass">
             <i :class="['bi', option.icon]" aria-hidden="true"></i>
@@ -242,41 +300,11 @@ const save = () => {
   margin-bottom: var(--wallo-space-5);
 }
 
-.category-type-tabs {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 4px;
-  margin-bottom: 24px;
-  padding: 6px;
-  border-radius: 28px;
-  background: #f1f3f7;
-}
-
-.category-type-tab {
-  min-height: 48px;
-  border: 0;
-  border-radius: 24px;
-  color: #a1a8b7;
-  background: transparent;
-  font: inherit;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.category-type-tab.active {
-  color: #343044;
-  background: #ffffff;
-  box-shadow: 0 4px 12px rgba(49, 54, 74, 0.05);
-}
-
-.category-type-tab:focus-visible {
-  outline: 2px solid #4d82d6;
-  outline-offset: 2px;
-}
-
-.category-type-tab:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
+.category-filter-hint {
+  margin: calc(var(--wallo-space-5) * -1) 0 var(--wallo-space-4);
+  color: var(--wallo-color-text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 
 .category-option-grid {
@@ -310,6 +338,10 @@ const save = () => {
   border-color: color-mix(in srgb, var(--wallo-color-primary) 45%, var(--wallo-color-border));
   box-shadow: var(--wallo-shadow-card);
   transform: translateY(-1px);
+}
+
+.category-option:active:not(:disabled) {
+  transform: translateY(-1px) scale(0.98);
 }
 
 .category-option:focus-visible {

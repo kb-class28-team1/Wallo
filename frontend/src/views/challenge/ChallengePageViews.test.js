@@ -1,5 +1,6 @@
 import { nextTick } from "vue"
 import { flushPromises, mount } from "@vue/test-utils"
+import { createPinia, setActivePinia } from "pinia"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import ChallengeFeedView from "./ChallengeFeedView.vue"
@@ -17,6 +18,7 @@ import {
 } from "@/api/feedApi"
 import { getTodayMissions, verifyMissionWithFeed } from "@/api/missionApi"
 import { useUserStore } from "@/stores/userStore"
+import { useMissionStore } from "@/stores/missionStore"
 import { clearResourceCache } from "@/utils/resourceCache"
 
 const mocks = vi.hoisted(() => ({
@@ -63,8 +65,11 @@ vi.mock("@/api/feedApi", () => ({
 }))
 
 vi.mock("@/api/missionApi", () => ({
+  completeSelfCheckMission: vi.fn(),
+  generateNextDayMissions: vi.fn(),
   getTodayMissions: vi.fn(),
   verifyMissionWithFeed: vi.fn(),
+  verifyTransactionMission: vi.fn(),
 }))
 
 vi.mock("@/stores/userStore", () => ({
@@ -182,6 +187,7 @@ const mountMyChallenge = () =>
 
 describe("challenge page views", () => {
   beforeEach(() => {
+    setActivePinia(createPinia())
     clearResourceCache()
     mocks.route.params = { challengeId: "7" }
     mocks.route.query = {}
@@ -208,6 +214,8 @@ describe("challenge page views", () => {
   })
 
   afterEach(() => {
+    useMissionStore().stopLifecycle()
+    useMissionStore().reset()
     clearResourceCache()
     vi.unstubAllGlobals()
     vi.clearAllMocks()
@@ -257,13 +265,61 @@ describe("challenge page views", () => {
     await nextTick()
 
     expect(secondWrapper.find('[role="status"]').text()).toContain("최신 피드와 채팅")
+    expect(secondWrapper.find(".feed-page-header .feed-refresh-status").exists()).toBe(true)
     expect(secondWrapper.find(".feed-card").exists()).toBe(true)
 
     resolveMineFeeds({ ...feedPayload, feeds: [] })
     await flushPromises()
 
     expect(getFeeds).toHaveBeenLastCalledWith(7, true)
+    expect(secondWrapper.find(".feed-refresh-status").exists()).toBe(false)
     secondWrapper.unmount()
+  })
+
+  it("hides my nickname from my own chat messages", async () => {
+    getRoomMessages.mockResolvedValueOnce({
+      ...messagePayload,
+      messages: [
+        {
+          id: 1,
+          userId: 1,
+          nickname: "내 닉네임",
+          content: "내가 보낸 일반 메시지",
+        },
+        {
+          id: 2,
+          userId: 2,
+          nickname: "다른 참여자",
+          content: "다른 사람이 보낸 메시지",
+        },
+        {
+          id: 3,
+          userId: 1,
+          nickname: "내 닉네임",
+          messageType: "FEED_SHARE",
+          referenceFeedId: 101,
+          thumbnailUrl: "",
+          mediaUrl: "",
+        },
+        {
+          id: 4,
+          userId: 1,
+          nickname: "내 닉네임",
+          content: "내가 언급한 피드",
+          referenceFeedId: 101,
+        },
+      ],
+    })
+
+    const wrapper = mountFeed()
+    await flushPromises()
+
+    expect(wrapper.findAll(".message-author")).toHaveLength(1)
+    expect(wrapper.find(".message-author").text()).toBe("다른 참여자")
+    expect(wrapper.findAll(".message.mine")).toHaveLength(3)
+    expect(wrapper.findAll(".message.mine").every((message) => !message.find(".message-author").exists())).toBe(true)
+
+    wrapper.unmount()
   })
 
   it("reuses the cached dashboard and keeps it visible while changing the period", async () => {

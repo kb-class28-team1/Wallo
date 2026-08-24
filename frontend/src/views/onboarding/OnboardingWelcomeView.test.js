@@ -20,7 +20,7 @@ describe("OnboardingWelcomeView", () => {
     const wrapper = mount(OnboardingWelcomeView)
 
     expect(wrapper.get(".welcome-penguin").attributes("src")).toBe(
-      "/images/onboarding/welcome-penguin.png",
+      "/images/onboarding/welcome-penguin.webp",
     )
     expect(wrapper.get("h1").text()).toContain("안녕하세요, 왈로예요!")
     expect(wrapper.get(".onboarding-progress").attributes("aria-label")).toContain("1단계")

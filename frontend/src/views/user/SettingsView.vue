@@ -1,6 +1,5 @@
 <script setup>
 import { RouterLink, RouterView, useRoute } from "vue-router"
-import AppCard from "@/components/ui/AppCard.vue"
 import AppPageHeader from "@/components/ui/AppPageHeader.vue"
 
 const route = useRoute()
@@ -18,20 +17,18 @@ const isActiveTab = (tabName) => route.name === tabName
   <section class="settings-view">
     <AppPageHeader title="설정" />
 
-    <AppCard class="settings-navigation" variant="soft" padding="none">
-      <nav class="settings-tabs" aria-label="설정 메뉴">
-        <RouterLink
-          v-for="tab in tabs"
-          :key="tab.name"
-          :to="{ name: tab.name }"
-          class="settings-tab"
-          :class="{ 'settings-tab-active': isActiveTab(tab.name) }"
-          :aria-current="isActiveTab(tab.name) ? 'page' : undefined"
-        >
-          {{ tab.label }}
-        </RouterLink>
-      </nav>
-    </AppCard>
+    <nav class="settings-tabs" aria-label="설정 메뉴">
+      <RouterLink
+        v-for="tab in tabs"
+        :key="tab.name"
+        :to="{ name: tab.name }"
+        class="settings-tab pressable"
+        :class="{ 'settings-tab-active': isActiveTab(tab.name) }"
+        :aria-current="isActiveTab(tab.name) ? 'page' : undefined"
+      >
+        {{ tab.label }}
+      </RouterLink>
+    </nav>
 
     <main class="settings-content">
       <RouterView v-slot="{ Component }">
@@ -53,12 +50,8 @@ const isActiveTab = (tabName) => route.name === tabName
   padding: 0 0 var(--wallo-space-6);
 }
 
-.settings-navigation {
-  margin-bottom: var(--wallo-space-5);
-  border-radius: var(--wallo-radius-lg);
-}
-
 .settings-tabs {
+  margin-bottom: var(--wallo-space-5);
   display: flex;
   gap: var(--wallo-space-2);
   padding: var(--wallo-space-2) var(--wallo-space-3) 0;

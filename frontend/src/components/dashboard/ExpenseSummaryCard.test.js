@@ -77,4 +77,18 @@ describe("ExpenseSummaryCard", () => {
     expect(wrapper.find(".expense-empty-state").text()).toContain("이번 달 지출 데이터가 없습니다.")
     expect(wrapper.find('[data-testid="doughnut-chart"]').exists()).toBe(false)
   })
+
+  it("renders safely when the API has not returned expense data yet", () => {
+    const wrapper = mount(ExpenseSummaryCard, {
+      ...globalOptions,
+      props: {
+        expenses: null,
+        chartData: createChartData([]),
+      },
+    })
+
+    expect(wrapper.find(".expense-total").text()).toBe("0원")
+    expect(wrapper.find(".expense-empty-state").exists()).toBe(true)
+    expect(wrapper.find('[data-testid="doughnut-chart"]').exists()).toBe(false)
+  })
 })

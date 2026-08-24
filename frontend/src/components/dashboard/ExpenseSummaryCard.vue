@@ -4,10 +4,22 @@ import { Doughnut } from "vue-chartjs"
 import { ArcElement, Chart as ChartJS, Legend, Tooltip } from "chart.js"
 import AppCard from "@/components/ui/AppCard.vue"
 import AppState from "@/components/ui/AppState.vue"
-import { getExpenseCategoryLabel } from "@/features/financial/financialCategories"
+import {
+  getExpenseCategoryLabel,
+  getExpenseCategoryMeta,
+} from "@/features/financial/financialCategories"
 import { formatWon } from "@/utils/formatters"
 
 ChartJS.register(ArcElement, Tooltip, Legend)
+
+const EMPTY_EXPENSES = Object.freeze({
+  totalExpense: 0,
+  expenseCategoryBreakdown: [],
+})
+const EMPTY_CHART_DATA = Object.freeze({
+  labels: [],
+  datasets: [{ data: [] }],
+})
 
 const props = defineProps({
   expenses: {
@@ -23,12 +35,18 @@ const props = defineProps({
   },
 })
 
+const safeExpenses = computed(() => props.expenses ?? EMPTY_EXPENSES)
+const safeChartData = computed(() => {
+  const chartData = props.chartData
+  return chartData?.datasets?.[0]?.data ? chartData : EMPTY_CHART_DATA
+})
+
 const topExpenseCategories = computed(() =>
-  [...(props.expenses.expenseCategoryBreakdown ?? [])]
+  [...(safeExpenses.value.expenseCategoryBreakdown ?? [])]
     .sort((first, second) => Number(second.amount) - Number(first.amount))
     .slice(0, 5),
 )
-const hasExpenseData = computed(() => props.chartData.datasets[0].data.length > 0)
+const hasExpenseData = computed(() => safeChartData.value.datasets[0].data.length > 0)
 const chartOptions = {
   responsive: true,
   maintainAspectRatio: false,
@@ -47,15 +65,11 @@ const chartOptions = {
 }
 
 const expenseCategoryColor = (category) => {
-  const categoryIndex = (props.expenses.expenseCategoryBreakdown ?? []).findIndex(
-    (item) => item.category === category,
-  )
-
-  return props.chartData.datasets[0].backgroundColor[categoryIndex] ?? "#6b9be3"
+  return getExpenseCategoryMeta(category).color
 }
 
 const expenseCategoryRate = (amount) => {
-  const totalExpense = Number(props.expenses.totalExpense ?? 0)
+  const totalExpense = Number(safeExpenses.value.totalExpense ?? 0)
 
   if (totalExpense <= 0) {
     return 0
@@ -70,10 +84,10 @@ const expenseCategoryRate = (amount) => {
     <div class="expense-card-body">
       <div class="d-flex align-items-start justify-content-between gap-3">
         <div>
-          <h2 class="h5 fw-bold mb-2">이번 달 총 지출</h2>
-          <strong class="expense-total">{{ formatWon(expenses.totalExpense) }}</strong>
+          <h2 class="h4 fw-bold mb-2">이번 달 총 지출</h2>
+          <strong class="expense-total">{{ formatWon(safeExpenses.totalExpense) }}</strong>
         </div>
-        <RouterLink to="/assets/expenses" class="btn dashboard-action-button">
+        <RouterLink to="/assets/expenses" class="btn app-action-link pressable">
           더보기
           <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
         </RouterLink>
@@ -82,7 +96,7 @@ const expenseCategoryRate = (amount) => {
       <div v-if="hasExpenseData" class="row align-items-center g-4 mt-2">
         <div class="col-md-4">
           <div class="expense-doughnut-chart">
-            <Doughnut :data="chartData" :options="chartOptions" />
+            <Doughnut :data="safeChartData" :options="chartOptions" />
             <p class="expense-doughnut-center mb-0">지출 비중<br />TOP 5</p>
           </div>
         </div>
@@ -130,23 +144,6 @@ const expenseCategoryRate = (amount) => {
 .expense-total {
   color: var(--wallo-color-text);
   font-size: clamp(1.75rem, 3vw, 2.25rem);
-}
-
-.dashboard-action-button {
-  border: 1px solid var(--wallo-color-finance-info);
-  border-radius: var(--wallo-radius-md);
-  color: var(--wallo-color-finance-info);
-  background: var(--wallo-color-surface);
-  transition:
-    color 0.2s ease,
-    background-color 0.2s ease;
-}
-
-.dashboard-action-button:hover,
-.dashboard-action-button:focus {
-  border-color: var(--wallo-color-finance-info-hover);
-  color: var(--wallo-color-surface);
-  background: var(--wallo-color-finance-info);
 }
 
 .expense-doughnut-chart {

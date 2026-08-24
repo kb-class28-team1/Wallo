@@ -2,8 +2,12 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import { storeToRefs } from "pinia"
 import { RouterLink, useRouter } from "vue-router"
-import { generateNextDayMissions, getTodayMissions } from "@/api/missionApi"
 import AuthenticatedImage from "@/components/common/AuthenticatedImage.vue"
+import {
+  MISSION_GENERATION_FAILED_STATUS,
+  MISSION_RATE_LIMIT_MESSAGE,
+  useMissionStore,
+} from "@/stores/missionStore"
 import { useUserStore } from "@/stores/userStore"
 import { useToastStore } from "@/stores/toastStore"
 import { formatNumber } from "@/utils/formatters"
@@ -13,26 +17,22 @@ import AppButton from "@/components/ui/AppButton.vue"
 const pointWCoin = "/images/profiles/point-w-coin.svg"
 const userStore = useUserStore()
 const toastStore = useToastStore()
+const missionStore = useMissionStore()
 const router = useRouter()
 const { nickname, profileImageUrl, pointBalance, isLoading } = storeToRefs(userStore)
-const missions = ref([])
-const missionStatus = ref("READY")
+const {
+  missions,
+  status: missionStatus,
+  failureReason: missionFailureReason,
+  isLoading: isMissionLoading,
+  isPolling: isMissionPolling,
+} = storeToRefs(missionStore)
 const missionMenu = ref(null)
 const isMissionOpen = ref(false)
-const isMissionLoading = ref(false)
 const isMissionDevLoading = ref(false)
 const missionDevResult = ref(null)
-const isMissionPolling = ref(false)
 const isDevelopment = import.meta.env.DEV
 let missionCloseTimer = null
-let missionPollingTimer = null
-let missionPollingAttempts = 0
-const MISSION_POLL_INTERVAL_MS = 2500
-const MAX_MISSION_POLL_ATTEMPTS = 48
-const MISSION_GENERATION_FAILED_STATUS = "GENERATION_FAILED"
-const MISSION_RATE_LIMIT_MESSAGE = "AI 사용량 제한으로 잠시 후 다시 생성됩니다."
-const missionFailureNotified = ref(false)
-const missionFailureReason = ref(null)
 
 // 포인트 숫자에 천 단위 구분 기호를 적용함
 const formattedPointBalance = computed(() => formatNumber(pointBalance.value))
@@ -56,126 +56,32 @@ watch(
   () => userStore.user?.id,
   (currentUserId, previousUserId) => {
     if (currentUserId === previousUserId) return
-    stopMissionPolling()
-    missions.value = []
-    missionStatus.value = "READY"
-    missionFailureReason.value = null
+    missionStore.reset()
     missionDevResult.value = null
-    if (currentUserId) void loadTodayMissions(false)
+    if (currentUserId) {
+      void missionStore.fetchTodayMissions({ notifyError: false }).catch(() => {})
+    }
   },
 )
 
 onMounted(() => {
-  userStore.fetchUserProfile()
-  window.addEventListener("wallo:mission-updated", handleMissionUpdated)
-  void loadTodayMissions().then(() => {
-    if (missionStatus.value === MISSION_GENERATION_FAILED_STATUS) {
-      startMissionPolling()
-    }
-  })
+  void userStore.fetchUserProfile()
 })
 
 onBeforeUnmount(() => {
-  window.removeEventListener("wallo:mission-updated", handleMissionUpdated)
   clearTimeout(missionCloseTimer)
-  stopMissionPolling()
 })
-
-const stopMissionPolling = () => {
-  if (missionPollingTimer) {
-    clearInterval(missionPollingTimer)
-    missionPollingTimer = null
-  }
-  missionPollingAttempts = 0
-  isMissionPolling.value = false
-}
-
-const loadTodayMissions = async (notifyError = true) => {
-  isMissionLoading.value = true
-  try {
-    const response = await getTodayMissions()
-    missionStatus.value = response.status || "READY"
-    missions.value = response.missions
-    missionFailureReason.value = response.failureReason || null
-    if (missionStatus.value === MISSION_GENERATION_FAILED_STATUS) {
-      if (!missionFailureNotified.value) {
-        toastStore.show(
-          response.failureReason === "RATE_LIMIT"
-            ? MISSION_RATE_LIMIT_MESSAGE
-            : "오늘의 미션을 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.",
-        )
-        missionFailureNotified.value = true
-      }
-    } else {
-      missionFailureNotified.value = false
-    }
-  } catch (error) {
-    const isRateLimited = error.status === 429
-    missionStatus.value = isRateLimited ? MISSION_GENERATION_FAILED_STATUS : "ERROR"
-    missions.value = []
-    missionFailureReason.value = isRateLimited ? "RATE_LIMIT" : null
-    if (isRateLimited) {
-      if (!missionFailureNotified.value) {
-        toastStore.show(MISSION_RATE_LIMIT_MESSAGE)
-        missionFailureNotified.value = true
-      }
-    } else if (notifyError) {
-      alert(error.message || "오늘의 미션을 불러오지 못했습니다.")
-    }
-  } finally {
-    isMissionLoading.value = false
-  }
-}
-
-const startMissionPolling = () => {
-  stopMissionPolling()
-  isMissionPolling.value = true
-  missionPollingTimer = setInterval(async () => {
-    missionPollingAttempts += 1
-    await loadTodayMissions(false)
-
-    if (
-      !["WAITING_ANALYSIS", MISSION_GENERATION_FAILED_STATUS].includes(missionStatus.value) ||
-      missionPollingAttempts >= MAX_MISSION_POLL_ATTEMPTS
-    ) {
-      stopMissionPolling()
-    }
-  }, MISSION_POLL_INTERVAL_MS)
-}
-
-const handleMissionUpdated = async (event) => {
-  const generatedResponse = event?.detail?.missionResponse
-  if (generatedResponse) {
-    missionStatus.value = generatedResponse.status || "READY"
-    missions.value = generatedResponse.missions || []
-    missionFailureReason.value = generatedResponse.failureReason || null
-    return
-  }
-  await loadTodayMissions()
-  await userStore.fetchUserProfile()
-  if (["WAITING_ANALYSIS", MISSION_GENERATION_FAILED_STATUS].includes(missionStatus.value)) {
-    startMissionPolling()
-  }
-}
 
 const generateNextDay = async () => {
   isMissionDevLoading.value = true
   try {
-    const response = await generateNextDayMissions()
-    missionStatus.value = response.status || "READY"
-    missions.value = response.missions
+    const response = await missionStore.generateNextDayMissions()
     missionDevResult.value = {
       mode: `${response.date} 시뮬레이션`,
-      count: response.missions.length,
-      titles: response.missions.map((mission) => mission.title),
+      count: Array.isArray(response.missions) ? response.missions.length : 0,
+      titles: (response.missions || []).map((mission) => mission.title),
     }
-    window.dispatchEvent(
-      new CustomEvent("wallo:mission-updated", {
-        detail: { missionResponse: response },
-      }),
-    )
   } catch (error) {
-    missionStatus.value = "ERROR"
     if (error.status === 429) {
       toastStore.show(MISSION_RATE_LIMIT_MESSAGE)
     } else {
@@ -474,7 +380,7 @@ const handleMissionFocusOut = (event) => {
   z-index: 1030;
   top: calc(100% + 10px);
   right: 0;
-  width: 330px;
+  width: 370px;
   padding: 16px;
   border: 1px solid #e3e6f2;
   border-radius: 18px;

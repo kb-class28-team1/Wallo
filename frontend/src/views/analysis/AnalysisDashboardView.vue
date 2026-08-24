@@ -73,10 +73,16 @@ onMounted(refreshAll)
       title="AI 분석 결과"
     >
       <template #actions>
-        <AppButton variant="outline" :disabled="isLoading" @click="refreshAll">
-          <template #leading><i class="bi bi-arrow-clockwise" aria-hidden="true"></i></template>
+        <button
+          type="button"
+        class="btn app-action-link pressable"
+          data-testid="analysis-refresh-button"
+          :disabled="isLoading"
+          @click="refreshAll"
+        >
+          <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>
           새로고침
-        </AppButton>
+        </button>
       </template>
     </AppPageHeader>
 
@@ -143,11 +149,16 @@ onMounted(refreshAll)
             v-else
             compact
             type="empty"
+            hide-icon
             title="저장된 자산분석이 없습니다."
             message="AI 채팅에서 자산분석을 진행하면 이곳에서 다시 볼 수 있어요."
           >
             <template #actions>
-              <AppButton size="sm" @click="startAnalysis('asset-analysis')">자산분석 시작</AppButton>
+              <AppButton
+                class="goal-button pressable"
+                size="md"
+                @click="startAnalysis('asset-analysis')"
+              >자산분석 시작</AppButton>
             </template>
           </AppState>
         </div>
@@ -162,11 +173,16 @@ onMounted(refreshAll)
             v-else
             compact
             type="empty"
+            hide-icon
             title="저장된 소비분석이 없습니다."
             message="AI 채팅에서 소비분석을 진행하면 이곳에서 다시 볼 수 있어요."
           >
             <template #actions>
-              <AppButton size="sm" @click="startAnalysis('consumption-analysis')">소비분석 시작</AppButton>
+              <AppButton
+                class="goal-button pressable"
+                size="md"
+                @click="startAnalysis('consumption-analysis')"
+              >소비분석 시작</AppButton>
             </template>
           </AppState>
         </div>
@@ -198,11 +214,16 @@ onMounted(refreshAll)
             v-else
             compact
             type="empty"
+            hide-icon
             title="저장된 금융상품 추천이 없습니다."
             message="AI 채팅에서 상품 추천을 요청하면 이곳에서 다시 볼 수 있어요."
           >
             <template #actions>
-              <AppButton size="sm" @click="startAnalysis('product-recommendation')">
+              <AppButton
+                class="goal-button pressable"
+                size="md"
+                @click="startAnalysis('product-recommendation')"
+              >
                 상품추천 시작
               </AppButton>
             </template>
@@ -259,6 +280,10 @@ onMounted(refreshAll)
   box-shadow: 0 6px 16px rgb(79 143 232 / 24%);
 }
 
+.analysis-switcher :deep(.app-tabs__tab--active:hover:not(:disabled)) {
+  color: #fff;
+}
+
 .analysis-panel {
   min-height: 260px;
 }
@@ -278,7 +303,6 @@ onMounted(refreshAll)
   padding-bottom: 0.75rem;
   margin-bottom: 1.1rem;
   color: var(--wallo-color-text-muted);
-  border-bottom: 1px solid var(--wallo-color-border-soft);
 }
 
 .analysis-request {

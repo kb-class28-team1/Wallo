@@ -34,5 +34,12 @@ export const WEEKDAY_LABELS = [
 
 export const categoryLabel = (code) => CATEGORY_LABELS[code] || code || "기타"
 
+export const comparisonPeriodLabel = (period) => {
+  const type = String(period?.type || "").toUpperCase()
+  if (type === "WEEKLY") return "저번 주"
+  if (type === "MONTHLY") return "저번 달"
+  return "이전 기간"
+}
+
 export const formatWon = (value) =>
   `${Math.round(Number(value) || 0).toLocaleString("ko-KR")}원`

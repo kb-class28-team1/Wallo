@@ -10,13 +10,13 @@ import httpx
 import pytest
 from groq import BadRequestError
 
-from app.agents.goal.extractor import (
+from app.goals.interview.extractor import (
     GOAL_EXTRACTION_MAX_COMPLETION_TOKENS,
     GoalExtractionError,
     GoalExtractor,
     explicit_target_date,
 )
-from app.agents.goal.models import (
+from app.goals.interview.models import (
     FeasibilityStatus,
     GoalDraft,
     GoalExtraction,
@@ -25,8 +25,8 @@ from app.agents.goal.models import (
     GoalType,
     InterviewState,
 )
-from app.agents.goal.prompts import EXTRACTION_SYSTEM_PROMPT
-from app.agents.goal.service import (
+from app.goals.interview.prompts import EXTRACTION_SYSTEM_PROMPT
+from app.goals.interview.service import (
     GoalInterviewService,
     calculate_feasibility,
     find_missing_fields,

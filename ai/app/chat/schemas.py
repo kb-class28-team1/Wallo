@@ -1,20 +1,20 @@
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
-from app.agents.financial.consumption_models import ConsumptionContext
+from app.financial_assistant.consumption_models import ConsumptionContext
 
-from app.agents.goal.context import (
+from app.goals.interview.context import (
     AccountSubtype,
     FinancialContext,
     GoalAccountContext,
     GoalFundAvailability,
 )
-from app.agents.goal.models import (
+from app.goals.interview.models import (
     FeasibilityResult,
     GoalDraft,
     GoalInterviewAction,
 )
-from app.agents.roadmap.models import GoalRoadmap
+from app.goals.roadmap.models import GoalRoadmap
 
 class ChatHistoryMessage(BaseModel):
     role: Literal["user", "assistant"]

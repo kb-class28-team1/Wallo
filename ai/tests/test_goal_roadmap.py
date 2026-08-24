@@ -3,11 +3,13 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.agents.roadmap.generator import (
+from app.goals.roadmap.generator import (
     ROADMAP_MAX_COMPLETION_TOKENS,
+    SYSTEM_PROMPT,
     generate_goal_roadmap,
+    normalize_roadmap_text,
 )
-from app.agents.roadmap.models import RoadmapGoal
+from app.goals.roadmap.models import RoadmapGoal
 
 
 class FakeCompletions:
@@ -62,6 +64,13 @@ def test_generates_and_validates_structured_roadmap():
     assert '"motivation"' not in completions.kwargs["messages"][1]["content"]
 
 
+def test_prompt_requires_numeric_roadmap_amount_fields():
+    assert "targetAmount와 monthlyContribution은 반드시 원 단위 정수인 JSON 숫자" in SYSTEM_PROMPT
+    assert "targetAmount에 3000000으로 작성" in SYSTEM_PROMPT
+    assert '"3000000"' in SYSTEM_PROMPT
+    assert "문자열로 작성하면 안 됩니다." in SYSTEM_PROMPT
+
+
 def test_rejects_roadmap_whose_last_step_does_not_match_goal():
     payload = valid_roadmap()
     payload["steps"][-1]["targetAmount"] = 9_000_000
@@ -69,3 +78,8 @@ def test_rejects_roadmap_whose_last_step_does_not_match_goal():
 
     with pytest.raises(ValueError, match="마지막 단계 금액"):
         generate_goal_roadmap(client, goal())
+
+
+def test_normalizes_million_shorthand_in_generated_roadmap_text():
+    assert normalize_roadmap_text("현재 3M에 1M 추가") == "현재 3백만원에 1백만원 추가"
+    assert normalize_roadmap_text("3M원과 1.5m") == "3백만원과 1.5백만원"

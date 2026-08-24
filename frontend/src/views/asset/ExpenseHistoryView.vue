@@ -18,10 +18,12 @@ import { formatWon } from "@/utils/formatters"
 import { EXPENSE_CATEGORY_META } from "@/features/financial/financialCategories"
 import { useAssetStore } from "@/stores/assetStore"
 import { useBudgetStore } from "@/stores/budgetStore"
+import { useFinancialInvalidationStore } from "@/stores/financialInvalidationStore"
 
 const PAGE_SIZE = 20
 const assetStore = useAssetStore()
 const budgetStore = useBudgetStore()
+const financialInvalidationStore = useFinancialInvalidationStore()
 const route = useRoute()
 const router = useRouter()
 const { isSyncing, syncError } = storeToRefs(assetStore)
@@ -49,7 +51,7 @@ const createEmptyExpenseData = () => ({
 const now = new Date()
 const selectedMonth = ref(new Date(now.getFullYear(), now.getMonth(), 1))
 const activeView = ref("calendar")
-const selectedListCategory = ref("ALL")
+const selectedListCategories = ref([])
 const expenseData = ref(createEmptyExpenseData())
 const hasLoadedExpenseData = ref(false)
 const isLoading = ref(false)
@@ -108,11 +110,16 @@ const listCategoryOptions = computed(() => [
   })),
 ])
 
-const selectedListCategoryLabel = computed(
-  () =>
-    listCategoryOptions.value.find((option) => option.value === selectedListCategory.value)
-      ?.label || "전체",
-)
+const selectedListCategoryLabel = computed(() => {
+  if (selectedListCategories.value.length === 0) return "전체"
+
+  const labels = selectedListCategories.value
+    .map((category) => listCategoryOptions.value.find((option) => option.value === category)?.label)
+    .filter(Boolean)
+
+  if (labels.length <= 2) return labels.join(", ")
+  return `${labels.slice(0, 2).join(", ")} 외 ${labels.length - 2}개`
+})
 
 const canEditBudget = computed(
   () => isCurrentMonth.value && !isBudgetLoading.value && !budgetError.value,
@@ -163,7 +170,6 @@ const hasAnyData = computed(
     expenseData.value.transactions.length > 0,
 )
 
-
 const selectedDateLabel = computed(() => {
   if (!selectedDate.value) return ""
   const [year, month, day] = selectedDate.value.split("-").map(Number)
@@ -207,7 +213,8 @@ const fetchExpensePage = async (page, append = false) => {
       ...dateRange.value,
       page,
       size: PAGE_SIZE,
-      category: selectedListCategory.value,
+      category:
+        selectedListCategories.value.length > 0 ? selectedListCategories.value.join(",") : "ALL",
     })
 
     if (currentRequest !== requestVersion) return
@@ -266,10 +273,30 @@ const closeCategoryFilter = () => {
   isCategoryFilterModalVisible.value = false
 }
 
-const applyCategoryFilter = async ({ category }) => {
+const applyCategoryFilter = async ({ categories, category }) => {
   if (isCategoryFilterSaving.value) return
 
-  selectedListCategory.value = category || "ALL"
+  const selectedValues = Array.isArray(categories)
+    ? categories
+    : category && category !== "ALL"
+      ? [category]
+      : []
+  const validCategories = new Set(
+    listCategoryOptions.value
+      .filter((option) => option.value !== "ALL")
+      .map((option) => option.value),
+  )
+  selectedListCategories.value = [
+    ...new Set(
+      selectedValues
+        .map((value) =>
+          String(value || "")
+            .trim()
+            .toUpperCase(),
+        )
+        .filter((value) => validCategories.has(value)),
+    ),
+  ]
   isCategoryFilterSaving.value = true
   try {
     await changeListCategory()
@@ -307,7 +334,8 @@ const saveTransactionCategory = async ({ transactionId, category }) => {
       throw new Error(response?.error?.message || "카테고리 수정 응답이 올바르지 않습니다.")
     }
 
-    await fetchExpensePage(0)
+    financialInvalidationStore.markChanged()
+    await loadSelectedMonth({ forceBudget: true })
     if (!error.value) {
       isCategoryEditModalVisible.value = false
       selectedTransaction.value = null
@@ -324,13 +352,17 @@ const saveTransactionCategory = async ({ transactionId, category }) => {
   }
 }
 
-const loadSelectedMonth = async () => {
+const loadSelectedMonth = async ({ forceBudget = false } = {}) => {
+  const budgetRequestOptions = forceBudget
+    ? { notifyError: false, force: true }
+    : { notifyError: false }
+
   requestVersion += 1
   isLoadingMore.value = false
   loadMoreError.value = ""
   await Promise.all([
     fetchExpensePage(0),
-    budgetStore.fetchCategoryBudgets(targetMonth.value, { notifyError: false }).catch(() => null),
+    budgetStore.fetchCategoryBudgets(targetMonth.value, budgetRequestOptions).catch(() => null),
   ])
 }
 
@@ -344,7 +376,7 @@ const syncCurrentMonth = async () => {
     const result = await assetStore.syncAssets()
     if (!result) return
 
-    await loadSelectedMonth()
+    await loadSelectedMonth({ forceBudget: true })
     if (error.value) {
       syncStatus.value = {
         type: "warning",
@@ -488,25 +520,38 @@ onMounted(async () => {
   <section class="expense-history-view">
     <AppPageHeader class="page-header" :title="`월별 리포트`">
       <template #leading>
-        <RouterLink to="/assets" class="back-button" aria-label="자산 관리로 돌아가기">
+        <RouterLink to="/assets" class="back-button pressable" aria-label="자산 관리로 돌아가기">
           <i class="bi bi-chevron-left" aria-hidden="true"></i>
         </RouterLink>
       </template>
+      <template #title>
+        <span class="expense-page-title">
+          <span>월별 리포트</span>
+          <span v-if="isExpenseRefreshing" class="expense-refresh-status" role="status">
+            <span class="spinner-border spinner-border-sm text-primary" aria-hidden="true"></span>
+            <span class="expense-refresh-status__text">
+              {{ monthLabel }} 소비 내역을 최신 상태로 갱신하고 있습니다.
+            </span>
+          </span>
+        </span>
+      </template>
       <template #actions>
-        <AppButton
-          class="expense-sync-button"
-          variant="primary"
+        <button
           type="button"
-          :disabled="isSyncing || isExpenseInitialLoading || isExpenseRefreshing || isDailyLoading"
+          class="expense-sync-button btn app-action-link pressable"
+          :disabled="
+            isSyncing ||
+            isBudgetLoading ||
+            isBudgetSaving ||
+            isExpenseInitialLoading ||
+            isExpenseRefreshing ||
+            isDailyLoading
+          "
           @click="syncCurrentMonth"
         >
-          <span
-            v-if="isSyncing"
-            class="spinner-border spinner-border-sm me-2"
-            aria-hidden="true"
-          ></span>
-          {{ isSyncing ? "동기화 중..." : "거래내역 새로고침" }}
-        </AppButton>
+          <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>
+          새로고침
+        </button>
       </template>
     </AppPageHeader>
 
@@ -518,14 +563,11 @@ onMounted(async () => {
       role="status"
     />
 
-    <div v-if="isExpenseRefreshing" class="small text-secondary mb-3" role="status">
-      <span class="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true"></span>
-      {{ monthLabel }} 소비 내역을 최신 상태로 갱신하고 있습니다.
-    </div>
-
     <AppAlert v-if="error && hasLoadedExpenseData" class="expense-error mb-3" variant="warning">
       <span>최신 소비 내역을 갱신하지 못했습니다. 기존 내역을 표시하고 있습니다.</span>
-      <AppButton variant="outline" size="sm" @click="loadSelectedMonth">다시 시도</AppButton>
+      <AppButton variant="outline" size="sm" @click="loadSelectedMonth({ forceBudget: true })">
+        다시 시도
+      </AppButton>
     </AppAlert>
 
     <AppState
@@ -541,7 +583,9 @@ onMounted(async () => {
         <strong class="d-block mb-1">소비 내역을 불러오지 못했습니다.</strong>
         <span>{{ error }}</span>
       </div>
-      <AppButton variant="outline" size="sm" @click="loadSelectedMonth">다시 시도</AppButton>
+      <AppButton variant="outline" size="sm" @click="loadSelectedMonth({ forceBudget: true })">
+        다시 시도
+      </AppButton>
     </AppAlert>
 
     <template v-else>
@@ -554,7 +598,7 @@ onMounted(async () => {
               <div class="month-navigation d-flex align-items-center gap-2">
                 <button
                   type="button"
-                  class="month-button"
+                  class="month-button pressable"
                   aria-label="이전 달"
                   @click="moveMonth(-1)"
                 >
@@ -563,7 +607,7 @@ onMounted(async () => {
                 <strong>{{ monthLabel }}</strong>
                 <button
                   type="button"
-                  class="month-button"
+                  class="month-button pressable"
                   aria-label="다음 달"
                   @click="moveMonth(1)"
                 >
@@ -574,7 +618,7 @@ onMounted(async () => {
               <div class="view-toggle btn-group" role="group" aria-label="소비 내역 보기 방식">
                 <button
                   type="button"
-                  class="btn"
+                  class="btn pressable"
                   :class="{ active: activeView === 'calendar' }"
                   :aria-pressed="activeView === 'calendar'"
                   @click="activeView = 'calendar'"
@@ -584,7 +628,7 @@ onMounted(async () => {
                 </button>
                 <button
                   type="button"
-                  class="btn"
+                  class="btn pressable"
                   :class="{ active: activeView === 'list' }"
                   :aria-pressed="activeView === 'list'"
                   @click="activeView = 'list'"
@@ -600,14 +644,14 @@ onMounted(async () => {
               >
                 <button
                   type="button"
-                  class="category-filter-trigger"
+                class="category-filter-trigger pressable"
                   data-testid="open-category-filter"
                   aria-haspopup="dialog"
                   :disabled="isCategoryFilterSaving"
                   @click="openCategoryFilter"
                 >
                   <span>카테고리 필터</span>
-                  <span v-if="selectedListCategory !== 'ALL'" class="category-filter-current">
+                  <span v-if="selectedListCategories.length > 0" class="category-filter-current">
                     {{ selectedListCategoryLabel }}
                   </span>
                   <i class="bi bi-chevron-down" aria-hidden="true"></i>
@@ -652,7 +696,6 @@ onMounted(async () => {
           />
         </div>
       </AppCard>
-
     </template>
 
     <CategoryBudgetEditor
@@ -675,7 +718,7 @@ onMounted(async () => {
     <ExpenseCategoryEditModal
       :visible="isCategoryFilterModalVisible"
       mode="filter"
-      :initial-category="selectedListCategory"
+      :initial-categories="selectedListCategories"
       :is-saving="isCategoryFilterSaving"
       @close="closeCategoryFilter"
       @save="applyCategoryFilter"
@@ -726,8 +769,29 @@ onMounted(async () => {
   padding: 0 0 var(--wallo-space-6);
 }
 
-.expense-sync-button {
-  min-width: 172px;
+.expense-page-title {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: var(--wallo-space-3);
+}
+
+.expense-refresh-status {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--wallo-space-2);
+  overflow: hidden;
+  color: var(--wallo-color-text-muted);
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.expense-refresh-status__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .expense-sync-status {
@@ -755,7 +819,7 @@ onMounted(async () => {
 .back-button:hover,
 .back-button:focus,
 .month-button:hover,
-.month-button:focus {
+.month-button:focus-visible {
   color: #4d82d6;
   background: #edf6ff;
 }

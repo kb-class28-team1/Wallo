@@ -1,6 +1,6 @@
 import { flushPromises, mount } from "@vue/test-utils"
 import { createPinia, setActivePinia } from "pinia"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import AiAssistantView from "./AiAssistantView.vue"
 import { getGoalRoadmap, getGoals } from "@/api/goalApi"
 import {
@@ -8,6 +8,7 @@ import {
   getTodayMissions,
   verifyTransactionMission,
 } from "@/api/missionApi"
+import { useMissionStore } from "@/stores/missionStore"
 
 const push = vi.fn()
 
@@ -24,8 +25,10 @@ vi.mock("@/api/goalApi", () => ({
 }))
 
 vi.mock("@/api/missionApi", () => ({
-  getTodayMissions: vi.fn().mockResolvedValue({ status: "READY", missions: [] }),
   completeSelfCheckMission: vi.fn(),
+  generateNextDayMissions: vi.fn(),
+  getTodayMissions: vi.fn().mockResolvedValue({ status: "READY", missions: [] }),
+  verifyMissionWithFeed: vi.fn(),
   verifyTransactionMission: vi.fn(),
 }))
 
@@ -40,6 +43,11 @@ describe("AiAssistantView", () => {
     verifyTransactionMission.mockResolvedValue({ decision: "PASS" })
   })
 
+  afterEach(() => {
+    useMissionStore().stopLifecycle()
+    useMissionStore().reset()
+  })
+
   it("shows the goal empty state and roadmap introduction when no goal exists", async () => {
     const wrapper = mount(AiAssistantView)
     await flushPromises()
@@ -49,10 +57,12 @@ describe("AiAssistantView", () => {
     expect(wrapper.find(".content-card").classes()).toContain("app-card")
     expect(wrapper.find(".goal-main-card").classes()).toContain("h-100")
     expect(wrapper.find(".goal-button").classes()).toContain("app-button")
+    expect(wrapper.find(".goal-main-card h2").text()).toBe("나의 목표")
     expect(wrapper.text()).toContain("목표 달성을 위한 로드맵")
     expect(wrapper.text()).toContain("나에게 맞는 로드맵")
     expect(wrapper.text()).toContain("추천 금융 상품")
     expect(wrapper.text()).toContain("오늘의 미션")
+    expect(wrapper.find(".goal-roadmap-card .roadmap-state .app-state__icon").exists()).toBe(false)
   })
 
   it("shows today's missions in the right-hand dashboard card", async () => {
@@ -122,6 +132,7 @@ describe("AiAssistantView", () => {
   it("reflects missions generated for the next development date", async () => {
     const wrapper = mount(AiAssistantView)
     await flushPromises()
+    useMissionStore().startLifecycle()
 
     window.dispatchEvent(
       new CustomEvent("wallo:mission-updated", {
@@ -165,7 +176,13 @@ describe("AiAssistantView", () => {
       (button) => button.text().includes("소비분석 하러가기"),
     )
     expect(analysisButton).toBeTruthy()
+    expect(analysisButton.classes()).toContain("mission-analysis-button")
+    expect(analysisButton.classes()).toContain("app-button--primary")
+    expect(analysisButton.find(".bi-arrow-right").exists()).toBe(true)
     expect(wrapper.find(".mission-empty-analysis").exists()).toBe(true)
+    expect(wrapper.find(".mission-analysis-copy").text()).toBe(
+      "소비 분석이 완료되면 오늘의 미션이 생성됩니다.",
+    )
     await analysisButton.trigger("click")
 
     expect(push).toHaveBeenCalledWith({
@@ -199,11 +216,11 @@ describe("AiAssistantView", () => {
           steps: [
             {
               stepNumber: 1,
-              title: "자동 저축 시작",
-              description: "전용 계좌를 준비합니다.",
+              title: "현재 3M에 1M 추가",
+              description: "현재 금액에 1M을 더합니다.",
               targetDate: "2026-09-30",
               targetAmount: 3000000,
-              actionItems: ["자동이체 설정"],
+              actionItems: ["3M 잔액 확인"],
             },
             {
               stepNumber: 2,
@@ -223,7 +240,16 @@ describe("AiAssistantView", () => {
     await vi.waitFor(() => expect(wrapper.text()).toContain("비상금 1,000만 원 만들기"))
 
     expect(wrapper.text()).toContain("2,500,000원")
+    expect(wrapper.text()).toContain("현재 3백만원에 1백만원 추가")
+    expect(wrapper.text()).toContain("3백만원 잔액 확인")
+    expect(wrapper.text()).not.toContain("현재 3M에 1M 추가")
     expect(wrapper.text()).toContain("25%")
+    expect(wrapper.find(".goal-main-card h2").text()).toBe("나의 목표")
+    expect(wrapper.text()).toContain("비상금 1,000만 원 만들기 10,000,000원 모으기")
+    expect(wrapper.find(".goal-summary-copy h3").exists()).toBe(false)
+    expect(wrapper.text()).not.toContain("EMERGENCY_FUND")
+    expect(wrapper.find(".goal-summary-icon").exists()).toBe(false)
+    expect(wrapper.find(".goal-type").exists()).toBe(false)
     expect(wrapper.text()).toContain("최종 목표 달성")
     expect(wrapper.text()).not.toContain("AI가 생성한 맞춤 계획")
     expect(wrapper.find(".goal-roadmap-card").exists()).toBe(true)

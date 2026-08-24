@@ -1,7 +1,9 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue"
+import { storeToRefs } from "pinia"
 import { useRoute, useRouter } from "vue-router"
 import { useUserStore } from "@/stores/userStore"
+import { useMissionStore } from "@/stores/missionStore"
 import { getAccessToken } from "@/api/authToken"
 import { refreshAccessToken } from "@/api/authApi"
 import { formatWon } from "@/utils/formatters"
@@ -12,7 +14,6 @@ import AppButton from "@/components/ui/AppButton.vue"
 import AppPageHeader from "@/components/ui/AppPageHeader.vue"
 import AppState from "@/components/ui/AppState.vue"
 import { leaveChallenge as leaveChallengeRequest } from "@/api/challengeApi"
-import { getTodayMissions, verifyMissionWithFeed } from "@/api/missionApi"
 import {
   createFeed,
   deleteFeed,
@@ -37,6 +38,7 @@ import { announcePointEarned } from "@/utils/pointRewardNotice"
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
+const missionStore = useMissionStore()
 const challengeId = computed(() => Number(route.params.challengeId))
 const focusedFeedId = computed(() => String(route.query.focusFeedId || ""))
 const feeds = ref([])
@@ -56,8 +58,15 @@ const isAnalyzing = ref(false)
 const analysisProgress = ref(0)
 const analysisStageMessage = ref("분석 준비 중...")
 const isUploading = ref(false)
-const todayMissions = ref([])
-const isMissionLoading = ref(false)
+const { missions: missionList, isLoading: isMissionLoading } = storeToRefs(missionStore)
+const todayMissions = computed(() =>
+  missionList.value.filter(
+    (mission) =>
+      ["MEDIA_AI", "HYBRID"].includes(mission.verificationType) &&
+      !mission.completed &&
+      mission.status !== "VERIFYING",
+  ),
+)
 const likingFeedId = ref(null)
 const likeBursts = ref([])
 const pageHeartBursts = ref([])
@@ -421,20 +430,10 @@ const leaveCurrentChallenge = async () => {
 
 const openModal = async () => {
   modalOpen.value = true
-  isMissionLoading.value = true
   try {
-    const response = await getTodayMissions()
-    todayMissions.value = response.missions.filter(
-      (mission) =>
-        ["MEDIA_AI", "HYBRID"].includes(mission.verificationType) &&
-        !mission.completed &&
-        mission.status !== "VERIFYING",
-    )
+    await missionStore.fetchTodayMissions({ notifyError: false })
   } catch (error) {
-    todayMissions.value = []
     await openDialog({ message: error.message })
-  } finally {
-    isMissionLoading.value = false
   }
 }
 const closeModal = () => {
@@ -637,6 +636,7 @@ const requestAnalysis = async () => {
   isAnalyzing.value = true
   analysisProgress.value = 0
   analysisStageMessage.value = "분석 준비 중..."
+  await nextTick()
   startAnalysisProgress()
   try {
     const result = await waitForAnalysis(requestSequence)
@@ -743,9 +743,11 @@ const uploadFeed = async () => {
     let verificationError = null
     if (form.dailyMissionId) {
       try {
-        verificationResult = await verifyMissionWithFeed(form.dailyMissionId, createdFeed.id)
+        verificationResult = await missionStore.verifyMissionWithFeed(
+          form.dailyMissionId,
+          createdFeed.id,
+        )
         await userStore.fetchUserProfile()
-        window.dispatchEvent(new CustomEvent("wallo:mission-updated"))
       } catch (error) {
         verificationError = error
       }
@@ -903,14 +905,6 @@ onBeforeUnmount(() => {
         <i class="bi bi-heart-fill" aria-hidden="true"></i>
       </span>
     </div>
-    <AppAlert
-      v-if="refreshing"
-      class="feed-refresh-status"
-      variant="neutral"
-      role="status"
-      :show-icon="false"
-      message="최신 피드와 채팅을 확인하는 중..."
-    />
     <AppAlert v-if="errorMessage && hasLoadedPage" class="feed-error-alert" variant="warning">
       <div class="feed-alert-content">
         <span>{{ errorMessage }}</span>
@@ -939,6 +933,18 @@ onBeforeUnmount(() => {
     <template v-else>
       <header class="feed-header">
         <AppPageHeader class="feed-page-header" :title="challengeName">
+          <template #title>
+            <span class="feed-page-title">
+              <span>{{ challengeName }}</span>
+              <span v-if="refreshing" class="feed-refresh-status" role="status">
+                <span
+                  class="spinner-border spinner-border-sm text-primary"
+                  aria-hidden="true"
+                ></span>
+                <span class="feed-refresh-status__text">최신 피드와 채팅을 확인하는 중...</span>
+              </span>
+            </span>
+          </template>
           <template #actions>
             <div class="saving-total">
               <small>누적 절약 금액</small><strong>{{ formatWon(mySavingTotal) }}</strong>
@@ -1021,7 +1027,7 @@ onBeforeUnmount(() => {
               <button
                 v-if="feed.mediaType === 'VIDEO'"
                 type="button"
-                class="feed-sound-toggle"
+                class="feed-sound-toggle pressable"
                 :aria-label="isFeedMuted(feed.id) ? '소리 켜기' : '소리 끄기'"
                 @click.stop="toggleFeedMute(feed)"
               >
@@ -1052,7 +1058,7 @@ onBeforeUnmount(() => {
               <div class="feed-like-row">
                 <button
                   type="button"
-                  class="mention-feed-button"
+                  class="mention-feed-button pressable"
                   aria-label="언급하기"
                   title="언급하기"
                   @click.stop="mentionFeedFromCard(feed)"
@@ -1062,7 +1068,7 @@ onBeforeUnmount(() => {
                 </button>
                 <button
                   type="button"
-                  class="like-button"
+                  class="like-button pressable"
                   :disabled="likingFeedId === feed.id"
                   aria-label="좋아요 추가"
                   @click.stop="addLike(feed)"
@@ -1079,6 +1085,7 @@ onBeforeUnmount(() => {
                 <p>{{ feed.caption || "오늘의 절약 기록을 공유했어요." }}</p>
                 <div v-if="isMyFeed(feed)" class="feed-owner-actions">
                   <button
+                    class="pressable"
                     type="button"
                     :disabled="deletingFeedId === feed.id"
                     @click.stop="removeFeed(feed)"
@@ -1118,10 +1125,10 @@ onBeforeUnmount(() => {
                 :class="{ mine: isMyMessage(item) }"
               >
                 <div v-if="isFeedShareMessage(item)" class="feed-share-message">
-                  <strong class="message-author">{{ item.nickname }}</strong>
+                  <strong v-if="!isMyMessage(item)" class="message-author">{{ item.nickname }}</strong>
                   <div class="feed-attachment">
                     <small class="feed-attachment-label">피드 #{{ item.referenceFeedId }}</small>
-                    <button type="button" class="shared-feed" @click="mentionFeed(item)">
+                    <button type="button" class="shared-feed pressable" @click="mentionFeed(item)">
                       <video
                         v-if="item.mediaType === 'VIDEO'"
                         :src="item.mediaUrl"
@@ -1141,11 +1148,11 @@ onBeforeUnmount(() => {
                   </div>
                 </div>
                 <template v-else-if="isFeedMentionMessage(item)">
-                  <strong class="message-author">{{ item.nickname }}</strong>
+                  <strong v-if="!isMyMessage(item)" class="message-author">{{ item.nickname }}</strong>
                   <div class="feed-mention">
                     <div class="feed-attachment">
                       <small class="feed-attachment-label">피드 #{{ item.referenceFeedId }}</small>
-                      <button type="button" class="shared-feed" @click="mentionFeed(item)">
+                      <button type="button" class="shared-feed pressable" @click="mentionFeed(item)">
                         <video
                           v-if="item.mediaType === 'VIDEO'"
                           :src="item.mediaUrl"
@@ -1168,7 +1175,7 @@ onBeforeUnmount(() => {
                 </template>
                 <template v-else>
                   <div class="message-content">
-                    <strong class="message-author">{{ item.nickname }}</strong>
+                    <strong v-if="!isMyMessage(item)" class="message-author">{{ item.nickname }}</strong>
                     <p v-if="item.content" class="message-bubble">{{ item.content }}</p>
                   </div>
                 </template>
@@ -1176,7 +1183,7 @@ onBeforeUnmount(() => {
             </div>
             <div v-if="mentionedFeed" class="mention-preview">
               <span>피드 #{{ mentionedFeed.id }} 언급 중</span>
-              <button @click="mentionedFeed = null">×</button>
+               <button class="pressable" @click="mentionedFeed = null">×</button>
             </div>
             <form class="chat-form" @submit.prevent="sendMessage">
               <textarea
@@ -1189,7 +1196,7 @@ onBeforeUnmount(() => {
                 @keydown.enter.exact.prevent
                 @keyup.enter.exact.prevent="sendMessage"
               ></textarea>
-              <button type="submit" aria-label="메시지 전송" :disabled="isSendingMessage">
+              <button class="pressable" type="submit" aria-label="메시지 전송" :disabled="isSendingMessage">
                 <i class="bi bi-send" aria-hidden="true"></i>
               </button>
             </form>
@@ -1207,11 +1214,11 @@ onBeforeUnmount(() => {
       </AppButton>
     </template>
 
-    <div v-if="modalOpen" class="modal-layer" @click.self="closeModal">
+    <div v-if="modalOpen" class="modal-layer">
       <section class="upload-modal" role="dialog" aria-modal="true" aria-labelledby="upload-title">
         <header>
           <h2 id="upload-title">절약 피드 추가</h2>
-          <button @click="closeModal">×</button>
+           <button class="pressable" @click="closeModal">×</button>
         </header>
         <div class="modal-body">
           <label class="section-label">인증 자료</label>
@@ -1259,6 +1266,7 @@ onBeforeUnmount(() => {
               v-for="item in categories"
               :key="item.value"
               type="button"
+              class="pressable"
               :class="{ selected: form.category === item.value }"
               @click="selectCategory(item.value)"
             >
@@ -1295,11 +1303,37 @@ onBeforeUnmount(() => {
             </div>
             <button
               type="button"
+              class="pressable"
               :class="{ 'is-analyzing': isAnalyzing }"
               :style="isAnalyzing ? { '--analysis-progress': `${analysisProgress}%` } : undefined"
               :disabled="isAnalyzing"
               @click="requestAnalysis"
             >
+              <span v-if="isAnalyzing" class="analysis-wave-scene" aria-hidden="true">
+                <svg
+                  class="analysis-wave-svg"
+                  viewBox="0 0 200 34"
+                  preserveAspectRatio="none"
+                >
+                  <path
+                    class="analysis-wave-track"
+                    d="M0 20C18 8 32 8 50 20S82 32 100 20 132 8 150 20 182 32 200 20V34H0Z"
+                  />
+                  <path
+                    class="analysis-wave-fill"
+                    d="M0 20C18 8 32 8 50 20S82 32 100 20 132 8 150 20 182 32 200 20V34H0Z"
+                  />
+                  <path
+                    class="analysis-wave-foam"
+                    d="M0 20C18 8 32 8 50 20S82 32 100 20 132 8 150 20 182 32 200 20"
+                  />
+                </svg>
+                <img
+                  class="analysis-surfer"
+                  src="/images/illustrations/wallo-surfing.webp"
+                  alt=""
+                />
+              </span>
               <span class="analysis-button-label">
                 {{ isAnalyzing ? analysisStageMessage : "✨ AI에게 분석 맡기기" }}
               </span>
@@ -1338,7 +1372,8 @@ onBeforeUnmount(() => {
                   v-for="option in savingFeedbackOptions"
                   :key="option.value"
                   type="button"
-                  :class="{ selected: form.savingAmountFeedback === option.value }"
+                   class="pressable"
+                   :class="{ selected: form.savingAmountFeedback === option.value }"
                   @click="selectSavingAmountFeedback(option.value)"
                 >
                   {{ option.label }}
@@ -1376,8 +1411,8 @@ onBeforeUnmount(() => {
           <p class="share-notice">💬 업로드하면 {{ roomTitle }}에도 자동으로 공유돼요.</p>
         </div>
         <footer>
-          <button class="cancel" @click="closeModal">취소</button
-          ><button class="submit" :disabled="isUploading" @click="uploadFeed">
+          <button class="cancel pressable" @click="closeModal">취소</button
+          ><button class="submit pressable" :disabled="isUploading" @click="uploadFeed">
             {{ isUploading ? "올리는 중..." : "피드 올리기" }}
           </button>
         </footer>
@@ -1409,9 +1444,30 @@ onBeforeUnmount(() => {
   justify-items: center;
   gap: 18px;
 }
-.feed-refresh-status,
 .feed-error-alert {
   margin-bottom: 18px;
+}
+.feed-page-title {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: var(--wallo-space-3);
+}
+.feed-refresh-status {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--wallo-space-2);
+  overflow: hidden;
+  color: var(--wallo-color-text-muted);
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.feed-refresh-status__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .feed-alert-content {
   display: flex;
@@ -1775,6 +1831,9 @@ onBeforeUnmount(() => {
 .mention-feed-button:hover {
   color: #d7e7f8;
   background: transparent;
+}
+.mention-feed-button:active:not(:disabled) {
+  transform: translateX(4px) scale(0.98);
 }
 @keyframes like-heart-rise {
   0% {
@@ -2221,73 +2280,102 @@ textarea {
   position: relative;
   overflow: hidden;
   isolation: isolate;
-  background: #c986ed;
+  background: linear-gradient(90deg, #4f8fe8, #78aaf0);
   color: #fff;
   opacity: 1;
 }
-.analysis-box button.is-analyzing::before,
-.analysis-box button.is-analyzing::after {
+.analysis-wave-scene {
   position: absolute;
   inset: 0;
-  content: "";
   pointer-events: none;
-  clip-path: inset(0 calc(100% - var(--analysis-progress)) 0 0 round 13px);
+  overflow: hidden;
 }
-.analysis-box button.is-analyzing::before {
-  z-index: 0;
-  background: linear-gradient(90deg, #705ef0, #bd36f5);
-  will-change: clip-path;
-  transition: clip-path 1400ms cubic-bezier(0.22, 0.7, 0.28, 1);
+.analysis-wave-svg {
+  position: absolute;
+  bottom: 0;
+  left: -6%;
+  width: 112%;
+  height: 72%;
+  overflow: visible;
+  animation: analysis-wave-drift 2.2s ease-in-out infinite;
 }
-.analysis-box button.is-analyzing::after {
-  z-index: 0;
-  background: linear-gradient(
-    110deg,
-    transparent 35%,
-    rgba(255, 255, 255, 0.3) 50%,
-    transparent 65%
-  );
-  background-size: 220% 100%;
-  animation: analysis-progress-shimmer 1.8s ease-in-out infinite;
+.analysis-wave-track {
+  fill: #b8dcf8;
+  opacity: 0.95;
+}
+.analysis-wave-fill,
+.analysis-wave-foam {
+  clip-path: inset(0 calc(100% - var(--analysis-progress)) 0 0);
+  transition: clip-path 900ms cubic-bezier(0.22, 0.7, 0.28, 1);
+}
+.analysis-wave-fill {
+  fill: #3e7bd1;
+}
+.analysis-wave-foam {
+  fill: none;
+  stroke: #fff;
+  stroke-linecap: round;
+  stroke-width: 1.8;
+  opacity: 0.9;
+}
+.analysis-surfer {
+  position: absolute;
+  bottom: -16px;
+  left: clamp(28px, var(--analysis-progress), calc(100% - 28px));
+  z-index: 4;
+  width: 62px;
+  height: 62px;
+  object-fit: contain;
+  transform: translateX(-50%);
+  transform-origin: 50% 90%;
+  animation: analysis-surfer-bob 900ms ease-in-out infinite alternate;
 }
 .analysis-button-label {
   position: relative;
-  z-index: 1;
+  z-index: 3;
   color: #fff !important;
   font-size: inherit;
   font-weight: inherit;
   opacity: 1 !important;
-  text-shadow: 0 1px 2px rgba(44, 27, 105, 0.18);
+  text-shadow: 0 1px 2px rgba(28, 64, 120, 0.18);
 }
 .analysis-box button.is-analyzing:disabled {
   color: #fff;
   opacity: 1 !important;
 }
-@keyframes analysis-progress-shimmer {
+@keyframes analysis-wave-drift {
+  0%,
+  100% {
+    transform: translateX(-3%);
+  }
+  50% {
+    transform: translateX(3%);
+  }
+}
+@keyframes analysis-surfer-bob {
   from {
-    background-position: 120% 0;
+    transform: translateX(-50%) rotate(-2deg) translateY(1px);
   }
   to {
-    background-position: -20% 0;
+    transform: translateX(-50%) rotate(2deg) translateY(-2px);
   }
 }
 .analysis-progress-label {
   margin-top: 7px;
-  color: #7565d8;
+  color: #4f80c9;
   font-size: 0.76rem;
   font-weight: 750;
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 @media (prefers-reduced-motion: reduce) {
-  .analysis-box button.is-analyzing {
-    transition: none;
-  }
-  .analysis-box button.is-analyzing::before {
-    transition: none;
-  }
-  .analysis-box button.is-analyzing::after {
+  .analysis-wave-svg,
+  .analysis-surfer {
     animation: none;
+  }
+  .analysis-wave-fill,
+  .analysis-wave-foam {
+    transition: none;
   }
 }
 .result-box {

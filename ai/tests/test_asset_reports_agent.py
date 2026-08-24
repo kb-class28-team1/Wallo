@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.agents.asset_reports.agent import (
+from app.asset_reports.agent import (
     ConsumptionInsightAgent,
     InvalidConsumptionInsightResponseError,
 )
@@ -70,7 +70,7 @@ def test_generate_calls_llm_once():
     assert client.chat.completions.calls[0]["response_format"] == {
         "type": "json_object",
     }
-    assert client.chat.completions.calls[0]["max_completion_tokens"] == 2000
+    assert client.chat.completions.calls[0]["max_completion_tokens"] == 1024
 
 
 def test_generate_sends_only_aggregated_data_to_llm():

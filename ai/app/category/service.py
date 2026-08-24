@@ -1,4 +1,4 @@
-from app.agents.category.agent import (
+from app.category.agent import (
     CategoryAgent,
     InvalidCategoryResponseError,
 )

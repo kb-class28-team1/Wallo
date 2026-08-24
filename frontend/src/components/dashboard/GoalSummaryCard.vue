@@ -92,18 +92,23 @@ const formatGoalDate = (date) => {
 <template>
   <AppCard class="goal-summary-card" padding="none">
     <div class="goal-card-body">
-      <div class="goal-card-header d-flex align-items-start justify-content-between gap-3 mb-4">
+      <div
+        class="goal-card-header d-flex align-items-start justify-content-between gap-3 mb-4"
+        :class="{ 'goal-card-header--goal': selectedGoal && !loading && !error }"
+      >
         <div v-if="selectedGoal" class="min-w-0">
-          <h2 class="h5 fw-bold mb-0 text-truncate">
+          <h2 class="h4 fw-bold mb-0 text-truncate">
             {{ selectedGoal.title || "제목 없는 목표" }}
           </h2>
         </div>
+        <h2 v-else class="h4 fw-bold mb-0">나의 목표</h2>
 
         <RouterLink
+          v-if="goals.length > 0"
           :to="accountSettingsLink"
-          class="btn dashboard-action-button flex-shrink-0 ms-auto"
+          class="btn app-action-link flex-shrink-0 ms-auto pressable"
         >
-          {{ goals.length > 0 ? "계좌 설정" : "목표 설정하기" }}
+          계좌 설정
           <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
         </RouterLink>
       </div>
@@ -123,13 +128,20 @@ const formatGoalDate = (date) => {
 
       <AppState
         v-else-if="goals.length === 0"
-        class="goal-state"
+        class="goal-state goal-state--empty"
         type="empty"
         title="아직 확정된 금융 목표가 없습니다."
         message="AI 컨설팅에서 목표를 설정해보세요."
         compact
         hide-icon
-      />
+      >
+        <template #actions>
+          <RouterLink :to="accountSettingsLink" class="goal-button pressable">
+            목표 설정하기
+            <i class="bi bi-arrow-right ms-2" aria-hidden="true"></i>
+          </RouterLink>
+        </template>
+      </AppState>
 
       <div v-else class="goal-list">
         <section
@@ -138,18 +150,18 @@ const formatGoalDate = (date) => {
           class="goal-item"
         >
           <div class="goal-progress-summary mb-4">
-            <p class="goal-progress-caption mb-1">목표 설정 당시 준비금 기준</p>
+            <div class="goal-progress-caption">현재 모은 금액</div>
             <div class="d-flex align-items-baseline justify-content-between gap-3">
               <div class="goal-progress-amount">
                 <strong>{{ formatWon(getGoalCurrentAmount(selectedGoal)) }}</strong>
-                <span>/ {{ formatWon(selectedGoal.targetAmount) }}</span>
+                <span> / {{ formatWon(selectedGoal.targetAmount) }}</span>
               </div>
               <strong class="goal-progress-rate"
                 >{{ getGoalAchievementRate(selectedGoal) }}%</strong
               >
             </div>
             <div
-              class="progress goal-progress mt-2"
+              class="progress goal-progress mt-3"
               role="progressbar"
               :aria-label="`${selectedGoal.title || '금융 목표'} 달성률`"
               :aria-valuenow="getGoalAchievementRate(selectedGoal)"
@@ -179,7 +191,6 @@ const formatGoalDate = (date) => {
           </dl>
 
           <div class="goal-account-summary" aria-label="설정된 계좌">
-            <div class="goal-account-label">설정된 계좌</div>
             <div v-if="accountsLoading" class="small text-secondary" role="status">
               <span
                 class="spinner-border spinner-border-sm text-primary me-2"
@@ -257,21 +268,8 @@ const formatGoalDate = (date) => {
   margin-bottom: 1.5rem !important;
 }
 
-.dashboard-action-button {
-  border: 1px solid var(--wallo-color-finance-info);
-  border-radius: var(--wallo-radius-md);
-  color: var(--wallo-color-finance-info);
-  background: var(--wallo-color-surface);
-  transition:
-    color 0.2s ease,
-    background-color 0.2s ease;
-}
-
-.dashboard-action-button:hover,
-.dashboard-action-button:focus {
-  border-color: var(--wallo-color-finance-info-hover);
-  color: var(--wallo-color-surface);
-  background: var(--wallo-color-finance-info);
+.goal-card-header--goal {
+  margin-bottom: 0 !important;
 }
 
 .goal-state {
@@ -281,6 +279,12 @@ const formatGoalDate = (date) => {
   align-items: center;
   justify-content: center;
   text-align: center;
+}
+
+.goal-state--empty {
+  width: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
 }
 
 .goal-list {
@@ -359,22 +363,17 @@ const formatGoalDate = (date) => {
 .goal-progress-caption {
   margin-bottom: 0.5rem !important;
   color: var(--wallo-color-text-muted);
-  font-size: 0.8rem;
+  font-size: 0.95rem;
 }
 
 .goal-progress-summary {
+  margin-top: auto;
   margin-bottom: 1.5rem !important;
 }
 
 .goal-account-summary {
-  margin-top: 1.25rem;
-}
-
-.goal-account-label {
-  margin-bottom: 0.35rem;
-  color: var(--wallo-color-text-muted);
-  font-size: 0.8rem;
-  font-weight: 600;
+  min-height: 3rem;
+  margin-top: auto;
 }
 
 .goal-account-value {
@@ -406,20 +405,19 @@ const formatGoalDate = (date) => {
 
 .goal-progress-rate {
   color: var(--wallo-color-primary);
-  font-size: 1rem;
+  font-size: 1.65rem;
 }
 
 .goal-progress {
-  margin-top: 0.75rem !important;
   height: 0.7rem;
   overflow: hidden;
-  border-radius: var(--wallo-radius-pill);
-  background: var(--wallo-color-info-bg);
+  border-radius: 999px;
+  background: var(--wallo-color-progress-track);
 }
 
 .goal-progress-bar {
   border-radius: inherit;
-  background: var(--wallo-color-primary);
+  background: linear-gradient(90deg, #6e9fe8, #4b87d8);
 }
 
 @media (max-width: 575.98px) {
@@ -427,7 +425,7 @@ const formatGoalDate = (date) => {
     padding: 30px;
   }
 
-  .goal-summary-card .dashboard-action-button {
+  .goal-summary-card .app-action-link {
     padding: 0.35rem 0.6rem;
     font-size: 0.8rem;
   }

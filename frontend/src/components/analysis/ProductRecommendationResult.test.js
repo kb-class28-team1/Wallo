@@ -87,7 +87,7 @@ describe("ProductRecommendationResult", () => {
     expect(link.attributes("rel")).toContain("noopener")
     const logo = link.get('img[alt="금융감독원"]')
     expect(logo.attributes("src")).toBe(
-      "/images/institutions/financial-supervision-service.png",
+      "/images/institutions/financial-supervision-service.webp",
     )
   })
 
@@ -141,6 +141,21 @@ describe("ProductRecommendationResult", () => {
     const reason = wrapper.find(".product-recommendation__reason-markdown")
     expect(reason.find("strong").text()).toBe("추천 근거")
     expect(reason.findAll("li")).toHaveLength(2)
+    expect(reason.text()).not.toContain("**")
+  })
+
+  it("renders parenthesized strong emphasis in the AI recommendation reason", () => {
+    const wrapper = mount(ProductRecommendationResult, {
+      props: {
+        recommendation,
+        reason: "**예치금(예금 기준) 또는 매월 납입금(적금 기준)**은 어느 정도인지 알려 주세요.",
+      },
+    })
+
+    const reason = wrapper.find(".product-recommendation__reason-markdown")
+    expect(reason.find("strong").text()).toBe(
+      "예치금(예금 기준) 또는 매월 납입금(적금 기준)",
+    )
     expect(reason.text()).not.toContain("**")
   })
 

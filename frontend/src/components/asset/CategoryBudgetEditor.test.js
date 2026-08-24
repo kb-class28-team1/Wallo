@@ -1,6 +1,7 @@
 import { mount } from "@vue/test-utils"
 import { describe, expect, it } from "vitest"
 import { BUDGET_CATEGORY_CODES } from "@/features/financial/financialCategories"
+import AppDialog from "@/components/common/AppDialog.vue"
 import CategoryBudgetEditor from "./CategoryBudgetEditor.vue"
 
 const createBudgetSummary = () => ({
@@ -24,6 +25,7 @@ describe("CategoryBudgetEditor", () => {
     })
 
     expect(wrapper.find('[role="dialog"]').classes()).toContain("app-dialog")
+    expect(wrapper.findComponent(AppDialog).props("closeOnBackdrop")).toBe(false)
     expect(wrapper.text()).toContain("2026-08부터 매월 적용됩니다.")
     expect(wrapper.find(".app-dialog-close").exists()).toBe(true)
     expect(wrapper.get("[data-modal-confirm]").text()).toContain("확인")
@@ -34,7 +36,7 @@ describe("CategoryBudgetEditor", () => {
       BUDGET_CATEGORY_CODES.length,
     )
     expect(wrapper.find("#budget-CAFE").element.value).toBe("0")
-    expect(wrapper.text()).toContain("기타·미배정 예산")
+    expect(wrapper.text()).toContain("미배분 예산")
     expect(wrapper.text()).toContain("700,000원")
   })
 

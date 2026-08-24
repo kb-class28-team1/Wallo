@@ -5,6 +5,7 @@ import { formatWon } from "@/types/consumptionAnalysis"
 const props = defineProps({
   summary: { type: Object, required: true },
   periodLabel: { type: String, default: "분석 기간" },
+  comparisonLabel: { type: String, default: "이전 기간" },
 })
 
 const deltaClass = computed(() =>
@@ -12,7 +13,7 @@ const deltaClass = computed(() =>
 )
 const rateText = computed(() => {
   const rate = props.summary.deltaRate
-  if (rate === null || rate === undefined) return "비교 기간 지출 없음"
+  if (rate === null || rate === undefined) return `${props.comparisonLabel} 지출 없음`
   const direction = Number(rate) > 0 ? "증가" : "감소"
   return `${Math.abs(Number(rate)).toLocaleString("ko-KR", {
     minimumFractionDigits: 1,
@@ -35,10 +36,16 @@ const rateText = computed(() => {
         {{ rateText }}
       </span>
     </div>
-    <div class="small mt-2" :class="deltaClass">
-      비교 기간 {{ formatWon(summary.previousTotal) }}에서
-      {{ formatWon(Math.abs(summary.deltaAmount)) }}
+    <div class="summary-metrics__delta small mt-2">
+      {{ comparisonLabel }}보다
+      <span :class="deltaClass">{{ formatWon(Math.abs(summary.deltaAmount)) }}</span>
       {{ Number(summary.deltaAmount) > 0 ? "더 썼어요" : "덜 썼어요" }}
     </div>
   </div>
 </template>
+
+<style scoped>
+.summary-metrics__delta {
+  color: var(--wallo-color-text);
+}
+</style>

@@ -11,19 +11,43 @@ const icon = computed(() => ({
 const description = computed(() => {
   const p = props.pattern
   if (p.type === "WEEKDAY") {
-    return `최근 완료된 4주 중 ${p.repeatWeeks}주에서 ${WEEKDAY_LABELS[p.weekday] || "같은 요일"} 소비가 가장 높았어요.`
+    return {
+      type: "WEEKDAY",
+      highlight: WEEKDAY_LABELS[p.weekday] || "같은 요일",
+    }
   }
   if (p.type === "WEEKEND") {
-    return `주말 일평균 ${formatWon(p.weekendAvg)}으로 평일 ${formatWon(p.weekdayAvg)}보다 높아요.`
+    return {
+      type: "WEEKEND",
+      weekendAvg: formatWon(p.weekendAvg),
+      weekdayAvg: formatWon(p.weekdayAvg),
+    }
   }
-  return `최근 완료된 4주 중 ${p.repeatWeeks}주에서 ${TIME_SLOT_LABELS[p.timeSlot] || p.timeSlot} 소비가 집중됐어요.`
+  return {
+    type: "TIME_OF_DAY",
+    highlight: TIME_SLOT_LABELS[p.timeSlot] || p.timeSlot,
+  }
 })
 </script>
 
 <template>
   <div class="analysis-subcard">
     <i class="bi me-2 text-primary" :class="icon" aria-hidden="true"></i>
-    <span>{{ description }}</span>
+    <span v-if="description.type === 'WEEKDAY'">
+      최근 4주 동안
+      <strong class="text-primary fw-semibold">{{ description.highlight }}</strong>
+      소비가 가장 많았어요.
+    </span>
+    <span v-else-if="description.type === 'WEEKEND'">
+      최근 4주 동안
+      <strong class="text-primary fw-semibold">주말</strong>
+      일평균 {{ description.weekendAvg }}으로 평일 {{ description.weekdayAvg }}보다 높아요.
+    </span>
+    <span v-else>
+      최근 4주 동안
+      <strong class="text-primary fw-semibold">{{ description.highlight }}</strong>
+      소비가 집중됐어요.
+    </span>
   </div>
 </template>
 

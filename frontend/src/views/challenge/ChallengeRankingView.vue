@@ -19,8 +19,18 @@ const userStore = useUserStore()
 const isRewarding = ref(false)
 
 // Pinia의 반응형 상태를 유지한 채 화면에서 사용할 값으로 분리함
-const { rankings, myRanking, initialLoading, refreshing, errorMessage } =
+const { startDate, endDate, rankings, myRanking, initialLoading, refreshing, errorMessage } =
   storeToRefs(challengeStore)
+
+const formatRankingDate = (date) => String(date || "").replaceAll("-", ".")
+
+const rankingPeriodLabel = computed(() => {
+  if (!startDate.value || !endDate.value) {
+    return ""
+  }
+
+  return `${formatRankingDate(startDate.value)} ~ ${formatRankingDate(endDate.value)}`
+})
 
 // 인원수와 상관없이 시상대 슬롯을 2위, 1위, 3위 위치로 고정함
 const podiumSlots = computed(() =>
@@ -87,6 +97,7 @@ onMounted(() => {
     <AppPageHeader
       class="ranking-heading"
       title="주간 랭킹"
+      :description="rankingPeriodLabel"
       compact
     >
       <template #actions>
@@ -209,7 +220,7 @@ onMounted(() => {
           </div>
         </AppCard>
 
-        <div class="ranking-notice mt-3">🔥 연속 인증은 오늘 인증까지 포함된 연속 인증 일수임!</div>
+        <div class="ranking-notice mt-3">🔥 연속 인증 일수는 오늘까지 며칠 연속으로 인증했는지 보여줘요.</div>
       </div>
 
       <aside class="ranking-sidebar">
@@ -832,6 +843,10 @@ onMounted(() => {
 
 .ranking-user img {
   background: #edf6ff;
+}
+
+.my-rank-card .ranking-user img {
+  background: #fff;
 }
 
 .ranking-notice {
