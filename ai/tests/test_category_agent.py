@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.agents.category.agent import CategoryAgent, InvalidCategoryResponseError
+from app.category.agent import CategoryAgent, InvalidCategoryResponseError
 from app.category.schemas import (
     CategoryClassification,
     CategoryClassificationBatch,

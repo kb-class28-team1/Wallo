@@ -2,9 +2,9 @@ import json
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from app.agents.base import ToolResult
-from app.agents.financial.agent import FinancialAgent, PRODUCT_RECOMMENDATION_TOOL
-from app.agents.financial.tool_payload import compact_tool_result_for_prompt
+from app.financial_assistant.tool_result import ToolResult
+from app.financial_assistant.agent import FinancialAgent, PRODUCT_RECOMMENDATION_TOOL
+from app.financial_assistant.tool_payload import compact_tool_result_for_prompt
 
 
 def test_asset_payload_keeps_database_metrics_and_profile_shape():
@@ -147,7 +147,7 @@ def test_financial_agent_uses_compact_payload_but_keeps_full_selected_result():
     ]
 
     with patch(
-        "app.agents.financial.agent.execute_tool",
+        "app.financial_assistant.agent.execute_tool",
         return_value=ToolResult(
             status="success",
             tool=PRODUCT_RECOMMENDATION_TOOL,

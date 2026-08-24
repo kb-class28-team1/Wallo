@@ -1,8 +1,8 @@
 from datetime import date
 
-from app.agents.goal.context import FinancialContext
-from app.agents.goal.extractor import GoalExtractionError, GoalExtractor
-from app.agents.goal.models import (
+from app.goals.interview.context import FinancialContext
+from app.goals.interview.extractor import GoalExtractionError, GoalExtractor
+from app.goals.interview.models import (
     FeasibilityResult,
     FeasibilityStatus,
     GoalDraft,

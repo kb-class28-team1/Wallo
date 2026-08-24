@@ -1,6 +1,6 @@
 from unittest.mock import Mock, patch
 
-from app.agents.financial.tools.asset_analysis import execute as execute_asset_analysis
+from app.financial_assistant.tools.asset_analysis import execute as execute_asset_analysis
 from app.chat.schemas import AssetAnalysisContext, ChatRequest
 from app.chat.service import ChatService
 

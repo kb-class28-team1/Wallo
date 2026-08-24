@@ -6,13 +6,13 @@ from datetime import date
 from groq import BadRequestError, Groq, RateLimitError
 from pydantic import ValidationError
 
-from app.agents.goal.models import (
+from app.goals.interview.models import (
     GoalDraft,
     GoalExtraction,
     GoalPriority,
     GoalType,
 )
-from app.agents.goal.prompts import (
+from app.goals.interview.prompts import (
     EXTRACTION_SYSTEM_PROMPT,
     build_extraction_user_prompt,
 )
