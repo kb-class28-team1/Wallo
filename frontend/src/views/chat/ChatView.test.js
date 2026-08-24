@@ -173,6 +173,7 @@ describe("ChatView", () => {
     expect(wrapper.text()).not.toContain("이대로 확정")
     expect(wrapper.text()).toContain("Wallo Bank")
     expect(wrapper.text()).toContain("목표 설정이 완료된 채팅입니다.")
+    expect(wrapper.get(".chat-completed-notice strong").classes()).toContain("d-block")
     expect(wrapper.find(".stub-input").attributes("data-disabled")).toBe("true")
     expect(getGoalByConversationId).toHaveBeenCalledWith(11)
   })
@@ -450,6 +451,94 @@ describe("ChatView", () => {
 
     expect(sendConversationMessage).toHaveBeenCalledWith(11, 7, "내 소비를 분석해줘", null)
     expect(createConversation).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it("starts asset analysis in a new conversation from the analysis action", async () => {
+    route.query = { action: "asset-analysis" }
+    createConversation.mockResolvedValue({
+      conversationId: 12,
+      title: "새 채팅",
+      updatedAt: "2026-08-14T00:00:00",
+    })
+    getConversations.mockResolvedValue([
+      { conversationId: 12, title: "새 채팅", updatedAt: "2026-08-14T00:00:00" },
+      { conversationId: 11, title: "비상금 목표", updatedAt: "2026-08-12T00:00:00" },
+    ])
+    sendConversationMessage.mockResolvedValue({
+      userMessage: {
+        messageId: 2,
+        role: "USER",
+        content: "내 자산을 분석해줘",
+      },
+      assistantMessage: {
+        messageId: 3,
+        role: "ASSISTANT",
+        content: "자산 분석 결과입니다.",
+      },
+      goalInterview: null,
+      assetAnalysis: { marker: "자산 분석 결과" },
+    })
+
+    const wrapper = mountChat()
+    await flushPromises()
+
+    await vi.waitFor(() => {
+      expect(createConversation).toHaveBeenCalledWith(7, "새 채팅")
+      expect(sendConversationMessage).toHaveBeenCalledWith(
+        12,
+        7,
+        "내 자산을 분석해줘",
+        null,
+      )
+    })
+    expect(createConversation).toHaveBeenCalledTimes(1)
+    expect(sendConversationMessage).toHaveBeenCalledTimes(1)
+    expect(useConversationStore().activeConversationId).toBe(12)
+    expect(getConversationMessages).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it("starts product recommendation in a new conversation from the analysis action", async () => {
+    route.query = { action: "product-recommendation" }
+    createConversation.mockResolvedValue({
+      conversationId: 12,
+      title: "새 채팅",
+      updatedAt: "2026-08-14T00:00:00",
+    })
+    getConversations.mockResolvedValue([
+      { conversationId: 12, title: "새 채팅", updatedAt: "2026-08-14T00:00:00" },
+      { conversationId: 11, title: "비상금 목표", updatedAt: "2026-08-12T00:00:00" },
+    ])
+    sendConversationMessage.mockResolvedValue({
+      userMessage: {
+        messageId: 2,
+        role: "USER",
+        content: "내 상황에 맞는 금융상품을 추천해줘",
+      },
+      assistantMessage: {
+        messageId: 3,
+        role: "ASSISTANT",
+        content: "상품 추천 결과입니다.",
+      },
+      goalInterview: null,
+      productRecommendation: { marker: "상품 추천 결과" },
+    })
+
+    const wrapper = mountChat()
+    await flushPromises()
+
+    await vi.waitFor(() => {
+      expect(createConversation).toHaveBeenCalledWith(7, "새 채팅")
+      expect(sendConversationMessage).toHaveBeenCalledWith(
+        12,
+        7,
+        "내 상황에 맞는 금융상품을 추천해줘",
+        null,
+      )
+    })
+    expect(useConversationStore().activeConversationId).toBe(12)
+    expect(getConversationMessages).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 

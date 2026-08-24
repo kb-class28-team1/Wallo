@@ -31,6 +31,8 @@ describe("GoalInterviewCard", () => {
     expect(wrapper.text()).toContain("10,000,000원")
     expect(wrapper.text()).toContain("월 필요액 계산 완료")
     expect(wrapper.text()).toContain("월 필요 납입액")
+    expect(wrapper.text()).not.toContain("AI 목표 설정")
+    expect(wrapper.find(".goal-icon").exists()).toBe(false)
     expect(wrapper.findAll("button")).toHaveLength(2)
 
     await wrapper.find(".btn-primary").trigger("click")

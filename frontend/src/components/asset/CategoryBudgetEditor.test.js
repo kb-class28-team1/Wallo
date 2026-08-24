@@ -36,7 +36,7 @@ describe("CategoryBudgetEditor", () => {
       BUDGET_CATEGORY_CODES.length,
     )
     expect(wrapper.find("#budget-CAFE").element.value).toBe("0")
-    expect(wrapper.text()).toContain("기타·미배정 예산")
+    expect(wrapper.text()).toContain("미배분 예산")
     expect(wrapper.text()).toContain("700,000원")
   })
 

@@ -67,4 +67,18 @@ describe("AssetSummaryCard", () => {
     expect(wrapper.find(".asset-trend-empty").text()).toBe("자산 변동 데이터가 없습니다.")
     expect(wrapper.find('[data-testid="line-chart"]').exists()).toBe(false)
   })
+
+  it("renders safely when the API has not returned asset data yet", () => {
+    const wrapper = mount(AssetSummaryCard, {
+      ...globalOptions,
+      props: {
+        assets: null,
+        chartData: createChartData([]),
+      },
+    })
+
+    expect(wrapper.find(".asset-total").text()).toBe("0원")
+    expect(wrapper.find(".asset-change").text()).toContain("지난달 자산 데이터가 없습니다.")
+    expect(wrapper.find(".asset-trend-empty").exists()).toBe(true)
+  })
 })

@@ -220,7 +220,7 @@ onMounted(() => {
           </div>
         </AppCard>
 
-        <div class="ranking-notice mt-3">🔥 연속 인증은 오늘 인증까지 포함된 연속 인증 일수임!</div>
+        <div class="ranking-notice mt-3">🔥 연속 인증 일수는 오늘까지 며칠 연속으로 인증했는지 보여줘요.</div>
       </div>
 
       <aside class="ranking-sidebar">
@@ -843,6 +843,10 @@ onMounted(() => {
 
 .ranking-user img {
   background: #edf6ff;
+}
+
+.my-rank-card .ranking-user img {
+  background: #fff;
 }
 
 .ranking-notice {

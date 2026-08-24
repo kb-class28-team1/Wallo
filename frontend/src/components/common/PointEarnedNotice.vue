@@ -50,7 +50,7 @@ onBeforeUnmount(() => {
     >
       <img :src="pointWCoin" alt="" aria-hidden="true" />
       <span>포인트 {{ point.toLocaleString("ko-KR") }}P가 적립되었습니다.</span>
-      <button type="button" aria-label="포인트 적립 알림 닫기" @click="hide">×</button>
+      <button class="pressable" type="button" aria-label="포인트 적립 알림 닫기" @click="hide">×</button>
     </div>
   </Transition>
 </template>

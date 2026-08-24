@@ -1,5 +1,6 @@
 import { defineStore } from "pinia"
 import { getAssets, syncAssets as requestAssetSync } from "@/api/assetApi"
+import { useFinancialInvalidationStore } from "@/stores/financialInvalidationStore"
 import { getApiErrorMessage } from "@/utils/apiError"
 
 const ASSET_STALE_TIME = 30 * 1000
@@ -7,7 +8,7 @@ const requestStateByStore = new WeakMap()
 
 const getRequestState = (store) => {
   if (!requestStateByStore.has(store)) {
-    requestStateByStore.set(store, { inFlight: null })
+    requestStateByStore.set(store, { inFlight: null, inFlightRevision: null })
   }
 
   return requestStateByStore.get(store)
@@ -21,6 +22,7 @@ export const useAssetStore = defineStore("asset", {
     error: null,
     lastFetchedAt: 0,
     hasFetched: false,
+    lastFetchedRevision: 0,
     isSyncing: false,
     lastSyncResult: null,
     syncError: null,
@@ -34,16 +36,22 @@ export const useAssetStore = defineStore("asset", {
   actions: {
     invalidateAssetsCache() {
       this.lastFetchedAt = 0
+      useFinancialInvalidationStore().markChanged()
     },
 
     fetchAssets({ notifyError = true, force = false, staleTime = ASSET_STALE_TIME } = {}) {
+      const invalidationStore = useFinancialInvalidationStore()
+      const currentRevision = invalidationStore.revision
       const requestState = getRequestState(this)
 
-      if (requestState.inFlight) {
+      if (requestState.inFlight && requestState.inFlightRevision === currentRevision) {
         return requestState.inFlight
       }
 
-      const isFresh = this.lastFetchedAt > 0 && Date.now() - this.lastFetchedAt < staleTime
+      const isFresh =
+        this.lastFetchedRevision === currentRevision &&
+        this.lastFetchedAt > 0 &&
+        Date.now() - this.lastFetchedAt < staleTime
 
       if (!force && isFresh) {
         return Promise.resolve(this.assets)
@@ -53,17 +61,27 @@ export const useAssetStore = defineStore("asset", {
       this.initialLoading = isInitialLoad
       this.refreshing = !isInitialLoad
       this.error = null
+      const requestRevision = currentRevision
 
       let request
       request = (async () => {
         try {
           const response = await getAssets()
+          if (requestRevision !== invalidationStore.revision) {
+            return this.assets
+          }
+
           this.assets = response?.data ?? null
           this.lastFetchedAt = Date.now()
+          this.lastFetchedRevision = requestRevision
           this.hasFetched = true
 
           return this.assets
         } catch (error) {
+          if (requestRevision !== invalidationStore.revision) {
+            return this.assets
+          }
+
           const isUnauthorized = error.response?.status === 401
           const errorMessage = getApiErrorMessage(
             error,
@@ -83,15 +101,17 @@ export const useAssetStore = defineStore("asset", {
 
           throw error
         } finally {
-          this.initialLoading = false
-          this.refreshing = false
           if (requestState.inFlight === request) {
+            this.initialLoading = false
+            this.refreshing = false
             requestState.inFlight = null
+            requestState.inFlightRevision = null
           }
         }
       })()
 
       requestState.inFlight = request
+      requestState.inFlightRevision = requestRevision
       return request
     },
 

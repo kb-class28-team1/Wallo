@@ -116,7 +116,7 @@ watch(
         <button
           v-if="showClose"
           type="button"
-          class="app-dialog-close"
+          class="app-dialog-close pressable"
           aria-label="닫기"
           @click="closeDialog"
         >

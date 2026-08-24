@@ -176,7 +176,7 @@ const save = () => {
             class="d-flex justify-content-between gap-3 mt-2"
             :class="{ 'text-danger': unallocatedAmount < 0 }"
           >
-            <span>기타·미배정 예산</span>
+            <span>미배분 예산</span>
             <strong>{{ formatWon(unallocatedAmount) }}</strong>
           </div>
         </div>
@@ -218,7 +218,7 @@ const save = () => {
           카테고리 배분 합계가 전체 예산을 초과했습니다.
         </p>
         <p v-else class="text-secondary small mt-3 mb-0">
-          배분하지 않은 금액은 기타·미배정 예산으로 자동 계산됩니다.
+          배분하지 않은 금액은 미배분 예산으로 자동 계산됩니다.
         </p>
       </div>
     </form>

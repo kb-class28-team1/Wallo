@@ -29,6 +29,7 @@ const GOAL_CHAT_DELETE_BLOCK_MESSAGE =
 const GOAL_COMPLETION_TOAST_MESSAGE =
   "목표 설정 및 로드맵이 완성되었습니다!\nAI 컨설팅 페이지에서 나의 목표와 로드맵을 확인해보세요."
 const TIMING_LOG_PREFIX = "[WALLO_TIMING]"
+const ROUTE_ACTIONS = ["consumption-analysis", "asset-analysis", "product-recommendation"]
 
 const timingNow = () => (typeof performance !== "undefined" ? performance.now() : Date.now())
 
@@ -82,6 +83,7 @@ const isMissingGoalConversation = ref(false)
 const isGoalCompletionChecking = ref(false)
 const isGoalRoadmapReady = ref(false)
 const isGoalAccountConfigured = ref(false)
+const routeActionInFlight = ref(null)
 const userId = computed(() => user.value?.id ?? null)
 const isGoalDeleteBlocked = computed(() => deleteTargetConversation.value?.hasGoal === true)
 const isGoalChatLocked = computed(() =>
@@ -107,6 +109,8 @@ const displayMessages = computed(() => {
   }
   if (
     route.query.action === "consumption-analysis" ||
+    route.query.action === "asset-analysis" ||
+    route.query.action === "product-recommendation" ||
     route.query.start === GOAL_SETTING_START_QUERY
   ) {
     return []
@@ -471,6 +475,80 @@ const startConsumptionAnalysis = async () => {
   }
 }
 
+const startAssetAnalysisConversation = async () => {
+  if (isGuidedChatStarting.value || isChatLoading.value || !userId.value) return
+
+  isGuidedChatStarting.value = true
+  isMissingGoalConversation.value = false
+  resetGoalCompletionFlow()
+  errorMessage.value = ""
+
+  try {
+    await router.replace({ name: "chat" })
+
+    const started = await conversationStore.startAssetAnalysis(userId.value)
+    if (!started) {
+      errorMessage.value = conversationErrorStatus.value === 429
+        ? conversationError.value
+        : "자산분석 채팅을 시작하지 못했습니다."
+    }
+  } catch (error) {
+    errorMessage.value = error.message || "자산분석 채팅을 시작하지 못했습니다."
+  } finally {
+    isGuidedChatStarting.value = false
+    await scrollToBottom()
+  }
+}
+
+const startProductRecommendation = async () => {
+  if (isGuidedChatStarting.value || isChatLoading.value || !userId.value) return
+
+  isGuidedChatStarting.value = true
+  isMissingGoalConversation.value = false
+  resetGoalCompletionFlow()
+  errorMessage.value = ""
+
+  try {
+    await router.replace({ name: "chat" })
+
+    const started = await conversationStore.startProductRecommendation(userId.value)
+    if (!started) {
+      errorMessage.value = conversationErrorStatus.value === 429
+        ? conversationError.value
+        : "상품추천 채팅을 시작하지 못했습니다."
+    }
+  } catch (error) {
+    errorMessage.value = error.message || "상품추천 채팅을 시작하지 못했습니다."
+  } finally {
+    isGuidedChatStarting.value = false
+    await scrollToBottom()
+  }
+}
+
+const handleRouteAction = async (action) => {
+  if (!ROUTE_ACTIONS.includes(action) || routeActionInFlight.value) {
+    return false
+  }
+
+  routeActionInFlight.value = action
+
+  try {
+    if (action === "consumption-analysis") {
+      return await startConsumptionAnalysis()
+    }
+
+    if (action === "asset-analysis") {
+      return await startAssetAnalysisConversation()
+    }
+
+    return await startProductRecommendation()
+  } finally {
+    if (routeActionInFlight.value === action) {
+      routeActionInFlight.value = null
+    }
+  }
+}
+
 const startGuidedChat = async (message) => {
   if (isGuidedChatStarting.value || isChatLoading.value || !userId.value) return
 
@@ -491,20 +569,10 @@ const startGuidedChat = async (message) => {
 
 const analyzeCurrentConversationSpending = () => startGuidedChat("내 소비를 분석해줘")
 const startAssetAnalysis = () => startGuidedChat("내 자산을 분석해줘")
-const startProductRecommendation = () =>
-  startGuidedChat("내 상황에 맞는 금융상품을 추천해줘")
 
 watch(
   () => route.query.action,
-  (action) => {
-    if (action === "consumption-analysis") {
-      void startConsumptionAnalysis()
-    } else if (action === "asset-analysis") {
-      void startAssetAnalysis()
-    } else if (action === "product-recommendation") {
-      void startProductRecommendation()
-    }
-  },
+  (action) => void handleRouteAction(action),
 )
 
 watch(
@@ -526,8 +594,8 @@ onMounted(async () => {
     return
   }
 
-  if (route.query.action === "consumption-analysis") {
-    await startConsumptionAnalysis()
+  if (ROUTE_ACTIONS.includes(route.query.action)) {
+    await handleRouteAction(route.query.action)
     return
   }
 
@@ -567,11 +635,6 @@ onMounted(async () => {
     await scrollToBottom()
   }
 
-  if (route.query.action === "asset-analysis") {
-    await startAssetAnalysis()
-  } else if (route.query.action === "product-recommendation") {
-    await startProductRecommendation()
-  }
 })
 </script>
 
@@ -584,7 +647,7 @@ onMounted(async () => {
             <h1 id="chat-title" class="mb-1 fs-5 fw-bold">
               {{ isGoalSettingEntry ? GOAL_SETTING_TITLE : activeConversation?.title || "새 채팅" }}
             </h1>
-            <p class="mb-0 small text-secondary">Wallo AI 금융 컨설턴트</p>
+            <p class="mb-0 small text-secondary">Wallo 금융 컨설턴트</p>
           </header>
 
           <div ref="messageList" class="message-list" aria-live="polite">
@@ -611,15 +674,15 @@ onMounted(async () => {
             />
 
             <div v-if="showQuickActions" class="chat-quick-actions" aria-label="빠른 상담 시작">
-              <button type="button" class="chat-quick-action" @click="analyzeCurrentConversationSpending">
+              <button type="button" class="chat-quick-action pressable" @click="analyzeCurrentConversationSpending">
                 <i class="bi bi-pie-chart" aria-hidden="true"></i>
                 소비분석
               </button>
-              <button type="button" class="chat-quick-action" @click="startAssetAnalysis">
+              <button type="button" class="chat-quick-action pressable" @click="startAssetAnalysis">
                 <i class="bi bi-wallet2" aria-hidden="true"></i>
                 자산분석
               </button>
-              <button type="button" class="chat-quick-action" @click="startProductRecommendation">
+              <button type="button" class="chat-quick-action pressable" @click="startProductRecommendation">
                 <i class="bi bi-stars" aria-hidden="true"></i>
                 상품추천
               </button>
@@ -660,7 +723,7 @@ onMounted(async () => {
             <RouterLink
               v-if="isMissingGoalConversation"
               to="/dashboard"
-              class="chat-dashboard-link"
+              class="chat-dashboard-link pressable"
             >
               대시보드로 이동
             </RouterLink>
@@ -671,9 +734,8 @@ onMounted(async () => {
             class="chat-completed-notice"
             variant="info"
           >
-            <strong>목표 설정이 완료된 채팅입니다.</strong>
-            목표와 연결할 계좌가 저장되어 더 이상 메시지를 입력할 수 없습니다. 새로운 상담은
-            새 채팅에서 시작해 주세요.
+            <strong class="d-block mb-1">목표 설정이 완료된 채팅입니다.</strong>
+            <span>목표 계좌만 수정할 수 있습니다. 새로운 상담은 새 채팅에서 시작해 주세요.</span>
           </AppAlert>
 
           <ChatInput
@@ -734,6 +796,7 @@ onMounted(async () => {
               title="저장된 채팅이 없습니다."
               message="새 채팅을 시작해 금융 상담을 받아보세요."
               compact
+              hide-icon
             />
 
             <div v-else class="conversation-list">
@@ -756,12 +819,12 @@ onMounted(async () => {
                     maxlength="100"
                     aria-label="채팅방 제목"
                   />
-                  <button type="submit" class="conversation-icon-button" aria-label="제목 저장">
+                  <button type="submit" class="conversation-icon-button pressable" aria-label="제목 저장">
                     <i class="bi bi-check-lg"></i>
                   </button>
                   <button
                     type="button"
-                    class="conversation-icon-button"
+                    class="conversation-icon-button pressable"
                     aria-label="제목 변경 취소"
                     @click="cancelEditingTitle"
                   >
@@ -772,7 +835,7 @@ onMounted(async () => {
                 <div v-else class="conversation-item-content">
                   <button
                     type="button"
-                    class="conversation-select"
+                    class="conversation-select pressable"
                     @click="selectConversation(conversation.conversationId)"
                   >
                     <span class="conversation-title">
@@ -784,7 +847,7 @@ onMounted(async () => {
                   </button>
                   <button
                     type="button"
-                    class="conversation-action"
+                    class="conversation-action pressable"
                     aria-label="채팅방 제목 변경"
                     @click="startEditingTitle(conversation)"
                   >
@@ -792,7 +855,7 @@ onMounted(async () => {
                   </button>
                   <button
                     type="button"
-                    class="conversation-action conversation-action--danger"
+                    class="conversation-action conversation-action--danger pressable"
                     aria-label="채팅방 삭제"
                     @click="openDeleteDialog(conversation)"
                   >

@@ -4,6 +4,7 @@ const expenseCategory = (label, color, icon, colorClass) =>
   Object.freeze({ label, color, icon, colorClass });
 
 export const ASSET_CATEGORY_META = Object.freeze({
+  CHECKING: assetCategory("입출금", "#8170ff"),
   DEPOSIT: assetCategory("입출금", "#8170ff"),
   SAVINGS: assetCategory("예·적금", "#55c2a3"),
   STOCK: assetCategory("투자", "#ffb657"),

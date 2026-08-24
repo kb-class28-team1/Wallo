@@ -164,7 +164,7 @@ onMounted(loadHistory)
   <section class="point-history-page">
     <AppPageHeader class="page-heading" title="포인트 내역">
       <template #leading>
-        <RouterLink to="/point-shop" class="page-back-button" aria-label="포인트 샵으로 이동">
+        <RouterLink to="/point-shop" class="page-back-button pressable" aria-label="포인트 샵으로 이동">
           <i class="bi bi-chevron-left" aria-hidden="true"></i>
         </RouterLink>
       </template>
@@ -376,6 +376,10 @@ onMounted(loadHistory)
   background: #e8e5ff;
   color: #574fd2;
   transform: translateX(-8px) translateY(-1px);
+}
+
+.page-back-button:active {
+  transform: translateX(-8px) scale(0.98);
 }
 
 .page-back-button:focus-visible {

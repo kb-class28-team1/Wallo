@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import TopHeader from "./TopHeader.vue"
 import { getTodayMissions } from "@/api/missionApi"
+import { useMissionStore } from "@/stores/missionStore"
 import { useUserStore } from "@/stores/userStore"
 import { useToastStore } from "@/stores/toastStore"
 
@@ -20,18 +21,24 @@ vi.mock("vue-router", () => ({
 }))
 
 vi.mock("@/api/missionApi", () => ({
+  completeSelfCheckMission: vi.fn(),
   generateNextDayMissions: vi.fn(),
   getTodayMissions: vi.fn(),
+  verifyMissionWithFeed: vi.fn(),
+  verifyTransactionMission: vi.fn(),
 }))
 
-const mountTopHeader = () => mount(TopHeader, {
-  global: {
-    plugins: [pinia],
-    stubs: {
-      AuthenticatedImage: { template: "<img />" },
+const mountTopHeader = () => {
+  useMissionStore().startLifecycle()
+  return mount(TopHeader, {
+    global: {
+      plugins: [pinia],
+      stubs: {
+        AuthenticatedImage: { template: "<img />" },
+      },
     },
-  },
-})
+  })
+}
 
 describe("TopHeader", () => {
   beforeEach(() => {
@@ -48,6 +55,8 @@ describe("TopHeader", () => {
   })
 
   afterEach(() => {
+    useMissionStore().stopLifecycle()
+    useMissionStore().reset()
     vi.unstubAllGlobals()
   })
 

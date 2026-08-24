@@ -1,5 +1,5 @@
 -- Shared H2 schema for asset mapper integration tests.
--- Keep this aligned with the source-identity constraints in database/mysql/dbInit.sql.
+-- Keep this aligned with the source-identity constraints in database/dbInit.sql.
 
 CREATE TABLE USERS (
     id BIGINT PRIMARY KEY,
