@@ -7,16 +7,16 @@ export const CONSUMPTION_REPORT_FALLBACK_IMAGE =
   "/images/asset-reports/questionMark.svg";
 
 const CONSUMPTION_REPORT_IMAGE_PATHS = Object.freeze({
-  FOOD: "/images/asset-reports/wallow-food.png",
-  CAFE: "/images/asset-reports/wallow-cafe.png",
-  DELIVERY: "/images/asset-reports/wallow-delivery.png",
-  TRANSPORT: "/images/asset-reports/wallow-transport.png",
+  FOOD: "/images/asset-reports/wallow-food.webp",
+  CAFE: "/images/asset-reports/wallow-cafe.webp",
+  DELIVERY: "/images/asset-reports/wallow-delivery.webp",
+  TRANSPORT: "/images/asset-reports/wallow-transport.webp",
   SHOPPING: "/images/asset-reports/wallow-shopping.svg",
-  HOUSING: "/images/asset-reports/wallow-housing.png",
+  HOUSING: "/images/asset-reports/wallow-housing.webp",
   LIVING: "/images/asset-reports/wallow-living.svg",
-  CULTURE: "/images/asset-reports/wallow-culture.png",
-  HEALTH: "/images/asset-reports/wallow-health.png",
-  EDUCATION: "/images/asset-reports/wallow-education.png",
+  CULTURE: "/images/asset-reports/wallow-culture.webp",
+  HEALTH: "/images/asset-reports/wallow-health.webp",
+  EDUCATION: "/images/asset-reports/wallow-education.webp",
 });
 
 export const getConsumptionReportImage = (category) => {

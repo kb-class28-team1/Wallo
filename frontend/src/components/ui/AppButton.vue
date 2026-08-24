@@ -92,12 +92,17 @@ function handleClick(event) {
     border-color 160ms ease,
     box-shadow 160ms ease,
     color 160ms ease,
-    opacity 160ms ease;
+    opacity 160ms ease,
+    transform 160ms ease;
 }
 
 .app-button:focus-visible {
   outline: 0;
   box-shadow: var(--wallo-focus-ring);
+}
+
+.app-button:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 .app-button:disabled {

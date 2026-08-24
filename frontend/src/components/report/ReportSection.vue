@@ -38,7 +38,7 @@ const emit = defineEmits(["term-hover", "term-click"])
         <button
           v-if="segment.type === 'term'"
           type="button"
-          class="term-highlight"
+          class="term-highlight pressable"
           @mouseenter="emit('term-hover', segment.term, $event.currentTarget)"
           @mouseleave="emit('term-hover', null, null)"
           @focus="emit('term-hover', segment.term, $event.currentTarget)"

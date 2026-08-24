@@ -8,6 +8,52 @@ def test_default_product_data_files_exist():
     assert product_recommendation.DATA_FILES["saving"].is_file()
 
 
+def test_normalize_join_target_removes_unrestricted_prefix():
+    assert product_recommendation.normalize_join_target(
+        "제한없음 (반려동물을 키우는 지점방문고객(개인))"
+    ) == "반려동물을 키우는 지점방문고객(개인)"
+
+
+def test_normalize_join_target_keeps_plain_target():
+    assert product_recommendation.normalize_join_target("실명의 개인") == "실명의 개인"
+
+
+def test_unrestricted_join_target_request_is_detected():
+    assert product_recommendation.is_unrestricted_join_target_request(
+        "12개월 적금 가입대상=제한없음"
+    ) is True
+    assert product_recommendation.is_unrestricted_join_target_request(
+        "가입 제한 없는 매월 50만 원 납입 가능한 1년짜리 적금 추천해 줘"
+    ) is True
+    assert product_recommendation.is_unrestricted_join_target_request(
+        "12개월 적금 가입대상은 반려동물 양육자"
+    ) is False
+    assert product_recommendation.is_unrestricted_join_target_request(
+        "가입 제한 없는 상품과 반려동물 상품을 비교해줘"
+    ) is False
+    assert product_recommendation.is_unrestricted_join_target_request(
+        "가입 제한 없는 상품이 아닌 반려동물 적금을 추천해줘"
+    ) is False
+
+
+def test_find_product_argument_conflicts_uses_structured_values_only_when_consistent():
+    request = "가입 제한 없는 매월 50만 원 납입 가능한 1년짜리 적금 추천해 줘"
+
+    assert product_recommendation.find_product_argument_conflicts(
+        request,
+        "saving",
+        12,
+        500_000,
+    ) == []
+    conflicts = product_recommendation.find_product_argument_conflicts(
+        request,
+        "saving",
+        12,
+        300_000,
+    )
+    assert any("금액이 원문과 다릅니다" in conflict for conflict in conflicts)
+
+
 def write_products(path, rows):
     with path.open("w", encoding="utf-8-sig", newline="") as file:
         writer = csv.DictWriter(file, fieldnames=rows[0].keys())
@@ -101,6 +147,89 @@ def test_recommend_deposit_filters_online_products(tmp_path, monkeypatch):
     assert summary["matchedRows"] == 1
     assert products[0]["productName"] == "기본금리예금"
     assert products[0]["estimatedAfterTaxInterestKrw"] == 338_400
+
+
+def test_recommend_saving_filters_qualified_targets_for_unrestricted_request(
+    tmp_path, monkeypatch
+):
+    data_file = tmp_path / "saving.csv"
+    write_products(data_file, [
+        product_row(**{
+            "상품명": "일반 정기적금",
+            "세전 이자율": "4.00%",
+            "가입 대상": "제한없음",
+        }),
+        product_row(**{
+            "금융회사 코드": "002",
+            "금융상품 코드": "P2",
+            "상품명": "펫 전용 적금",
+            "세전 이자율": "6.00%",
+            "가입 대상": "제한없음 (반려동물을 키우는 지점방문고객(개인))",
+        }),
+    ])
+    monkeypatch.setitem(product_recommendation.DATA_FILES, "saving", data_file)
+
+    products, _ = product_recommendation.recommend_products(
+        product_type="saving",
+        term_months=12,
+        amount_krw=500_000,
+        only_unrestricted_target=True,
+    )
+
+    assert [product["productName"] for product in products] == ["일반 정기적금"]
+
+
+def test_execute_natural_unrestricted_request_excludes_qualified_targets(
+    tmp_path, monkeypatch
+):
+    data_file = tmp_path / "saving.csv"
+    write_products(data_file, [
+        product_row(**{
+            "상품명": "일반 정기적금",
+            "세전 이자율": "4.00%",
+            "가입 대상": "제한없음",
+        }),
+        product_row(**{
+            "금융회사 코드": "002",
+            "금융상품 코드": "P2",
+            "상품명": "펫 전용 적금",
+            "세전 이자율": "6.00%",
+            "가입 대상": "제한없음 (반려동물을 키우는 지점방문고객(개인))",
+        }),
+    ])
+    monkeypatch.setitem(product_recommendation.DATA_FILES, "saving", data_file)
+
+    result = product_recommendation.execute(
+        product_recommendation.NAME,
+        {
+            "request": "가입 제한 없는 매월 50만 원 납입 가능한 1년짜리 적금 추천해 줘",
+            "productType": "saving",
+            "termMonths": 12,
+            "amountKrw": 500_000,
+            "joinPreference": "any",
+        },
+    )
+
+    assert result.status == "success"
+    assert [product["productName"] for product in result.data["products"]] == [
+        "일반 정기적금"
+    ]
+
+
+def test_execute_requests_confirmation_when_request_and_arguments_conflict():
+    result = product_recommendation.execute(
+        product_recommendation.NAME,
+        {
+            "request": "가입 제한 없는 매월 50만 원 납입 가능한 1년짜리 적금 추천해 줘",
+            "productType": "saving",
+            "termMonths": 12,
+            "amountKrw": 300_000,
+            "joinPreference": "any",
+        },
+    )
+
+    assert result.status == "needs_input"
+    assert any("금액이 원문과 다릅니다" in conflict for conflict in result.data["conflicts"])
 
 
 def test_recommendation_uses_base_rate_before_large_bonus(tmp_path, monkeypatch):

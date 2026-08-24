@@ -8,6 +8,13 @@ import AppButton from "@/components/ui/AppButton.vue"
 import AppCard from "@/components/ui/AppCard.vue"
 import AppState from "@/components/ui/AppState.vue"
 
+const SEVEN_MILLION_WON = 70_000_000
+const TWELVE_MILLION_WON = 120_000_000
+const BASIC_DEDUCTION_LIMIT_UNDER_SEVEN_MILLION = 3_000_000
+const BASIC_DEDUCTION_LIMIT_UNDER_TWELVE_MILLION = 2_500_000
+const BASIC_DEDUCTION_LIMIT_OVER_TWELVE_MILLION = 2_000_000
+const ADDITIONAL_DEDUCTION_LIMIT_UNDER_SEVEN_MILLION = 6_000_000
+
 const reportStore = useReportStore()
 const props = defineProps({
   forceRefresh: {
@@ -37,8 +44,44 @@ const isRefreshing = computed(() => refreshingTaxSettlement?.value ?? false)
 
 const annualSalary = computed(() => Number(taxSettlement.value?.annualSalary ?? 0))
 
-const formattedAnnualSalary = computed(() =>
-  annualSalary.value > 0 ? formatWon(annualSalary.value) : "조회 결과 없음",
+const spentAmount = computed(() => Math.max(Number(taxSettlement.value?.cardSpentYtd ?? 0), 0))
+const thresholdAmount = computed(() =>
+  Math.max(Number(taxSettlement.value?.creditCardThreshold ?? 0), 0),
+)
+const remainingAmount = computed(() => Math.max(thresholdAmount.value - spentAmount.value, 0))
+const isThresholdReached = computed(
+  () => thresholdAmount.value > 0 && spentAmount.value >= thresholdAmount.value,
+)
+const salaryBracket = computed(() => {
+  if (annualSalary.value <= SEVEN_MILLION_WON) return "under-seven-million"
+  if (annualSalary.value <= TWELVE_MILLION_WON) return "under-twelve-million"
+  return "over-twelve-million"
+})
+const basicDeductionLimit = computed(() => {
+  if (salaryBracket.value === "under-seven-million") {
+    return BASIC_DEDUCTION_LIMIT_UNDER_SEVEN_MILLION
+  }
+
+  if (salaryBracket.value === "under-twelve-million") {
+    return BASIC_DEDUCTION_LIMIT_UNDER_TWELVE_MILLION
+  }
+
+  return BASIC_DEDUCTION_LIMIT_OVER_TWELVE_MILLION
+})
+const maximumDeductionLimit = computed(() =>
+  salaryBracket.value === "under-seven-million"
+    ? ADDITIONAL_DEDUCTION_LIMIT_UNDER_SEVEN_MILLION
+    : basicDeductionLimit.value,
+)
+const formatTenThousandWon = (amount) => `${formatNumber(amount / 10_000)}만 원`
+const progressLabel = computed(() => (isThresholdReached.value ? "달성" : `${progressRate.value}%`))
+const strategyTitle = computed(() =>
+  isThresholdReached.value ? "체크카드·현금영수증 절세 구간" : "신용카드 혜택 구간",
+)
+const strategyMessage = computed(() =>
+  isThresholdReached.value
+    ? "이제부터 체크카드·현금영수증 비중을 늘려보세요."
+    : "공제는 아직 시작되지 않아요. 혜택 좋은 신용카드를 우선 사용하세요.",
 )
 
 const isAnnualSalaryUnavailable = computed(
@@ -65,29 +108,18 @@ const taxSettlementErrorMessage = computed(
 )
 
 const achievementRate = computed(() => {
-  const spentAmount = Number(taxSettlement.value?.cardSpentYtd ?? 0)
-  const threshold = Number(taxSettlement.value?.creditCardThreshold ?? 0)
-
-  if (!Number.isFinite(spentAmount) || !Number.isFinite(threshold) || threshold <= 0) {
+  if (
+    !Number.isFinite(spentAmount.value) ||
+    !Number.isFinite(thresholdAmount.value) ||
+    thresholdAmount.value <= 0
+  ) {
     return 0
   }
 
-  return Math.round((spentAmount / threshold) * 100)
+  return Math.round((spentAmount.value / thresholdAmount.value) * 100)
 })
 
 const progressRate = computed(() => Math.min(Math.max(achievementRate.value, 0), 100))
-
-const achievementMessage = computed(() => {
-  if (achievementRate.value >= 100) {
-    return "연봉 25% 기준을 달성했습니다!"
-  }
-
-  if (achievementRate.value >= 90) {
-    return "곧 카드 소득공제 기준을 채울 수 있어요!"
-  }
-
-  return `카드 사용액이 연봉 25% 기준의 ${achievementRate.value}%에 도달했어요.`
-})
 
 const loadTaxSettlement = async ({ force = false } = {}) => {
   if (
@@ -144,7 +176,48 @@ onMounted(() => loadTaxSettlement({ force: props.forceRefresh }))
 <template>
   <AppCard class="tax-deduction-card h-100" padding="none">
     <div class="tax-deduction-body">
-      <h2 class="h5 fw-bold mb-0">소득공제 달성률</h2>
+      <div class="tax-deduction-card-header">
+        <h2 class="h5 fw-bold mb-0">공제 문턱 달성률</h2>
+
+        <div class="tax-guide">
+          <AppButton
+            class="tax-guide-toggle"
+            variant="ghost"
+            size="sm"
+            aria-haspopup="true"
+            aria-describedby="tax-guide-panel"
+          >
+            <span>연봉별 기준 보기</span>
+            <template #trailing>
+              <i class="bi bi-info-circle" aria-hidden="true"></i>
+            </template>
+          </AppButton>
+
+          <div id="tax-guide-panel" class="tax-guide-panel" role="tooltip">
+            <div class="tax-guide-section">
+              <strong>공제 문턱</strong>
+              <p>총급여액의 25%를 초과해서 사용해야 공제가 시작됩니다.</p>
+            </div>
+
+            <div class="tax-guide-section">
+              <strong>최대 공제한도</strong>
+              <ul class="tax-guide-list">
+                <li :class="{ 'is-current': salaryBracket === 'under-seven-million' }">
+                  연봉 7,000만 원 이하: 기본 {{ formatTenThousandWon(3_000_000) }} · 최대
+                  {{ formatTenThousandWon(6_000_000) }}
+                </li>
+                <li :class="{ 'is-current': salaryBracket === 'under-twelve-million' }">
+                  연봉 7,000만 원 초과 ~ 1억 2,000만 원 이하: 기본
+                  {{ formatTenThousandWon(2_500_000) }}
+                </li>
+                <li :class="{ 'is-current': salaryBracket === 'over-twelve-million' }">
+                  연봉 1억 2,000만 원 초과: 기본 {{ formatTenThousandWon(2_000_000) }}
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <AppState
         v-if="isInitialLoading"
@@ -174,20 +247,21 @@ onMounted(() => loadTaxSettlement({ force: props.forceRefresh }))
           <AppButton variant="outline" size="sm" @click="retryTaxSettlement">다시 시도</AppButton>
         </AppAlert>
 
-        <div class="annual-salary-summary mb-4">
-          <span class="tax-deduction-label">자동 조회된 세전 연봉</span>
-          <strong class="annual-salary-value">{{ formattedAnnualSalary }}</strong>
-        </div>
-
-        <div class="d-flex align-items-end justify-content-between gap-3 mb-3">
-          <span class="tax-deduction-label">연봉 25% 달성률</span>
-          <strong class="tax-deduction-rate">{{ achievementRate }}%</strong>
+        <div class="tax-deduction-summary mb-3">
+          <div class="tax-deduction-usage">
+            <span>현재 사용액</span>
+            <strong>{{ formatWon(spentAmount) }}</strong>
+            <span class="tax-deduction-usage-divider">/</span>
+            <span>공제 문턱</span>
+            <strong>{{ formatWon(thresholdAmount) }}</strong>
+          </div>
+          <strong class="tax-deduction-rate">{{ progressLabel }}</strong>
         </div>
 
         <div
           class="progress tax-deduction-progress"
           role="progressbar"
-          aria-label="연봉 25% 달성률"
+          aria-label="공제 문턱 달성률"
           :aria-valuenow="progressRate"
           aria-valuemin="0"
           aria-valuemax="100"
@@ -196,8 +270,20 @@ onMounted(() => loadTaxSettlement({ force: props.forceRefresh }))
         </div>
 
         <p class="tax-deduction-message mb-0">
-          {{ achievementMessage }}
+          <template v-if="isThresholdReached">공제 문턱을 달성했어요.</template>
+          <template v-else>
+            공제가 시작되기까지
+            <strong class="tax-deduction-remaining">{{ formatWon(remainingAmount) }}</strong>
+            남았어요.
+          </template>
         </p>
+
+        <div class="tax-strategy" :class="{ 'tax-strategy--reached': isThresholdReached }">
+          <div class="tax-strategy-heading">
+            <strong>{{ strategyTitle }}</strong>
+          </div>
+          <p class="mb-0">{{ strategyMessage }}</p>
+        </div>
       </div>
 
       <div v-else-if="isAnnualSalaryUnavailable" class="tax-deduction-state manual-salary-state">
@@ -298,16 +384,17 @@ onMounted(() => loadTaxSettlement({ force: props.forceRefresh }))
   padding-top: 30px;
 }
 
-.annual-salary-summary {
+.tax-deduction-card-header {
+  position: relative;
+  z-index: 2;
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 1rem;
 }
 
-.annual-salary-value {
-  color: var(--wallo-color-primary);
-  font-size: 1.25rem;
+.tax-deduction-card-header h2 {
+  min-width: 0;
 }
 
 .tax-deduction-state {
@@ -324,14 +411,17 @@ onMounted(() => loadTaxSettlement({ force: props.forceRefresh }))
   max-width: 360px;
 }
 
-.tax-deduction-label {
-  color: var(--wallo-color-text-muted);
-  font-weight: 600;
-}
-
 .tax-deduction-rate {
+  flex-shrink: 0;
   color: var(--wallo-color-primary);
   font-size: 1.35rem;
+}
+
+.tax-deduction-summary {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
 }
 
 .tax-deduction-progress {
@@ -346,10 +436,155 @@ onMounted(() => loadTaxSettlement({ force: props.forceRefresh }))
   background: var(--wallo-color-primary);
 }
 
+.tax-deduction-usage {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  color: var(--wallo-color-text-muted);
+  font-size: 0.9rem;
+}
+
+.tax-deduction-usage strong {
+  color: var(--wallo-color-text);
+  font-size: 0.9rem;
+}
+
+.tax-deduction-usage-divider {
+  margin: 0 0.1rem;
+  color: var(--wallo-color-border);
+}
+
 .tax-deduction-message {
-  padding-top: 18px;
+  padding-top: 12px;
   color: var(--wallo-color-text-muted);
   line-height: 1.7;
+  font-size: 0.9rem;
+}
+
+.tax-deduction-remaining {
+  color: var(--wallo-color-primary);
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.tax-strategy {
+  margin-top: 0.85rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid #e1edfb;
+  border-radius: 14px;
+  background: #f5faff;
+}
+
+.tax-strategy--reached {
+  border-color: #d7eddf;
+  background: #f1fbf4;
+}
+
+.tax-strategy-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tax-strategy-heading strong {
+  color: var(--wallo-color-text);
+  font-size: 0.9rem;
+}
+
+.tax-strategy p {
+  margin-top: 0.4rem;
+  color: var(--wallo-color-text-muted);
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+
+.tax-guide {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.tax-guide-toggle {
+  gap: 0.35rem;
+  padding: 0.25rem 0.45rem;
+  color: var(--wallo-color-text-muted);
+  font-size: 0.86rem;
+}
+
+.tax-guide-toggle:hover,
+.tax-guide-toggle:focus-visible,
+.tax-guide:focus-within .tax-guide-toggle {
+  color: var(--wallo-color-primary);
+}
+
+.tax-guide-toggle :deep(.app-button__label) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.tax-guide-panel {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  z-index: 20;
+  width: min(420px, calc(100vw - 2rem));
+  max-height: min(420px, calc(100vh - 2rem));
+  overflow: auto;
+  padding: 0.85rem 0.9rem;
+  border: 1px solid var(--wallo-color-border-soft);
+  border-radius: 12px;
+  color: var(--wallo-color-text-muted);
+  background: #fbfdff;
+  font-size: 0.86rem;
+  line-height: 1.55;
+  box-shadow: var(--wallo-shadow-card);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease,
+    visibility 160ms ease;
+}
+
+.tax-guide:hover .tax-guide-panel,
+.tax-guide:focus-within .tax-guide-panel {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.tax-guide-section + .tax-guide-section {
+  margin-top: 0.8rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--wallo-color-border-soft);
+}
+
+.tax-guide-section strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: var(--wallo-color-text);
+  font-size: 0.86rem;
+}
+
+.tax-guide-section p {
+  margin: 0;
+}
+
+.tax-guide-list {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding-left: 1rem;
+}
+
+.tax-guide-list li.is-current {
+  color: var(--wallo-color-primary);
+  font-weight: 700;
 }
 
 @media (max-width: 991.98px) {
@@ -362,12 +597,6 @@ onMounted(() => loadTaxSettlement({ force: props.forceRefresh }))
 @media (max-width: 575.98px) {
   .tax-deduction-body {
     padding: var(--wallo-space-5) var(--wallo-space-4);
-  }
-
-  .annual-salary-summary {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 4px;
   }
 }
 </style>

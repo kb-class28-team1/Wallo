@@ -18,7 +18,23 @@ const dashboardStore = useDashboardStore()
 const goalStore = useGoalStore()
 const userStore = useUserStore()
 const router = useRouter()
-const { initialLoading, refreshing, assets, budget, expenses, error } = storeToRefs(dashboardStore)
+const {
+  initialLoading,
+  refreshing,
+  assets,
+  assetLoading,
+  assetError,
+  hasAssetData,
+  budget,
+  budgetLoading,
+  budgetError,
+  hasBudgetData,
+  expenses,
+  expenseLoading,
+  expenseError,
+  hasExpenseData,
+  error,
+} = storeToRefs(dashboardStore)
 const {
   goals,
   initialLoading: isGoalInitialLoading,
@@ -37,8 +53,12 @@ const userId = computed(() => user.value?.id ?? null)
 let goalRefreshTimer = null
 let goalRefreshInFlight = null
 
+const hasFinancialDashboardData = computed(() =>
+  Boolean(hasAssetData.value || hasBudgetData.value || hasExpenseData.value),
+)
+
 const hasRenderedDashboardData = computed(() =>
-  Boolean(assets.value || budget.value || expenses.value || goals.value.length > 0),
+  Boolean(hasFinancialDashboardData.value || goals.value.length > 0),
 )
 
 const isDashboardInitialLoading = computed(
@@ -179,12 +199,89 @@ onBeforeUnmount(() => {
       />
 
       <div class="dashboard-card-grid">
-        <AssetSummaryCard :assets="assets" :chart-data="assetTrendChartData" />
-        <BudgetSummaryCard :budget="budget" @open-budget-settings="handleBudgetSettings" />
+        <AssetSummaryCard
+          v-if="hasAssetData"
+          :assets="assets"
+          :chart-data="assetTrendChartData"
+        />
+        <AppState
+          v-else-if="assetLoading"
+          class="dashboard-resource-state"
+          type="loading"
+          title="자산 정보를 불러오는 중입니다."
+          message="잠시만 기다려 주세요."
+          compact
+        />
+        <AppState
+          v-else-if="assetError"
+          class="dashboard-resource-state"
+          type="error"
+          title="자산 정보를 불러오지 못했습니다."
+          :message="assetError"
+          compact
+        />
+        <AppState
+          v-else
+          class="dashboard-resource-state"
+          type="empty"
+          title="연결된 자산이 없습니다."
+          message="금융기관을 연결하면 자산 현황을 확인할 수 있습니다."
+          compact
+        />
+
+        <BudgetSummaryCard
+          v-if="hasBudgetData || (!budgetLoading && !budgetError)"
+          :budget="budget"
+          @open-budget-settings="handleBudgetSettings"
+        />
+        <AppState
+          v-else-if="budgetLoading"
+          class="dashboard-resource-state"
+          type="loading"
+          title="예산 정보를 불러오는 중입니다."
+          message="잠시만 기다려 주세요."
+          compact
+        />
+        <AppState
+          v-else
+          class="dashboard-resource-state"
+          type="error"
+          title="예산 정보를 불러오지 못했습니다."
+          :message="budgetError"
+          compact
+        />
       </div>
 
       <div class="dashboard-summary-grid">
-        <ExpenseSummaryCard :expenses="expenses" :chart-data="expenseChartData" />
+        <ExpenseSummaryCard
+          v-if="hasExpenseData"
+          :expenses="expenses"
+          :chart-data="expenseChartData"
+        />
+        <AppState
+          v-else-if="expenseLoading"
+          class="dashboard-resource-state"
+          type="loading"
+          title="소비 정보를 불러오는 중입니다."
+          message="잠시만 기다려 주세요."
+          compact
+        />
+        <AppState
+          v-else-if="expenseError"
+          class="dashboard-resource-state"
+          type="error"
+          title="소비 정보를 불러오지 못했습니다."
+          :message="expenseError"
+          compact
+        />
+        <AppState
+          v-else
+          class="dashboard-resource-state"
+          type="empty"
+          title="이번 달 지출 데이터가 없습니다."
+          message="지출 내역이 등록되면 카테고리별 현황을 확인할 수 있습니다."
+          compact
+        />
         <GoalSummaryCard
           :goals="goals"
           :loading="isGoalInitialLoading"
@@ -222,9 +319,13 @@ onBeforeUnmount(() => {
   margin-bottom: var(--wallo-space-4);
 }
 
+.dashboard-resource-state {
+  min-height: 294px;
+}
+
 .dashboard-card-grid {
   display: grid;
-  grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
+  grid-template-columns: minmax(0, 6fr) minmax(0, 4fr);
   gap: var(--wallo-space-5);
   max-width: var(--wallo-content-max-width);
   margin-top: 0;

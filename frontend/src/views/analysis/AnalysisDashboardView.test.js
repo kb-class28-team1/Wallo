@@ -94,6 +94,7 @@ describe("AnalysisDashboardView", () => {
     expect(wrapper.text()).toContain("저장된 자산분석이 없습니다.")
     expect(wrapper.text()).not.toContain("저장된 소비분석이 없습니다.")
     expect(wrapper.find('[role="tabpanel"] .app-state__icon').exists()).toBe(false)
+    expect(wrapper.find('[role="tabpanel"] .goal-button').exists()).toBe(true)
 
     await wrapper.find(".app-state__actions button").trigger("click")
     expect(push).toHaveBeenCalledWith({ name: "chat", query: { action: "asset-analysis" } })
@@ -101,9 +102,11 @@ describe("AnalysisDashboardView", () => {
     await wrapper.findAll('[role="tab"]')[1].trigger("click")
     expect(wrapper.text()).toContain("저장된 소비분석이 없습니다.")
     expect(wrapper.find('[role="tabpanel"] .app-state__icon').exists()).toBe(false)
+    expect(wrapper.find('[role="tabpanel"] .goal-button').exists()).toBe(true)
 
     await wrapper.findAll('[role="tab"]')[2].trigger("click")
     expect(wrapper.text()).toContain("저장된 금융상품 추천이 없습니다.")
     expect(wrapper.find('[role="tabpanel"] .app-state__icon').exists()).toBe(false)
+    expect(wrapper.find('[role="tabpanel"] .goal-button').exists()).toBe(true)
   })
 })

@@ -4,6 +4,7 @@ import { useRouter } from "vue-router"
 import { createChallenge, getCurrentChallenge, joinChallenge } from "@/api/challengeApi"
 import AppDialog from "@/components/common/AppDialog.vue"
 import AppPageHeader from "@/components/ui/AppPageHeader.vue"
+import AppTabs from "@/components/ui/AppTabs.vue"
 import { useToastStore } from "@/stores/toastStore"
 
 const router = useRouter()
@@ -14,6 +15,10 @@ const isSubmitting = ref(false)
 const errorMessage = ref("")
 const currentChallenge = ref(null)
 const activeForm = ref("create")
+const formTabs = [
+  { value: "create", label: "챌린지 만들기" },
+  { value: "join", label: "초대 코드로 참여" },
+]
 const dialogVisible = ref(false)
 const dialogMessage = ref("")
 const dialogNextRoute = ref(null)
@@ -137,7 +142,7 @@ onMounted(loadCurrentChallenge)
       <span class="state-icon" aria-hidden="true">!</span>
       <h1 id="challenge-page-title">챌린지 정보를 불러오지 못했어요</h1>
       <p>{{ errorMessage }}</p>
-      <button type="button" class="btn retry-button" @click="loadCurrentChallenge">
+      <button type="button" class="btn retry-button pressable" @click="loadCurrentChallenge">
         다시 시도
       </button>
     </div>
@@ -174,7 +179,7 @@ onMounted(loadCurrentChallenge)
             <strong>{{ currentChallenge.inviteCode }}</strong>
             <button
               type="button"
-              class="copy-button"
+              class="copy-button pressable"
               aria-label="초대 코드 복사"
               @click="copyInviteCode"
             >
@@ -185,7 +190,7 @@ onMounted(loadCurrentChallenge)
       </div>
 
       <div class="challenge-actions">
-        <button type="button" class="action-card action-primary" @click="moveToFeed">
+        <button type="button" class="action-card action-primary pressable" @click="moveToFeed">
           <span class="action-icon"><i class="bi bi-card-list"></i></span>
           <span>
             <strong>챌린지 피드</strong>
@@ -195,7 +200,7 @@ onMounted(loadCurrentChallenge)
         </button>
         <button
           type="button"
-          class="action-card"
+          class="action-card pressable"
           @click="router.push('/challenges/rankings/weekly')"
         >
           <span class="action-icon"><i class="bi bi-trophy"></i></span>
@@ -207,7 +212,7 @@ onMounted(loadCurrentChallenge)
         </button>
         <button
           type="button"
-          class="action-card"
+          class="action-card pressable"
           @click="router.push('/users/me/challenge-dashboard')"
         >
           <span class="action-icon"><i class="bi bi-graph-up-arrow"></i></span>
@@ -235,26 +240,14 @@ onMounted(loadCurrentChallenge)
       </AppPageHeader>
 
       <div class="entry-card">
-        <div class="form-tabs" role="tablist" aria-label="챌린지 시작 방법">
-          <button
-            type="button"
-            role="tab"
-            :aria-selected="activeForm === 'create'"
-            :class="{ active: activeForm === 'create' }"
-            @click="activeForm = 'create'"
-          >
-            챌린지 만들기
-          </button>
-          <button
-            type="button"
-            role="tab"
-            :aria-selected="activeForm === 'join'"
-            :class="{ active: activeForm === 'join' }"
-            @click="activeForm = 'join'"
-          >
-            초대 코드로 참여
-          </button>
-        </div>
+        <AppTabs
+          v-model="activeForm"
+          class="form-tabs"
+          :items="formTabs"
+          variant="segment"
+          full-width
+          aria-label="챌린지 시작 방법"
+        />
 
         <form v-if="activeForm === 'create'" class="challenge-form" @submit.prevent="submitCreate">
           <img
@@ -281,7 +274,7 @@ onMounted(loadCurrentChallenge)
             :disabled="isSubmitting"
           />
 
-          <button type="submit" class="submit-button" :disabled="isSubmitting">
+          <button type="submit" class="submit-button pressable" :disabled="isSubmitting">
             <span v-if="isSubmitting" class="spinner-border spinner-border-sm"></span>
             <span v-else>챌린지 만들기</span>
           </button>
@@ -319,7 +312,7 @@ onMounted(loadCurrentChallenge)
             초대 코드는 챌린지를 만든 친구에게 받을 수 있어요.
           </div>
 
-          <button type="submit" class="submit-button" :disabled="isSubmitting">
+          <button type="submit" class="submit-button pressable" :disabled="isSubmitting">
             <span v-if="isSubmitting" class="spinner-border spinner-border-sm"></span>
             <span v-else>챌린지 참여하기</span>
           </button>
@@ -558,6 +551,10 @@ onMounted(loadCurrentChallenge)
   box-shadow: 0 14px 30px rgba(39, 45, 77, 0.1);
 }
 
+.action-card:active:not(:disabled) {
+  transform: translateY(-1px) scale(0.98);
+}
+
 .action-icon {
   width: 44px;
   height: 44px;
@@ -630,28 +627,6 @@ onMounted(loadCurrentChallenge)
   border: 1px solid #eceef5;
   border-radius: 26px;
   box-shadow: 0 20px 50px rgba(37, 44, 82, 0.09);
-}
-
-.form-tabs {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  padding: 8px;
-  background: #f5f4fb;
-}
-
-.form-tabs button {
-  padding: 15px;
-  color: #9298a9;
-  background: transparent;
-  border: 0;
-  border-radius: 14px;
-  font-weight: 750;
-}
-
-.form-tabs button.active {
-  color: #4b7fc7;
-  background: #fff;
-  box-shadow: 0 5px 14px rgba(52, 44, 110, 0.08);
 }
 
 .challenge-form {

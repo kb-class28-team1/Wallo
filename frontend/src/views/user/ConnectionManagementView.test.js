@@ -143,6 +143,29 @@ describe("ConnectionManagementView", () => {
     ])
   })
 
+  it("prioritizes the local KB logo over an API logo URL", async () => {
+    getConnections.mockResolvedValueOnce({
+      connections: [
+        {
+          ...connectedAssets[0],
+          logoUrl: "https://www.kbstar.com/favicon.ico",
+        },
+      ],
+    })
+    wrapper = mount(ConnectionManagementView, {
+      global: {
+        stubs: {
+          RouterLink: { template: "<a><slot /></a>" },
+        },
+      },
+    })
+    await flushPromises()
+
+    expect(wrapper.find(".asset-logo-image").attributes("src")).toBe(
+      "/images/institutions/kb.webp",
+    )
+  })
+
   it("groups an institution into one disconnect modal and refreshes assets", async () => {
     wrapper = mount(ConnectionManagementView, {
       attachTo: document.body,
@@ -158,6 +181,17 @@ describe("ConnectionManagementView", () => {
     expect(wrapper.findAll(".connection-institution .connection-disconnect")).toHaveLength(1)
     expect(wrapper.text()).toContain("마지막 동기화")
     expect(wrapper.text()).toContain("-4,800,000원")
+
+    const negativeAmount = wrapper
+      .findAll(".connection-amount")
+      .find((element) => element.text().includes("-4,800,000원"))
+    expect(negativeAmount.classes()).toContain("text-danger")
+    expect(
+      wrapper
+        .findAll(".connection-amount")
+        .find((element) => element.text().includes("5,000,000원"))
+        .classes(),
+    ).not.toContain("text-danger")
 
     await wrapper.find(".connection-disconnect").trigger("click")
     await flushPromises()

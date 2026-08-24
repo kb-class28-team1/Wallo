@@ -178,10 +178,7 @@
 }
 
 .chat-completed-notice :deep(.app-alert__message) {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--wallo-space-1) var(--wallo-space-2);
+  display: block;
   font-size: 0.875rem;
 }
 
