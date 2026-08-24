@@ -17,6 +17,7 @@ import AppCard from "@/components/ui/AppCard.vue"
 import AppPageHeader from "@/components/ui/AppPageHeader.vue"
 import AppState from "@/components/ui/AppState.vue"
 import { announcePointEarned } from "@/utils/pointRewardNotice"
+import { getAppToday } from "@/utils/appDate"
 
 const router = useRouter()
 const goalStore = useGoalStore()
@@ -106,7 +107,7 @@ const formatGoalDate = (value) => {
 const remainingMonths = computed(() => {
   const targetDate = parseGoalDate(currentGoal.value?.targetDate)
   if (!targetDate) return 0
-  const today = new Date()
+  const today = getAppToday()
   const months =
     (targetDate.getFullYear() - today.getFullYear()) * 12 + targetDate.getMonth() - today.getMonth()
   return Math.max(0, months)

@@ -55,6 +55,7 @@ public class CodefMockService {
             "0301", "card-approval-list-goal-saver.json"
     );
     private static final String INCOME_PROOF_FIXTURE = "income-proof-goal-saver.json";
+    private static final String AFTER_DEMO_LOGIN_PREFIX = "after-";
     private final ObjectMapper objectMapper;
 
     public CodefMockService(ObjectMapper objectMapper) {
@@ -86,6 +87,18 @@ public class CodefMockService {
             );
         }
         return load(fixtureFileName);
+    }
+
+    /**
+     * The After fixture is already seeded with its one-year-final asset state.
+     * The shared goal-saver mock fixture contains a 4.8 million won loan, so
+     * replaying it during the After demo would create a second active loan.
+     */
+    public CodefDto.Response getAssetResponse(String requestPath, String organization, String loginId) {
+        if (loginId != null && loginId.startsWith(AFTER_DEMO_LOGIN_PREFIX)) {
+            return CodefDto.Response.success(new CodefDto.AssetData());
+        }
+        return getAssetResponse(requestPath, organization);
     }
 
     public CodefDto.Response getCardApprovals(CodefDto.CardApprovalRequest request) {

@@ -4,6 +4,7 @@ import { getBudgets, getExpenses, putBudget } from "@/api/assetApi"
 import { useAssetStore } from "@/stores/assetStore"
 import { useFinancialInvalidationStore } from "@/stores/financialInvalidationStore"
 import { getApiErrorMessage } from "@/utils/apiError"
+import { getAppMonthKey } from "@/utils/appDate"
 
 const DASHBOARD_STALE_TIME = 30 * 1000
 
@@ -234,7 +235,7 @@ export const useDashboardStore = defineStore("dashboard", () => {
   }
 
   const updateBudgetTotal = async (totalAmount, { forceRefresh = true } = {}) => {
-    const targetMonth = budget.value?.targetMonth ?? new Date().toISOString().slice(0, 7)
+    const targetMonth = budget.value?.targetMonth ?? getAppMonthKey()
 
     try {
       const response = await putBudget(targetMonth, Number(totalAmount))

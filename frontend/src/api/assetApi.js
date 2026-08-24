@@ -1,5 +1,6 @@
 import httpClient from "@/api/httpClient";
 import { getApiErrorCode, getApiErrorMessage } from "@/utils/apiError";
+import { getAppToday } from "@/utils/appDate";
 
 const formatDate = (date) => {
   const year = date.getFullYear();
@@ -10,7 +11,7 @@ const formatDate = (date) => {
 };
 
 const getCurrentMonthDateRange = () => {
-  const today = new Date();
+  const today = getAppToday();
 
   return {
     startDate: formatDate(new Date(today.getFullYear(), today.getMonth(), 1)),

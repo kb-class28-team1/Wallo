@@ -142,7 +142,7 @@ public class CodefMockControllerTest {
     }
 
     private void assertFixtureIsReturned(String path) throws Exception {
-        when(codefMockService.getAssetResponse(eq(path), eq("0004")))
+        when(codefMockService.getAssetResponse(eq(path), eq("0004"), eq("mock_id")))
                 .thenReturn(CodefDto.Response.success("fixture"));
 
         String responseBody = mockMvc.perform(post(path)
@@ -155,7 +155,7 @@ public class CodefMockControllerTest {
                 .getContentAsString();
 
         assertTrue(responseBody.contains("CF-00000"));
-        verify(codefMockService).getAssetResponse(path, "0004");
+        verify(codefMockService).getAssetResponse(path, "0004", "mock_id");
     }
 
     private String requestJsonFor(String path) {

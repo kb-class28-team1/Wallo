@@ -56,7 +56,7 @@
             ON card_connection.connection_id = c.connection_id
         WHERE t.user_id = #{userId}
           AND t.type = 'EXPENSE'
-          AND t.category NOT IN ('CARD_WITHDRAWAL', 'SEND', 'INCOME')
+          AND t.category NOT IN ('CARD_WITHDRAWAL', 'SEND', 'INCOME', 'LOAN_REPAYMENT')
           AND t.transaction_date BETWEEN #{startDate} AND #{endDate}
           AND c.card_type IN ('CREDIT', 'CHECK')
           AND card_connection.user_id = t.user_id
@@ -86,7 +86,7 @@
         <include refid="activeTransactionSourceJoins"/>
         WHERE t.user_id = #{userId}
           AND t.type = 'EXPENSE'
-          AND t.category NOT IN ('INCOME', 'SEND', 'CARD_WITHDRAWAL')
+          AND t.category NOT IN ('INCOME', 'SEND', 'CARD_WITHDRAWAL', 'LOAN_REPAYMENT')
           AND t.transaction_date BETWEEN #{previousStartDate} AND #{currentEndDate}
         <include refid="activeTransactionSourceCondition"/>
         GROUP BY CASE WHEN t.category IN ('OTHER', 'ETC') THEN 'ETC' ELSE t.category END

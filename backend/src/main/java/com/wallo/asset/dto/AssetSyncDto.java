@@ -26,6 +26,7 @@ public final class AssetSyncDto {
         private String financialGroupName;
         private String institutionType;
         private String logoUrl;
+        private String loginId;
     }
 
     @Getter

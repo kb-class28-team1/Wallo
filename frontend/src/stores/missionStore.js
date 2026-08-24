@@ -8,6 +8,7 @@ import {
   verifyTransactionMission as verifyTransactionMissionRequest,
 } from "@/api/missionApi"
 import { useToastStore } from "@/stores/toastStore"
+import { getAppToday } from "@/utils/appDate"
 
 export const MISSION_POLL_INTERVAL_MS = 2500
 export const MAX_MISSION_POLL_ATTEMPTS = 48
@@ -228,7 +229,7 @@ export const useMissionStore = defineStore("mission", () => {
   const scheduleNextMissionDateRefresh = () => {
     if (missionDateTimer) clearTimeout(missionDateTimer)
 
-    const now = new Date()
+    const now = getAppToday()
     const nextDate = new Date(now)
     nextDate.setHours(24, 0, 0, 250)
     missionDateTimer = setTimeout(() => {

@@ -14,6 +14,7 @@ import AppPageHeader from "@/components/ui/AppPageHeader.vue"
 import AppState from "@/components/ui/AppState.vue"
 import { getExpenses, updateExpenseCategory } from "@/api/assetApi"
 import { getApiErrorMessage } from "@/utils/apiError"
+import { getAppToday } from "@/utils/appDate"
 import { formatWon } from "@/utils/formatters"
 import { EXPENSE_CATEGORY_META } from "@/features/financial/financialCategories"
 import { useAssetStore } from "@/stores/assetStore"
@@ -48,7 +49,7 @@ const createEmptyExpenseData = () => ({
   },
 })
 
-const now = new Date()
+const now = getAppToday()
 const selectedMonth = ref(new Date(now.getFullYear(), now.getMonth(), 1))
 const activeView = ref("calendar")
 const selectedListCategories = ref([])
@@ -96,7 +97,7 @@ const targetMonth = computed(() => {
 })
 
 const isCurrentMonth = computed(() => {
-  const today = new Date()
+  const today = getAppToday()
   return (
     targetMonth.value === `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`
   )

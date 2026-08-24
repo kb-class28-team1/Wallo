@@ -5,6 +5,7 @@ import { getCurrentChallenge } from "@/api/challengeApi"
 import AppDialog from "@/components/common/AppDialog.vue"
 import AppButton from "@/components/ui/AppButton.vue"
 import { useUserStore } from "@/stores/userStore"
+import { getAppToday } from "@/utils/appDate"
 
 // public 폴더의 이미지는 루트 절대 경로로 참조함.
 const sidebarIllustration = "/images/illustrations/wallo-surfing.webp"
@@ -55,7 +56,7 @@ const savingsTips = [
 ]
 
 const getTodayKey = () => {
-  const today = new Date()
+  const today = getAppToday()
   return Math.floor(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()) / 86400000)
 }
 
@@ -64,7 +65,7 @@ const dailySavingsTip = computed(() => savingsTips[Math.abs(todayKey.value) % sa
 let dailyTipTimer
 
 const scheduleDailyTipRefresh = () => {
-  const now = new Date()
+  const now = getAppToday()
   const nextDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1)
   dailyTipTimer = window.setTimeout(
     () => {
