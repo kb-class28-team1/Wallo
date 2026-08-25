@@ -237,13 +237,13 @@ ON DUPLICATE KEY UPDATE
     transaction_time = VALUES(transaction_time);
 
 INSERT INTO BUDGETS (budget_id, user_id, target_month, total_amount, created_at, updated_at)
-VALUES (@before_budget_id, @before_user_id, DATE_FORMAT(CURDATE(), '%Y-%m'), 900000, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+VALUES (@before_budget_id, @before_user_id, DATE_FORMAT(CURDATE(), '%Y-%m'), 800000, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 ON DUPLICATE KEY UPDATE
     total_amount = VALUES(total_amount),
     updated_at = CURRENT_TIMESTAMP;
 
 INSERT INTO BUDGET_PLANS (budget_plan_id, user_id, effective_month, total_amount, created_at, updated_at)
-VALUES (@before_budget_plan_id, @before_user_id, DATE_FORMAT(CURDATE(), '%Y-%m'), 900000, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+VALUES (@before_budget_plan_id, @before_user_id, DATE_FORMAT(CURDATE(), '%Y-%m'), 800000, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 ON DUPLICATE KEY UPDATE
     total_amount = VALUES(total_amount),
     updated_at = CURRENT_TIMESTAMP;
@@ -256,7 +256,7 @@ VALUES
     (@before_budget_plan_id, 'CAFE', 50000),
     (@before_budget_plan_id, 'TRANSPORT', 50000),
     (@before_budget_plan_id, 'HEALTH', 30000),
-    (@before_budget_plan_id, 'OTHER', 170000)
+    (@before_budget_plan_id, 'OTHER', 70000)
 ON DUPLICATE KEY UPDATE
     budget_amount = VALUES(budget_amount),
     updated_at = CURRENT_TIMESTAMP;

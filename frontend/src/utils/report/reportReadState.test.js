@@ -7,22 +7,29 @@ describe("reportReadState", () => {
   })
 
   it("marks a report as read in localStorage", () => {
-    markReportAsRead(10)
+    markReportAsRead(10, 1)
 
-    expect(isReportRead(10)).toBe(true)
-    expect(getReadReportIds()).toEqual(new Set(["10"]))
+    expect(isReportRead(10, 1)).toBe(true)
+    expect(isReportRead(10, 2)).toBe(false)
+    expect(getReadReportIds(1)).toEqual(new Set(["10"]))
   })
 
   it("deduplicates repeated reads", () => {
-    markReportAsRead(10)
-    markReportAsRead("10")
+    markReportAsRead(10, 1)
+    markReportAsRead("10", 1)
 
-    expect([...getReadReportIds()]).toEqual(["10"])
+    expect([...getReadReportIds(1)]).toEqual(["10"])
   })
 
   it("returns an empty set when stored data is broken", () => {
-    window.localStorage.setItem("wallo.readReportIds", "{broken")
+    window.localStorage.setItem("wallo.readReportIds:1", "{broken")
 
-    expect(getReadReportIds()).toEqual(new Set())
+    expect(getReadReportIds(1)).toEqual(new Set())
+  })
+
+  it("does not share read state between users", () => {
+    markReportAsRead(10, 1)
+
+    expect(getReadReportIds(2)).toEqual(new Set())
   })
 })

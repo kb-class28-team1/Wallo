@@ -132,6 +132,58 @@ class BankTransactionCollectionServiceTest {
     }
 
     @Test
+    void classifiesKnownExpenseTransfersAsExpenses() {
+        when(categoryClassifier.classifyBeforeAi(any())).thenAnswer(invocation -> {
+            ExpenseCategoryClassifier.Context context = invocation.getArgument(0);
+            return switch (context.merchantName()) {
+                case "보험료" -> Optional.of(new ExpenseCategoryClassifier.Result(
+                        "LIVING",
+                        "MERCHANT_KEYWORD",
+                        new BigDecimal("0.9800"),
+                        "keyword-v1"
+                ));
+                case "관리비", "월세" -> Optional.of(new ExpenseCategoryClassifier.Result(
+                        "HOUSING",
+                        "MERCHANT_KEYWORD",
+                        new BigDecimal("0.9800"),
+                        "keyword-v1"
+                ));
+                default -> Optional.empty();
+            };
+        });
+        when(bankTransactionClient.getTransactions(any())).thenReturn(CodefDto.Response.success(List.of(
+                transaction("BANK-INSURANCE", "0", "80000", "보험료", "TRANSFER"),
+                transaction("BANK-MANAGEMENT", "0", "120000", "관리비", "TRANSFER"),
+                transaction("BANK-RENT", "0", "850000", "월세", "TRANSFER"),
+                transaction("BANK-SEND", "0", "100000", "부모님 용돈", "TRANSFER")
+        )));
+
+        service.collect(
+                7L,
+                31L,
+                "123456-01-789012",
+                institution,
+                LocalDate.of(2026, 8, 1),
+                LocalDate.of(2026, 8, 5)
+        );
+
+        ArgumentCaptor<AssetSyncDto.Transaction> transactionCaptor =
+                ArgumentCaptor.forClass(AssetSyncDto.Transaction.class);
+        verify(assetSyncMapper, org.mockito.Mockito.times(4))
+                .upsertTransaction(transactionCaptor.capture());
+        List<AssetSyncDto.Transaction> savedTransactions = transactionCaptor.getAllValues();
+
+        assertEquals("EXPENSE", savedTransactions.get(0).getType());
+        assertEquals("LIVING", savedTransactions.get(0).getCategory());
+        assertEquals("EXPENSE", savedTransactions.get(1).getType());
+        assertEquals("HOUSING", savedTransactions.get(1).getCategory());
+        assertEquals("EXPENSE", savedTransactions.get(2).getType());
+        assertEquals("HOUSING", savedTransactions.get(2).getCategory());
+        assertEquals("TRANSFER", savedTransactions.get(3).getType());
+        assertEquals("SEND", savedTransactions.get(3).getCategory());
+    }
+
+    @Test
     void collectWithStatsCountsNewBankTransactionAsInserted() {
         when(bankTransactionClient.getTransactions(any())).thenReturn(CodefDto.Response.success(List.of(
                 transaction("BANK-NEW-1", "3000000", "0", "income", "INCOME")

@@ -212,6 +212,19 @@ async function scrollToBottom(behavior = "smooth") {
   })
 }
 
+const isStructuredAnalysisMessage = (message) =>
+  message?.role === "assistant" &&
+  Boolean(
+    message.consumptionAnalysis ||
+      message.assetAnalysis ||
+      message.productRecommendation,
+  )
+
+const scrollToLatestMessageIfNeeded = async () => {
+  if (isStructuredAnalysisMessage(messages.value.at(-1))) return
+  await scrollToBottom()
+}
+
 const startEditingTitle = (conversation) => {
   editingConversationId.value = conversation.conversationId
   editingTitle.value = conversation.title
@@ -307,9 +320,10 @@ async function sendMessage(message, requestId = null) {
     null,
     requestId,
   )
-  await scrollToBottom()
   const sent = await sendPromise
-  await scrollToBottom()
+  if (sent) {
+    await scrollToLatestMessageIfNeeded()
+  }
   if (!sent && conversationError.value) {
     errorMessage.value = conversationError.value
   }
@@ -471,7 +485,7 @@ const startConsumptionAnalysis = async () => {
     }
   } finally {
     isConsumptionAnalysisStarting.value = false
-    await scrollToBottom()
+    await scrollToLatestMessageIfNeeded()
   }
 }
 
@@ -496,7 +510,7 @@ const startAssetAnalysisConversation = async () => {
     errorMessage.value = error.message || "자산분석 채팅을 시작하지 못했습니다."
   } finally {
     isGuidedChatStarting.value = false
-    await scrollToBottom()
+    await scrollToLatestMessageIfNeeded()
   }
 }
 
@@ -521,7 +535,7 @@ const startProductRecommendation = async () => {
     errorMessage.value = error.message || "상품추천 채팅을 시작하지 못했습니다."
   } finally {
     isGuidedChatStarting.value = false
-    await scrollToBottom()
+    await scrollToLatestMessageIfNeeded()
   }
 }
 
@@ -563,12 +577,13 @@ const startGuidedChat = async (message) => {
     errorMessage.value = error.message || "상담 요청을 전송하지 못했습니다."
   } finally {
     isGuidedChatStarting.value = false
-    await scrollToBottom()
   }
 }
 
 const analyzeCurrentConversationSpending = () => startGuidedChat("내 소비를 분석해줘")
 const startAssetAnalysis = () => startGuidedChat("내 자산을 분석해줘")
+const startCurrentProductRecommendation = () =>
+  startGuidedChat("내 상황에 맞는 금융상품을 추천해줘")
 
 watch(
   () => route.query.action,
@@ -682,7 +697,11 @@ onMounted(async () => {
                 <i class="bi bi-wallet2" aria-hidden="true"></i>
                 자산분석
               </button>
-              <button type="button" class="chat-quick-action pressable" @click="startProductRecommendation">
+              <button
+                type="button"
+                class="chat-quick-action pressable"
+                @click="startCurrentProductRecommendation"
+              >
                 <i class="bi bi-stars" aria-hidden="true"></i>
                 상품추천
               </button>

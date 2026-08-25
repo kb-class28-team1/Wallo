@@ -8,6 +8,7 @@ import { crawlNewsNow, generateMissingReports, getReportDetail, getReports } fro
 const mocks = vi.hoisted(() => ({
   routeParams: { newsId: "42" },
   markReportAsRead: vi.fn(),
+  userStore: { user: { id: 7 } },
 }))
 
 vi.mock("vue-router", () => ({
@@ -23,6 +24,10 @@ vi.mock("@/api/reportApi", () => ({
   generateMissingReports: vi.fn(),
   getReportDetail: vi.fn(),
   getReports: vi.fn(),
+}))
+
+vi.mock("@/stores/userStore", () => ({
+  useUserStore: () => mocks.userStore,
 }))
 
 vi.mock("@/utils/report/reportReadState", () => ({
@@ -112,7 +117,7 @@ describe("report views", () => {
     await flushPromises()
 
     expect(getReportDetail).toHaveBeenCalledWith("42")
-    expect(mocks.markReportAsRead).toHaveBeenCalledWith("42")
+    expect(mocks.markReportAsRead).toHaveBeenCalledWith("42", 7)
     expect(wrapper.find(".app-page-header").exists()).toBe(true)
     expect(wrapper.find(".app-page-header__title").text()).toBe("기준금리 변화와 가계 영향")
     expect(wrapper.find(".app-page-header__eyebrow").exists()).toBe(false)

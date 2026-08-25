@@ -5,6 +5,7 @@ import { getCurrentChallenge } from "@/api/challengeApi"
 import AppDialog from "@/components/common/AppDialog.vue"
 import AppButton from "@/components/ui/AppButton.vue"
 import { useUserStore } from "@/stores/userStore"
+import { getAppToday } from "@/utils/appDate"
 
 // public 폴더의 이미지는 루트 절대 경로로 참조함.
 const sidebarIllustration = "/images/illustrations/wallo-surfing.webp"
@@ -55,7 +56,7 @@ const savingsTips = [
 ]
 
 const getTodayKey = () => {
-  const today = new Date()
+  const today = getAppToday()
   return Math.floor(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()) / 86400000)
 }
 
@@ -64,7 +65,7 @@ const dailySavingsTip = computed(() => savingsTips[Math.abs(todayKey.value) % sa
 let dailyTipTimer
 
 const scheduleDailyTipRefresh = () => {
-  const now = new Date()
+  const now = getAppToday()
   const nextDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1)
   dailyTipTimer = window.setTimeout(
     () => {
@@ -530,7 +531,7 @@ const handleLogout = async () => {
   width: var(--wallo-sidebar-width);
   height: 100vh;
   padding: 20px 25px 30px;
-  overflow-y: auto;
+  overflow: hidden;
   color: #59647f;
   background: #ffffff;
   border-right: 1px solid #f4f5fa;
@@ -549,10 +550,19 @@ const handleLogout = async () => {
 }
 
 .sidebar-nav {
+  flex: 1 1 auto;
+  min-height: 0;
   margin-top: 48px;
+  overflow-y: auto;
   font-size: 17.5px;
   font-weight: 600;
   letter-spacing: -0.6px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.sidebar-nav::-webkit-scrollbar {
+  display: none;
 }
 
 .menu-group {
@@ -786,6 +796,7 @@ const handleLogout = async () => {
 
 .sidebar-footer {
   display: flex;
+  flex: 0 0 auto;
   flex-direction: column;
   gap: 20px;
   padding-top: 20px;

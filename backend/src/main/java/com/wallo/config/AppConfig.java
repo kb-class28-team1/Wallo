@@ -30,6 +30,8 @@ import com.wallo.auth.JwtTokenService;
 import com.wallo.mission.verification.TextOverlapMissionVerificationClient;
 import com.wallo.mission.verification.MissionVerificationClient;
 import java.time.Clock;
+import java.time.DateTimeException;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Locale;
 import java.util.concurrent.Executor;
@@ -308,8 +310,19 @@ public class AppConfig {
     }
 
     @Bean
-    public Clock clock() {
-        return Clock.system(ZoneId.of("Asia/Seoul"));
+    public Clock clock(@Value("${demo.reference-date:}") String referenceDate) {
+        ZoneId zoneId = ZoneId.of("Asia/Seoul");
+        if (referenceDate == null || referenceDate.isBlank()) {
+            return Clock.system(zoneId);
+        }
+
+        try {
+            LocalDate date = LocalDate.parse(referenceDate.trim());
+            return Clock.fixed(date.atStartOfDay(zoneId).toInstant(), zoneId);
+        } catch (DateTimeException exception) {
+            throw new IllegalArgumentException(
+                    "demo.reference-date must use yyyy-MM-dd format.", exception);
+        }
     }
 
     @Bean

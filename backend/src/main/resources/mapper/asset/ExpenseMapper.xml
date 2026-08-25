@@ -59,7 +59,7 @@
         <include refid="activeTransactionSourceJoins"/>
         WHERE t.user_id = #{userId}
           AND t.type = 'EXPENSE'
-          AND t.category NOT IN ('CARD_WITHDRAWAL', 'SEND', 'INCOME')
+          AND t.category NOT IN ('CARD_WITHDRAWAL', 'SEND', 'INCOME', 'LOAN_REPAYMENT')
           AND t.transaction_date BETWEEN #{condition.startDate} AND #{condition.endDate}
         <include refid="activeTransactionSourceCondition"/>
         <include refid="categoryFilterCondition"/>
@@ -85,7 +85,7 @@
         <include refid="activeTransactionSourceJoins"/>
         WHERE t.user_id = #{userId}
           AND t.type = 'EXPENSE'
-          AND t.category NOT IN ('CARD_WITHDRAWAL', 'SEND', 'INCOME')
+          AND t.category NOT IN ('CARD_WITHDRAWAL', 'SEND', 'INCOME', 'LOAN_REPAYMENT')
           AND t.transaction_date BETWEEN #{condition.startDate} AND #{condition.endDate}
         <include refid="activeTransactionSourceCondition"/>
         <include refid="categoryFilterCondition"/>
@@ -99,7 +99,7 @@
             COALESCE(SUM(
                 CASE
                     WHEN t.type = 'EXPENSE'
-                        AND t.category NOT IN ('CARD_WITHDRAWAL', 'SEND', 'INCOME')
+                        AND t.category NOT IN ('CARD_WITHDRAWAL', 'SEND', 'INCOME', 'LOAN_REPAYMENT')
                     THEN t.amount
                     ELSE 0
                 END
@@ -113,7 +113,7 @@
           AND t.transaction_date BETWEEN #{condition.startDate} AND #{condition.endDate}
           AND (
               t.type = 'INCOME'
-              OR t.category NOT IN ('CARD_WITHDRAWAL', 'SEND', 'INCOME')
+              OR t.category NOT IN ('CARD_WITHDRAWAL', 'SEND', 'INCOME', 'LOAN_REPAYMENT')
           )
         <include refid="activeTransactionSourceCondition"/>
         <include refid="categoryFilterCondition"/>
@@ -133,7 +133,7 @@
         <include refid="activeTransactionSourceJoins"/>
         WHERE t.user_id = #{userId}
           AND t.transaction_date BETWEEN #{condition.startDate} AND #{condition.endDate}
-          AND t.category &lt;&gt; 'CARD_WITHDRAWAL'
+          AND t.category NOT IN ('CARD_WITHDRAWAL', 'LOAN_REPAYMENT')
         <include refid="activeTransactionSourceCondition"/>
         <include refid="categoryFilterCondition"/>
         ORDER BY t.transaction_date DESC, t.transaction_time DESC, t.transaction_id DESC
@@ -146,7 +146,7 @@
         <include refid="activeTransactionSourceJoins"/>
         WHERE t.user_id = #{userId}
           AND t.transaction_date BETWEEN #{condition.startDate} AND #{condition.endDate}
-          AND t.category &lt;&gt; 'CARD_WITHDRAWAL'
+          AND t.category NOT IN ('CARD_WITHDRAWAL', 'LOAN_REPAYMENT')
         <include refid="activeTransactionSourceCondition"/>
         <include refid="categoryFilterCondition"/>
     </select>
@@ -175,7 +175,7 @@
         <include refid="activeTransactionSourceJoins"/>
         WHERE t.user_id = #{userId}
           AND t.type = 'EXPENSE'
-          AND t.category NOT IN ('CARD_WITHDRAWAL', 'SEND', 'INCOME')
+          AND t.category NOT IN ('CARD_WITHDRAWAL', 'SEND', 'INCOME', 'LOAN_REPAYMENT')
         <include refid="activeTransactionSourceCondition"/>
         ORDER BY t.transaction_date ASC, t.transaction_time ASC, t.transaction_id ASC
     </select>
@@ -188,7 +188,7 @@
             COALESCE(SUM(
                 CASE
                     WHEN t.type = 'EXPENSE'
-                        AND t.category NOT IN ('CARD_WITHDRAWAL', 'SEND', 'INCOME')
+                        AND t.category NOT IN ('CARD_WITHDRAWAL', 'SEND', 'INCOME', 'LOAN_REPAYMENT')
                     THEN t.amount
                     ELSE 0
                 END
@@ -200,7 +200,7 @@
           AND t.transaction_date BETWEEN #{startDate} AND #{endDate}
           AND (
               t.type = 'INCOME'
-              OR t.category NOT IN ('CARD_WITHDRAWAL', 'SEND', 'INCOME')
+              OR t.category NOT IN ('CARD_WITHDRAWAL', 'SEND', 'INCOME', 'LOAN_REPAYMENT')
           )
         <include refid="activeTransactionSourceCondition"/>
     </select>

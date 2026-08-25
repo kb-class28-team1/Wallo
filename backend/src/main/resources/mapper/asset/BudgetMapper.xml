@@ -150,7 +150,7 @@
         <include refid="activeTransactionSourceJoins"/>
         WHERE t.user_id = #{userId}
           AND t.type = 'EXPENSE'
-          AND t.category NOT IN ('INCOME', 'SEND', 'CARD_WITHDRAWAL')
+          AND t.category NOT IN ('INCOME', 'SEND', 'CARD_WITHDRAWAL', 'LOAN_REPAYMENT')
           AND t.transaction_date BETWEEN #{startDate} AND #{endDate}
         <include refid="activeTransactionSourceCondition"/>
         GROUP BY CASE
@@ -166,7 +166,7 @@
         <include refid="activeTransactionSourceJoins"/>
         WHERE t.user_id = #{userId}
           AND t.type = 'EXPENSE'
-          AND t.category NOT IN ('INCOME', 'SEND', 'CARD_WITHDRAWAL')
+          AND t.category NOT IN ('INCOME', 'SEND', 'CARD_WITHDRAWAL', 'LOAN_REPAYMENT')
           AND t.transaction_date BETWEEN #{startDate} AND #{endDate}
         <include refid="activeTransactionSourceCondition"/>
     </select>

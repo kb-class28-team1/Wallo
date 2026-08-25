@@ -9,6 +9,7 @@ import AppPageHeader from "@/components/ui/AppPageHeader.vue"
 import AppState from "@/components/ui/AppState.vue"
 import { getExpenses } from "@/api/assetApi"
 import { getApiErrorMessage } from "@/utils/apiError"
+import { getAppToday } from "@/utils/appDate"
 import { useAssetStore } from "@/stores/assetStore"
 import { useBudgetStore } from "@/stores/budgetStore"
 
@@ -44,7 +45,8 @@ const normalizeExpenseData = (data) => ({
   expenseCategoryBreakdown: data?.expenseCategoryBreakdown ?? [],
 })
 
-const selectedMonth = ref(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
+const today = getAppToday()
+const selectedMonth = ref(new Date(today.getFullYear(), today.getMonth(), 1))
 const expenseData = ref(createEmptyExpenseData())
 const hasLoadedData = ref(false)
 const isLoading = ref(false)
@@ -73,7 +75,7 @@ const dateRange = computed(() => {
 })
 
 const isCurrentMonth = computed(() => {
-  const today = new Date()
+  const today = getAppToday()
   return (
     targetMonth.value === `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`
   )
