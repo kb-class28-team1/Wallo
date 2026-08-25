@@ -98,6 +98,20 @@ const handleLogoError = (event) => {
 
 const getLogoFallbackClass = (logoUrl) => (logoUrl ? "d-none" : "")
 
+const getGroupLogoUrl = (group) => {
+  if (String(group.id || "").toUpperCase() === "KB" && group.localLogoUrl) {
+    return group.localLogoUrl
+  }
+
+  return group.logoUrl || group.localLogoUrl
+}
+
+const getGroupFallbackLogoUrl = (group) => {
+  const logoUrl = getGroupLogoUrl(group)
+
+  return logoUrl === group.localLogoUrl ? group.logoUrl || "" : group.localLogoUrl || ""
+}
+
 const getFailedInstitutions = (results = []) => results.filter((result) => !isSuccessResult(result))
 
 const getInstitutionTypeLabel = (institutionType) =>
@@ -387,14 +401,14 @@ onBeforeUnmount(() => {
           <div class="asset-summary-left">
             <div class="asset-logo">
               <img
-                v-if="group.logoUrl || group.localLogoUrl"
-                :src="group.logoUrl || group.localLogoUrl"
+                v-if="getGroupLogoUrl(group)"
+                :src="getGroupLogoUrl(group)"
                 :alt="`${group.name} 로고`"
-                :data-fallback-src="group.localLogoUrl"
+                :data-fallback-src="getGroupFallbackLogoUrl(group)"
                 class="asset-logo-image"
                 @error="handleLogoError"
               />
-              <span :class="getLogoFallbackClass(group.logoUrl || group.localLogoUrl)">
+              <span :class="getLogoFallbackClass(getGroupLogoUrl(group))">
                 {{ group.logoText }}
               </span>
             </div>

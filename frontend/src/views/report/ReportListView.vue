@@ -1,10 +1,11 @@
 <script setup>
-import { onBeforeUnmount, onMounted, ref } from "vue"
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import { crawlNewsNow, generateMissingReports, getReports } from "@/api/reportApi"
 import ReportListCard from "@/components/report/ReportListCard.vue"
 import AppAlert from "@/components/ui/AppAlert.vue"
 import AppButton from "@/components/ui/AppButton.vue"
 import AppPageHeader from "@/components/ui/AppPageHeader.vue"
+import { useUserStore } from "@/stores/userStore"
 import AppState from "@/components/ui/AppState.vue"
 import {
   getCachedResource,
@@ -14,6 +15,8 @@ import {
 } from "@/utils/resourceCache"
 import { getReadReportIds } from "@/utils/report/reportReadState"
 
+const userStore = useUserStore()
+const currentUserId = computed(() => userStore.user?.id ?? null)
 const REPORT_LIST_CACHE_KEY = "reports:list"
 const REPORT_LIST_STALE_TIME = 60 * 1000
 const cacheScope = {}
@@ -28,7 +31,7 @@ const isGenerating = ref(false)
 let refreshTimer = null
 
 const applyReports = (nextReports) => {
-  const readReportIds = getReadReportIds()
+  const readReportIds = getReadReportIds(currentUserId.value)
   reports.value = (Array.isArray(nextReports) ? nextReports : []).map((report) => ({
     ...report,
     read: readReportIds.has(String(report.id)),
@@ -77,6 +80,13 @@ const loadReports = async ({ force = false } = {}) => {
 onMounted(() => {
   void loadReports()
 })
+
+watch(currentUserId, () => {
+  if (hasLoadedReports.value) {
+    applyReports(reports.value)
+  }
+})
+
 onBeforeUnmount(() => {
   if (refreshTimer) window.clearInterval(refreshTimer)
 })

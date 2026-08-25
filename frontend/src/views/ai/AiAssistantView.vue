@@ -3,7 +3,11 @@ import { computed, onMounted, ref } from "vue"
 import { useRouter } from "vue-router"
 import { storeToRefs } from "pinia"
 import { useGoalStore } from "@/stores/goalStore"
-import { useMissionStore } from "@/stores/missionStore"
+import {
+  MISSION_GENERATION_FAILED_STATUS,
+  MISSION_RATE_LIMIT_MESSAGE,
+  useMissionStore,
+} from "@/stores/missionStore"
 import { useUserStore } from "@/stores/userStore"
 import { formatRoadmapText, formatWon } from "@/utils/formatters"
 import {
@@ -17,6 +21,7 @@ import AppCard from "@/components/ui/AppCard.vue"
 import AppPageHeader from "@/components/ui/AppPageHeader.vue"
 import AppState from "@/components/ui/AppState.vue"
 import { announcePointEarned } from "@/utils/pointRewardNotice"
+import { getAppToday } from "@/utils/appDate"
 
 const router = useRouter()
 const goalStore = useGoalStore()
@@ -36,6 +41,7 @@ const { user } = storeToRefs(userStore)
 const {
   missions,
   status: missionStatus,
+  failureReason: missionFailureReason,
   error: missionError,
   isLoading: isMissionLoading,
 } = storeToRefs(missionStore)
@@ -106,7 +112,7 @@ const formatGoalDate = (value) => {
 const remainingMonths = computed(() => {
   const targetDate = parseGoalDate(currentGoal.value?.targetDate)
   if (!targetDate) return 0
-  const today = new Date()
+  const today = getAppToday()
   const months =
     (targetDate.getFullYear() - today.getFullYear()) * 12 + targetDate.getMonth() - today.getMonth()
   return Math.max(0, months)
@@ -215,7 +221,9 @@ const loadTodayMissionList = async () => {
       }
     })
   } catch (missionLoadError) {
-    missionError.value = missionLoadError.message || "오늘의 미션을 불러오지 못했습니다."
+    if (!missions.value.length) {
+      missionError.value = missionLoadError.message || "오늘의 미션을 불러오지 못했습니다."
+    }
   }
 }
 
@@ -357,7 +365,7 @@ onMounted(() => {
               </div>
 
               <AppState
-                v-if="isMissionLoading"
+                v-if="isMissionLoading && !missions.length"
                 class="mission-state mt-4"
                 type="loading"
                 compact
@@ -369,6 +377,14 @@ onMounted(() => {
                 variant="danger"
                 :message="missionError"
               />
+              <div
+                v-else-if="missionStatus === MISSION_GENERATION_FAILED_STATUS"
+                class="mission-empty mt-4"
+              >
+                {{ missionFailureReason === "RATE_LIMIT"
+                  ? MISSION_RATE_LIMIT_MESSAGE
+                  : "오늘의 미션을 생성하지 못했습니다. 잠시 후 다시 시도해 주세요." }}
+              </div>
               <div
                 v-else-if="missionStatus === 'WAITING_ANALYSIS'"
                 class="mission-empty mission-empty-analysis mt-4"
@@ -573,7 +589,7 @@ onMounted(() => {
               </div>
 
               <AppState
-                v-if="isMissionLoading"
+                v-if="isMissionLoading && !missions.length"
                 class="mission-state mt-4"
                 type="loading"
                 compact
@@ -585,6 +601,14 @@ onMounted(() => {
                 variant="danger"
                 :message="missionError"
               />
+              <div
+                v-else-if="missionStatus === MISSION_GENERATION_FAILED_STATUS"
+                class="mission-empty mt-4"
+              >
+                {{ missionFailureReason === "RATE_LIMIT"
+                  ? MISSION_RATE_LIMIT_MESSAGE
+                  : "오늘의 미션을 생성하지 못했습니다. 잠시 후 다시 시도해 주세요." }}
+              </div>
               <div
                 v-else-if="missionStatus === 'WAITING_ANALYSIS'"
                 class="mission-empty mission-empty-analysis mt-4"

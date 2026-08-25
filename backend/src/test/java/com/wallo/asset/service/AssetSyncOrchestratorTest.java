@@ -143,7 +143,8 @@ class AssetSyncOrchestratorTest {
                 institutionType,
                 institutionType + " group",
                 institutionType,
-                institutionType + "-logo"
+                institutionType + "-logo",
+                "mock_id"
         );
     }
 }

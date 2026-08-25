@@ -1,5 +1,6 @@
 import httpClient from "@/api/httpClient"
 import { getApiErrorMessage } from "@/utils/apiError"
+import { getAppToday } from "@/utils/appDate"
 
 const CATEGORY_ICONS = {
   FOOD: "🍚",
@@ -26,7 +27,7 @@ const readDevMissionPreview = () => {
   try {
     const preview = JSON.parse(sessionStorage.getItem(DEV_MISSION_PREVIEW_KEY) || "null")
     if (!preview?.date) return null
-    const today = new Date()
+    const today = getAppToday()
     const localDate = [
       today.getFullYear(),
       String(today.getMonth() + 1).padStart(2, "0"),

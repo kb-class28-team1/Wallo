@@ -38,6 +38,20 @@ public class CodefMockServiceTest {
     }
 
     @Test
+    public void afterDemoAssetEndpointDoesNotReplaySharedLoanFixture() {
+        CodefDto.Response response = service.getAssetResponse(
+                "/mock/v1/kr/bank/p/account/account-list",
+                "0004",
+                "after-bank"
+        );
+
+        assertSuccess(response);
+        CodefDto.AssetData data = objectMapper.convertValue(response.getData(), CodefDto.AssetData.class);
+        assertNull(data.getAccounts());
+        assertNull(data.getLoans());
+    }
+
+    @Test
     public void bankAssetEndpointUsesOrganizationSpecificFixture() {
         CodefDto.Response response = service.getAssetResponse(
                 "/mock/v1/kr/bank/p/account/account-list",

@@ -3,6 +3,7 @@ import { defineStore } from "pinia"
 import { getCategoryBudgets, putCategoryBudgets } from "@/api/assetApi"
 import { useFinancialInvalidationStore } from "@/stores/financialInvalidationStore"
 import { getApiErrorMessage } from "@/utils/apiError"
+import { getAppMonthKey } from "@/utils/appDate"
 
 const CATEGORY_BUDGET_STALE_TIME = 60 * 1000
 
@@ -50,7 +51,7 @@ export const useBudgetStore = defineStore("budget", () => {
     targetMonth,
     { notifyError = true, force = false, staleTime = CATEGORY_BUDGET_STALE_TIME } = {},
   ) => {
-    const requestMonth = targetMonth ?? new Date().toISOString().slice(0, 7)
+    const requestMonth = targetMonth ?? getAppMonthKey()
     const currentRevision = invalidationStore.revision
     const inFlight = inFlightByMonth.get(requestMonth)
 

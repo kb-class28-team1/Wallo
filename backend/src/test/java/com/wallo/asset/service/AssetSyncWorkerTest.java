@@ -49,7 +49,8 @@ class AssetSyncWorkerTest {
             "CARD",
             "Mock Financial Group",
             "CARD",
-            null
+            null,
+            "mock_id"
     );
     private final LocalDate startDate = LocalDate.of(2026, 8, 1);
     private final LocalDate endDate = LocalDate.of(2026, 8, 11);

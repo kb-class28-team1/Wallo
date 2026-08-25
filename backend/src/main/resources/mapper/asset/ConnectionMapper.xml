@@ -57,7 +57,8 @@
             i.financial_group_code AS financialGroupCode,
             i.financial_group_name AS financialGroupName,
             i.type AS institutionType,
-            i.logo_url AS logoUrl
+            i.logo_url AS logoUrl,
+            c.login_id AS loginId
         FROM CONNECTIONS c
         INNER JOIN INSTITUTIONS i ON i.institution_id = c.institution_id
         WHERE c.user_id = #{userId}

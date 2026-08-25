@@ -40,7 +40,11 @@ public class CodefMockController {
             return authenticationFailure;
         }
         String requestPath = httpRequest.getRequestURI().substring(httpRequest.getContextPath().length());
-        return codefMockService.getAssetResponse(requestPath, codefRequest.getOrganization());
+        return codefMockService.getAssetResponse(
+                requestPath,
+                codefRequest.getOrganization(),
+                codefRequest.getId()
+        );
     }
 
     @PostMapping("/mock/v1/kr/card/p/approval-list")

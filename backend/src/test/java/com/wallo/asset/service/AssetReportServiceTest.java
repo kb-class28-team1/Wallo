@@ -97,7 +97,7 @@ class AssetReportServiceTest {
     }
 
     @Test
-    void returnsCategoryWithLargestCurrentExpense() {
+    void returnsCategoryWithLargestIncreaseAmountBeforeCurrentExpense() {
         when(assetReportMapper.selectCategoryExpenses(
                 7L,
                 "2026-07-01",
@@ -112,16 +112,16 @@ class AssetReportServiceTest {
         when(budgetMapper.selectBudget(7L, "2026-07"))
                 .thenReturn(new BudgetDto.Budget(1L, "2026-07", 2_000_000L));
         when(assetReportAiClient.generate(new AssetReportAiDto.Request(
-                "CAFE",
-                "카페",
-                600_000L,
-                590_000L,
+                "DELIVERY",
+                "배달",
+                500_000L,
+                100_000L,
                 1_225_000L,
                 790_000L,
                 2_000_000L
         ))).thenReturn(new AssetReportAiDto.Response(
-                "카페 지출이 가장 많아요",
-                "이번 달은 카페 지출이 가장 많아요. 이용 횟수를 조금 줄여보는 것도 좋아요."
+                "배달 지출이 가장 늘었어요",
+                "이번 달은 배달 지출이 가장 많이 늘었어요. 지출 내역을 점검해보세요."
         ));
 
         AssetReportDto.Insight insight = assetReportService.getConsumptionInsight(
@@ -129,18 +129,18 @@ class AssetReportServiceTest {
                 LocalDate.of(2026, 7, 31)
         );
 
-        assertEquals("카페 지출이 가장 많아요", insight.getReportTitle());
+        assertEquals("배달 지출이 가장 늘었어요", insight.getReportTitle());
         assertEquals(
-                "이번 달은 카페 지출이 가장 많아요. 이용 횟수를 조금 줄여보는 것도 좋아요.",
+                "이번 달은 배달 지출이 가장 많이 늘었어요. 지출 내역을 점검해보세요.",
                 insight.getReportContent()
         );
         assertEquals(AssetReportDto.GenerationMode.AI, insight.getGenerationMode());
-        assertEquals("CAFE", insight.getCategory());
+        assertEquals("DELIVERY", insight.getCategory());
         verify(assetReportAiClient).generate(new AssetReportAiDto.Request(
-                "CAFE",
-                "카페",
-                600_000L,
-                590_000L,
+                "DELIVERY",
+                "배달",
+                500_000L,
+                100_000L,
                 1_225_000L,
                 790_000L,
                 2_000_000L
@@ -155,7 +155,7 @@ class AssetReportServiceTest {
     }
 
     @Test
-    void returnsLargestCategoryEvenWhenItDidNotIncreaseRapidly() {
+    void prefersAnIncreasedCategoryOverALargerUnchangedCategory() {
         when(assetReportMapper.selectCategoryExpenses(
                 7L,
                 "2026-07-01",
@@ -164,20 +164,20 @@ class AssetReportServiceTest {
                 "2026-06-15"
         )).thenReturn(Arrays.asList(
                 new AssetReportDto.CategoryExpense("FOOD", 129_000L, 100_000L),
-                new AssetReportDto.CategoryExpense("CAFE", 50_000L, 0L),
-                new AssetReportDto.CategoryExpense("SHOPPING", 80_000L, 100_000L)
+                new AssetReportDto.CategoryExpense("HOUSING", 180_000L, 180_000L),
+                new AssetReportDto.CategoryExpense("SHOPPING", 80_000L, 50_000L)
         ));
         when(assetReportAiClient.generate(new AssetReportAiDto.Request(
-                "FOOD",
-                "식비",
-                129_000L,
-                100_000L,
-                259_000L,
-                200_000L,
+                "SHOPPING",
+                "쇼핑",
+                80_000L,
+                50_000L,
+                389_000L,
+                330_000L,
                 0L
         ))).thenReturn(new AssetReportAiDto.Response(
-                "식비 지출이 가장 많아요",
-                "이번 달은 식비 지출이 가장 많아요. 소비 습관을 한 번 확인해 보세요."
+                "쇼핑 지출이 늘었어요",
+                "쇼핑 지출이 지난달보다 늘었어요. 지출 내역을 점검해보세요."
         ));
 
         AssetReportDto.Insight insight = assetReportService.getConsumptionInsight(
@@ -185,12 +185,13 @@ class AssetReportServiceTest {
                 LocalDate.of(2026, 7, 15)
         );
 
-        assertEquals("식비 지출이 가장 많아요", insight.getReportTitle());
+        assertEquals("쇼핑 지출이 늘었어요", insight.getReportTitle());
         assertEquals(
-                "이번 달은 식비 지출이 가장 많아요. 소비 습관을 한 번 확인해 보세요.",
+                "쇼핑 지출이 지난달보다 늘었어요. 지출 내역을 점검해보세요.",
                 insight.getReportContent()
         );
         assertEquals(AssetReportDto.GenerationMode.AI, insight.getGenerationMode());
+        assertEquals("SHOPPING", insight.getCategory());
     }
 
     @Test

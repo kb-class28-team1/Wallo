@@ -8,6 +8,7 @@ import {
   verifyTransactionMission as verifyTransactionMissionRequest,
 } from "@/api/missionApi"
 import { useToastStore } from "@/stores/toastStore"
+import { getAppToday } from "@/utils/appDate"
 
 export const MISSION_POLL_INTERVAL_MS = 2500
 export const MAX_MISSION_POLL_ATTEMPTS = 48
@@ -18,7 +19,6 @@ export const MISSION_RATE_LIMIT_MESSAGE = "AI 사용량 제한으로 잠시 후 
 
 const POLLING_STATUSES = new Set([
   MISSION_WAITING_STATUS,
-  MISSION_GENERATION_FAILED_STATUS,
 ])
 
 export const useMissionStore = defineStore("mission", () => {
@@ -119,7 +119,10 @@ export const useMissionStore = defineStore("mission", () => {
     if (inFlightRequest) return inFlightRequest
 
     const requestVersion = sessionVersion
-    isLoading.value = true
+    const showInitialLoading = lastFetchedAt.value === 0 && missions.value.length === 0
+    if (showInitialLoading) {
+      isLoading.value = true
+    }
     error.value = ""
 
     let request
@@ -137,24 +140,31 @@ export const useMissionStore = defineStore("mission", () => {
         if (requestVersion !== sessionVersion) throw caughtError
 
         const isRateLimited = caughtError?.status === 429
-        status.value = isRateLimited ? MISSION_GENERATION_FAILED_STATUS : "ERROR"
-        missions.value = []
-        failureReason.value = isRateLimited ? "RATE_LIMIT" : null
-        error.value = caughtError?.message || "오늘의 미션을 불러오지 못했습니다."
+        const hasCachedMissions = missions.value.length > 0
 
-        if (isRateLimited) {
-          if (!failureNotified) {
-            toastStore.show(MISSION_RATE_LIMIT_MESSAGE)
-            failureNotified = true
+        if (!hasCachedMissions) {
+          status.value = isRateLimited ? MISSION_GENERATION_FAILED_STATUS : "ERROR"
+          missions.value = []
+          failureReason.value = isRateLimited ? "RATE_LIMIT" : null
+          error.value = caughtError?.message || "오늘의 미션을 불러오지 못했습니다."
+
+          if (isRateLimited) {
+            if (!failureNotified) {
+              toastStore.show(MISSION_RATE_LIMIT_MESSAGE)
+              failureNotified = true
+            }
+            syncPolling()
+          } else if (notifyError) {
+            alert(error.value)
           }
-          syncPolling()
-        } else if (notifyError) {
-          alert(error.value)
+        } else if (isRateLimited && !failureNotified) {
+          toastStore.show(MISSION_RATE_LIMIT_MESSAGE)
+          failureNotified = true
         }
 
         throw caughtError
       } finally {
-        if (requestVersion === sessionVersion) {
+        if (requestVersion === sessionVersion && showInitialLoading) {
           isLoading.value = false
         }
         if (inFlightRequest === request) {
@@ -182,7 +192,6 @@ export const useMissionStore = defineStore("mission", () => {
       return { response, verificationResults: [] }
     }
 
-    isLoading.value = true
     try {
       const verificationResults = await Promise.allSettled(
         transactionMissions.map((mission) => verifyTransactionMissionRequest(mission.id)),
@@ -228,7 +237,7 @@ export const useMissionStore = defineStore("mission", () => {
   const scheduleNextMissionDateRefresh = () => {
     if (missionDateTimer) clearTimeout(missionDateTimer)
 
-    const now = new Date()
+    const now = getAppToday()
     const nextDate = new Date(now)
     nextDate.setHours(24, 0, 0, 250)
     missionDateTimer = setTimeout(() => {

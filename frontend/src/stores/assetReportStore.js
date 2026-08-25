@@ -2,6 +2,7 @@ import { defineStore } from "pinia"
 import { getInsight, getTaxSettlement, updateAnnualSalary } from "@/api/assetApi"
 import { useFinancialInvalidationStore } from "@/stores/financialInvalidationStore"
 import { getApiErrorCode, getApiErrorMessage } from "@/utils/apiError"
+import { getAppYear } from "@/utils/appDate"
 
 const TAX_SETTLEMENT_STALE_TIME = 5 * 60 * 1000
 const requestStateByStore = new WeakMap()
@@ -141,7 +142,7 @@ export const useReportStore = defineStore("report", {
       const invalidationStore = useFinancialInvalidationStore()
       const currentRevision = invalidationStore.revision
       const requestState = getRequestState(this)
-      const normalizedYear = year ?? new Date().getFullYear()
+      const normalizedYear = year ?? getAppYear()
       const inFlight = requestState.taxSettlement.get(normalizedYear)
 
       if (inFlight && requestState.taxSettlementRevision.get(normalizedYear) === currentRevision) {

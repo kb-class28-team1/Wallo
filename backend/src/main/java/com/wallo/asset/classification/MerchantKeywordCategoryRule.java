@@ -49,10 +49,15 @@ public class MerchantKeywordCategoryRule implements ExpenseCategoryRule {
             "롯데시네마",
             "메가박스"
     );
+    private static final List<String> HOUSING_KEYWORDS = List.of(
+            "관리비",
+            "월세"
+    );
     private static final List<String> LIVING_SERVICE_KEYWORDS = List.of(
             "세탁소",
             "빨래방",
-            "수선"
+            "수선",
+            "보험료"
     );
 
     @Override
@@ -115,6 +120,15 @@ public class MerchantKeywordCategoryRule implements ExpenseCategoryRule {
         );
         if (culture.isPresent()) {
             return culture;
+        }
+
+        Optional<ExpenseCategoryClassifier.Result> housing = keywordResult(
+                normalizedMerchantName,
+                HOUSING_KEYWORDS,
+                "HOUSING"
+        );
+        if (housing.isPresent()) {
+            return housing;
         }
 
         boolean isLivingServiceMerchant = LIVING_SERVICE_KEYWORDS.stream()

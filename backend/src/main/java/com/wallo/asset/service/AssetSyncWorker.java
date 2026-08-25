@@ -48,7 +48,7 @@ public class AssetSyncWorker {
                 target.getCodefOrganizationCode(),
                 target.getInstitutionType(),
                 credential.loginType(),
-                credential.id(),
+                firstNonBlank(target.getLoginId(), credential.id()),
                 credential.password()
         );
 
@@ -77,6 +77,10 @@ public class AssetSyncWorker {
                 target.getInstitutionType(),
                 target.getLogoUrl()
         );
+    }
+
+    private String firstNonBlank(String preferred, String fallback) {
+        return preferred == null || preferred.isBlank() ? fallback : preferred;
     }
 
 }

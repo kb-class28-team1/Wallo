@@ -332,14 +332,14 @@ public class AssetReportService {
             if (other == null) {
                 return true;
             }
-            if (currentAmount != other.currentAmount) {
-                return currentAmount > other.currentAmount;
+            if (increaseAmount != other.increaseAmount) {
+                return increaseAmount > other.increaseAmount;
             }
             if (Double.compare(increaseRate, other.increaseRate) != 0) {
                 return increaseRate > other.increaseRate;
             }
-            if (increaseAmount != other.increaseAmount) {
-                return increaseAmount > other.increaseAmount;
+            if (currentAmount != other.currentAmount) {
+                return currentAmount > other.currentAmount;
             }
             return category.compareTo(other.category) < 0;
         }

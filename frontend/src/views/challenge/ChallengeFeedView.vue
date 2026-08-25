@@ -2729,7 +2729,8 @@ textarea {
 }
 
 .feed-card header img {
-  box-shadow: 0 0 0 4px #f1f5ff;
+  background: #fff;
+  box-shadow: 0 0 0 4px #fff;
 }
 
 .feed-card header small {
@@ -2744,7 +2745,7 @@ textarea {
 .feed-media-wrap,
 .feed-media,
 .feed-media-wrap > video {
-  background: #eef5ff;
+  background: #fff;
 }
 
 .feed-like-row {

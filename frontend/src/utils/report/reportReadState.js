@@ -1,25 +1,34 @@
-const STORAGE_KEY = "wallo.readReportIds"
+const STORAGE_KEY_PREFIX = "wallo.readReportIds"
 
 const normalizeReportId = (reportId) => String(reportId ?? "")
+const normalizeUserId = (userId) => String(userId ?? "").trim()
 
-export const getReadReportIds = () => {
-  if (typeof window === "undefined" || !window.localStorage) return new Set()
+const getStorageKey = (userId) => {
+  const normalizedUserId = normalizeUserId(userId)
+  return normalizedUserId ? `${STORAGE_KEY_PREFIX}:${normalizedUserId}` : null
+}
+
+export const getReadReportIds = (userId) => {
+  const storageKey = getStorageKey(userId)
+  if (!storageKey || typeof window === "undefined" || !window.localStorage) return new Set()
 
   try {
-    const parsed = JSON.parse(window.localStorage.getItem(STORAGE_KEY) || "[]")
+    const parsed = JSON.parse(window.localStorage.getItem(storageKey) || "[]")
     return new Set(Array.isArray(parsed) ? parsed.map(normalizeReportId).filter(Boolean) : [])
   } catch {
     return new Set()
   }
 }
 
-export const isReportRead = (reportId) => getReadReportIds().has(normalizeReportId(reportId))
+export const isReportRead = (reportId, userId) =>
+  getReadReportIds(userId).has(normalizeReportId(reportId))
 
-export const markReportAsRead = (reportId) => {
+export const markReportAsRead = (reportId, userId) => {
   const normalizedId = normalizeReportId(reportId)
-  if (!normalizedId || typeof window === "undefined" || !window.localStorage) return
+  const storageKey = getStorageKey(userId)
+  if (!normalizedId || !storageKey || typeof window === "undefined" || !window.localStorage) return
 
-  const readIds = getReadReportIds()
+  const readIds = getReadReportIds(userId)
   readIds.add(normalizedId)
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify([...readIds]))
+  window.localStorage.setItem(storageKey, JSON.stringify([...readIds]))
 }
