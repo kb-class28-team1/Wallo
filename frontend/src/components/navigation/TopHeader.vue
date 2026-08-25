@@ -162,7 +162,9 @@ const handleMissionFocusOut = (event) => {
             >
           </div>
 
-          <div v-if="isMissionLoading" class="mission-loading">미션을 불러오는 중...</div>
+          <div v-if="isMissionLoading && !missions.length" class="mission-loading">
+            미션을 불러오는 중...
+          </div>
           <div v-else-if="missionStatus === 'WAITING_ANALYSIS'" class="mission-empty">
             소비 분석이 완료되면 오늘의 미션이 생성됩니다.
             <AppButton
