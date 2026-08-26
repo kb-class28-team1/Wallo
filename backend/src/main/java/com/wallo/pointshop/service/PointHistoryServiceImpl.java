@@ -1,5 +1,6 @@
 package com.wallo.pointshop.service;
 
+import com.wallo.common.pagination.PaginationSupport;
 import com.wallo.pointshop.dto.response.PointHistoryItemResponse;
 import com.wallo.pointshop.dto.response.PointHistoryResponse;
 import com.wallo.pointshop.dto.response.PointHistorySummaryResponse;
@@ -52,9 +53,9 @@ public class PointHistoryServiceImpl implements PointHistoryService {
         validate(normalizedPeriod, ALLOWED_PERIODS, "포인트 내역 기간");
         validate(normalizedSort, ALLOWED_SORTS, "포인트 내역 정렬");
 
-        int normalizedPage = normalizePage(page);
-        int normalizedSize = normalizeSize(size);
-        int offset = calculateOffset(normalizedPage, normalizedSize);
+        int normalizedPage = PaginationSupport.normalizePage(page, DEFAULT_PAGE);
+        int normalizedSize = PaginationSupport.normalizeSize(size, DEFAULT_SIZE, MAX_SIZE);
+        int offset = PaginationSupport.calculateOffset(normalizedPage, normalizedSize);
         String normalizedKeyword = keyword == null || keyword.trim().isEmpty()
                 ? null
                 : keyword.trim();
@@ -128,27 +129,4 @@ public class PointHistoryServiceImpl implements PointHistoryService {
         }
     }
 
-    private int normalizePage(Integer page) {
-        int normalizedPage = page == null ? DEFAULT_PAGE : page;
-        if (normalizedPage < 0) {
-            throw new IllegalArgumentException("페이지 번호는 0 이상이어야 합니다.");
-        }
-        return normalizedPage;
-    }
-
-    private int normalizeSize(Integer size) {
-        int normalizedSize = size == null ? DEFAULT_SIZE : size;
-        if (normalizedSize <= 0 || normalizedSize > MAX_SIZE) {
-            throw new IllegalArgumentException("페이지 크기는 1 이상 100 이하여야 합니다.");
-        }
-        return normalizedSize;
-    }
-
-    private int calculateOffset(int page, int size) {
-        long offset = (long) page * size;
-        if (offset > Integer.MAX_VALUE) {
-            throw new IllegalArgumentException("요청한 페이지 범위가 너무 큽니다.");
-        }
-        return (int) offset;
-    }
 }

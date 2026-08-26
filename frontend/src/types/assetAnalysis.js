@@ -1,3 +1,5 @@
+import { numberOrNull, textOrNull } from "@/utils/valueNormalizers"
+
 export const ASSET_CATEGORY_LABELS = Object.freeze({
   saving_cash: "예적금·현금",
   financial_account: "금융계좌",
@@ -14,18 +16,6 @@ export const ASSET_CATEGORY_LABELS = Object.freeze({
   pension: "연금",
   isa: "ISA",
 })
-
-const numberOrNull = (value) => {
-  if (value === null || value === undefined || value === "") return null
-  const number = Number(value)
-  return Number.isFinite(number) ? number : null
-}
-
-const textOrNull = (value) => {
-  if (value === null || value === undefined) return null
-  const text = String(value).trim()
-  return text || null
-}
 
 const normalizeSummary = (summary) => {
   const source = summary && typeof summary === "object" ? summary : {}

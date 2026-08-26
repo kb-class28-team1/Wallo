@@ -8,7 +8,11 @@ import AppButton from "@/components/ui/AppButton.vue"
 import AppCard from "@/components/ui/AppCard.vue"
 import AppState from "@/components/ui/AppState.vue"
 import AppTabs from "@/components/ui/AppTabs.vue"
-import { getLocalInstitutionLogo } from "@/features/asset/institutionLogos"
+import {
+  getInstitutionLogoFallbackClass as getLogoFallbackClass,
+  getLocalInstitutionLogo,
+  handleInstitutionLogoError as handleLogoError,
+} from "@/features/asset/institutionLogos"
 import { useAssetStore } from "@/stores/assetStore"
 
 const assetStore = useAssetStore()
@@ -195,21 +199,6 @@ const getConnectionFallbackLogoUrl = (connection) =>
   connection.logoUrl
     ? getLocalConnectionLogoUrl(connection)
     : ""
-
-const getLogoFallbackClass = (logoUrl) => (logoUrl ? "d-none" : "")
-
-const handleLogoError = (event) => {
-  const fallbackSrc = event.target.dataset.fallbackSrc
-  const currentSrc = event.target.getAttribute("src")
-
-  if (fallbackSrc && currentSrc !== fallbackSrc) {
-    event.target.src = fallbackSrc
-    return
-  }
-
-  event.target.classList.add("d-none")
-  event.target.nextElementSibling?.classList.remove("d-none")
-}
 
 const loadConnections = async ({ force = false } = {}) => {
   const isInitialLoad = !hasLoadedConnections.value

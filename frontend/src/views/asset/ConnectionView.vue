@@ -3,7 +3,11 @@ import { computed, onBeforeUnmount, ref } from "vue"
 import { useRouter } from "vue-router"
 import { connectAllAssets } from "@/api/assetApi"
 import { invalidateConnectionsCache } from "@/api/connectionApi"
-import { getLocalInstitutionLogo } from "@/features/asset/institutionLogos"
+import {
+  getInstitutionLogoFallbackClass as getLogoFallbackClass,
+  getLocalInstitutionLogo,
+  handleInstitutionLogoError as handleLogoError,
+} from "@/features/asset/institutionLogos"
 import { useReportStore } from "@/stores/assetReportStore"
 import { useUserStore } from "@/stores/userStore"
 import { useAssetStore } from "@/stores/assetStore"
@@ -82,21 +86,6 @@ const isSuccessResult = (result) => {
 
   return String(result.status || "").toUpperCase() === "SUCCESS"
 }
-
-const handleLogoError = (event) => {
-  const fallbackSrc = event.target.dataset.fallbackSrc
-  const currentSrc = event.target.getAttribute("src")
-
-  if (fallbackSrc && currentSrc !== fallbackSrc) {
-    event.target.src = fallbackSrc
-    return
-  }
-
-  event.target.classList.add("d-none")
-  event.target.nextElementSibling?.classList.remove("d-none")
-}
-
-const getLogoFallbackClass = (logoUrl) => (logoUrl ? "d-none" : "")
 
 const getGroupLogoUrl = (group) => {
   if (String(group.id || "").toUpperCase() === "KB" && group.localLogoUrl) {

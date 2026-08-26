@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import csv
 import html
-import json
 import random
 import re
 import time
@@ -43,7 +42,6 @@ REQUEST_SLEEP_RANGE = (0.3, 1.0)
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data" / "processed"
 CSV_PATH = DATA_DIR / "fss_terms.csv"
-JSON_PATH = DATA_DIR / "fss_terms.json"
 
 CSV_FIELDNAMES = ["source_id", "term", "english_term", "definition", "source", "source_url"]
 
@@ -235,20 +233,12 @@ def save_csv(terms: list[FssTerm], path: Path) -> None:
             writer.writerow(asdict(term))
 
 
-def save_json(terms: list[FssTerm], path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as f:
-        json.dump([asdict(term) for term in terms], f, ensure_ascii=False, indent=2)
-
-
 def main() -> None:
     terms, per_page_counts = crawl_all_terms()
     save_csv(terms, CSV_PATH)
-    save_json(terms, JSON_PATH)
     stats = compute_stats(terms, per_page_counts)
     print_report(stats)
     print(f"CSV 저장 경로: {CSV_PATH}")
-    print(f"JSON 저장 경로: {JSON_PATH}")
 
 
 if __name__ == "__main__":

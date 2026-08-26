@@ -1,7 +1,6 @@
 <script setup>
-import { computed, nextTick, onMounted, ref, watch } from "vue"
+import { computed, ref } from "vue"
 import { storeToRefs } from "pinia"
-import { useRoute, useRouter } from "vue-router"
 import CategoryBudgetEditor from "@/components/asset/CategoryBudgetEditor.vue"
 import ExpenseCategoryBreakdown from "@/components/asset/ExpenseCategoryBreakdown.vue"
 import AppAlert from "@/components/ui/AppAlert.vue"
@@ -10,14 +9,14 @@ import AppState from "@/components/ui/AppState.vue"
 import { getExpenses } from "@/api/assetApi"
 import { getApiErrorMessage } from "@/utils/apiError"
 import { getAppToday } from "@/utils/appDate"
+import { useAssetSyncStatus } from "@/composables/useAssetSyncStatus"
+import { useCategoryBudgetEditor } from "@/composables/useCategoryBudgetEditor"
 import { useAssetStore } from "@/stores/assetStore"
 import { useBudgetStore } from "@/stores/budgetStore"
 
 const PAGE_SIZE = 20
 const assetStore = useAssetStore()
 const budgetStore = useBudgetStore()
-const route = useRoute()
-const router = useRouter()
 const { isSyncing, syncError } = storeToRefs(assetStore)
 const {
   categorySummary: budgetSummary,
@@ -51,8 +50,6 @@ const expenseData = ref(createEmptyExpenseData())
 const hasLoadedData = ref(false)
 const isLoading = ref(false)
 const error = ref("")
-const syncStatus = ref(null)
-const isBudgetEditorVisible = ref(false)
 let summaryRequestVersion = 0
 
 const monthLabel = computed(() =>
@@ -160,79 +157,6 @@ const loadSelectedMonth = async ({ forceBudget = false } = {}) => {
   ])
 }
 
-const syncCurrentMonth = async () => {
-  if (isSyncing.value) return
-
-  syncStatus.value = null
-
-  try {
-    const result = await assetStore.syncAssets()
-    if (!result) return
-
-    await loadSelectedMonth({ forceBudget: true })
-    if (error.value) {
-      syncStatus.value = {
-        type: "warning",
-        message: "동기화는 완료되었지만 현재 월 카테고리별 소비를 다시 불러오지 못했습니다.",
-      }
-      return
-    }
-
-    const failedConnections = Number(result.failedConnections) || 0
-    const summary = `신규 ${Number(result.inserted) || 0}건, 수정 ${Number(result.updated) || 0}건`
-    syncStatus.value =
-      failedConnections > 0
-        ? {
-            type: "warning",
-            message: `동기화가 완료되었습니다. ${summary}, 실패한 연결기관 ${failedConnections}건`,
-          }
-        : {
-            type: "success",
-            message: `동기화가 완료되었습니다. ${summary}`,
-          }
-  } catch {
-    syncStatus.value = {
-      type: "danger",
-      message: syncError.value || "자산 거래내역 동기화에 실패했습니다.",
-    }
-  }
-}
-
-const openBudgetEditor = async () => {
-  if (!canEditBudget.value) {
-    alert("예산은 현재 월에서만 수정할 수 있습니다.")
-    return
-  }
-
-  isBudgetEditorVisible.value = true
-  if (route.query.budget !== "edit") {
-    await router.replace({
-      query: {
-        ...route.query,
-        budget: "edit",
-      },
-    })
-  }
-}
-
-const closeBudgetEditor = async () => {
-  isBudgetEditorVisible.value = false
-  if (route.query.budget === "edit") {
-    const query = { ...route.query }
-    delete query.budget
-    await router.replace({ query })
-  }
-}
-
-const saveBudget = async (request) => {
-  try {
-    await budgetStore.saveCategoryBudgets(request)
-    await closeBudgetEditor()
-  } catch {
-    // The store handles the user-facing API error message.
-  }
-}
-
 const moveMonth = async (offset) => {
   const year = selectedMonth.value.getFullYear()
   const month = selectedMonth.value.getMonth()
@@ -240,19 +164,24 @@ const moveMonth = async (offset) => {
   await loadSelectedMonth()
 }
 
-watch(
-  () => route.query.budget,
-  (budgetQuery) => {
-    isBudgetEditorVisible.value = budgetQuery === "edit" && canEditBudget.value
-  },
-)
+const { syncStatus, syncCurrentMonth } = useAssetSyncStatus({
+  isSyncing,
+  syncError,
+  syncAssets: () => assetStore.syncAssets(),
+  reload: () => loadSelectedMonth({ forceBudget: true }),
+  reloadError: error,
+  reloadFailureMessage: "동기화는 완료되었지만 현재 월 카테고리별 소비를 다시 불러오지 못했습니다.",
+})
 
-onMounted(async () => {
-  await loadSelectedMonth()
-  if (route.query.budget === "edit") {
-    await nextTick()
-    isBudgetEditorVisible.value = canEditBudget.value
-  }
+const {
+  isBudgetEditorVisible,
+  openBudgetEditor,
+  closeBudgetEditor,
+  saveBudget,
+} = useCategoryBudgetEditor({
+  canEditBudget,
+  loadInitialData: loadSelectedMonth,
+  saveCategoryBudgets: (request) => budgetStore.saveCategoryBudgets(request),
 })
 </script>
 

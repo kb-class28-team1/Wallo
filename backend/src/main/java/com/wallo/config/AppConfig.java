@@ -25,8 +25,6 @@ import com.wallo.feed.price.RestaurantPriceClient;
 import com.wallo.feed.price.SerpApiRestaurantPriceClient;
 import com.wallo.feed.price.SerpApiShoppingPriceClient;
 import com.wallo.feed.price.ShoppingPriceClient;
-import com.wallo.auth.JwtAuthenticationFilter;
-import com.wallo.auth.JwtTokenService;
 import com.wallo.mission.verification.TextOverlapMissionVerificationClient;
 import com.wallo.mission.verification.MissionVerificationClient;
 import java.time.Clock;
@@ -53,7 +51,6 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Primary;
 
 @Configuration

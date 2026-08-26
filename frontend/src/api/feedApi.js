@@ -61,14 +61,6 @@ export const addFeedLike = async (challengeId, feedId) => {
   }
 }
 
-export const updateFeed = async (challengeId, feedId, payload) => {
-  try {
-    await httpClient.patch(`/api/challenges/${challengeId}/feeds/${feedId}`, payload)
-  } catch (error) {
-    throw new Error(message(error, "피드를 수정하지 못했습니다."))
-  }
-}
-
 export const deleteFeed = async (challengeId, feedId) => {
   try {
     await httpClient.delete(`/api/challenges/${challengeId}/feeds/${feedId}`)
@@ -82,13 +74,5 @@ export const getRoomMessages = async (challengeId) => {
     return (await httpClient.get(`/api/challenges/${challengeId}/messages`)).data
   } catch (error) {
     throw new Error(getApiErrorMessage(error, "채팅을 불러오지 못했습니다."))
-  }
-}
-
-export const sendRoomMessage = async (challengeId, payload) => {
-  try {
-    await httpClient.post(`/api/challenges/${challengeId}/messages`, payload)
-  } catch (error) {
-    throw new Error(getApiErrorMessage(error, "메시지를 보내지 못했습니다."))
   }
 }

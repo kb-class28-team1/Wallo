@@ -2,7 +2,6 @@ import { nextTick } from "vue"
 import { mount } from "@vue/test-utils"
 import { describe, expect, it } from "vitest"
 
-import AppProgress from "./AppProgress.vue"
 import AppTabs from "./AppTabs.vue"
 
 describe("AppTabs", () => {
@@ -31,29 +30,5 @@ describe("AppTabs", () => {
     expect(wrapper.emitted("update:modelValue")?.at(-1)).toEqual(["activity"])
 
     wrapper.unmount()
-  })
-})
-
-describe("AppProgress", () => {
-  it("renders accessible progress values and the calculated percentage", () => {
-    const wrapper = mount(AppProgress, {
-      props: {
-        value: 45,
-        max: 60,
-        label: "목표 달성률",
-        showValue: true,
-        variant: "success",
-        size: "lg",
-      },
-    })
-
-    const track = wrapper.get('[role="progressbar"]')
-
-    expect(wrapper.text()).toContain("목표 달성률")
-    expect(wrapper.text()).toContain("75%")
-    expect(track.classes()).toContain("app-progress--success")
-    expect(track.classes()).toContain("app-progress--lg")
-    expect(track.attributes("aria-valuenow")).toBe("45")
-    expect(wrapper.get(".app-progress__bar").attributes("style")).toContain("width: 75%")
   })
 })

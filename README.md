@@ -84,7 +84,7 @@
 
 ## 🏗 시스템 아키텍처
 
-![Wallo 시스템 아키텍처](docs/diagrams/architecture.png)
+![Wallo 시스템 아키텍처](docs/diagrams/architecture.svg)
 
 프론트엔드는 백엔드와만 통신하며, 백엔드가 AI 서버·외부 API·DB를 중계하는 구조입니다.
 
@@ -213,21 +213,21 @@ Wallo/
 
 기능 도메인별로 테이블을 묶어서 본 개요입니다(발표용 요약이며, 도메인 간 연결선은 생략했습니다).
 
-![Wallo 데이터베이스 도메인 개요](docs/diagrams/database-erd.png)
+![Wallo 데이터베이스 도메인 개요](docs/diagrams/database-erd.svg)
 
 <br/>
 
 ## 📋 주요 플로우
 
-![자산 연동 플로우](docs/diagrams/flows/flow-01-asset.png)
+![자산 연동 플로우](docs/diagrams/flows/flow-01-asset.svg)
 
-![AI 금융 상담 플로우](docs/diagrams/flows/flow-02-ai-chat.png)
+![AI 금융 상담 플로우](docs/diagrams/flows/flow-02-ai-chat.svg)
 
-![금융 목표 설정 플로우](docs/diagrams/flows/flow-03-goal.png)
+![금융 목표 설정 플로우](docs/diagrams/flows/flow-03-goal.svg)
 
-![절약 챌린지 인증 플로우](docs/diagrams/flows/flow-04-challenge.png)
+![절약 챌린지 인증 플로우](docs/diagrams/flows/flow-04-challenge.svg)
 
-![금융 뉴스 리포트 플로우](docs/diagrams/flows/flow-05-report.png)
+![금융 뉴스 리포트 플로우](docs/diagrams/flows/flow-05-report.svg)
 
 <br/>
 
