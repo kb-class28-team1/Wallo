@@ -150,7 +150,6 @@ const handleMissionFocusOut = (event) => {
           <template #leading><span class="mission-check" aria-hidden="true">✓</span></template>
           <span class="mission-label">오늘의 미션</span>
           <strong v-if="missions.length">{{ completedMissionCount }}/{{ missions.length }}</strong>
-          <span v-else class="mission-planned-label">오늘 0개</span>
           <i class="mission-chevron bi bi-chevron-down" aria-hidden="true"></i>
         </AppButton>
 
@@ -162,7 +161,9 @@ const handleMissionFocusOut = (event) => {
             >
           </div>
 
-          <div v-if="isMissionLoading" class="mission-loading">미션을 불러오는 중...</div>
+          <div v-if="isMissionLoading && !missions.length" class="mission-loading">
+            미션을 불러오는 중...
+          </div>
           <div v-else-if="missionStatus === 'WAITING_ANALYSIS'" class="mission-empty">
             소비 분석이 완료되면 오늘의 미션이 생성됩니다.
             <AppButton
@@ -334,10 +335,8 @@ const handleMissionFocusOut = (event) => {
 }
 
 .mission-trigger.app-button:hover:not(:disabled) strong,
-.mission-trigger.app-button:hover:not(:disabled) .mission-planned-label,
 .mission-trigger.app-button:hover:not(:disabled) .mission-chevron,
 .mission-trigger.app-button:focus-visible strong,
-.mission-trigger.app-button:focus-visible .mission-planned-label,
 .mission-trigger.app-button:focus-visible .mission-chevron {
   color: inherit;
 }
@@ -351,12 +350,6 @@ const handleMissionFocusOut = (event) => {
 
 .mission-trigger strong {
   color: #4c80cf;
-}
-
-.mission-planned-label {
-  color: #729edf;
-  font-size: 11px;
-  font-weight: 700;
 }
 
 .mission-trigger .mission-chevron {

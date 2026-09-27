@@ -9,6 +9,7 @@ import {
 } from "@/api/missionApi"
 import {
   MAX_MISSION_POLL_ATTEMPTS,
+  MISSION_GENERATION_FAILED_STATUS,
   MISSION_POLL_INTERVAL_MS,
   useMissionStore,
 } from "./missionStore"
@@ -76,6 +77,33 @@ describe("missionStore", () => {
     expect(getTodayMissions).toHaveBeenCalledTimes(2)
   })
 
+  it("keeps cached missions visible during a forced refresh", async () => {
+    getTodayMissions.mockResolvedValueOnce({
+      status: "READY",
+      missions: [{ id: 1, title: "기존 미션", completed: false }],
+    })
+    await store.fetchTodayMissions()
+    let resolveRefresh
+    getTodayMissions.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveRefresh = resolve
+      }),
+    )
+
+    const refreshRequest = store.fetchTodayMissions({ force: true })
+
+    expect(store.isLoading).toBe(false)
+    expect(store.missions[0].title).toBe("기존 미션")
+
+    resolveRefresh({
+      status: "READY",
+      missions: [{ id: 1, title: "갱신된 미션", completed: false }],
+    })
+    await refreshRequest
+
+    expect(store.missions[0].title).toBe("갱신된 미션")
+  })
+
   it("applies a response included in the update event without another GET", async () => {
     await store.fetchTodayMissions()
     vi.clearAllMocks()
@@ -137,6 +165,21 @@ describe("missionStore", () => {
 
     expect(getTodayMissions).toHaveBeenCalledTimes(2)
     expect(store.status).toBe("READY")
+    expect(store.isPolling).toBe(false)
+  })
+
+  it("does not poll after mission generation fails", async () => {
+    getTodayMissions.mockResolvedValue({
+      status: MISSION_GENERATION_FAILED_STATUS,
+      failureReason: "RATE_LIMIT",
+      missions: [],
+    })
+    vi.useFakeTimers()
+
+    await store.fetchTodayMissions()
+    await vi.advanceTimersByTimeAsync(MISSION_POLL_INTERVAL_MS * 2)
+
+    expect(getTodayMissions).toHaveBeenCalledTimes(1)
     expect(store.isPolling).toBe(false)
   })
 

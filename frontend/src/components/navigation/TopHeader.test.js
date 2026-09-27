@@ -65,10 +65,30 @@ describe("TopHeader", () => {
     await flushPromises()
 
     expect(globalThis.alert).not.toHaveBeenCalled()
+    expect(wrapper.find(".mission-trigger").text()).not.toContain("오늘 0개")
 
     await wrapper.find(".mission-trigger").trigger("click")
     expect(wrapper.text()).toContain("소비 분석이 완료되면 오늘의 미션이 생성됩니다.")
     expect(wrapper.find(".mission-empty button").exists()).toBe(true)
+
+    wrapper.unmount()
+  })
+
+  it("shows the mission count when today's missions are generated", async () => {
+    getTodayMissions.mockResolvedValue({
+      date: "2026-08-17",
+      status: "READY",
+      missions: [
+        { id: 1, title: "생성된 미션", completed: false, rewardPoint: 10 },
+        { id: 2, title: "완료된 미션", completed: true, rewardPoint: 10 },
+      ],
+    })
+
+    const wrapper = mountTopHeader()
+    await flushPromises()
+
+    expect(wrapper.find(".mission-trigger").text()).toContain("1/2")
+    expect(wrapper.find(".mission-trigger").text()).not.toContain("오늘 0개")
 
     wrapper.unmount()
   })
