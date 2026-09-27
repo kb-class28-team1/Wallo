@@ -1,7 +1,7 @@
 """금융감독원/재정경제부/한국은행 금융용어 CSV 3종을 하나의 financial_term 데이터셋으로 병합한다.
 
 입력: ai/data/processed/{fss_terms,moef_terms,bok_terms}.csv
-출력: financial_terms_merged.csv/json, financial_terms_duplicates.csv,
+출력: financial_terms_merged.csv, financial_terms_duplicates.csv,
       financial_terms_merge_report.txt, financial_term_insert.sql
 
 중복 판정은 normalized_term(공백/괄호/슬래시/하이픈/가운데점/쉼표 제거 + 영문 소문자화) 기준이며,
@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 import csv
-import json
 import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass
@@ -26,7 +25,6 @@ MOEF_PATH = DATA_DIR / "moef_terms.csv"
 BOK_PATH = DATA_DIR / "bok_terms.csv"
 
 MERGED_CSV_PATH = DATA_DIR / "financial_terms_merged.csv"
-MERGED_JSON_PATH = DATA_DIR / "financial_terms_merged.json"
 DUPLICATES_PATH = DATA_DIR / "financial_terms_duplicates.csv"
 REPORT_PATH = DATA_DIR / "financial_terms_merge_report.txt"
 SQL_PATH = DATA_DIR / "financial_term_insert.sql"
@@ -151,12 +149,6 @@ def save_merged_csv(rows: list[dict], path: Path) -> None:
             writer.writerow(row)
 
 
-def save_merged_json(rows: list[dict], path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as f:
-        json.dump(rows, f, ensure_ascii=False, indent=2)
-
-
 def save_duplicates_csv(rows: list[dict], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="", encoding="utf-8-sig") as f:
@@ -211,7 +203,6 @@ def run() -> None:
     final_rows, duplicate_rows, group_sizes = merge_records(all_records)
 
     save_merged_csv(final_rows, MERGED_CSV_PATH)
-    save_merged_json(final_rows, MERGED_JSON_PATH)
     save_duplicates_csv(duplicate_rows, DUPLICATES_PATH)
 
     report_text = build_report_text(len(fss_records), len(moef_records), len(bok_records), final_rows, group_sizes)
@@ -222,7 +213,7 @@ def run() -> None:
 
     print(report_text)
     print("생성 파일 경로:")
-    for path in [MERGED_CSV_PATH, MERGED_JSON_PATH, DUPLICATES_PATH, REPORT_PATH, SQL_PATH]:
+    for path in [MERGED_CSV_PATH, DUPLICATES_PATH, REPORT_PATH, SQL_PATH]:
         print(f"  - {path}")
 
 

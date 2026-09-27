@@ -20,3 +20,18 @@ export const getLocalInstitutionLogo = (groupCode, groupName) => {
 
   return matchedEntry ? LOCAL_LOGO_PATHS[matchedEntry[0]] : "";
 };
+
+export const getInstitutionLogoFallbackClass = (logoUrl) => (logoUrl ? "d-none" : "");
+
+export const handleInstitutionLogoError = (event) => {
+  const fallbackSrc = event.target.dataset.fallbackSrc;
+  const currentSrc = event.target.getAttribute("src");
+
+  if (fallbackSrc && currentSrc !== fallbackSrc) {
+    event.target.src = fallbackSrc;
+    return;
+  }
+
+  event.target.classList.add("d-none");
+  event.target.nextElementSibling?.classList.remove("d-none");
+};

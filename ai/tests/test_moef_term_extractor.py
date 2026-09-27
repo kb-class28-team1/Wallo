@@ -1,7 +1,6 @@
 """extract_moef_terms.py 단위 테스트. 임시 Excel 파일을 생성해 검증하며 실제 업로드 파일은 사용하지 않는다."""
 
 import csv
-import json
 
 import pandas as pd
 import pytest
@@ -14,7 +13,6 @@ from scripts.extract_moef_terms import (
     normalize_whitespace,
     parse_source_id,
     save_csv,
-    save_json,
     validate_required_columns,
 )
 
@@ -199,8 +197,8 @@ def test_empty_category_is_allowed_and_still_valid():
     assert result.invalid_rows == []  # category만 비어있는 경우 무효 행이 아님
 
 
-# 9. JSON/CSV 생성 + UTF-8-SIG 저장
-def test_save_csv_and_json_round_trip(tmp_path):
+# 9. CSV 생성 + UTF-8-SIG 저장
+def test_save_csv_round_trip(tmp_path):
     df = pd.DataFrame(
         {
             "순번": ["1"],
@@ -212,9 +210,7 @@ def test_save_csv_and_json_round_trip(tmp_path):
     result = extract_terms(df, source_url="sample.xlsx")
 
     csv_path = tmp_path / "moef_terms.csv"
-    json_path = tmp_path / "moef_terms.json"
     save_csv(result.valid_terms, csv_path)
-    save_json(result.valid_terms, json_path)
 
     with csv_path.open("rb") as f:
         raw_bytes = f.read()
@@ -225,11 +221,6 @@ def test_save_csv_and_json_round_trip(tmp_path):
         csv_rows = list(reader)
     assert csv_rows[0]["term"] == "원화"
     assert csv_rows[0]["source"] == "재정경제부"
-
-    with json_path.open(encoding="utf-8") as f:
-        json_rows = json.load(f)
-    assert json_rows[0]["term"] == "원화"
-    assert json_rows[0]["definition"] == "대한민국의 통화."
 
 
 def test_load_excel_rows_reads_temp_file(tmp_path):

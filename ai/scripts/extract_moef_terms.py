@@ -1,4 +1,4 @@
-"""재정경제부 시사경제용어사전 Excel -> 공통 CSV/JSON 변환기.
+"""재정경제부 시사경제용어사전 Excel -> 공통 CSV 변환기.
 
 실제 확인 결과 (2026-07-31, 업로드된 원본 파일 기준):
 - 시트: 단일 시트 "Sheet1"
@@ -11,7 +11,6 @@ from __future__ import annotations
 import argparse
 import csv
 import html
-import json
 import re
 from collections import Counter
 from dataclasses import asdict, dataclass, field
@@ -27,7 +26,6 @@ REQUIRED_COLUMNS = ["순번", "주제", "용어", "설명"]
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data" / "processed"
 CSV_PATH = DATA_DIR / "moef_terms.csv"
-JSON_PATH = DATA_DIR / "moef_terms.json"
 INVALID_ROWS_PATH = DATA_DIR / "moef_invalid_rows.csv"
 DUPLICATE_TERMS_PATH = DATA_DIR / "moef_duplicate_terms.csv"
 
@@ -258,12 +256,6 @@ def save_csv(terms: list[MoefTerm], path: Path) -> None:
             writer.writerow(asdict(term))
 
 
-def save_json(terms: list[MoefTerm], path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as f:
-        json.dump([asdict(term) for term in terms], f, ensure_ascii=False, indent=2)
-
-
 def save_invalid_rows(rows: list[dict], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="", encoding="utf-8-sig") as f:
@@ -333,7 +325,6 @@ def run(excel_path: Path) -> None:
     dup_stats = compute_duplicates(result.valid_terms)
 
     save_csv(result.valid_terms, CSV_PATH)
-    save_json(result.valid_terms, JSON_PATH)
     save_invalid_rows(result.invalid_rows, INVALID_ROWS_PATH)
     save_duplicate_terms(dup_stats.duplicate_rows, DUPLICATE_TERMS_PATH)
 
@@ -345,12 +336,12 @@ def run(excel_path: Path) -> None:
         columns=df.columns.tolist(),
         result=result,
         dup_stats=dup_stats,
-        output_paths=[CSV_PATH, JSON_PATH, INVALID_ROWS_PATH, DUPLICATE_TERMS_PATH],
+        output_paths=[CSV_PATH, INVALID_ROWS_PATH, DUPLICATE_TERMS_PATH],
     )
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="MOEF 시사경제용어사전 Excel -> CSV/JSON 변환기")
+    parser = argparse.ArgumentParser(description="MOEF 시사경제용어사전 Excel -> CSV 변환기")
     parser.add_argument("--excel-path", type=Path, default=DEFAULT_EXCEL_PATH)
     args = parser.parse_args()
     run(args.excel_path)

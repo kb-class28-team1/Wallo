@@ -1,4 +1,4 @@
-"""한국은행 「2026 경제금융용어 800선」 PDF -> 공통 CSV/JSON 변환기.
+"""한국은행 「2026 경제금융용어 800선」 PDF -> 공통 CSV 변환기.
 
 실제 원본 PDF(PyMuPDF `get_text("dict")` 기준)를 직접 분석해 확인한 구조:
 
@@ -22,11 +22,10 @@ from __future__ import annotations
 import argparse
 import csv
 import html
-import json
 import re
 import statistics
 from collections import Counter
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
@@ -37,7 +36,6 @@ SOURCE_NAME = "한국은행"
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data" / "processed"
 CSV_PATH = DATA_DIR / "bok_terms.csv"
-JSON_PATH = DATA_DIR / "bok_terms.json"
 INVALID_PATH = DATA_DIR / "bok_invalid_terms.csv"
 DUPLICATE_PATH = DATA_DIR / "bok_duplicate_terms.csv"
 WARNING_PATH = DATA_DIR / "bok_parse_warnings.csv"
@@ -563,12 +561,6 @@ def save_csv(terms: list[BokTerm], path: Path) -> None:
             writer.writerow(term.to_csv_row())
 
 
-def save_json(terms: list[BokTerm], path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as f:
-        json.dump([term.to_csv_row() for term in terms], f, ensure_ascii=False, indent=2)
-
-
 def save_dict_rows(rows: list[dict], fieldnames: list[str], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="", encoding="utf-8-sig") as f:
@@ -711,12 +703,11 @@ def run(pdf_path: Path) -> None:
         invalid_rows = build_invalid_rows(terms, toc_entries)
 
         save_csv(valid_terms, CSV_PATH)
-        save_json(valid_terms, JSON_PATH)
         save_dict_rows(invalid_rows, INVALID_FIELDNAMES, INVALID_PATH)
         save_dict_rows(dup_stats.duplicate_rows, DUPLICATE_FIELDNAMES, DUPLICATE_PATH)
         save_dict_rows(warnings, WARNING_FIELDNAMES, WARNING_PATH)
 
-        output_paths = [CSV_PATH, JSON_PATH, INVALID_PATH, DUPLICATE_PATH, WARNING_PATH]
+        output_paths = [CSV_PATH, INVALID_PATH, DUPLICATE_PATH, WARNING_PATH]
         print_final_report(toc_entries, unresolved_fragments, terms, valid_terms, warnings, dup_stats, output_paths)
         print_sample_terms(valid_terms)
     finally:
@@ -724,7 +715,7 @@ def run(pdf_path: Path) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="한국은행 경제금융용어 800선 PDF -> CSV/JSON 변환기")
+    parser = argparse.ArgumentParser(description="한국은행 경제금융용어 800선 PDF -> CSV 변환기")
     parser.add_argument("--pdf-path", type=Path, default=DEFAULT_PDF_PATH)
     args = parser.parse_args()
     run(args.pdf_path)

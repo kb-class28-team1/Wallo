@@ -2,6 +2,7 @@ package com.wallo.asset.mapper;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import com.wallo.asset.dto.BudgetDto;
 import com.wallo.test.TestDatabase;
@@ -82,8 +83,8 @@ class BudgetMapperIntegrationTest {
                 "2026-08-31"
         );
 
-        assertEquals(3, expenses.size());
-        assertEquals(320L, budgetMapper.selectSpentAmount(
+        assertEquals(2, expenses.size());
+        assertEquals(240L, budgetMapper.selectSpentAmount(
                 7L,
                 "2026-08-01",
                 "2026-08-31"
@@ -98,11 +99,8 @@ class BudgetMapperIntegrationTest {
                 .findFirst()
                 .orElseThrow()
                 .getSpentAmount());
-        assertEquals(80L, expenses.stream()
-                .filter(item -> "LOAN_REPAYMENT".equals(item.getCategory()))
-                .findFirst()
-                .orElseThrow()
-                .getSpentAmount());
+        assertFalse(expenses.stream()
+                .anyMatch(item -> "LOAN_REPAYMENT".equals(item.getCategory())));
     }
 
     private void insertSourceFixtures() throws Exception {

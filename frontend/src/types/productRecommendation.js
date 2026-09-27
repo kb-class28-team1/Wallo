@@ -1,20 +1,10 @@
+import { numberOrNull, textOrNull } from "@/utils/valueNormalizers"
+
 const MAX_PRODUCT_COUNT = 3
 
 const objectOrEmpty = (value) => (
   value && typeof value === "object" && !Array.isArray(value) ? value : {}
 )
-
-const numberOrNull = (value) => {
-  if (value === null || value === undefined || value === "") return null
-  const number = Number(value)
-  return Number.isFinite(number) ? number : null
-}
-
-const textOrNull = (value) => {
-  if (value === null || value === undefined) return null
-  const text = String(value).trim()
-  return text || null
-}
 
 const normalizeSearchSummary = (summary) => {
   const source = objectOrEmpty(summary)
